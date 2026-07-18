@@ -3,6 +3,10 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', '../../packages/shared/src/**/*.{js,ts}'],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['Newsreader', 'ui-serif', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
       animation: {
         'slide-in': 'slideIn 0.3s ease-out',
       },

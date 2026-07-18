@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis OT — mobile (mix A+B) · Portal de Ingenieros AGS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap" rel="stylesheet">
+<style>
+  /* ============ base (tokens idénticos a mis-ot-mockups.html) ============ */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --teal:#0D6E6E; --teal-dark:#0A4F4F; --teal-soft:#E6F2F1;
+    --ink:#1E293B; --muted:#64748B; --line:#E2E8F0; --card:#F8FAFC;
+    --amber:#B45309; --amber-bg:#FEF3C7;
+  }
+  body{
+    background:#ECEFF3; color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; font-size:14px; line-height:1.5;
+    padding:56px 24px 80px;
+  }
+  .page{ max-width:1040px; margin:0 auto; }
+
+  .page-head{ max-width:960px; margin:0 auto 48px; text-align:center; }
+  .page-head .kicker{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--teal); margin-bottom:10px; }
+  .page-head h1{ font-family:'Newsreader',serif; font-weight:500; font-size:36px; line-height:1.1; letter-spacing:-.01em; }
+  .page-head p{ color:var(--muted); margin-top:10px; }
+
+  .phones{ display:flex; gap:48px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .phone-col > .caption{ text-align:center; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+
+  .footnote{ text-align:center; color:var(--muted); font-size:13px; margin-top:44px; }
+
+  /* ============ marco de teléfono ============ */
+  .phone{
+    width:390px; background:#0B1220; border-radius:44px; padding:10px;
+    box-shadow:0 2px 6px rgba(30,41,59,.10), 0 24px 60px rgba(30,41,59,.22);
+  }
+  .screen{
+    background:#fff; border-radius:36px; overflow:hidden; position:relative;
+    display:flex; flex-direction:column;
+  }
+  .screen.scrolly{ height:820px; }
+  .screen .scrollarea{ flex:1; overflow-y:auto; display:flex; flex-direction:column; }
+
+  /* status bar simulada */
+  .statusbar{
+    height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+    position:relative; z-index:5;
+  }
+  .statusbar.on-teal{ color:#fff; background:linear-gradient(135deg,var(--teal) 0%, var(--teal-dark) 100%); }
+  .statusbar .notch{
+    position:absolute; left:50%; top:8px; transform:translateX(-50%);
+    width:118px; height:26px; background:#0B1220; border-radius:14px;
+  }
+  .statusbar .icons{ letter-spacing:.06em; font-size:10px; opacity:.9; }
+
+  /* ============ piezas compartidas (tipografía B) ============ */
+  .mlabel{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+
+  .chip{ display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:4px 10px; border-radius:999px; }
+  .chip-status{ background:var(--teal-soft); color:var(--teal-dark); border:1px solid rgba(13,110,110,.25); }
+  .chip-status-inv{ background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.35); }
+
+  /* fila ficha técnica: label mono chico | valor, con hairline */
+  .frow{ display:grid; grid-template-columns:96px 1fr; gap:14px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px; align-items:baseline; }
+  .frow:last-child{ border-bottom:none; }
+  .frow .k{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+
+  /* ============ pantalla 1 — lista ============ */
+  .l-band{ background:linear-gradient(135deg,var(--teal) 0%, var(--teal-dark) 100%); color:#fff; padding:14px 22px 22px; }
+  .l-band-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .l-band h2{ font-family:'Newsreader',serif; font-weight:500; font-size:28px; line-height:1.1; }
+  .l-band .fecha{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.18em; text-transform:uppercase; opacity:.75; margin-top:4px; }
+  .avatar{
+    width:44px; height:44px; flex:0 0 44px; border-radius:50%;
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Newsreader',serif; font-size:19px; color:#fff;
+  }
+  .l-body{ padding:18px 16px 26px; background:#fff; flex:1; display:flex; flex-direction:column; gap:12px; }
+  .l-body > .mlabel{ padding:0 6px; }
+
+  .ot-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:14px 16px; display:flex; gap:14px; align-items:stretch;
+    min-height:44px; cursor:pointer;
+  }
+  .ot-card.active{ border:1.5px solid var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
+  .ot-card .hora{
+    font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:600;
+    color:var(--teal-dark); flex:0 0 62px; padding-top:2px;
+  }
+  .ot-card .hora small{ display:block; font-size:9px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+  .ot-card .mid{ flex:1; min-width:0; }
+  .ot-card .num{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); letter-spacing:.06em; }
+  .ot-card .tipo{ font-family:'Newsreader',serif; font-size:18px; font-weight:500; line-height:1.2; margin-top:2px; }
+  .ot-card .cli{ color:var(--muted); font-size:12.5px; margin-top:3px; }
+  .ot-card .side{ display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:8px; flex:0 0 auto; }
+  .ot-card .warn-ic{
+    font-size:15px; color:var(--amber); background:var(--amber-bg);
+    border:1px solid rgba(180,83,9,.25); border-radius:8px; padding:2px 8px; line-height:1.4;
+  }
+  .ot-card .chev{ color:var(--muted); font-size:12px; align-self:flex-end; }
+  .ot-card.active .chev{ color:var(--teal); }
+
+  /* ============ pantalla 2 — detalle ============ */
+  .d-band{ background:linear-gradient(135deg,var(--teal) 0%, var(--teal-dark) 100%); color:#fff; padding:14px 22px 20px; }
+  .d-band .top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .d-band .back{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; opacity:.8; padding:6px 0; }
+  .d-band .ot{ font-family:'Newsreader',serif; font-size:27px; font-weight:500; line-height:1.1; margin-top:6px; }
+  .d-band .ot small{ display:block; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.2em; text-transform:uppercase; opacity:.75; margin-bottom:5px; font-weight:600; }
+  .d-band .tipo{ font-size:13.5px; opacity:.9; margin-top:3px; }
+  .d-band .cliente{
+    margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.22);
+  }
+  .d-band .cliente .nm{ font-family:'Newsreader',serif; font-size:19px; font-weight:500; line-height:1.2; }
+  .d-band .cliente .dir{ font-size:12px; opacity:.8; margin-top:3px; }
+  .d-band .hora-chip{
+    font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; text-align:right;
+  }
+  .d-band .hora-chip small{ display:block; font-size:9px; letter-spacing:.16em; text-transform:uppercase; opacity:.75; font-weight:600; margin-bottom:2px; }
+
+  .d-body{ padding:16px 16px 20px; background:#fff; display:flex; flex-direction:column; gap:12px; flex:1; }
+
+  .g-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; }
+  .g-card > .mlabel{ display:block; margin-bottom:8px; color:var(--teal); }
+  .g-card.amber{ background:var(--amber-bg); border-color:rgba(180,83,9,.25); }
+  .g-card.amber > .mlabel{ color:var(--amber); }
+  .g-card.amber .tarea{ font-size:13.5px; color:var(--amber); font-weight:600; }
+  .g-card.amber .tarea small{ display:block; font-weight:400; opacity:.85; margin-top:2px; }
+  .g-title{ font-family:'Newsreader',serif; font-size:18px; font-weight:500; line-height:1.25; margin-bottom:4px; }
+
+  .obsnote{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-size:12px; color:var(--muted); font-style:italic; }
+
+  /* módulos: filas mono apiladas para 390px */
+  .modrow{ padding:9px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .modrow:last-child{ border-bottom:none; }
+  .modrow .l1{ display:flex; gap:10px; align-items:baseline; }
+  .modrow .code{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; color:var(--teal-dark); flex:0 0 62px; }
+  .modrow .nm{ font-weight:600; flex:1; }
+  .modrow .sn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .modrow .obs{ font-size:12px; color:var(--muted); margin-top:2px; padding-left:72px; }
+  .modrow .obs.warn{ color:var(--amber); font-weight:600; }
+
+  /* materiales */
+  .matline{ display:flex; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .matline:last-child{ border-bottom:none; }
+  .matline .qty{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); background:var(--teal-soft); border-radius:6px; padding:1px 7px; flex:0 0 auto; }
+  .matline .grow{ flex:1; min-width:0; }
+  .matline .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+
+  /* kit ingeniero: fila táctil con botón certificado ≥44px */
+  .kitrow{ display:flex; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:13.5px; min-height:52px; }
+  .kitrow:last-child{ border-bottom:none; }
+  .kitrow .grow{ flex:1; min-width:0; }
+  .kitrow .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); display:block; margin-top:1px; }
+  .cert-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    min-height:44px; padding:0 14px; flex:0 0 auto;
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--teal); background:#fff; border:1px solid rgba(13,110,110,.4); border-radius:10px;
+    cursor:pointer; white-space:nowrap;
+  }
+
+  /* botonera sticky */
+  .sticky-actions{
+    position:sticky; bottom:0; z-index:10;
+    background:rgba(255,255,255,.96); backdrop-filter:blur(6px);
+    border-top:1px solid var(--line); box-shadow:0 -8px 20px rgba(30,41,59,.08);
+    padding:12px 16px 22px; display:flex; gap:10px;
+  }
+  .btn{
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    min-height:48px; padding:0 16px; border-radius:12px; border:1px solid transparent; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .btn-neutral{ background:#fff; border-color:var(--line); color:var(--ink); }
+  .btn-outline{ background:#fff; border:1.5px solid var(--teal); color:var(--teal); }
+  .btn-primary{ background:var(--teal); color:#fff; flex:1; }
+
+  /* home indicator */
+  .home-ind{ height:5px; width:130px; border-radius:3px; background:#CBD5E1; margin:6px auto 8px; flex:0 0 auto; }
+  .on-white .home-ind{ background:#CBD5E1; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="page-head">
+    <div class="kicker">AGS Analítica · Portal de Ingenieros</div>
+    <h1>Mis OT — mobile (mix A+B)</h1>
+    <p>Banda teal + tarjetas globo de A, tipografía serif y filas de ficha técnica de B. Marcos de 390 px.</p>
+  </header>
+
+  <div class="phones">
+
+    <!-- ================================================================
+         PANTALLA 1 — MIS OT DE HOY (LISTA)
+    ================================================================ -->
+    <div class="phone-col">
+      <div class="caption">1 · Mis OT de hoy</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar on-teal">
+            <span>09:12</span>
+            <span class="notch"></span>
+            <span class="icons">●●● ▲ ▮</span>
+          </div>
+
+          <div class="l-band">
+            <div class="l-band-row">
+              <div>
+                <h2>Mis OT</h2>
+                <div class="fecha">Viernes 18/07</div>
+              </div>
+              <div class="avatar">E</div>
+            </div>
+          </div>
+
+          <div class="l-body">
+            <span class="mlabel">Hoy · 3 órdenes</span>
+
+            <div class="ot-card active">
+              <div class="hora">09:30<small>Hoy</small></div>
+              <div class="mid">
+                <span class="num">OT 29712.01</span>
+                <div class="tipo">Mantenimiento preventivo HPLC</div>
+                <div class="cli">LABORATORIOS PAMPA S.A. — Planta Pilar</div>
+                <div style="margin-top:8px;"><span class="chip chip-status">Coordinada</span></div>
+              </div>
+              <div class="side">
+                <span class="warn-ic" title="Tarea pendiente del equipo">⚠</span>
+                <span class="chev">▶</span>
+              </div>
+            </div>
+
+            <div class="ot-card">
+              <div class="hora">14:00</div>
+              <div class="mid">
+                <span class="num">OT 29713</span>
+                <div class="tipo">Instalación GC</div>
+                <div class="cli">Bodega Andina</div>
+                <div style="margin-top:8px;"><span class="chip chip-status">Coordinada</span></div>
+              </div>
+              <div class="side"><span class="chev">▶</span></div>
+            </div>
+
+            <div class="ot-card">
+              <div class="hora">16:30</div>
+              <div class="mid">
+                <span class="num">OT 29714.02</span>
+                <div class="tipo">Reparación Karl Fischer</div>
+                <div class="cli">AgroLab</div>
+                <div style="margin-top:8px;"><span class="chip chip-status">Coordinada</span></div>
+              </div>
+              <div class="side"><span class="chev">▶</span></div>
+            </div>
+          </div>
+
+          <div class="home-ind"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         PANTALLA 2 — DETALLE OT 29712.01 (scroll simulado + sticky)
+    ================================================================ -->
+    <div class="phone-col">
+      <div class="caption">2 · Detalle de la OT — scrolleá dentro del marco</div>
+      <div class="phone">
+        <div class="screen scrolly">
+          <div class="statusbar on-teal">
+            <span>09:14</span>
+            <span class="notch"></span>
+            <span class="icons">●●● ▲ ▮</span>
+          </div>
+
+          <div class="scrollarea">
+            <div class="d-band">
+              <div class="top">
+                <div>
+                  <div class="back">← Mis OT</div>
+                  <div class="ot"><small>Orden de trabajo</small>OT 29712.01</div>
+                  <div class="tipo">Mantenimiento preventivo HPLC</div>
+                </div>
+                <div style="text-align:right; padding-top:4px;">
+                  <span class="chip chip-status-inv">Coordinada</span>
+                  <div class="hora-chip" style="margin-top:12px;"><small>Hoy</small>09:30</div>
+                </div>
+              </div>
+              <div class="cliente">
+                <div class="nm">LABORATORIOS PAMPA S.A. — Planta Pilar</div>
+                <div class="dir">Laura Giménez · Jefa de Laboratorio · Control de Calidad · Ruta 8 km 52, Pilar</div>
+              </div>
+            </div>
+
+            <div class="d-body">
+
+              <div class="g-card">
+                <span class="mlabel">Equipo</span>
+                <div class="g-title">HPLC 1260 Infinity II</div>
+                <div class="frow"><span class="k">ID AGS</span><span class="mono" style="font-size:12px;">ARI0089</span></div>
+                <div class="frow"><span class="k">Serie</span><span class="mono" style="font-size:12px;">DE12345678</span></div>
+                <div class="frow"><span class="k">Software</span><span>OpenLab CDS 2.8</span></div>
+                <div class="frow"><span class="k">Cód. cliente</span><span class="mono" style="font-size:12px;">EQ-CC-014</span></div>
+                <div class="obsnote">Equipo en zona de acceso restringido, pedir credencial en portería.</div>
+              </div>
+
+              <div class="g-card amber">
+                <span class="mlabel">Tareas pendientes del equipo</span>
+                <div class="tarea">⚠ Cambiar lámpara D2<small>Aviso del servicio anterior</small></div>
+              </div>
+
+              <div class="g-card">
+                <span class="mlabel">Configuración del sistema</span>
+                <div class="modrow">
+                  <div class="l1"><span class="code">G7111B</span><span class="nm">Bomba cuaternaria</span><span class="sn">S/N DEAB801234</span></div>
+                  <div class="obs">Sello nuevo 03/2026</div>
+                </div>
+                <div class="modrow">
+                  <div class="l1"><span class="code">G7129A</span><span class="nm">Inyector automático</span><span class="sn">S/N DEAC445566</span></div>
+                </div>
+                <div class="modrow">
+                  <div class="l1"><span class="code">G7114A</span><span class="nm">Detector VWD</span><span class="sn">S/N DEAD778899</span></div>
+                  <div class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</div>
+                </div>
+                <div class="modrow">
+                  <div class="l1"><span class="code">G7116A</span><span class="nm">Compartimiento de columna</span><span class="sn">S/N DEAE112233</span></div>
+                </div>
+              </div>
+
+              <div class="g-card">
+                <span class="mlabel">Presupuesto / OC</span>
+                <div class="frow"><span class="k">Presupuesto</span><span class="mono" style="font-size:12px;font-weight:600;color:var(--teal-dark);">PRE-0221.01</span></div>
+                <div class="frow"><span class="k">OC cliente</span><span class="mono" style="font-size:12px;">4500123456</span></div>
+              </div>
+
+              <div class="g-card">
+                <span class="mlabel">Materiales para el servicio</span>
+                <div class="matline"><span class="qty">1×</span><span class="grow">Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></div>
+                <div class="matline"><span class="qty">2×</span><span class="grow">Sello de pistón</span><span class="pn">5063-6589</span></div>
+                <div class="matline"><span class="qty">1×</span><span class="grow">Filtro de solvente 20 µm</span></div>
+              </div>
+
+              <div class="g-card">
+                <span class="mlabel">Asignado al ingeniero</span>
+                <div class="kitrow">
+                  <div class="grow">Minikit HPLC<span class="pn">MK-07</span></div>
+                </div>
+                <div class="kitrow">
+                  <div class="grow">Flujímetro<span class="pn">FL-002</span></div>
+                  <button class="cert-btn">Ver certificado ↗</button>
+                </div>
+                <div class="kitrow">
+                  <div class="grow">Termómetro<span class="pn">TH-011</span></div>
+                  <button class="cert-btn">Ver certificado ↗</button>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="sticky-actions">
+              <button class="btn btn-neutral">Guardar</button>
+              <button class="btn btn-outline">Reporte</button>
+              <button class="btn btn-primary">Solicitar presupuesto</button>
+            </div>
+          </div>
+
+          <div class="home-ind"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="footnote">Los mismos tokens y jerarquía escalan a desktop (variante A+B ya aprobada).</p>
+
+</div>
+</body>
+</html>

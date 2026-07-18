@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis OT — 5 mockups · Portal de Ingenieros AGS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap" rel="stylesheet">
+<style>
+  /* ============ base ============ */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --teal:#0D6E6E; --teal-dark:#0A4F4F; --teal-soft:#E6F2F1;
+    --ink:#1E293B; --muted:#64748B; --line:#E2E8F0; --card:#F8FAFC;
+    --amber:#B45309; --amber-bg:#FEF3C7;
+  }
+  body{
+    background:#ECEFF3; color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; font-size:14px; line-height:1.5;
+    padding:56px 24px 80px;
+  }
+  .page{ max-width:1040px; margin:0 auto; }
+
+  /* page chrome */
+  .page-head{ max-width:960px; margin:0 auto 56px; }
+  .page-head .kicker{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--teal); margin-bottom:10px; }
+  .page-head h1{ font-family:'Newsreader',serif; font-weight:500; font-size:40px; line-height:1.1; letter-spacing:-.01em; }
+  .page-head p{ color:var(--muted); margin-top:12px; max-width:620px; }
+
+  .variant{ max-width:960px; margin:0 auto 72px; }
+  .variant-head{ margin-bottom:16px; }
+  .variant-head h2{ font-family:'Newsreader',serif; font-weight:500; font-size:24px; }
+  .variant-head h2 .letter{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; background:var(--teal); color:#fff; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; margin-right:12px; vertical-align:-6px; }
+  .variant-head p{ color:var(--muted); font-size:13px; margin-top:6px; max-width:720px; }
+  .frame{ background:#fff; border-radius:16px; box-shadow:0 2px 6px rgba(30,41,59,.06), 0 18px 44px rgba(30,41,59,.10); overflow:hidden; }
+
+  /* ============ shared pieces ============ */
+  .mlabel{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+
+  .chip{ display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:4px 10px; border-radius:999px; }
+  .chip-status{ background:var(--teal-soft); color:var(--teal-dark); border:1px solid rgba(13,110,110,.25); }
+  .chip-status-inv{ background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.35); }
+
+  .btn{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; padding:10px 20px; border-radius:9px; border:1px solid transparent; cursor:pointer; }
+  .btn-neutral{ background:#fff; border-color:var(--line); color:var(--ink); }
+  .btn-outline{ background:#fff; border:1.5px solid var(--teal); color:var(--teal); }
+  .btn-primary{ background:var(--teal); color:#fff; }
+  .btnrow{ display:flex; gap:10px; justify-content:flex-end; align-items:center; }
+
+  .cert{ display:inline-flex; align-items:center; gap:4px; font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:600; letter-spacing:.1em; color:var(--teal); background:#fff; border:1px solid rgba(13,110,110,.4); border-radius:6px; padding:3px 8px; white-space:nowrap; cursor:pointer; }
+
+  .warnbox{ background:var(--amber-bg); border:1px solid rgba(180,83,9,.25); border-radius:10px; padding:10px 14px; color:var(--amber); font-size:13px; }
+  .warnbox .wl{ font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; display:block; margin-bottom:4px; }
+
+  .kv{ display:grid; grid-template-columns:auto 1fr; column-gap:14px; row-gap:6px; font-size:13px; }
+  .kv .k{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-top:2px; white-space:nowrap; }
+
+  /* ======================================================
+     A — TARJETAS GLOBO
+  ====================================================== */
+  .a-band{ background:linear-gradient(135deg,var(--teal) 0%, var(--teal-dark) 100%); color:#fff; padding:26px 32px 24px; }
+  .a-band-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; }
+  .a-ot{ font-family:'Newsreader',serif; font-size:30px; font-weight:500; line-height:1.1; }
+  .a-ot small{ display:block; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.2em; text-transform:uppercase; opacity:.75; margin-bottom:6px; font-weight:600;}
+  .a-tipo{ font-size:14px; opacity:.9; margin-top:4px; }
+  .a-meta{ text-align:right; }
+  .a-meta .hora{ font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:600; margin-top:8px; }
+  .a-meta .hoy{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; opacity:.75; }
+  .a-cliente{ margin-top:18px; padding-top:16px; border-top:1px solid rgba(255,255,255,.22); display:flex; gap:32px; flex-wrap:wrap; font-size:13px; }
+  .a-cliente b{ font-weight:600; }
+  .a-cliente .cl{ font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.16em; text-transform:uppercase; opacity:.7; display:block; margin-bottom:3px; }
+  .a-body{ padding:24px 32px 28px; background:#fff; }
+  .a-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .a-card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .a-card.full{ grid-column:1 / -1; }
+  .a-card .mlabel{ display:block; margin-bottom:12px; }
+  .a-obs{ margin-top:10px; font-size:12px; color:var(--muted); font-style:italic; border-top:1px dashed var(--line); padding-top:8px; }
+  .a-modrow{ display:grid; grid-template-columns:74px 1fr 150px 1fr; gap:6px 14px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .a-modrow:last-child{ border-bottom:none; }
+  .a-modrow .code{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; color:var(--teal-dark); }
+  .a-modrow .sn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .a-modrow .obs{ font-size:12px; color:var(--muted); }
+  .a-modrow .obs.warn{ color:var(--amber); font-weight:600; }
+  .a-mat{ list-style:none; }
+  .a-mat li{ display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .a-mat li:last-child{ border-bottom:none; }
+  .a-mat .qty{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); background:var(--teal-soft); border-radius:6px; padding:1px 7px; }
+  .a-mat .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-left:auto; }
+  .a-mat .grow{ flex:1; }
+  .a-actions{ margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+
+  /* ======================================================
+     B — EDITORIAL
+  ====================================================== */
+  .b-wrap{ padding:44px 56px 36px; background:#fff; }
+  .b-over{ display:flex; justify-content:space-between; align-items:baseline; }
+  .b-over .mlabel{ color:var(--teal); }
+  .b-title{ font-family:'Newsreader',serif; font-size:36px; font-weight:500; line-height:1.15; letter-spacing:-.01em; margin-top:10px; }
+  .b-sub{ display:flex; gap:22px; align-items:center; margin-top:10px; color:var(--muted); font-size:13px; }
+  .b-rule{ height:2px; background:var(--teal); margin:22px 0 0; width:64px; }
+  .b-sec{ display:grid; grid-template-columns:180px 1fr; gap:24px; padding:20px 0; border-top:1px solid var(--line); }
+  .b-sec:first-of-type{ border-top:none; margin-top:26px; }
+  .b-sec > .mlabel{ padding-top:3px; }
+  .b-row{ display:grid; grid-template-columns:150px 1fr; gap:4px 18px; font-size:13.5px; padding:3px 0; }
+  .b-row .k{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-top:3px; }
+  .b-mods{ width:100%; border-collapse:collapse; font-size:13px; }
+  .b-mods td{ padding:7px 14px 7px 0; border-bottom:1px solid var(--line); vertical-align:baseline; }
+  .b-mods tr:last-child td{ border-bottom:none; }
+  .b-mods .code{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; color:var(--teal-dark); white-space:nowrap; }
+  .b-mods .sn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .b-mods .obs{ color:var(--muted); font-size:12.5px; }
+  .b-mods .obs.warn{ color:var(--amber); font-weight:600; }
+  .b-matline{ padding:5px 0; font-size:13.5px; display:flex; gap:10px; align-items:center; }
+  .b-matline .qty{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); min-width:24px; }
+  .b-matline .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .b-actions{ margin-top:8px; padding-top:22px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .b-actions .note{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+
+  /* ======================================================
+     C — COLUMNA LATERAL
+  ====================================================== */
+  .c-layout{ display:flex; min-height:640px; }
+  .c-side{ width:260px; flex:0 0 260px; background:#0F172A; color:#E2E8F0; padding:26px 22px; display:flex; flex-direction:column; gap:22px; }
+  .c-side .mlabel{ color:#7C9B9B; }
+  .c-ot{ font-family:'Newsreader',serif; font-size:24px; color:#fff; line-height:1.15; }
+  .c-ot small{ display:block; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:#7C9B9B; margin-bottom:5px; font-weight:600; }
+  .c-hora{ font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:600; color:#5EEAD4; }
+  .c-hora small{ display:block; font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:#7C9B9B; margin-bottom:2px; }
+  .c-block{ border-top:1px solid rgba(226,232,240,.12); padding-top:16px; }
+  .c-block .mlabel{ display:block; margin-bottom:8px; }
+  .c-block p{ font-size:12.5px; line-height:1.55; color:#CBD5E1; }
+  .c-block b{ color:#fff; font-weight:600; }
+  .c-kit{ list-style:none; }
+  .c-kit li{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(226,232,240,.1); font-size:12.5px; color:#CBD5E1; }
+  .c-kit li:last-child{ border-bottom:none; }
+  .c-kit .cert{ background:transparent; border-color:rgba(94,234,212,.45); color:#5EEAD4; }
+  .c-main{ flex:1; padding:28px 32px; background:#fff; display:flex; flex-direction:column; gap:20px; }
+  .c-main-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  .c-main-head h3{ font-family:'Newsreader',serif; font-size:22px; font-weight:500; }
+  .c-main-head .cliente{ color:var(--muted); font-size:13px; margin-top:3px; }
+  .c-sec{ border:1px solid var(--line); border-radius:12px; padding:16px 20px; background:#fff; }
+  .c-sec .mlabel{ display:block; margin-bottom:10px; color:var(--teal); }
+  .c-two{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .c-mods{ list-style:none; font-size:13px; }
+  .c-mods li{ display:grid; grid-template-columns:72px 1fr 148px 1fr; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); align-items:baseline; }
+  .c-mods li:last-child{ border-bottom:none; }
+  .c-mods .code{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; color:var(--teal-dark); }
+  .c-mods .sn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .c-mods .obs{ font-size:12px; color:var(--muted); }
+  .c-mods .obs.warn{ color:var(--amber); font-weight:600; }
+  .c-mat{ list-style:none; font-size:13px; }
+  .c-mat li{ padding:6px 0; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:baseline; }
+  .c-mat li:last-child{ border-bottom:none; }
+  .c-mat .qty{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); }
+  .c-mat .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-left:auto; }
+  .c-actions{ margin-top:auto; padding-top:18px; border-top:1px solid var(--line); }
+
+  /* ======================================================
+     D — LISTADO + CARD EXPANDIDA
+  ====================================================== */
+  .d-wrap{ padding:28px 32px 30px; background:var(--card); }
+  .d-wrap > .mlabel{ display:block; margin-bottom:14px; color:var(--teal); }
+  .d-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:22px; }
+  .d-item{ display:flex; align-items:center; gap:18px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 18px; font-size:13px; }
+  .d-item.active{ border:1.5px solid var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
+  .d-item .num{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13px; color:var(--teal-dark); min-width:88px; }
+  .d-item .tipo{ font-weight:600; min-width:210px; }
+  .d-item .cli{ color:var(--muted); flex:1; }
+  .d-item .hora{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; }
+  .d-item .chev{ color:var(--muted); font-size:11px; width:16px; text-align:center; }
+  .d-item.active .chev{ color:var(--teal); }
+  .d-card{ background:#fff; border:1.5px solid var(--teal); border-radius:14px; overflow:hidden; box-shadow:0 8px 24px rgba(13,110,110,.08); }
+  .d-head{ background:var(--teal-soft); padding:18px 24px; display:flex; justify-content:space-between; align-items:center; gap:16px; border-bottom:1px solid var(--line); }
+  .d-head h3{ font-family:'Newsreader',serif; font-size:21px; font-weight:500; color:var(--teal-dark); }
+  .d-head .sub{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .d-acc{ border-bottom:1px solid var(--line); }
+  .d-acc:last-of-type{ border-bottom:none; }
+  .d-acc summary{ list-style:none; cursor:pointer; padding:13px 24px; display:flex; align-items:center; gap:10px; background:#fff; }
+  .d-acc summary::-webkit-details-marker{ display:none; }
+  .d-acc summary .caret{ font-size:10px; color:var(--teal); transition:transform .15s; }
+  .d-acc:not([open]) summary .caret{ transform:rotate(-90deg); }
+  .d-acc .pane{ padding:4px 24px 18px 44px; font-size:13px; }
+  .d-modrow{ display:grid; grid-template-columns:72px 1fr 148px 1fr; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); align-items:baseline; }
+  .d-modrow:last-child{ border-bottom:none; }
+  .d-modrow .code{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; color:var(--teal-dark); }
+  .d-modrow .sn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .d-modrow .obs{ font-size:12px; color:var(--muted); }
+  .d-modrow .obs.warn{ color:var(--amber); font-weight:600; }
+  .d-matline{ padding:5px 0; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--line); }
+  .d-matline:last-child{ border-bottom:none; }
+  .d-matline .qty{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--teal-dark); min-width:24px; }
+  .d-matline .pn{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-left:auto; }
+  .d-foot{ padding:16px 24px; background:var(--card); border-top:1px solid var(--line); }
+
+  /* ======================================================
+     E — COCKPIT COMPACTO (tablet)
+  ====================================================== */
+  .e-scroll{ max-height:700px; overflow-y:auto; background:#fff; }
+  .e-head{ padding:24px 30px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:20px; background:#fff; }
+  .e-head .ot{ font-family:'Newsreader',serif; font-size:32px; font-weight:500; line-height:1.1; }
+  .e-head .tipo{ font-size:16px; color:var(--muted); margin-top:4px; }
+  .e-chips{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .e-chip{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:9px 16px; border-radius:12px; }
+  .e-chip.status{ background:var(--teal); color:#fff; }
+  .e-chip.hora{ background:var(--teal-soft); color:var(--teal-dark); border:1px solid rgba(13,110,110,.25); }
+  .e-warn{ margin:18px 30px 0; background:var(--amber-bg); border:1.5px solid rgba(180,83,9,.35); border-radius:14px; padding:14px 18px; display:flex; gap:12px; align-items:center; }
+  .e-warn .ic{ font-size:20px; }
+  .e-warn .wl{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--amber); display:block; }
+  .e-warn .wt{ font-size:15px; font-weight:600; color:var(--amber); }
+  .e-cols{ display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:18px 30px 26px; }
+  .e-box{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; font-size:14.5px; }
+  .e-box.full{ grid-column:1 / -1; }
+  .e-box .mlabel{ display:block; margin-bottom:12px; font-size:11px; color:var(--teal); }
+  .e-box p{ margin-bottom:4px; }
+  .e-box .dim{ color:var(--muted); font-size:13.5px; }
+  .e-modrow{ display:grid; grid-template-columns:78px 1fr; gap:2px 14px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .e-modrow:last-child{ border-bottom:none; }
+  .e-modrow .code{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:var(--teal-dark); }
+  .e-modrow .sn{ font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); grid-column:2; }
+  .e-modrow .nm{ font-weight:600; }
+  .e-modrow .obs{ grid-column:2; font-size:13px; color:var(--muted); }
+  .e-modrow .obs.warn{ color:var(--amber); font-weight:700; }
+  .e-mat li{ list-style:none; padding:8px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; font-size:14.5px; }
+  .e-mat li:last-child{ border-bottom:none; }
+  .e-mat .qty{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; background:var(--teal-soft); color:var(--teal-dark); border-radius:8px; padding:2px 9px; }
+  .e-mat .pn{ font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin-left:auto; }
+  .e-mat .cert{ font-size:10px; padding:5px 10px; }
+  .e-footer{ position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line); box-shadow:0 -8px 20px rgba(30,41,59,.08); padding:14px 30px; display:flex; gap:12px; justify-content:flex-end; }
+  .e-footer .btn{ font-size:15px; padding:14px 26px; border-radius:12px; }
+  .e-footer .btn-primary{ flex:0 0 auto; }
+
+  /* ============ cómo elegir ============ */
+  .howto{ max-width:960px; margin:0 auto; background:var(--teal-dark); color:#E6F2F1; border-radius:16px; padding:28px 36px; }
+  .howto .mlabel{ color:#5EEAD4; display:block; margin-bottom:10px; }
+  .howto p{ font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="page-head">
+    <div class="kicker">AGS Analítica · Portal de Ingenieros</div>
+    <h1>Pantalla "Mis OT" — cinco variantes de diseño</h1>
+    <p>Misma información en las cinco: encabezado de la OT, cliente y contacto, equipo y su configuración, presupuesto/OC, tareas pendientes, materiales del servicio y materiales asignados al ingeniero, con la botonera de tres acciones. Cambia la organización y el carácter visual.</p>
+  </header>
+
+  <!-- ================================================================
+       VARIANTE A — TARJETAS GLOBO
+  ================================================================ -->
+  <section class="variant">
+    <div class="variant-head">
+      <h2><span class="letter">A</span>Tarjetas globo</h2>
+      <p>Header con banda teal llena y el resto en tarjetas redondeadas sobre fondo claro, como el PDF de orden de compra.
+      Cada bloque de información vive en su propio "globo"; la configuración ocupa el ancho completo.</p>
+    </div>
+    <div class="frame">
+      <div class="a-band">
+        <div class="a-band-top">
+          <div>
+            <div class="a-ot"><small>Orden de trabajo</small>OT 29712.01</div>
+            <div class="a-tipo">Mantenimiento preventivo HPLC</div>
+          </div>
+          <div class="a-meta">
+            <span class="chip chip-status-inv">Coordinada</span>
+            <div class="a-hoy hoy" style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.75;">Hoy</div>
+            <div class="hora" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;">09:30</div>
+          </div>
+        </div>
+        <div class="a-cliente">
+          <div><span class="cl">Cliente</span><b>LABORATORIOS PAMPA S.A.</b> — Planta Pilar</div>
+          <div><span class="cl">Contacto</span>Laura Giménez · Jefa de Laboratorio</div>
+          <div><span class="cl">Sector</span>Control de Calidad</div>
+          <div><span class="cl">Dirección</span>Ruta 8 km 52, Pilar</div>
+        </div>
+      </div>
+      <div class="a-body">
+        <div class="a-grid">
+
+          <div class="a-card">
+            <span class="mlabel">Equipo</span>
+            <div class="kv">
+              <span class="k">Equipo</span><span><b>HPLC 1260 Infinity II</b></span>
+              <span class="k">ID AGS</span><span class="mono" style="font-size:12px;">ARI0089</span>
+              <span class="k">Serie</span><span class="mono" style="font-size:12px;">DE12345678</span>
+              <span class="k">Software</span><span>OpenLab CDS 2.8</span>
+              <span class="k">Cód. cliente</span><span class="mono" style="font-size:12px;">EQ-CC-014</span>
+            </div>
+            <div class="a-obs">Equipo en zona de acceso restringido, pedir credencial en portería.</div>
+          </div>
+
+          <div class="a-card">
+            <span class="mlabel">Presupuesto / OC</span>
+            <div class="kv" style="margin-bottom:14px;">
+              <span class="k">Presupuesto</span><span class="mono" style="font-size:12px;font-weight:600;color:var(--teal-dark);">PRE-0221.01</span>
+              <span class="k">OC cliente</span><span class="mono" style="font-size:12px;">4500123456</span>
+            </div>
+            <div class="warnbox">
+              <span class="wl">Tareas pendientes del equipo</span>
+              ⚠ Cambiar lámpara D2 <span style="opacity:.8;">(aviso del servicio anterior)</span>
+            </div>
+          </div>
+
+          <div class="a-card full">
+            <span class="mlabel">Configuración del sistema</span>
+            <div class="a-modrow">
+              <span class="code">G7111B</span><span>Bomba cuaternaria</span>
+              <span class="sn">S/N DEAB801234</span><span class="obs">Sello nuevo 03/2026</span>
+            </div>
+            <div class="a-modrow">
+              <span class="code">G7129A</span><span>Inyector automático</span>
+              <span class="sn">S/N DEAC445566</span><span class="obs">—</span>
+            </div>
+            <div class="a-modrow">
+              <span class="code">G7114A</span><span>Detector VWD</span>
+              <span class="sn">S/N DEAD778899</span><span class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</span>
+            </div>
+            <div class="a-modrow">
+              <span class="code">G7116A</span><span>Compartimiento de columna</span>
+              <span class="sn">S/N DEAE112233</span><span class="obs">—</span>
+            </div>
+          </div>
+
+          <div class="a-card">
+            <span class="mlabel">Materiales para el servicio</span>
+            <ul class="a-mat">
+              <li><span class="qty">1×</span><span class="grow">Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></li>
+              <li><span class="qty">2×</span><span class="grow">Sello de pistón</span><span class="pn">5063-6589</span></li>
+              <li><span class="qty">1×</span><span class="grow">Filtro de solvente 20 µm</span></li>
+            </ul>
+          </div>
+
+          <div class="a-card">
+            <span class="mlabel">Asignado al ingeniero</span>
+            <ul class="a-mat">
+              <li><span class="grow">Minikit HPLC</span><span class="pn">MK-07</span></li>
+              <li><span class="grow">Flujímetro</span><span class="pn">FL-002</span><span class="cert">Ver certificado ↗</span></li>
+              <li><span class="grow">Termómetro</span><span class="pn">TH-011</span><span class="cert">Ver certificado ↗</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="a-actions btnrow">
+          <button class="btn btn-neutral">Guardar</button>
+          <button class="btn btn-outline">Reporte</button>
+          <button class="btn btn-primary">Solicitar presupuesto</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       VARIANTE B — EDITORIAL
+  ================================================================ -->
+  <section class="variant">
+    <div class="variant-head">
+      <h2><span class="letter">B</span>Editorial</h2>
+      <p>Fondo blanco sin tarjetas: título serif grande, regla teal fina y secciones separadas por hairlines,
+      con el label mono a la izquierda en columna fija, estilo ficha técnica. Elegante y densa.</p>
+    </div>
+    <div class="frame">
+      <div class="b-wrap">
+        <div class="b-over">
+          <span class="mlabel" style="letter-spacing:.22em;">Orden de trabajo · Hoy 09:30</span>
+          <span class="chip chip-status">Coordinada</span>
+        </div>
+        <h3 class="b-title">OT 29712.01 — Mantenimiento preventivo HPLC</h3>
+        <div class="b-sub">
+          <span><b style="color:var(--ink);">LABORATORIOS PAMPA S.A.</b> — Planta Pilar</span>
+          <span>Ruta 8 km 52, Pilar</span>
+        </div>
+        <div class="b-rule"></div>
+
+        <div class="b-sec">
+          <span class="mlabel">Cliente</span>
+          <div>
+            <div class="b-row"><span class="k">Contacto</span><span>Laura Giménez · Jefa de Laboratorio</span></div>
+            <div class="b-row"><span class="k">Sector</span><span>Control de Calidad</span></div>
+            <div class="b-row"><span class="k">Dirección</span><span>Ruta 8 km 52, Pilar</span></div>
+          </div>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel">Equipo</span>
+          <div>
+            <div class="b-row"><span class="k">Equipo</span><span><b>HPLC 1260 Infinity II</b></span></div>
+            <div class="b-row"><span class="k">ID AGS / Serie</span><span class="mono" style="font-size:12.5px;">ARI0089 · DE12345678</span></div>
+            <div class="b-row"><span class="k">Software</span><span>OpenLab CDS 2.8</span></div>
+            <div class="b-row"><span class="k">Cód. cliente</span><span class="mono" style="font-size:12.5px;">EQ-CC-014</span></div>
+            <div class="b-row"><span class="k">Observación</span><span style="font-style:italic;color:var(--muted);">Equipo en zona de acceso restringido, pedir credencial en portería.</span></div>
+          </div>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel">Configuración</span>
+          <table class="b-mods">
+            <tr><td class="code">G7111B</td><td>Bomba cuaternaria</td><td class="sn">S/N DEAB801234</td><td class="obs">Sello nuevo 03/2026</td></tr>
+            <tr><td class="code">G7129A</td><td>Inyector automático</td><td class="sn">S/N DEAC445566</td><td class="obs">—</td></tr>
+            <tr><td class="code">G7114A</td><td>Detector VWD</td><td class="sn">S/N DEAD778899</td><td class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</td></tr>
+            <tr><td class="code">G7116A</td><td>Compartimiento de columna</td><td class="sn">S/N DEAE112233</td><td class="obs">—</td></tr>
+          </table>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel">Presupuesto / OC</span>
+          <div>
+            <div class="b-row"><span class="k">Presupuesto</span><span class="mono" style="font-size:12.5px;font-weight:600;color:var(--teal-dark);">PRE-0221.01</span></div>
+            <div class="b-row"><span class="k">OC cliente</span><span class="mono" style="font-size:12.5px;">4500123456</span></div>
+          </div>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel" style="color:var(--amber);">Tareas pendientes</span>
+          <div class="warnbox" style="max-width:520px;">⚠ <b>Cambiar lámpara D2</b> (aviso del servicio anterior)</div>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel">Materiales — servicio</span>
+          <div>
+            <div class="b-matline"><span class="qty">1×</span><span>Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></div>
+            <div class="b-matline"><span class="qty">2×</span><span>Sello de pistón</span><span class="pn">5063-6589</span></div>
+            <div class="b-matline"><span class="qty">1×</span><span>Filtro de solvente 20 µm</span></div>
+          </div>
+        </div>
+
+        <div class="b-sec">
+          <span class="mlabel">Materiales — ingeniero</span>
+          <div>
+            <div class="b-matline"><span>Minikit HPLC</span><span class="pn">MK-07</span></div>
+            <div class="b-matline"><span>Flujímetro</span><span class="pn">FL-002</span><span class="cert">Ver certificado ↗</span></div>
+            <div class="b-matline"><span>Termómetro</span><span class="pn">TH-011</span><span class="cert">Ver certificado ↗</span></div>
+          </div>
+        </div>
+
+        <div class="b-actions">
+          <span class="note">OT 29712.01 · Coordinada</span>
+          <div class="btnrow">
+            <button class="btn btn-neutral">Guardar</button>
+            <button class="btn btn-outline">Reporte</button>
+            <button class="btn btn-primary">Solicitar presupuesto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       VARIANTE C — COLUMNA LATERAL
+  ================================================================ -->
+  <section class="variant">
+    <div class="variant-head">
+      <h2><span class="letter">C</span>Columna lateral</h2>
+      <p>Sidebar oscura con lo operativo del día — estado, hora, contacto y el kit del ingeniero con certificados —
+      y a la derecha el contenido técnico: equipo, configuración, presupuesto y materiales del servicio.</p>
+    </div>
+    <div class="frame">
+      <div class="c-layout">
+        <aside class="c-side">
+          <div>
+            <div class="c-ot"><small>Orden de trabajo</small>OT 29712.01</div>
+            <div style="margin-top:10px;"><span class="chip chip-status-inv">Coordinada</span></div>
+          </div>
+          <div class="c-hora"><small>Hoy</small>09:30</div>
+          <div class="c-block">
+            <span class="mlabel">Contacto</span>
+            <p><b>Laura Giménez</b><br>Jefa de Laboratorio<br>Sector Control de Calidad</p>
+          </div>
+          <div class="c-block">
+            <span class="mlabel">Dirección</span>
+            <p>Ruta 8 km 52, Pilar</p>
+          </div>
+          <div class="c-block">
+            <span class="mlabel">Tu kit asignado</span>
+            <ul class="c-kit">
+              <li><span>Minikit HPLC <span class="mono" style="font-size:10px;color:#7C9B9B;">MK-07</span></span></li>
+              <li><span>Flujímetro <span class="mono" style="font-size:10px;color:#7C9B9B;">FL-002</span></span><span class="cert">Certificado ↗</span></li>
+              <li><span>Termómetro <span class="mono" style="font-size:10px;color:#7C9B9B;">TH-011</span></span><span class="cert">Certificado ↗</span></li>
+            </ul>
+          </div>
+        </aside>
+
+        <main class="c-main">
+          <div class="c-main-head">
+            <div>
+              <h3>Mantenimiento preventivo HPLC</h3>
+              <div class="cliente"><b style="color:var(--ink);">LABORATORIOS PAMPA S.A.</b> — Planta Pilar</div>
+            </div>
+          </div>
+
+          <div class="c-sec">
+            <span class="mlabel">Equipo</span>
+            <div class="kv">
+              <span class="k">Equipo</span><span><b>HPLC 1260 Infinity II</b> · <span class="mono" style="font-size:12px;">ARI0089</span> · S/N <span class="mono" style="font-size:12px;">DE12345678</span></span>
+              <span class="k">Software</span><span>OpenLab CDS 2.8 · cód. cliente <span class="mono" style="font-size:12px;">EQ-CC-014</span></span>
+              <span class="k">Observación</span><span style="font-style:italic;color:var(--muted);">Equipo en zona de acceso restringido, pedir credencial en portería.</span>
+            </div>
+          </div>
+
+          <div class="c-sec">
+            <span class="mlabel">Configuración</span>
+            <ul class="c-mods">
+              <li><span class="code">G7111B</span><span>Bomba cuaternaria</span><span class="sn">S/N DEAB801234</span><span class="obs">Sello nuevo 03/2026</span></li>
+              <li><span class="code">G7129A</span><span>Inyector automático</span><span class="sn">S/N DEAC445566</span><span class="obs">—</span></li>
+              <li><span class="code">G7114A</span><span>Detector VWD</span><span class="sn">S/N DEAD778899</span><span class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</span></li>
+              <li><span class="code">G7116A</span><span>Compartimiento de columna</span><span class="sn">S/N DEAE112233</span><span class="obs">—</span></li>
+            </ul>
+          </div>
+
+          <div class="c-two">
+            <div class="c-sec">
+              <span class="mlabel">Presupuesto / OC</span>
+              <div class="kv">
+                <span class="k">Presupuesto</span><span class="mono" style="font-size:12px;font-weight:600;color:var(--teal-dark);">PRE-0221.01</span>
+                <span class="k">OC cliente</span><span class="mono" style="font-size:12px;">4500123456</span>
+              </div>
+              <div class="warnbox" style="margin-top:12px;">
+                <span class="wl">Tareas pendientes</span>
+                ⚠ Cambiar lámpara D2 (aviso del servicio anterior)
+              </div>
+            </div>
+            <div class="c-sec">
+              <span class="mlabel">Materiales para el servicio</span>
+              <ul class="c-mat">
+                <li><span class="qty">1×</span><span>Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></li>
+                <li><span class="qty">2×</span><span>Sello de pistón</span><span class="pn">5063-6589</span></li>
+                <li><span class="qty">1×</span><span>Filtro de solvente 20 µm</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="c-actions btnrow">
+            <button class="btn btn-neutral">Guardar</button>
+            <button class="btn btn-outline">Reporte</button>
+            <button class="btn btn-primary">Solicitar presupuesto</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       VARIANTE D — LISTADO + CARD EXPANDIDA
+  ================================================================ -->
+  <section class="variant">
+    <div class="variant-head">
+      <h2><span class="letter">D</span>Card colapsada → expandida</h2>
+      <p>Muestra el flujo real de la pantalla: arriba el listado "Mis OT de hoy" con cards compactas,
+      y debajo la OT seleccionada expandida con su detalle en acordeones (probá colapsarlos).</p>
+    </div>
+    <div class="frame">
+      <div class="d-wrap">
+        <span class="mlabel">Mis OT de hoy · Jueves 17</span>
+
+        <div class="d-list">
+          <div class="d-item active">
+            <span class="chev">▼</span>
+            <span class="num">29712.01</span>
+            <span class="tipo">Mantenimiento preventivo HPLC</span>
+            <span class="cli">Laboratorios Pampa S.A. — Planta Pilar</span>
+            <span class="chip chip-status">Coordinada</span>
+            <span class="hora">09:30</span>
+          </div>
+          <div class="d-item">
+            <span class="chev">▶</span>
+            <span class="num">29713</span>
+            <span class="tipo">Instalación GC</span>
+            <span class="cli">Bodega Andina</span>
+            <span class="chip chip-status">Coordinada</span>
+            <span class="hora">14:00</span>
+          </div>
+          <div class="d-item">
+            <span class="chev">▶</span>
+            <span class="num">29714.02</span>
+            <span class="tipo">Reparación Karl Fischer</span>
+            <span class="cli">AgroLab</span>
+            <span class="chip chip-status">Coordinada</span>
+            <span class="hora">16:30</span>
+          </div>
+        </div>
+
+        <div class="d-card">
+          <div class="d-head">
+            <div>
+              <h3>OT 29712.01 · Mantenimiento preventivo HPLC</h3>
+              <div class="sub"><b style="color:var(--ink);">LABORATORIOS PAMPA S.A.</b> — Planta Pilar · Laura Giménez (Jefa de Laboratorio) · Control de Calidad · Ruta 8 km 52, Pilar</div>
+            </div>
+            <span class="chip chip-status" style="flex:0 0 auto;">Coordinada · 09:30</span>
+          </div>
+
+          <details class="d-acc" open>
+            <summary><span class="caret">▼</span><span class="mlabel" style="color:var(--teal);">Equipo</span></summary>
+            <div class="pane">
+              <b>HPLC 1260 Infinity II</b> · <span class="mono" style="font-size:12px;">ARI0089</span> · S/N <span class="mono" style="font-size:12px;">DE12345678</span> · OpenLab CDS 2.8 · cód. cliente <span class="mono" style="font-size:12px;">EQ-CC-014</span>
+              <div style="margin-top:6px;font-style:italic;color:var(--muted);">Equipo en zona de acceso restringido, pedir credencial en portería.</div>
+            </div>
+          </details>
+
+          <details class="d-acc" open>
+            <summary><span class="caret">▼</span><span class="mlabel" style="color:var(--teal);">Configuración</span></summary>
+            <div class="pane">
+              <div class="d-modrow"><span class="code">G7111B</span><span>Bomba cuaternaria</span><span class="sn">S/N DEAB801234</span><span class="obs">Sello nuevo 03/2026</span></div>
+              <div class="d-modrow"><span class="code">G7129A</span><span>Inyector automático</span><span class="sn">S/N DEAC445566</span><span class="obs">—</span></div>
+              <div class="d-modrow"><span class="code">G7114A</span><span>Detector VWD</span><span class="sn">S/N DEAD778899</span><span class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</span></div>
+              <div class="d-modrow"><span class="code">G7116A</span><span>Compartimiento de columna</span><span class="sn">S/N DEAE112233</span><span class="obs">—</span></div>
+            </div>
+          </details>
+
+          <details class="d-acc" open>
+            <summary><span class="caret">▼</span><span class="mlabel" style="color:var(--teal);">Presupuesto / OC · Tareas pendientes</span></summary>
+            <div class="pane">
+              Presupuesto <span class="mono" style="font-size:12px;font-weight:600;color:var(--teal-dark);">PRE-0221.01</span> · OC cliente <span class="mono" style="font-size:12px;">4500123456</span>
+              <div class="warnbox" style="margin-top:10px;max-width:520px;">
+                <span class="wl">Tareas pendientes del equipo</span>
+                ⚠ Cambiar lámpara D2 (aviso del servicio anterior)
+              </div>
+            </div>
+          </details>
+
+          <details class="d-acc" open>
+            <summary><span class="caret">▼</span><span class="mlabel" style="color:var(--teal);">Materiales</span></summary>
+            <div class="pane">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                <div>
+                  <span class="mlabel" style="display:block;margin-bottom:8px;">Para el servicio</span>
+                  <div class="d-matline"><span class="qty">1×</span><span>Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></div>
+                  <div class="d-matline"><span class="qty">2×</span><span>Sello de pistón</span><span class="pn">5063-6589</span></div>
+                  <div class="d-matline"><span class="qty">1×</span><span>Filtro de solvente 20 µm</span></div>
+                </div>
+                <div>
+                  <span class="mlabel" style="display:block;margin-bottom:8px;">Asignado al ingeniero</span>
+                  <div class="d-matline"><span>Minikit HPLC</span><span class="pn">MK-07</span></div>
+                  <div class="d-matline"><span>Flujímetro</span><span class="pn">FL-002</span><span class="cert" style="margin-left:8px;">Ver certificado ↗</span></div>
+                  <div class="d-matline"><span>Termómetro</span><span class="pn">TH-011</span><span class="cert" style="margin-left:8px;">Ver certificado ↗</span></div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <div class="d-foot btnrow">
+            <button class="btn btn-neutral">Guardar</button>
+            <button class="btn btn-outline">Reporte</button>
+            <button class="btn btn-primary">Solicitar presupuesto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       VARIANTE E — COCKPIT COMPACTO
+  ================================================================ -->
+  <section class="variant">
+    <div class="variant-head">
+      <h2><span class="letter">E</span>Cockpit compacto</h2>
+      <p>Pensada para tablet en campo: tipografía más grande, dos columnas gruesas, chips grandes para estado
+      y tareas pendientes, y la botonera fija abajo (scrolleá dentro del marco para verla pegada).</p>
+    </div>
+    <div class="frame">
+      <div class="e-scroll">
+        <div class="e-head">
+          <div>
+            <div class="ot">OT 29712.01</div>
+            <div class="tipo">Mantenimiento preventivo HPLC · <b style="color:var(--ink);">LABORATORIOS PAMPA S.A.</b> — Planta Pilar</div>
+          </div>
+          <div class="e-chips">
+            <span class="e-chip status">Coordinada</span>
+            <span class="e-chip hora">Hoy · 09:30</span>
+          </div>
+        </div>
+
+        <div class="e-warn">
+          <span class="ic">⚠</span>
+          <div>
+            <span class="wl">Tarea pendiente del equipo</span>
+            <span class="wt">Cambiar lámpara D2 (aviso del servicio anterior)</span>
+          </div>
+        </div>
+
+        <div class="e-cols">
+          <div class="e-box">
+            <span class="mlabel">Cliente y contacto</span>
+            <p><b>Laura Giménez</b> · Jefa de Laboratorio</p>
+            <p class="dim">Sector Control de Calidad</p>
+            <p class="dim">Ruta 8 km 52, Pilar</p>
+          </div>
+
+          <div class="e-box">
+            <span class="mlabel">Equipo</span>
+            <p><b>HPLC 1260 Infinity II</b></p>
+            <p class="dim mono" style="font-size:12.5px;">ARI0089 · S/N DE12345678 · EQ-CC-014</p>
+            <p class="dim">OpenLab CDS 2.8</p>
+            <p class="dim" style="font-style:italic;margin-top:6px;">Zona de acceso restringido — pedir credencial en portería.</p>
+          </div>
+
+          <div class="e-box full">
+            <span class="mlabel">Configuración del sistema</span>
+            <div class="e-modrow">
+              <span class="code">G7111B</span><span class="nm">Bomba cuaternaria</span>
+              <span class="sn">S/N DEAB801234</span><span class="obs">Sello nuevo 03/2026</span>
+            </div>
+            <div class="e-modrow">
+              <span class="code">G7129A</span><span class="nm">Inyector automático</span>
+              <span class="sn">S/N DEAC445566</span>
+            </div>
+            <div class="e-modrow">
+              <span class="code">G7114A</span><span class="nm">Detector VWD</span>
+              <span class="sn">S/N DEAD778899</span><span class="obs warn">⚠ Lámpara D2 con 1.900 h — cambiar</span>
+            </div>
+            <div class="e-modrow">
+              <span class="code">G7116A</span><span class="nm">Compartimiento de columna</span>
+              <span class="sn">S/N DEAE112233</span>
+            </div>
+          </div>
+
+          <div class="e-box">
+            <span class="mlabel">Materiales para el servicio</span>
+            <ul class="e-mat">
+              <li><span class="qty">1×</span><span>Kit PM HPLC 1260</span><span class="pn">PM-1260-KIT</span></li>
+              <li><span class="qty">2×</span><span>Sello de pistón</span><span class="pn">5063-6589</span></li>
+              <li><span class="qty">1×</span><span>Filtro de solvente 20 µm</span></li>
+            </ul>
+          </div>
+
+          <div class="e-box">
+            <span class="mlabel">Tu kit asignado</span>
+            <ul class="e-mat">
+              <li><span>Minikit HPLC</span><span class="pn">MK-07</span></li>
+              <li><span>Flujímetro</span><span class="pn">FL-002</span><span class="cert">Certificado ↗</span></li>
+              <li><span>Termómetro</span><span class="pn">TH-011</span><span class="cert">Certificado ↗</span></li>
+            </ul>
+          </div>
+
+          <div class="e-box full">
+            <span class="mlabel">Presupuesto / OC</span>
+            <p>Presupuesto <b class="mono" style="font-size:13px;color:var(--teal-dark);">PRE-0221.01</b> · OC cliente <span class="mono" style="font-size:13px;">4500123456</span></p>
+          </div>
+        </div>
+
+        <div class="e-footer">
+          <button class="btn btn-neutral">Guardar</button>
+          <button class="btn btn-outline">Reporte</button>
+          <button class="btn btn-primary">Solicitar presupuesto</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <div class="howto">
+    <span class="mlabel">Cómo elegir</span>
+    <p>Mirar tres cosas: la <b>densidad</b> (¿cuánto se ve sin scrollear? B y C son las más densas, E la más aireada),
+    la <b>jerarquía</b> (¿qué salta primero a la vista: la hora y el contacto, el equipo, o la tarea pendiente en ámbar?)
+    y la <b>botonera</b> (al pie del contenido en A–D, siempre visible en E).
+    Se puede pedir un mix: por ejemplo el listado de D como pantalla principal con el detalle en el estilo de A o B.</p>
+  </div>
+
+</div>
+</body>
+</html>

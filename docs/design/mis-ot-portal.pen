@@ -1,0 +1,67 @@
+{
+  "version": "2.14",
+  "children": [],
+  "variables": {
+    "pri": {
+      "type": "color",
+      "value": "#0D6E6E"
+    },
+    "priDark": {
+      "type": "color",
+      "value": "#0A4F4F"
+    },
+    "priSoft": {
+      "type": "color",
+      "value": "#E6F2F1"
+    },
+    "ink": {
+      "type": "color",
+      "value": "#1E293B"
+    },
+    "sub": {
+      "type": "color",
+      "value": "#64748B"
+    },
+    "faint": {
+      "type": "color",
+      "value": "#94A3B8"
+    },
+    "line": {
+      "type": "color",
+      "value": "#E2E8F0"
+    },
+    "cardBg": {
+      "type": "color",
+      "value": "#F8FAFC"
+    },
+    "warn": {
+      "type": "color",
+      "value": "#B45309"
+    },
+    "warnBg": {
+      "type": "color",
+      "value": "#FEF3C7"
+    },
+    "okBg": {
+      "type": "color",
+      "value": "#D1FAE5"
+    },
+    "okTx": {
+      "type": "color",
+      "value": "#065F46"
+    },
+    "fBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "fSerif": {
+      "type": "string",
+      "value": "Newsreader"
+    }
+  },
+  "fileToken": "f8c2e3c5-bd93-4a8f-9b0f-1579730e4147"
+}

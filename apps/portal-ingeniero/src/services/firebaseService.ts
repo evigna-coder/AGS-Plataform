@@ -790,6 +790,12 @@ export const otService = {
       'aclaracionEspecialista', 'aclaracionCliente', 'pdfUrl', 'protocolPdfUrl',
       'problemaFallaInicial', 'materialesParaServicio', 'articulos', 'enviadoPorEmail',
       'envioManual',
+      // Campos administrativos que sistema-modular escribe en `reportes` (colección
+      // canónica de OTs) — sin este merge, una OT legacy presente en ambas colecciones
+      // muestra el detalle rediseñado incompleto (sin estado, budgets ni equipo).
+      'estadoAdmin', 'fechaServicioAprox', 'budgets', 'sector',
+      'clienteId', 'establecimientoId', 'sistemaId', 'tipoServicio',
+      'ingenieroAsignadoId', 'ingenieroAsignadoNombre',
     ];
 
     const emit = () => {
