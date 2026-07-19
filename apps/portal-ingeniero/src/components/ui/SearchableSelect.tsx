@@ -52,9 +52,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : '';
 
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Multi-término: "filter 80530" matchea si TODOS los términos aparecen en el label.
+  const searchTerms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredOptions = searchTerms.length > 0
+    ? options.filter(opt => {
+        const hay = opt.label.toLowerCase();
+        return searchTerms.every(t => hay.includes(t));
+      })
+    : options;
 
   const trimmedSearch = searchTerm.trim();
   const showCreateOption = creatable && trimmedSearch &&
