@@ -29,7 +29,7 @@ export default function OTDetalleTab({ ot, sistema, modulos }: Props) {
       </div>
       <div className="space-y-3">
         <PresupuestoOCCard ot={ot} presupuestos={presupuestos} />
-        <MaterialesCard materiales={materiales} reservas={reservas} />
+        <MaterialesCard materiales={materiales} reservas={reservas} declarados={ot.materialesParaServicio} />
         <KitIngenieroCard items={kit.items} loading={kit.loading} />
       </div>
       <div className="lg:col-span-2">

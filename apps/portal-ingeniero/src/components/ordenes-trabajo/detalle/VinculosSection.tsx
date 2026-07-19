@@ -28,10 +28,21 @@ export function PresupuestoOCCard({ ot, presupuestos }: { ot: WorkOrder; presupu
 }
 
 /** Materiales del servicio: items con stock de los presupuestos + unidades reservadas. */
-export function MaterialesCard({ materiales, reservas }: { materiales: MaterialServicio[]; reservas: ReservaServicio[] }) {
-  if (materiales.length === 0 && reservas.length === 0) return null;
+export function MaterialesCard({ materiales, reservas, declarados }: {
+  materiales: MaterialServicio[];
+  reservas: ReservaServicio[];
+  /** Texto libre declarado en la OT al crearla (WorkOrder.materialesParaServicio). */
+  declarados?: string | null;
+}) {
+  const tieneDeclarados = !!declarados?.trim();
+  if (materiales.length === 0 && reservas.length === 0 && !tieneDeclarados) return null;
   return (
     <GCard label="Materiales para el servicio">
+      {tieneDeclarados && (
+        <p className={`text-[13px] text-slate-800 leading-relaxed whitespace-pre-wrap ${(materiales.length > 0 || reservas.length > 0) ? 'pb-2 mb-1 border-b border-dashed border-slate-200' : ''}`}>
+          {declarados}
+        </p>
+      )}
       {materiales.map((m, i) => (
         <div key={i} className="flex items-center gap-2.5 py-2 border-b border-slate-200 last:border-b-0 text-[13.5px]">
           <span className="font-mono text-[11px] font-semibold text-teal-900 bg-teal-50 rounded-md px-1.5 py-px shrink-0">
