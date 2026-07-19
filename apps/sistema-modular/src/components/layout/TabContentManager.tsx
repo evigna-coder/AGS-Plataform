@@ -25,6 +25,7 @@ import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
 import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage, BackfillVentasInsumosDerivadorPage, AuditoriaPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
+import { ControlSemanal } from '../../pages/control-semanal';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
@@ -185,6 +186,8 @@ function AppRoutes() {
       <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><UsuariosList /></ProtectedRoute>} />
       {/* Agenda */}
       <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><AgendaPage /></ProtectedRoute>} />
+      {/* Control semanal — cierre de coordinación (agenda + avisos a facturación) */}
+      <Route path="/control-semanal" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ControlSemanal /></ProtectedRoute>} />
       <Route path="/pendientes" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><PendientesList /></ProtectedRoute>} />
       {/* Facturacion */}
       <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />

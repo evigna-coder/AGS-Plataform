@@ -44,15 +44,17 @@ export function useSearchableSelect({
   // (UAT 2026-07-15: delay al escribir en buscadores de artículos).
   const deferredSearch = useDeferredValue(searchTerm);
   const searchLower = deferredSearch.toLowerCase();
+  // Multi-término (UAT 2026-07-19): "mant 7890" matchea si TODOS los términos
+  // aparecen en label ∪ value ∪ linkedCode, sin importar el orden.
+  const searchTerms = useMemo(() => searchLower.split(/\s+/).filter(Boolean), [searchLower]);
   const filteredOptions = useMemo(() =>
-    searchLower
-      ? options.filter(opt =>
-          opt.label.toLowerCase().includes(searchLower) ||
-          opt.value.toLowerCase().includes(searchLower) ||
-          (opt.linkedCode?.toLowerCase().includes(searchLower) ?? false)
-        )
+    searchTerms.length > 0
+      ? options.filter(opt => {
+          const hay = `${opt.label} ${opt.value} ${opt.linkedCode ?? ''}`.toLowerCase();
+          return searchTerms.every(t => hay.includes(t));
+        })
       : options,
-    [options, searchLower]
+    [options, searchTerms]
   );
 
   // In creatable mode, add "Create: X" option if no exact match

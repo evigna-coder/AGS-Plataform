@@ -31,6 +31,7 @@ import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
+import { matchesSearch } from '../../utils/searchTerms';
 import { computeOCAdeudada, OC_ADEUDADA_ESTADOS } from '../../utils/analitica/presupuestosMetrics';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 
@@ -246,11 +247,8 @@ export const PresupuestosList = () => {
       return true;
     });
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
       result = result.filter(p =>
-        p.numero.toLowerCase().includes(q) ||
-        getClienteNombre(p.clienteId).toLowerCase().includes(q)
-      );
+        matchesSearch(debouncedSearch, p.numero, getClienteNombre(p.clienteId)));
     }
     // Custom sort for computed fields
     if (filters.sortField === '_validez') {

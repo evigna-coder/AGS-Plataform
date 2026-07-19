@@ -14,6 +14,7 @@ import { PresupuestoReservasSection } from './PresupuestoReservasSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
 import { FactorHistoryButton } from './FactorHistoryButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
+import { SubItemsRow } from './equipos/SubItemsRow';
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
@@ -303,6 +304,10 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             calculateItemTaxes={calculateItemTaxes}
             itemsByGrupo={itemsByGrupo}
             getGrupo={getGrupo}
+            renderSubRow={form.tipo === 'ventas' ? (item, idx) => (
+              <SubItemsRow item={item} itemNumero={idx} colSpan={9} presupuestoId={presupuestoId}
+                onChangeSubItems={(subs) => updateItem(item.id, 'subItems', subs)} />
+            ) : undefined}
           />
         )}
 

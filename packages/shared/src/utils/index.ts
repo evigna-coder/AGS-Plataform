@@ -114,6 +114,32 @@ NOTA: Tiempo estimado de inicio de servicio: lo antes posible dentro de los 30 d
 } as const;
 
 /**
+ * Subtotal de un item de presupuesto contemplando sub-ítems (tipo 'ventas' / Equipos).
+ *
+ * Regla de totales: total del item =
+ *   (precioUnitario × cantidad del padre, con descuento si aplica)
+ *   + Σ (sub.precioUnitario × sub.cantidad) de los sub-ítems que tengan precio.
+ * Los sub-ítems sin precio (precioUnitario null/undefined) no suman — su valor
+ * va incluido en el precio del padre. Para items sin subItems el resultado es
+ * idéntico al cálculo histórico (base con descuento), así que es seguro usarlo
+ * para todos los tipos de presupuesto.
+ */
+export function computePresupuestoItemSubtotal(item: {
+  cantidad: number;
+  precioUnitario: number;
+  descuento?: number | null;
+  subItems?: { cantidad: number; precioUnitario?: number | null }[] | null;
+}): number {
+  const base = (item.cantidad || 0) * (item.precioUnitario || 0);
+  const propio = item.descuento ? base * (1 - item.descuento / 100) : base;
+  const subs = (item.subItems || []).reduce(
+    (s, sub) => s + (sub.precioUnitario != null ? (sub.cantidad || 0) * sub.precioUnitario : 0),
+    0,
+  );
+  return propio + subs;
+}
+
+/**
  * Convierte un número a texto en español para montos en presupuestos.
  * Ej: 57734.97 → "CINCUENTA Y SIETE MIL SETECIENTOS TREINTA Y CUATRO CON 97/100"
  */

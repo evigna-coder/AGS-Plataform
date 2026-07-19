@@ -1,0 +1,1 @@
+export { ControlSemanal } from './ControlSemanal';

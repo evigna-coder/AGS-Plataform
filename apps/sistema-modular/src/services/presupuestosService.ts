@@ -669,8 +669,8 @@ export const presupuestosService = {
    *
    * Precondiciones (técnicas, no de negocio — la decisión de invocar la hace el caller):
    * - `pres.clienteId` debe estar resuelto
-   * - `adminConfig/flujos.usuarioSeguimientoId` configurado
-   * - Usuario destino debe tener `status === 'activo'`
+   * - Debe resolverse un asignatario activo: `responsablePorArea[areaDestino]` o, como
+   *   fallback, `adminConfig/flujos.usuarioSeguimientoId`
    */
   async _crearAutoTicketSeguimiento(
     pres: Presupuesto,
@@ -683,13 +683,32 @@ export const presupuestosService = {
     }
     // Read adminConfig/flujos
     const cfg = await adminConfigService.getWithDefaults();
-    if (!cfg.usuarioSeguimientoId) {
-      throw new Error('adminConfig/flujos.usuarioSeguimientoId no configurado');
+
+    // ── Área destino según el SECTOR DEL EMISOR (UAT 2026-07-19) ─────────────
+    // Dos sectores emiten presupuestos: ventas (solo equipos) y administración
+    // de soporte (servicios/partes/consumibles). El ticket de seguimiento va al
+    // área del emisor — antes iba hardcodeado a 'ventas' y se asignaba al
+    // usuario fijo, que ni pertenece a esa área. Si el emisor no es de ninguno
+    // de los dos sectores (ej. admin), decide el tipo del presupuesto.
+    const trace = getCurrentUserTrace();
+    const emisor = trace?.uid ? await usuariosService.getById(trace.uid).catch(() => null) : null;
+    const areaDestino: TicketArea =
+      emisor?.role === 'ventas' ? 'ventas'
+        : emisor?.role === 'admin_soporte' ? 'admin_soporte'
+          : (pres.tipo === 'ventas' ? 'ventas' : 'admin_soporte');
+
+    // Asignatario: responsable configurado del área destino; fallback al usuario
+    // fijo de seguimiento (config legacy FLOW-01). Debe estar activo.
+    const candidatos = [cfg.responsablePorArea?.[areaDestino], cfg.usuarioSeguimientoId]
+      .filter((x): x is string => !!x);
+    let asignadoId: string | null = null;
+    let asignado: Awaited<ReturnType<typeof usuariosService.getById>> = null;
+    for (const cid of candidatos) {
+      const u = await usuariosService.getById(cid).catch(() => null);
+      if (u && u.status === 'activo') { asignadoId = cid; asignado = u; break; }
     }
-    // Validar usuario activo (UserStatus union: 'pendiente' | 'activo' | 'deshabilitado')
-    const usuario = await usuariosService.getById(cfg.usuarioSeguimientoId);
-    if (!usuario || usuario.status !== 'activo') {
-      throw new Error(`usuario fijo seguimiento no activo: ${cfg.usuarioSeguimientoId}`);
+    if (!asignadoId || !asignado) {
+      throw new Error(`sin responsable activo para el área ${areaDestino} (revisar responsablePorArea / usuarioSeguimientoId en config de flujos)`);
     }
 
     // Hidratar razonSocial + contacto desde clienteId/contactoId. syncFlatFromContactos
@@ -735,14 +754,13 @@ export const presupuestosService = {
       : `Auto-generado por FLOW-01 al enviar ${pres.numero} (tipo: ${pres.tipo}).`;
 
     // Audit posta inicial — registra QUIÉN envió el ppto con fecha/hora.
-    const user = getCurrentUserTrace();
     const postaInicial: Posta = {
       id: crypto.randomUUID(),
       fecha: new Date().toISOString(),
-      deUsuarioId: user?.uid ?? 'system',
-      deUsuarioNombre: user?.name ?? 'Sistema',
-      aUsuarioId: cfg.usuarioSeguimientoId,
-      aUsuarioNombre: usuario.displayName ?? '',
+      deUsuarioId: trace?.uid ?? 'system',
+      deUsuarioNombre: trace?.name ?? 'Sistema',
+      aUsuarioId: asignadoId,
+      aUsuarioNombre: asignado.displayName ?? '',
       comentario: comentarioPosta,
       estadoAnterior: 'nuevo' as TicketEstado,
       estadoNuevo: 'esperando_oc' as TicketEstado,
@@ -764,10 +782,10 @@ export const presupuestosService = {
       moduloId: null,
       estado: 'esperando_oc' as TicketEstado,
       postas: [postaInicial],
-      asignadoA: cfg.usuarioSeguimientoId,
-      asignadoNombre: usuario.displayName ?? null,
+      asignadoA: asignadoId,
+      asignadoNombre: asignado.displayName ?? null,
       derivadoPor: null,
-      areaActual: 'ventas' as TicketArea,
+      areaActual: areaDestino,
       accionPendiente: 'Esperar OC del cliente',
       adjuntos: [],
       presupuestosIds: [pres.id],
@@ -2420,6 +2438,31 @@ export const presupuestosService = {
     await this._liberarReservasDePresupuesto(id, 'Presupuesto eliminado').catch(err =>
       console.error('[hardDelete] liberar reservas:', err),
     );
+
+    // Cascada: anular las solicitudes de facturación PENDIENTES del ppto — si no,
+    // quedan huérfanas y siguen contando en el KPI "Enviadas a facturación" y en
+    // el módulo Facturación (UAT 2026-07-18). Las 'facturada' se dejan intactas
+    // (hay factura real emitida): solo se loguea el caso.
+    try {
+      const solSnap = await getDocs(
+        query(collection(db, 'solicitudesFacturacion'), where('presupuestoId', '==', id)),
+      );
+      for (const d of solSnap.docs) {
+        const estado = (d.data().estado as string) ?? '';
+        if (estado === 'pendiente') {
+          await updateDoc(d.ref, cleanFirestoreData({
+            estado: 'anulada',
+            observaciones: `${(d.data().observaciones as string) || ''}\nAnulada: presupuesto eliminado.`.trim(),
+            updatedAt: Timestamp.now(),
+            ...getUpdateTrace(),
+          }));
+        } else if (estado === 'facturada') {
+          console.warn(`[hardDelete] solicitud ${d.id} está FACTURADA; queda huérfana a resolver manualmente en Facturación.`);
+        }
+      }
+    } catch (err) {
+      console.error('[hardDelete] anular solicitudes de facturación:', err);
+    }
 
     const batch = createBatch();
     batch.delete(docRef('presupuestos', id));

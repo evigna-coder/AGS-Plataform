@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
-import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
+import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
@@ -377,9 +377,9 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
       items: prev.items.map(item => {
         if (item.id !== itemId) return item;
         const updated = { ...item, [field]: value };
-        if (field === 'cantidad' || field === 'precioUnitario' || field === 'descuento') {
-          const base = updated.cantidad * updated.precioUnitario;
-          updated.subtotal = updated.descuento ? base * (1 - updated.descuento / 100) : base;
+        // 'subItems' también recalcula: los sub-ítems con precio suman al subtotal del padre (Equipos)
+        if (field === 'cantidad' || field === 'precioUnitario' || field === 'descuento' || field === 'subItems') {
+          updated.subtotal = computePresupuestoItemSubtotal(updated);
         }
         return updated;
       }),

@@ -6,6 +6,8 @@ if (typeof globalThis.Buffer === 'undefined') {
 import { pdf } from '@react-pdf/renderer';
 import { PresupuestoPDFEstandar } from './PresupuestoPDFEstandar';
 import { PresupuestoPDFContrato } from './PresupuestoPDFContrato';
+import { PresupuestoPDFEquipos } from './PresupuestoPDFEquipos';
+import { fetchFotosAsDataUrls } from './equipos/fotosDataUrl';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 import type {
   Presupuesto,
@@ -104,6 +106,18 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     }
   }
 
+  // Equipos ('ventas'): pre-descargar las fotos de sub-ítems como data URLs
+  // para que @react-pdf no dependa de fetch remoto al renderizar. Una foto
+  // caída se omite sin romper la generación.
+  const isEquipos = presupuesto.tipo === 'ventas';
+  let fotosDataUrls: Record<string, string> | undefined;
+  if (isEquipos) {
+    const fotoUrls = presupuesto.items.flatMap(i => (i.subItems || []).flatMap(s => s.fotos || []));
+    if (fotoUrls.length > 0) {
+      fotosDataUrls = await fetchFotosAsDataUrls(fotoUrls);
+    }
+  }
+
   const data: PresupuestoPDFData = {
     presupuesto,
     cliente,
@@ -117,12 +131,15 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     impuestos,
     modulosBySistema,
     totalsByCurrency: isMixta ? totalsByCurrency : undefined,
+    fotosDataUrls,
   };
 
   const isContrato = presupuesto.tipo === 'contrato';
   const component = isContrato
     ? <PresupuestoPDFContrato data={data} />
-    : <PresupuestoPDFEstandar data={data} />;
+    : isEquipos
+      ? <PresupuestoPDFEquipos data={data} />
+      : <PresupuestoPDFEstandar data={data} />;
 
   const blob = await pdf(component).toBlob();
   return blob;

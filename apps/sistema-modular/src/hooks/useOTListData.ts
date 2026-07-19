@@ -4,6 +4,7 @@ import type { WorkOrder, Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags
 import { sortByField, type SortDir } from '../components/ui/SortableHeader';
 import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
 import { fechaLocalYMD } from '../utils/formatFecha';
+import { matchesSearch } from '../utils/searchTerms';
 
 /** WorkOrder + fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox,
  *  la que se setea al asignar en agenda — definición de Esteban, UAT 2026-07-17).
@@ -125,27 +126,29 @@ export function useOTListData(filters: OTListFilters) {
     } else if (filters.estadoAdmin) {
       list = list.filter(ot => resolveEstadoOT(ot) === filters.estadoAdmin);
     }
-    const q = filters.busqueda.trim().toLowerCase();
+    const q = filters.busqueda.trim();
     const hasSearch = !!q;
     if (hasSearch) {
-      // Buscador unificado: matchea contra cliente, N° OT, equipo, módulo, serie,
-      // sistema (string o nombre resuelto), tipo servicio e ingeniero.
-      list = list.filter(ot =>
-        ot.otNumber.toLowerCase().includes(q) ||
-        (ot.razonSocial || '').toLowerCase().includes(q) ||
-        (ot.codigoInternoCliente || '').toLowerCase().includes(q) ||
-        (ot.moduloModelo || '').toLowerCase().includes(q) ||
-        (ot.moduloDescripcion || '').toLowerCase().includes(q) ||
-        (ot.moduloSerie || '').toLowerCase().includes(q) ||
-        (ot.sistema || '').toLowerCase().includes(q) ||
-        (ot.sistemaId ? (sistemaNombreById.get(ot.sistemaId) || '') : '').toLowerCase().includes(q) ||
-        (ot.tipoServicio || '').toLowerCase().includes(q) ||
-        (ot.ingenieroAsignadoNombre || '').toLowerCase().includes(q)
-      );
-    } else {
-      // Sin búsqueda: ocultar parents que tengan al menos 1 child.
-      list = list.filter(ot => !parentsWithChildren.has(ot.otNumber));
+      // Buscador unificado multi-término ("mant 7890"): todos los términos deben
+      // aparecer entre cliente, N° OT, equipo, módulo, serie, sistema (string o
+      // nombre resuelto), tipo servicio e ingeniero.
+      list = list.filter(ot => matchesSearch(q,
+        ot.otNumber,
+        ot.razonSocial,
+        ot.codigoInternoCliente,
+        ot.moduloModelo,
+        ot.moduloDescripcion,
+        ot.moduloSerie,
+        ot.sistema,
+        ot.sistemaId ? sistemaNombreById.get(ot.sistemaId) : null,
+        ot.tipoServicio,
+        ot.ingenieroAsignadoNombre,
+      ));
     }
+    // Parents con al menos 1 hija NUNCA se muestran — son contenedores, solo
+    // existen las hijas (UAT 2026-07-18, Fanely: verlos al filtrar confundía).
+    // Los parents sin hijas (legacy) siguen visibles o desaparecerían OTs enteras.
+    list = list.filter(ot => !parentsWithChildren.has(ot.otNumber));
     const qDesc = filters.busquedaDescripcion.trim().toLowerCase();
     if (qDesc) {
       list = list.filter(ot =>

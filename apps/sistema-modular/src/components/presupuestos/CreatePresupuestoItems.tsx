@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
@@ -14,9 +14,11 @@ interface Props {
   categoriasPresupuesto: CategoriaPresupuesto[];
   conceptosServicio: ConceptoServicio[];
   moneda: MonedaPresupuesto;
+  /** Fila extra bajo cada item (Equipos: editor de sub-ítems). `index` es 1-based. */
+  renderSubRow?: (item: PresupuestoItem, index: number) => React.ReactNode;
 }
 
-export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
+export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow }: Props) => {
   const [showWizard, setShowWizard] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
@@ -107,8 +109,9 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map(item => (
-                <tr key={item.id}>
+              {items.map((item, idx) => (
+                <Fragment key={item.id}>
+                <tr>
                   <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-2 py-1">
                     <input value={item.descripcion}
@@ -141,6 +144,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
                 </tr>
+                {renderSubRow?.(item, idx + 1)}
+                </Fragment>
               ))}
             </tbody>
             <tfoot className="bg-[#F0F0F0] border-t border-[#E5E5E5]">

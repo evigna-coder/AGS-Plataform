@@ -4,6 +4,7 @@ import { useCreatePresupuestoForm } from '../../hooks/useCreatePresupuestoForm';
 import type { OrigenPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { CreatePresupuestoItems } from './CreatePresupuestoItems';
+import { SubItemsRow } from './equipos/SubItemsRow';
 import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
 import { EsquemaFacturacionSection } from './EsquemaFacturacionSection';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
@@ -71,7 +72,11 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
 
         <CreatePresupuestoItems
           items={h.items} onAdd={h.addItem} onRemove={h.removeItem} onUpdate={h.updateItem}
-          categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda} />
+          categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda}
+          renderSubRow={h.form.tipo === 'ventas' ? (item, idx) => (
+            <SubItemsRow item={item} itemNumero={idx} colSpan={h.form.moneda === 'MIXTA' ? 10 : 9}
+              presupuestoId={null} onChangeSubItems={(subs) => h.updateItem(item.id, 'subItems', subs)} />
+          ) : undefined} />
 
         {/* Cuotas / Esquema de facturación */}
         <hr className="border-[#E5E5E5]" />

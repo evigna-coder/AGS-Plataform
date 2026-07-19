@@ -5,6 +5,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
+import { matchesSearch } from '../../utils/searchTerms';
 import { computeStockAmplio } from '../../services/stockAmplioService';
 import { articulosService } from '../../services/firebaseService';
 
@@ -65,9 +66,9 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
     })),
   ], [conceptosServicio, articulos]);
 
-  const term = search.trim().toLowerCase();
+  const term = search.trim();
   const filtered = term
-    ? catalogo.filter(r => (r.codigo || '').toLowerCase().includes(term) || r.descripcion.toLowerCase().includes(term))
+    ? catalogo.filter(r => matchesSearch(term, r.codigo, r.descripcion))
     : [];
 
   // Resetear el resaltado al cambiar la búsqueda.

@@ -39,6 +39,7 @@ export const navigation: NavItem[] = [
       { name: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: '📝', modulo: 'ordenes-trabajo' },
       { name: 'Equipos', path: '/equipos', icon: '⚙️', modulo: 'equipos' },
       { name: 'Agenda', path: '/agenda', icon: '📅', modulo: 'agenda' },
+      { name: 'Control semanal', path: '/control-semanal', icon: '✅' },
       { name: 'Pendientes', path: '/pendientes', icon: '📋', modulo: 'pendientes' },
     ],
   },

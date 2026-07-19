@@ -4,7 +4,7 @@ import { establecimientosService, contactosEstablecimientoService } from '../ser
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, PlantillaTextoPresupuesto } from '@ags/shared';
-import { establecimientoUnicoId } from '@ags/shared';
+import { establecimientoUnicoId, computePresupuestoItemSubtotal } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
@@ -430,10 +430,10 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     setItems(prev => prev.map(i => {
       if (i.id !== id) return i;
       const next = { ...i, [field]: value } as PresupuestoItem;
-      // Recalcular subtotal si cambió cantidad / precio / descuento.
-      if (field === 'cantidad' || field === 'precioUnitario' || field === 'descuento') {
-        const base = (next.cantidad || 0) * (next.precioUnitario || 0);
-        next.subtotal = next.descuento ? base * (1 - next.descuento / 100) : base;
+      // Recalcular subtotal si cambió cantidad / precio / descuento / sub-ítems.
+      // Los sub-ítems con precio (Equipos) suman al subtotal del item padre.
+      if (field === 'cantidad' || field === 'precioUnitario' || field === 'descuento' || field === 'subItems') {
+        next.subtotal = computePresupuestoItemSubtotal(next);
       }
       return next;
     }));

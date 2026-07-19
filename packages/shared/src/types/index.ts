@@ -1067,6 +1067,36 @@ export interface PresupuestoItem {
    * true → el semáforo muestra 'entregado'. null/false = sigue el cálculo por ETA / importación.
    */
   entregadoManual?: boolean | null;
+  /**
+   * (Equipos) Sub-ítems del item principal — solo presupuestos tipo 'ventas'.
+   * Se numeran N.1, N.2… en el PDF (formato JAS170-C). El subtotal del item padre
+   * incluye los sub-ítems que tengan precio — ver `computePresupuestoItemSubtotal`
+   * en utils. Los que no tienen precio se listan con celdas de precio vacías.
+   */
+  subItems?: PresupuestoSubItem[] | null;
+}
+
+/**
+ * Sub-ítem de un item de presupuesto tipo 'ventas' (Equipos). Representa un
+ * componente/módulo del sistema cotizado (ej: G3540A, G7077CA, "CPU").
+ * La mayoría no lleva precio propio (va incluido en el precio del item padre);
+ * opcionalmente puede llevarlo y en ese caso suma al total del item.
+ */
+export interface PresupuestoSubItem {
+  id: string;
+  /** Código de producto — texto libre, puede no existir en stock */
+  codigo: string;
+  cantidad: number;
+  /** Descripción corta (1-4 líneas) para la tabla de items */
+  descripcion: string;
+  /** Precio unitario opcional — null = sin precio (celdas vacías en el PDF) */
+  precioUnitario?: number | null;
+  /** Detalle largo multilínea para la sección "Detalles de Configuración" del PDF */
+  detalleLargo?: string | null;
+  /** URLs (Storage) de fotos del equipo — se renderizan en "Detalles de Configuración" */
+  fotos?: string[] | null;
+  /** FK opcional a artículos de stock */
+  stockArticuloId?: string | null;
 }
 
 // --- Adjunto de Presupuesto ---

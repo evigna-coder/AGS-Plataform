@@ -36,12 +36,18 @@ export interface PresupuestoPDFData {
   modulosBySistema?: Record<string, ModuloSistema[]>;
   /** Per-currency totals for MIXTA presupuestos */
   totalsByCurrency?: Record<string, number>;
+  /**
+   * (Equipos) Fotos de sub-ítems pre-descargadas como data URLs, indexadas por
+   * la URL original de Storage. Se resuelven en generatePresupuestoPDF antes de
+   * renderizar (fetch → dataURL) para no depender de CORS/red dentro de @react-pdf.
+   */
+  fotosDataUrls?: Record<string, string>;
 }
 
 const S = baseStyles;
 
 /** Formato monetario es-AR: 1.234,56 — separador de miles punto, decimal coma. */
-function fmt(n: number | null | undefined): string {
+export function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined || isNaN(n)) return '0,00';
   return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -168,7 +174,7 @@ function ItemsTable({ items }: { items: PresupuestoItem[]; moneda?: string }) {
  * Phase 10 — Bloque "Datos de entrega e instalación" para ppto tipo 'ventas'.
  * Se inserta ANTES del detalle de items.
  */
-function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) {
+export function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) {
   const hasAny = metadata.fechaEstimadaEntrega || metadata.lugarInstalacion || metadata.requiereEntrenamiento;
   if (!hasAny) return null;
   const fechaStr = metadata.fechaEstimadaEntrega
@@ -192,7 +198,7 @@ function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) {
 }
 
 /** Header estilo Odoo: empresa a la izquierda, título + metadata key/value a la derecha (sin recuadro). */
-function PDFHeader({ data }: { data: PresupuestoPDFData }) {
+export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const metaRows: [string, string][] = [
     ['Fecha', formatDate(presupuesto.createdAt)],
@@ -233,7 +239,7 @@ function PDFHeader({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
+export function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
   const { cliente, establecimiento, contacto } = data;
   const nombre = cliente?.razonSocial || '-';
   const dir = establecimiento?.direccion || cliente?.direccion || '-';
@@ -399,7 +405,7 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
 
 /** Notas técnicas en la PRIMERA hoja (pedido del user: el contexto técnico del trabajo
  *  debe verse junto a los items, no enterrado en la página de condiciones). */
-function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
+export function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const visible = (presupuesto.seccionesVisibles || {}).notasTecnicas !== false;
   if (!visible || !presupuesto.notasTecnicas) return null;
@@ -411,7 +417,7 @@ function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
+export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
 
@@ -443,7 +449,7 @@ function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-function PDFFirma() {
+export function PDFFirma() {
   return (
     <View style={S.firmaSection} wrap={false}>
       <View style={S.firmaBlock}>
@@ -459,7 +465,7 @@ function PDFFirma() {
   );
 }
 
-function PDFFooter() {
+export function PDFFooter() {
   return (
     <View style={S.footer} fixed>
       <Text style={S.footerLeft}>Archivo: Presupuesto</Text>
