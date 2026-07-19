@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import type { CondicionUnidad } from '@ags/shared';
 import type { UbicOption } from '../../hooks/useStockIntake';
+import { matchesSearch } from '../../utils/searchTerms';
 
 const CONDICIONES: CondicionUnidad[] = ['nuevo', 'bien_de_uso', 'reacondicionado', 'vendible', 'scrap'];
 const CONDICION_LABELS: Record<CondicionUnidad, string> = {
@@ -60,7 +61,7 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
   const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
   const ctrl = 'w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700';
 
-  const filteredUbic = ubicOptions.filter(o => o.nombre.toLowerCase().includes(ubicSearch.toLowerCase()));
+  const filteredUbic = ubicOptions.filter(o => matchesSearch(ubicSearch, o.nombre));
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onMouseDown={onCancel}>

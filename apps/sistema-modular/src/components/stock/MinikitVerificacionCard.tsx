@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import type { MinikitRequeridoItem, MinikitVerificacion, UnidadStock, EstadoMinikit } from '@ags/shared';
+import { matchesSearch } from '../../utils/searchTerms';
 
 const formatRelative = (iso: string): string => {
   const ms = Date.now() - new Date(iso).getTime();
@@ -44,13 +45,8 @@ export const MinikitVerificacionCard = ({
   }, [unidades]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return requeridos;
-    return requeridos.filter(r =>
-      r.articuloCodigo.toLowerCase().includes(q) ||
-      r.articuloDescripcion.toLowerCase().includes(q) ||
-      (r.sector ?? '').toLowerCase().includes(q)
-    );
+    if (!search.trim()) return requeridos;
+    return requeridos.filter(r => matchesSearch(search, r.articuloCodigo, r.articuloDescripcion, r.sector));
   }, [requeridos, search]);
 
   const allFilteredChecked = filtered.length > 0 && filtered.every(r => presentes[r.articuloId] === true);

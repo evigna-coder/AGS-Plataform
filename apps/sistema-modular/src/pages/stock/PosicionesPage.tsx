@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { usePosicionesTree, type PosicionNode } from '../../hooks/usePosicionesTree';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { TipoPosicionStock, UnidadStock } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -322,7 +323,7 @@ function filterByZona(node: PosicionNode, zona: string): boolean {
 }
 
 function nodeMatches(node: PosicionNode, nombreLower: string, tipo: TipoPosicionStock | ''): boolean {
-  const nombreOk = !nombreLower || node.nombre.toLowerCase().includes(nombreLower) || node.codigo.toLowerCase().includes(nombreLower);
+  const nombreOk = matchesSearch(nombreLower, node.nombre, node.codigo);
   const tipoOk = !tipo || node.tipo === tipo;
   return nombreOk && tipoOk;
 }

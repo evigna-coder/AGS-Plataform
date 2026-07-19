@@ -5,6 +5,7 @@ import {
   dispositivosService, vehiculosService,
 } from '../services/firebaseService';
 import { useDebounce } from './useDebounce';
+import { matchesSearch } from '../utils/searchTerms';
 import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
 
 export interface CartItem {
@@ -114,21 +115,19 @@ export function useAsignacionRapida() {
   const debouncedQuery = useDebounce(searchQuery, 300);
   const q = debouncedQuery.toLowerCase();
   const filteredUnits = q ? availableUnits.filter(u =>
-    u.articuloCodigo.toLowerCase().includes(q) || u.articuloDescripcion.toLowerCase().includes(q) ||
-    (u.nroSerie?.toLowerCase().includes(q))
+    matchesSearch(debouncedQuery, u.articuloCodigo, u.articuloDescripcion, u.nroSerie)
   ) : availableUnits;
   const filteredMinikits = q ? availableMinikits.filter(mk =>
-    mk.codigo.toLowerCase().includes(q) || mk.nombre.toLowerCase().includes(q)
+    matchesSearch(debouncedQuery, mk.codigo, mk.nombre)
   ) : availableMinikits;
   const filteredInstrumentos = q ? availableInstrumentos.filter(i =>
-    i.nombre.toLowerCase().includes(q) || i.marca.toLowerCase().includes(q) ||
-    i.modelo.toLowerCase().includes(q) || i.serie.toLowerCase().includes(q)
+    matchesSearch(debouncedQuery, i.nombre, i.marca, i.modelo, i.serie)
   ) : availableInstrumentos;
   const filteredDispositivos = q ? availableDispositivos.filter(d =>
-    d.marca.toLowerCase().includes(q) || d.modelo.toLowerCase().includes(q) || d.serie.toLowerCase().includes(q)
+    matchesSearch(debouncedQuery, d.marca, d.modelo, d.serie)
   ) : availableDispositivos;
   const filteredVehiculos = q ? availableVehiculos.filter(v =>
-    v.patente.toLowerCase().includes(q) || v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q)
+    matchesSearch(debouncedQuery, v.patente, v.marca, v.modelo)
   ) : availableVehiculos;
 
   // --- Cart grouped by engineer (with per-engineer client) ---

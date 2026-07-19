@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { facturacionService } from '../../services/facturacionService';
 import { clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useAuth } from '../../contexts/AuthContext';
 import { exportSolicitudesExcel, exportSolicitudesPDF } from '../../utils/exports/exportSolicitudesFacturacion';
@@ -88,12 +89,7 @@ export const FacturacionList = () => {
       return true;
     });
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter(s =>
-        s.presupuestoNumero.toLowerCase().includes(q) ||
-        s.clienteNombre.toLowerCase().includes(q) ||
-        (s.numeroFactura || '').toLowerCase().includes(q)
-      );
+      result = result.filter(s => matchesSearch(debouncedSearch, s.presupuestoNumero, s.clienteNombre, s.numeroFactura));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [solicitudes, filters, debouncedSearch]);

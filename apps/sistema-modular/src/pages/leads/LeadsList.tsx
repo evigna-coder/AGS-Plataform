@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { Lead, TicketArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import {
   getSimplifiedEstadoLabel, getSimplifiedEstadoColor,
@@ -166,14 +167,8 @@ export const LeadsList = () => {
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
-        (l.numero || '').toLowerCase().includes(q) ||
-        l.razonSocial.toLowerCase().includes(q) ||
-        l.contacto.toLowerCase().includes(q) ||
-        (l.descripcion || '').toLowerCase().includes(q) ||
-        (l.ultimaObservacion || '').toLowerCase().includes(q) ||
-        (l.motivoContacto || '').toLowerCase().includes(q)
+        matchesSearch(debouncedSearch, l.numero, l.razonSocial, l.contacto, l.descripcion, l.ultimaObservacion, l.motivoContacto)
       );
     }
     return result;

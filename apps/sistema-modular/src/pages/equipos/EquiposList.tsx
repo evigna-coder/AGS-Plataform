@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { establecimientoPerteneceACliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -121,17 +122,13 @@ export const EquiposList = () => {
     else if (filters.estadoTab === 'inactivos') result = result.filter(s => s.activo === false);
     if (filters.categoriaFilter) result = result.filter(s => s.categoriaId === filters.categoriaFilter);
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(s => {
         const est = estMap[s.establecimientoId || ''];
         const clienteName = clienteMap[est?.clienteCuit ?? s.clienteId ?? ''] || '';
-        return (
-          s.nombre.toLowerCase().includes(q) ||
-          clienteName.toLowerCase().includes(q) ||
-          (est?.nombre || '').toLowerCase().includes(q) ||
-          (s.codigoInternoCliente || '').toLowerCase().includes(q) ||
-          (s.software || '').toLowerCase().includes(q) ||
-          (s.softwares || []).some(sw => (sw.nombre || '').toLowerCase().includes(q))
+        return matchesSearch(
+          debouncedSearch,
+          s.nombre, clienteName, est?.nombre, s.codigoInternoCliente, s.software,
+          ...(s.softwares || []).map(sw => sw.nombre),
         );
       });
     }

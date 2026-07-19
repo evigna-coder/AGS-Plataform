@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Ingeniero, UnidadStock, RemitoItem, TipoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { matchesSearch } from '../../utils/searchTerms';
 
 const TIPO_OPTIONS: { value: TipoRemito; label: string }[] = [
   { value: 'salida_campo', label: 'Salida a campo' },
@@ -58,8 +59,7 @@ export const RemitoEditor = () => {
   const filteredUnits = availableUnits.filter(u => {
     if (addedUnitIds.has(u.id)) return false;
     if (!unitSearchTerm) return true;
-    const term = unitSearchTerm.toLowerCase();
-    return u.articuloCodigo.toLowerCase().includes(term) || u.articuloDescripcion.toLowerCase().includes(term);
+    return matchesSearch(unitSearchTerm, u.articuloCodigo, u.articuloDescripcion);
   });
 
   const addItem = (unit: UnidadStock) => {

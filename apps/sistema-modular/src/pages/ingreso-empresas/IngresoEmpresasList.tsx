@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ingresoEmpresasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IngresoEmpresaModal } from '../../components/ingreso-empresas/IngresoEmpresaModal';
@@ -58,10 +59,7 @@ export const IngresoEmpresasList = () => {
     let result = items;
     if (filters.tipo) result = result.filter(i => i.tipo !== filters.tipo ? false : true);
     if (debouncedSearch) {
-      const t = debouncedSearch.toLowerCase();
-      result = result.filter(i =>
-        i.clienteNombre.toLowerCase().includes(t) || i.contacto.toLowerCase().includes(t)
-      );
+      result = result.filter(i => matchesSearch(debouncedSearch, i.clienteNombre, i.contacto));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [items, filters.tipo, debouncedSearch, filters.sortField, filters.sortDir]);

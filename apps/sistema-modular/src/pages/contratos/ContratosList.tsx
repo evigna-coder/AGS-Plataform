@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { contratosService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import type { Contrato, Cliente, EstadoContrato } from '@ags/shared';
@@ -58,8 +59,7 @@ export const ContratosList = () => {
       return true;
     });
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter(c => c.numero.toLowerCase().includes(q) || c.clienteNombre.toLowerCase().includes(q));
+      result = result.filter(c => matchesSearch(debouncedSearch, c.numero, c.clienteNombre));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [contratos, filters, debouncedSearch]);

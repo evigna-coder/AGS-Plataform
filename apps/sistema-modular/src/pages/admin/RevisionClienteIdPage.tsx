@@ -3,6 +3,7 @@ import type { Ticket } from '@ags/shared';
 import { leadsService } from '../../services/leadsService';
 import { clientesService } from '../../services/clientesService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { Card } from '../../components/ui/Card';
 import { RevisionClienteIdRow } from './components/RevisionClienteIdRow';
 
@@ -78,10 +79,7 @@ export default function RevisionClienteIdPage() {
       tickets.filter(t => {
         const candidatos = t.candidatosPropuestos ?? [];
         if (filters.soloAmbiguos && candidatos.length === 0) return false;
-        if (
-          filters.search &&
-          !t.razonSocial.toLowerCase().includes(filters.search.toLowerCase())
-        ) {
+        if (filters.search && !matchesSearch(filters.search, t.razonSocial)) {
           return false;
         }
         return true;

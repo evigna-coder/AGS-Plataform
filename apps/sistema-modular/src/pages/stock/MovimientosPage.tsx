@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -73,10 +74,7 @@ export const MovimientosPage = () => {
   const filtered = useMemo(() => {
     let list = items;
     if (debouncedSearch) {
-      const term = debouncedSearch.toLowerCase();
-      list = list.filter(m =>
-        m.articuloCodigo.toLowerCase().includes(term) ||
-        m.articuloDescripcion.toLowerCase().includes(term));
+      list = list.filter(m => matchesSearch(debouncedSearch, m.articuloCodigo, m.articuloDescripcion));
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [items, debouncedSearch, filters.sortField, filters.sortDir]);

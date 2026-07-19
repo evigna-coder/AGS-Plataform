@@ -3,6 +3,7 @@ import type { UsuarioAGS, MotivoLlamado, TicketArea, TicketPrioridad, Cliente, S
 import { TICKET_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService, contactosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
+import { matchesSearch } from '../utils/searchTerms';
 
 export interface LeadPrefill {
   clienteId?: string;
@@ -86,7 +87,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   };
 
   const filteredClientes = clienteSearch.trim()
-    ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
+    ? clientes.filter(c => matchesSearch(clienteSearch, c.razonSocial)).slice(0, 8)
     : [];
 
   const handleSelectCliente = (cli: Cliente) => {

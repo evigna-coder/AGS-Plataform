@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { QFDocumento, QFEstado } from '@ags/shared';
 import { qfDocumentosService } from '../../services/qfDocumentosService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
 import { toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -102,12 +103,7 @@ export function QFDocumentosList() {
     if (filters.tipo) result = result.filter(d => d.tipo === filters.tipo);
     if (filters.familia) result = result.filter(d => String(d.familia) === filters.familia);
     if (filters.search.trim()) {
-      const q = filters.search.toLowerCase();
-      result = result.filter(d =>
-        d.numeroCompleto.toLowerCase().includes(q) ||
-        d.nombre.toLowerCase().includes(q) ||
-        (d.descripcion || '').toLowerCase().includes(q)
-      );
+      result = result.filter(d => matchesSearch(filters.search, d.numeroCompleto, d.nombre, d.descripcion));
     }
     return result;
   }, [docs, filters]);

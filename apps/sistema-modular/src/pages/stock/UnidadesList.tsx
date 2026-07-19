@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { unidadesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Card } from '../../components/ui/Card';
@@ -63,14 +64,8 @@ export const UnidadesList = () => {
   const filtered = useMemo(() => {
     let list = unidades;
     if (debouncedSearch) {
-      const term = debouncedSearch.toLowerCase();
       list = list.filter(u =>
-        u.articuloCodigo.toLowerCase().includes(term) ||
-        u.articuloDescripcion.toLowerCase().includes(term) ||
-        (u.nroSerie ?? '').toLowerCase().includes(term) ||
-        (u.nroLote ?? '').toLowerCase().includes(term) ||
-        (u.reservadoParaPresupuestoNumero ?? '').toLowerCase().includes(term) ||
-        (u.reservadoParaClienteNombre ?? '').toLowerCase().includes(term)
+        matchesSearch(debouncedSearch, u.articuloCodigo, u.articuloDescripcion, u.nroSerie, u.nroLote, u.reservadoParaPresupuestoNumero, u.reservadoParaClienteNombre)
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);

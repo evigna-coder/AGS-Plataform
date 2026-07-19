@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { vehiculosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { VehiculoModal } from '../../components/vehiculos/VehiculoModal';
@@ -51,10 +52,7 @@ export const VehiculosList = () => {
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return items;
-    const t = debouncedSearch.toLowerCase();
-    return items.filter(v =>
-      v.patente.toLowerCase().includes(t) || v.marca.toLowerCase().includes(t) || v.modelo.toLowerCase().includes(t) || v.asignadoA.toLowerCase().includes(t)
-    );
+    return items.filter(v => matchesSearch(debouncedSearch, v.patente, v.marca, v.modelo, v.asignadoA));
   }, [items, debouncedSearch]);
 
   const handleDelete = async (v: Vehiculo) => {

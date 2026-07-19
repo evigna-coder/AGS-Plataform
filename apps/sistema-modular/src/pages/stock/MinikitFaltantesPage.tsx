@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { Minikit, UnidadStock } from '@ags/shared';
 
 interface FaltanteRow {
@@ -106,12 +107,10 @@ export const MinikitFaltantesPage = () => {
     let r = rows;
     if (filters.minikitId) r = r.filter(x => x.minikitId === filters.minikitId);
     if (filters.asignado) {
-      const q = filters.asignado.toLowerCase();
-      r = r.filter(x => x.asignadoNombre.toLowerCase().includes(q));
+      r = r.filter(x => matchesSearch(filters.asignado, x.asignadoNombre));
     }
     if (filters.articulo) {
-      const q = filters.articulo.toLowerCase();
-      r = r.filter(x => x.articuloCodigo.toLowerCase().includes(q) || x.articuloDescripcion.toLowerCase().includes(q));
+      r = r.filter(x => matchesSearch(filters.articulo, x.articuloCodigo, x.articuloDescripcion));
     }
     return sortByField(r, filters.sortField, filters.sortDir as SortDir);
   }, [rows, filters]);

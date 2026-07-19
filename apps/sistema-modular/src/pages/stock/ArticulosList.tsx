@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -126,7 +127,7 @@ export const ArticulosList = () => {
 
   const filtered = useMemo(() => {
     let list = articulos;
-    if (debouncedSearch) { const t = debouncedSearch.toLowerCase(); list = list.filter(a => a.codigo.toLowerCase().includes(t) || a.descripcion.toLowerCase().includes(t)); }
+    if (debouncedSearch) { list = list.filter(a => matchesSearch(debouncedSearch, a.codigo, a.descripcion)); }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [articulos, debouncedSearch, filters.sortField, filters.sortDir]);
 

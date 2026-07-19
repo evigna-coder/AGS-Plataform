@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { consumiblesPorModuloService } from '../../services/consumiblesPorModuloService';
 import type { ConsumiblesPorModulo, ConsumibleModulo } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -49,12 +50,8 @@ export const ConsumiblesPorModuloList = () => {
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter(it =>
-      it.codigoModulo.toLowerCase().includes(needle) ||
-      (it.descripcion ?? '').toLowerCase().includes(needle),
-    );
+    if (!q.trim()) return items;
+    return items.filter(it => matchesSearch(q, it.codigoModulo, it.descripcion));
   }, [items, q]);
 
   const handleNew = () => {

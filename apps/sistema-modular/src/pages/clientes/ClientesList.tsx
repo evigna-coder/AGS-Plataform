@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -138,12 +139,7 @@ export const ClientesList = () => {
     if (filters.estadoTab === 'activos') result = result.filter(c => c.activo !== false);
     else if (filters.estadoTab === 'inactivos') result = result.filter(c => c.activo === false);
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.trim().toLowerCase();
-      result = result.filter(c =>
-        c.razonSocial.toLowerCase().includes(q) ||
-        (c.cuit || '').toLowerCase().includes(q) ||
-        (c.rubro || '').toLowerCase().includes(q)
-      );
+      result = result.filter(c => matchesSearch(debouncedSearch, c.razonSocial, c.cuit, c.rubro));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [clientes, debouncedSearch, filters.estadoTab, filters.sortField, filters.sortDir]);

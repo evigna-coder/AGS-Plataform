@@ -4,6 +4,7 @@ import type { Articulo, ItemOC } from '@ags/shared';
 import { articulosService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
+import { matchesSearch } from '../../utils/searchTerms';
 
 interface Props {
   onAdd: (item: Partial<ItemOC>) => void;
@@ -34,9 +35,9 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
     return () => clearTimeout(t);
   }, [step]);
 
-  const term = search.trim().toLowerCase();
+  const term = search.trim();
   const filtered = term
-    ? articulos.filter(a => (a.codigo || '').toLowerCase().includes(term) || (a.descripcion || '').toLowerCase().includes(term)).slice(0, 50)
+    ? articulos.filter(a => matchesSearch(term, a.codigo, a.descripcion)).slice(0, 50)
     : [];
 
   const selectArticulo = (a: Articulo) => {

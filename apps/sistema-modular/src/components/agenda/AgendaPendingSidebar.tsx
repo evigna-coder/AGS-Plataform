@@ -2,6 +2,7 @@ import { type FC, useState, useMemo } from 'react';
 import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { useDraggable } from '@dnd-kit/core';
+import { matchesSearch } from '../../utils/searchTerms';
 
 const ESTADO_BADGE: Record<string, string> = {
   CREADA: 'bg-slate-100 text-slate-500',
@@ -30,8 +31,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
     return pendingOTs.filter(ot => {
       if (estadoFilter && (ot.estadoAdmin || 'CREADA') !== estadoFilter) return false;
       if (!search) return true;
-      const q = search.toLowerCase();
-      return ot.otNumber.toLowerCase().includes(q) || ot.razonSocial.toLowerCase().includes(q);
+      return matchesSearch(search, ot.otNumber, ot.razonSocial);
     });
   }, [pendingOTs, search, estadoFilter]);
 

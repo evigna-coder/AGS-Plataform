@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { articulosService } from '../../services/stockService';
 import { marcasService } from '../../services/catalogService';
@@ -52,9 +53,9 @@ export function PlanificacionStockPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const t = filters.texto.toLowerCase().trim();
+    const t = filters.texto.trim();
     return articulos.filter(a => {
-      if (t && !(a.codigo?.toLowerCase().includes(t) || a.descripcion?.toLowerCase().includes(t))) {
+      if (t && !matchesSearch(t, a.codigo, a.descripcion)) {
         return false;
       }
       if (filters.marcaId && a.marcaId !== filters.marcaId) return false;

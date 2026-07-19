@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { establecimientosService, clientesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import type { Establecimiento, Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -130,13 +131,8 @@ export const EstablecimientosList = () => {
     let result = establecimientos;
     if (filters.cliente) result = result.filter(e => (e.clienteCuit || (e as any).clienteId) === filters.cliente);
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(e =>
-        e.nombre.toLowerCase().includes(q) ||
-        (e.direccion || '').toLowerCase().includes(q) ||
-        (e.localidad || '').toLowerCase().includes(q) ||
-        (e.provincia || '').toLowerCase().includes(q) ||
-        (clienteMap[e.clienteCuit || (e as any).clienteId] || '').toLowerCase().includes(q)
+        matchesSearch(debouncedSearch, e.nombre, e.direccion, e.localidad, e.provincia, clienteMap[e.clienteCuit || (e as any).clienteId])
       );
     }
     if (filters.sortField === 'cliente') {

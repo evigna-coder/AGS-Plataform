@@ -9,6 +9,7 @@ import {
 import { clientesService } from '../../services/firebaseService';
 import { pendientesService, type PendienteFilters } from '../../services/pendientesService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -108,14 +109,7 @@ export const PendientesList = () => {
   const filtrados = useMemo(() => {
     let list = pendientes;
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter(
-        p =>
-          p.descripcion.toLowerCase().includes(q) ||
-          p.clienteNombre.toLowerCase().includes(q) ||
-          (p.equipoNombre || '').toLowerCase().includes(q) ||
-          (p.equipoAgsId || '').toLowerCase().includes(q),
-      );
+      list = list.filter(p => matchesSearch(debouncedSearch, p.descripcion, p.clienteNombre, p.equipoNombre, p.equipoAgsId));
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [pendientes, debouncedSearch, filters.sortField, filters.sortDir]);

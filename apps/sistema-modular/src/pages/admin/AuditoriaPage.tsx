@@ -3,6 +3,7 @@ import type { AuditLogEntry, AuditAction, UsuarioAGS } from '@ags/shared';
 import { auditService, type AuditFilters } from '../../services/auditService';
 import { usuariosService } from '../../services/personalService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -301,13 +302,8 @@ export default function AuditoriaPage() {
 
   const filtered = useMemo(() => {
     if (!filters.search.trim()) return entries;
-    const q = filters.search.toLowerCase();
     return entries.filter(e =>
-      (e.userName || '').toLowerCase().includes(q) ||
-      (e.entityLabel || '').toLowerCase().includes(q) ||
-      (e.collection || '').toLowerCase().includes(q) ||
-      (e.eventName || '').toLowerCase().includes(q) ||
-      (e.documentId || '').toLowerCase().includes(q)
+      matchesSearch(filters.search, e.userName, e.entityLabel, e.collection, e.eventName, e.documentId)
     );
   }, [entries, filters.search]);
 

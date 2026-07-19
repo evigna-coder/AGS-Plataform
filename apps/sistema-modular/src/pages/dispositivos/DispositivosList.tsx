@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { dispositivosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { matchesSearch } from '../../utils/searchTerms';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -62,11 +63,7 @@ export const DispositivosList = () => {
   const filtered = useMemo(() => {
     let list = items;
     if (debouncedSearch) {
-      const t = debouncedSearch.toLowerCase();
-      list = list.filter(d =>
-        d.marca.toLowerCase().includes(t) || d.modelo.toLowerCase().includes(t) ||
-        d.serie.toLowerCase().includes(t) || (d.asignadoANombre ?? '').toLowerCase().includes(t)
-      );
+      list = list.filter(d => matchesSearch(debouncedSearch, d.marca, d.modelo, d.serie, d.asignadoANombre));
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [items, debouncedSearch, filters.sortField, filters.sortDir]);

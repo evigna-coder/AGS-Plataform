@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { matchesSearch } from '../../../utils/searchTerms';
 
 export interface ArticuloMini { id: string; codigo: string; descripcion: string }
 
@@ -38,10 +39,7 @@ export const ArticuloInlineAutocomplete: React.FC<Props> = ({
   }, []);
 
   const filtered = useMemo(() => search.length >= 2
-    ? catalog.filter(a =>
-        a.codigo.toLowerCase().includes(search.toLowerCase()) ||
-        a.descripcion.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 12)
+    ? catalog.filter(a => matchesSearch(search, a.codigo, a.descripcion)).slice(0, 12)
     : [], [search, catalog]);
 
   const selectItem = (art: ArticuloMini) => {
