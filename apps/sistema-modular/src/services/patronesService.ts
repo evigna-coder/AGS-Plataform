@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
-import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Patron, CategoriaPatron } from '@ags/shared';
 import type { MockPatronBomState } from '../__tests__/fixtures/patronBom';
 import { buildConsumirComponentes } from './patronesConsumirHelpers';
@@ -18,6 +18,8 @@ let _fb: {
   getCreateTrace: any;
   getUpdateTrace: any;
   onSnapshot: any;
+  uploadBytes: any;
+  deleteObject: any;
 } | null = null;
 async function getFirebaseModules() {
   if (!_fb) {
@@ -32,6 +34,8 @@ async function getFirebaseModules() {
       getCreateTrace: m.getCreateTrace,
       getUpdateTrace: m.getUpdateTrace,
       onSnapshot: m.onSnapshot,
+      uploadBytes: m.uploadBytes,
+      deleteObject: m.deleteObject,
     };
   }
   return _fb;
@@ -126,7 +130,7 @@ export const patronesService = {
   },
 
   async delete(id: string): Promise<void> {
-    const { storage, createBatch, docRef, batchAudit } = await getFirebaseModules();
+    const { storage, createBatch, docRef, batchAudit, deleteObject } = await getFirebaseModules();
     // Borrar certificados de Storage de todos los lotes antes de eliminar el documento
     const patron = await this.getById(id);
     if (patron?.lotes) {
@@ -148,7 +152,7 @@ export const patronesService = {
    * Sube el certificado de un lote específico y actualiza el array lotes del patrón.
    */
   async uploadCertificadoLote(patronId: string, loteIdx: number, file: File): Promise<{ url: string; path: string }> {
-    const { storage } = await getFirebaseModules();
+    const { storage, uploadBytes } = await getFirebaseModules();
     const patron = await this.getById(patronId);
     if (!patron) throw new Error(`Patron ${patronId} no encontrado`);
     if (loteIdx < 0 || loteIdx >= patron.lotes.length) throw new Error(`Lote index ${loteIdx} fuera de rango`);
@@ -173,7 +177,7 @@ export const patronesService = {
    * Elimina el certificado de un lote y limpia las referencias.
    */
   async deleteCertificadoLote(patronId: string, loteIdx: number): Promise<void> {
-    const { storage } = await getFirebaseModules();
+    const { storage, deleteObject } = await getFirebaseModules();
     const patron = await this.getById(patronId);
     if (!patron) return;
     const lote = patron.lotes[loteIdx];

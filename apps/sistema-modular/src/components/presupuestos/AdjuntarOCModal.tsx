@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../services/firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { storage, uploadBytes } from '../../services/firebase';
 import { presupuestosService } from '../../services/firebaseService';
 import type { AdjuntoPresupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';

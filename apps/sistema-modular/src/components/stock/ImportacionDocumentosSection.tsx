@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { uploadBytes } from '../../services/firebase';
 import { importacionesService, storage } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';

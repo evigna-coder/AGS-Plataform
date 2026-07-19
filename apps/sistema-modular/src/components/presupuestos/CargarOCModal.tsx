@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { OrdenCompraCliente, Presupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
-import { storage } from '../../services/firebase';
+import { storage, uploadBytes } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   TabButton, NuevaOCForm, ExistenteOCForm, OtrosPresupuestosList,

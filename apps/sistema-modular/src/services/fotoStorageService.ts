@@ -7,8 +7,8 @@
  * service account JWT). Las fotos viejas con `driveFileId` siguen visibles vía
  * `FotoFicha.url` ya guardado en Firestore — solo cambian las nuevas.
  */
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { storage, uploadBytes, deleteObject } from './firebase';
 
 export const fotoStorageService = {
   async upload(itemSubId: string, file: File | Blob, filename: string): Promise<{

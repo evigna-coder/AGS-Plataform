@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
-import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Columna, CategoriaPatron } from '@ags/shared';
-import { db, storage, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+import { db, storage, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot, uploadBytes, deleteObject } from './firebase';
 
 // --- Columnas cromatográficas (colección /columnas) ---
 // Cada columna se identifica por código de artículo.
