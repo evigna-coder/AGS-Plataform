@@ -4,6 +4,7 @@ import type { QFDocumento } from '@ags/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { qfDocumentosService } from '../services/qfDocumentosService';
 import { useUrlFilters } from '../hooks/useUrlFilters';
+import { matchesSearch } from '../utils/searchTerms';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -65,12 +66,8 @@ export default function QFDocumentosPage() {
       result = result.filter(d => String(d.familia) === filters.familia);
     }
     if (filters.search.trim()) {
-      const q = filters.search.toLowerCase();
       result = result.filter(d =>
-        d.numeroCompleto.toLowerCase().includes(q) ||
-        d.nombre.toLowerCase().includes(q) ||
-        (d.descripcion || '').toLowerCase().includes(q)
-      );
+        matchesSearch(filters.search, d.numeroCompleto, d.nombre, d.descripcion));
     }
     return result;
   }, [docs, filters]);

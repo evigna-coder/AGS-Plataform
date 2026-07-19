@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import type { Lead, TicketEstado } from '@ags/shared';
+import { matchesSearch } from '../utils/searchTerms';
 
 export function useLeadList() {
   const { usuario } = useAuth();
@@ -51,13 +52,8 @@ export function useLeadList() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return leads;
-    const q = search.toLowerCase();
     return leads.filter(l =>
-      l.razonSocial.toLowerCase().includes(q) ||
-      l.contacto.toLowerCase().includes(q) ||
-      (l.descripcion ?? '').toLowerCase().includes(q) ||
-      l.motivoContacto.toLowerCase().includes(q)
-    );
+      matchesSearch(search, l.razonSocial, l.contacto, l.descripcion, l.motivoContacto));
   }, [leads, search]);
 
   return {

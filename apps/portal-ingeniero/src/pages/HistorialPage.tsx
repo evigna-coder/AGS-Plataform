@@ -9,6 +9,7 @@ import { REPORTES_OT_URL } from '../utils/constants';
 import { formatDateShort } from '../utils/formatDate';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 import { useUrlFilters } from '../hooks/useUrlFilters';
+import { matchesSearch } from '../utils/searchTerms';
 
 const FILTER_SCHEMA = {
   search: { type: 'string', default: '' },
@@ -139,13 +140,8 @@ export default function HistorialPage() {
       list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
     }
     if (filters.equipo.trim()) {
-      const e = filters.equipo.toLowerCase();
       list = list.filter(ot =>
-        ot.moduloModelo?.toLowerCase().includes(e) ||
-        ot.moduloSerie?.toLowerCase().includes(e) ||
-        ot.sistema?.toLowerCase().includes(e) ||
-        ot.codigoInternoCliente?.toLowerCase().includes(e),
-      );
+        matchesSearch(filters.equipo, ot.moduloModelo, ot.moduloSerie, ot.sistema, ot.codigoInternoCliente));
     }
     if (filters.fechaDesde) {
       list = list.filter(ot => (ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox || '') >= filters.fechaDesde);
@@ -154,17 +150,10 @@ export default function HistorialPage() {
       list = list.filter(ot => (ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox || '') <= filters.fechaHasta + 'T23:59:59');
     }
     if (filters.search.trim()) {
-      const s = filters.search.toLowerCase();
       list = list.filter(ot =>
-        ot.otNumber?.toLowerCase().includes(s) ||
-        ot.razonSocial?.toLowerCase().includes(s) ||
-        ot.sistema?.toLowerCase().includes(s) ||
-        ot.tipoServicio?.toLowerCase().includes(s) ||
-        ot.ingenieroAsignadoNombre?.toLowerCase().includes(s) ||
-        ot.moduloModelo?.toLowerCase().includes(s) ||
-        ot.moduloSerie?.toLowerCase().includes(s) ||
-        ot.codigoInternoCliente?.toLowerCase().includes(s),
-      );
+        matchesSearch(filters.search,
+          ot.otNumber, ot.razonSocial, ot.sistema, ot.tipoServicio,
+          ot.ingenieroAsignadoNombre, ot.moduloModelo, ot.moduloSerie, ot.codigoInternoCliente));
     }
     return sortByField(list, sortField, sortDir);
   }, [finalizadas, filters, clienteRazonById, sortField, sortDir, lookbackCutoff]);

@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
+import { matchesSearch } from '../../utils/searchTerms';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
@@ -77,7 +78,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   useEffect(() => { setAsignadoId(''); }, [areaActual]);
 
   const filteredClientes = clienteSearch.trim()
-    ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
+    ? clientes.filter(c => matchesSearch(clienteSearch, c.razonSocial)).slice(0, 8)
     : [];
 
   const personList = useMemo(() => {

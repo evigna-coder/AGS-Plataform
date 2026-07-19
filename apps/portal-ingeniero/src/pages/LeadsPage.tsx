@@ -12,6 +12,7 @@ import {
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
+import { matchesSearch } from '../utils/searchTerms';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -195,14 +196,8 @@ export default function LeadsPage() {
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
     if (search.trim()) {
-      const q = search.toLowerCase();
       result = result.filter(l =>
-        (l.numero || '').toLowerCase().includes(q) ||
-        l.razonSocial.toLowerCase().includes(q) ||
-        l.contacto.toLowerCase().includes(q) ||
-        (l.descripcion || '').toLowerCase().includes(q) ||
-        (l.motivoContacto || '').toLowerCase().includes(q)
-      );
+        matchesSearch(search, l.numero, l.razonSocial, l.contacto, l.descripcion, l.motivoContacto));
     }
     return sortByField(result, sortField, sortDir);
   }, [leads, usuario, isAdmin, extraAreas, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search, sortField, sortDir]);
