@@ -98,18 +98,21 @@ export const asignacionesService = {
     const asg = await this.getById(asignacionId);
     if (!asg) throw new Error('Asignación no encontrada');
 
+    const reciénDevueltos: typeof asg.items = [];
     const updatedItems = asg.items.map(item => {
       const dev = devoluciones.find(d => d.itemId === item.id);
       if (!dev) return item;
       const cantDev = Math.min(dev.cantidad, item.cantidad - item.cantidadDevuelta - item.cantidadConsumida);
       const newDevuelta = item.cantidadDevuelta + cantDev;
       const remaining = item.cantidad - newDevuelta - item.cantidadConsumida;
-      return {
+      const updated = {
         ...item,
         cantidadDevuelta: newDevuelta,
         estado: remaining <= 0 ? 'devuelto' as const : item.estado,
         fechaDevolucion: remaining <= 0 ? new Date().toISOString() : item.fechaDevolucion,
       };
+      if (item.estado !== 'devuelto' && updated.estado === 'devuelto') reciénDevueltos.push(updated);
+      return updated;
     });
 
     const allDone = updatedItems.every(i => i.permanente || i.estado === 'devuelto' || i.estado === 'consumido');
@@ -117,6 +120,33 @@ export const asignacionesService = {
       items: updatedItems,
       estado: allDone ? 'completada' : 'activa',
     });
+
+    // Revertir el estado de la ENTIDAD al devolver — la asignación rápida setea
+    // asignadoAId/ubicación al asignar, así que la devolución debe limpiarlos acá
+    // (en el servicio, para que TODOS los callers lo hereden — el detalle del
+    // comprobante solo marcaba el item y el instrumento quedaba "en poder" del
+    // ingeniero en el portal; UAT 2026-07-19, caso TER-04). Best-effort: un fallo
+    // acá no revierte la devolución del comprobante. Import dinámico para evitar
+    // ciclos con firebaseService.
+    if (reciénDevueltos.length > 0) {
+      try {
+        const { unidadesService, minikitsService, instrumentosService, dispositivosService, vehiculosService } =
+          await import('./firebaseService');
+        for (const item of reciénDevueltos) {
+          try {
+            if (item.unidadId) await unidadesService.update(item.unidadId, { estado: 'disponible', ubicacion: { tipo: 'posicion', referenciaId: '', referenciaNombre: 'Stock' } });
+            if (item.minikitId) await minikitsService.update(item.minikitId, { estado: 'en_revision', asignadoA: null });
+            if (item.instrumentoId) await instrumentosService.update(item.instrumentoId, { asignadoAId: null, asignadoANombre: null });
+            if (item.dispositivoId) await dispositivosService.update(item.dispositivoId, { asignadoAId: null, asignadoANombre: null });
+            if (item.vehiculoId) await vehiculosService.update(item.vehiculoId, { asignadoA: '' });
+          } catch (err) {
+            console.error(`[devolverItems] revert de entidad falló para item ${item.id}:`, err);
+          }
+        }
+      } catch (err) {
+        console.error('[devolverItems] no se pudieron cargar los servicios para revertir entidades:', err);
+      }
+    }
   },
 
   async consumirItems(asignacionId: string, consumos: { itemId: string; cantidad: number; otNumber?: string }[]): Promise<void> {
