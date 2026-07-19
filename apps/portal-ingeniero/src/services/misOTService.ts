@@ -350,6 +350,7 @@ export const misOTService = {
       asignadoA: null,
       derivadoPor: null,
       areaActual: 'compras',
+      prioridad: 'urgente',
       accionPendiente: 'Completar y enviar presupuesto',
       descripcion: `Presupuesto ${numero} creado en borrador desde el portal de ingenieros.\n`
         + `OT: ${ot.otNumber} (${ot.tipoServicio || 'servicio'})\n`
