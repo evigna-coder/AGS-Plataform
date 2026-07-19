@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 
 interface Props {
   rows: PresupuestoControlRow[];
-  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number };
+  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number };
   mostrarEnviados: boolean;
   onToggleEnviados: (v: boolean) => void;
   onOpenPresupuesto: (id: string) => void;
@@ -28,6 +28,13 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
 const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
   if (row.avisoEnviado) return <p className="text-[10px] text-emerald-600 font-medium">✓ Aviso enviado</p>;
   const items: React.ReactNode[] = [];
+  if (row.pagoAnticipado) {
+    items.push(
+      <p key="anticipo" className="text-[10px] text-purple-700 font-medium">
+        Pago anticipado — se factura antes del servicio (ej. esperando ingreso de importación)
+      </p>,
+    );
+  }
   if (row.otsPendientes.length > 0) {
     items.push(
       <p key="ots" className="text-[10px] text-red-600">
@@ -53,7 +60,7 @@ export const PresupuestosControlSection: React.FC<Props> = ({
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-          2 · Presupuestos con trabajo realizado — pendientes a hoy (no limita por semana)
+          2 · Presupuestos con trabajo realizado o pago anticipado — pendientes a hoy (no limita por semana)
         </p>
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
           <input
@@ -66,16 +73,17 @@ export const PresupuestosControlSection: React.FC<Props> = ({
         </label>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        <Kpi label="Con trabajo realizado" value={kpis.conTrabajo} tone="text-slate-700" />
+      <div className="grid grid-cols-5 gap-2">
+        <Kpi label="En control" value={kpis.conTrabajo} tone="text-slate-700" />
         <Kpi label="Listos sin aviso" value={kpis.listosSinAviso} tone="text-teal-700" />
         <Kpi label="Esperando otras OTs" value={kpis.esperandoOTs} tone="text-red-600" />
         <Kpi label="Sin OC del cliente" value={kpis.sinOC} tone="text-amber-600" />
+        <Kpi label="Pago anticipado" value={kpis.anticipadas} tone="text-purple-700" />
       </div>
 
       {visibles.length === 0 ? (
         <EmptyState message={rows.length === 0
-          ? 'Ningún presupuesto con OTs cerradas pendiente de facturación'
+          ? 'Ningún presupuesto con OTs cerradas ni pago anticipado pendiente de facturación'
           : 'Todos los avisos a facturación fueron enviados'} />
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
@@ -110,10 +118,20 @@ export const PresupuestosControlSection: React.FC<Props> = ({
                       {sym} {(p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <StatusBadge
-                        label={ESTADO_PRESUPUESTO_LABELS[p.estado]}
-                        colorClass={ESTADO_PRESUPUESTO_COLORS[p.estado]}
-                      />
+                      <span className="inline-flex items-center gap-1">
+                        <StatusBadge
+                          label={ESTADO_PRESUPUESTO_LABELS[p.estado]}
+                          colorClass={ESTADO_PRESUPUESTO_COLORS[p.estado]}
+                        />
+                        {row.pagoAnticipado && (
+                          <span
+                            className="text-[9px] font-mono font-semibold uppercase tracking-wide bg-purple-100 text-purple-700 rounded-full px-1.5 py-0.5"
+                            title="Condición de pago anticipada — se factura antes del servicio"
+                          >
+                            Anticip.
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-3 py-2"><QueFalta row={row} /></td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
