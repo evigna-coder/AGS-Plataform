@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { WorkOrder } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
+import { misOTService } from '../../services/misOTService';
 
 function fmtFecha(f?: string): { big: string; small: string } | null {
   if (!f) return null;
@@ -31,6 +33,20 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
   const contactoLinea = [ot?.contacto, ot?.sector, [ot?.direccion, ot?.localidad].filter(Boolean).join(', ')]
     .filter(Boolean).join(' · ');
 
+  // Nombre del establecimiento: la OT solo trae el id (una lectura puntual).
+  const [estabNombre, setEstabNombre] = useState<string | null>(null);
+  useEffect(() => {
+    setEstabNombre(null);
+    if (!ot?.establecimientoId) return;
+    let active = true;
+    misOTService.getEstablecimientoNombre(ot.establecimientoId)
+      .then(n => { if (active) setEstabNombre(n); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [ot?.establecimientoId]);
+
+  const direccionCompleta = [ot?.direccion, ot?.localidad].filter(Boolean).join(', ');
+
   const estadoChip = (
     <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/15 border border-white/35 shrink-0">
       {estadoLabel}
@@ -45,18 +61,28 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
           <Link to="/agenda" className={NAV_LINK_CLS}>Agenda</Link>
         </div>
 
-        {/* Mobile: compacto, una línea por dato */}
+        {/* Mobile: ficha completa en el título — OT, cliente, servicio,
+            establecimiento, dirección, sector y contacto (UAT 2026-07-20:
+            nada truncado, la dirección se lee entera). */}
         <div className="md:hidden">
           <div className="flex items-center justify-between gap-3 mt-0.5">
-            <h1 className="font-serif text-xl font-medium leading-none truncate">OT {otNumber}</h1>
+            <h1 className="font-serif text-xl font-medium leading-none">OT {otNumber}</h1>
             {estadoChip}
           </div>
-          <p className="text-xs opacity-90 mt-1 truncate">
+          {ot?.razonSocial && (
+            <p className="font-serif text-base font-medium leading-tight mt-1.5">{ot.razonSocial}</p>
+          )}
+          <p className="text-xs opacity-90 mt-0.5">
             {[ot?.tipoServicio, fecha ? `${fecha.small} ${fecha.big}` : null].filter(Boolean).join(' · ') || '—'}
           </p>
-          {ot?.razonSocial && (
-            <p className="text-[11px] opacity-75 mt-0.5 truncate">
-              {[ot.razonSocial, contactoLinea].filter(Boolean).join(' — ')}
+          {(estabNombre || direccionCompleta) && (
+            <p className="text-[11px] opacity-80 mt-1 leading-snug">
+              {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
+            </p>
+          )}
+          {(ot?.sector || ot?.contacto) && (
+            <p className="text-[11px] opacity-75 mt-0.5 leading-snug">
+              {[ot?.sector, ot?.contacto].filter(Boolean).join(' · ')}
             </p>
           )}
         </div>
@@ -69,7 +95,9 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
           </div>
           {ot?.razonSocial && (
             <div className="flex-1 min-w-0">
-              <p className="font-serif text-base font-medium leading-tight truncate">{ot.razonSocial}</p>
+              <p className="font-serif text-base font-medium leading-tight truncate">
+                {[ot.razonSocial, estabNombre].filter(Boolean).join(' · ')}
+              </p>
               {contactoLinea && <p className="text-xs opacity-80 mt-0.5 truncate">{contactoLinea}</p>}
             </div>
           )}

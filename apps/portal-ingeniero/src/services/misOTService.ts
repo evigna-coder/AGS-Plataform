@@ -222,6 +222,13 @@ export const misOTService = {
     return data.lotes?.find(l => l.certificadoUrl)?.certificadoUrl ?? null;
   },
 
+  /** Nombre del establecimiento (la OT solo guarda el id; lo pide la banda del detalle). */
+  async getEstablecimientoNombre(establecimientoId: string): Promise<string | null> {
+    const snap = await getDoc(doc(db, 'establecimientos', establecimientoId));
+    if (!snap.exists()) return null;
+    return (snap.data().nombre as string) ?? null;
+  },
+
   /** Catálogo de artículos activos (colección `articulos`) para el buscador de partes. */
   async getArticulosStock(): Promise<ArticuloStockOption[]> {
     const snap = await getDocs(query(collection(db, 'articulos'), where('activo', '==', true)));
