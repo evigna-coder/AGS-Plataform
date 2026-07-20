@@ -222,11 +222,25 @@ export const misOTService = {
     return data.lotes?.find(l => l.certificadoUrl)?.certificadoUrl ?? null;
   },
 
-  /** Nombre del establecimiento (la OT solo guarda el id; lo pide la banda del detalle). */
-  async getEstablecimientoNombre(establecimientoId: string): Promise<string | null> {
+  /**
+   * Datos del establecimiento para la banda del detalle (la OT solo guarda el id):
+   * nombre + geolocalización validada con Google (lat/lng/placeId) para el link a Maps.
+   */
+  async getEstablecimientoInfo(establecimientoId: string): Promise<{
+    nombre: string | null;
+    lat: number | null;
+    lng: number | null;
+    placeId: string | null;
+  } | null> {
     const snap = await getDoc(doc(db, 'establecimientos', establecimientoId));
     if (!snap.exists()) return null;
-    return (snap.data().nombre as string) ?? null;
+    const d = snap.data() as { nombre?: string; lat?: number | null; lng?: number | null; placeId?: string | null };
+    return {
+      nombre: d.nombre ?? null,
+      lat: typeof d.lat === 'number' ? d.lat : null,
+      lng: typeof d.lng === 'number' ? d.lng : null,
+      placeId: d.placeId ?? null,
+    };
   },
 
   /** Catálogo de artículos activos (colección `articulos`) para el buscador de partes. */

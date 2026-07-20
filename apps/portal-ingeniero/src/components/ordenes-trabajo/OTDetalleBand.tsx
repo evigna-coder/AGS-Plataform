@@ -33,19 +33,28 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
   const contactoLinea = [ot?.contacto, ot?.sector, [ot?.direccion, ot?.localidad].filter(Boolean).join(', ')]
     .filter(Boolean).join(' · ');
 
-  // Nombre del establecimiento: la OT solo trae el id (una lectura puntual).
-  const [estabNombre, setEstabNombre] = useState<string | null>(null);
+  // Datos del establecimiento: la OT solo trae el id (una lectura puntual).
+  const [estab, setEstab] = useState<{ nombre: string | null; lat: number | null; lng: number | null; placeId: string | null } | null>(null);
   useEffect(() => {
-    setEstabNombre(null);
+    setEstab(null);
     if (!ot?.establecimientoId) return;
     let active = true;
-    misOTService.getEstablecimientoNombre(ot.establecimientoId)
-      .then(n => { if (active) setEstabNombre(n); })
+    misOTService.getEstablecimientoInfo(ot.establecimientoId)
+      .then(e => { if (active) setEstab(e); })
       .catch(() => {});
     return () => { active = false; };
   }, [ot?.establecimientoId]);
+  const estabNombre = estab?.nombre ?? null;
 
   const direccionCompleta = [ot?.direccion, ot?.localidad].filter(Boolean).join(', ');
+
+  // Link a Google Maps para el GPS: coordenadas validadas si las hay (con
+  // placeId para caer en el lugar exacto), texto de la dirección como fallback.
+  const mapsUrl = estab?.lat != null && estab?.lng != null
+    ? `https://www.google.com/maps/search/?api=1&query=${estab.lat},${estab.lng}${estab.placeId ? `&query_place_id=${estab.placeId}` : ''}`
+    : direccionCompleta
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccionCompleta)}`
+      : null;
 
   const estadoChip = (
     <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/15 border border-white/35 shrink-0">
@@ -76,9 +85,21 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
             {[ot?.tipoServicio, fecha ? `${fecha.small} ${fecha.big}` : null].filter(Boolean).join(' · ') || '—'}
           </p>
           {(estabNombre || direccionCompleta) && (
-            <p className="text-[11px] opacity-80 mt-1 leading-snug">
-              {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
-            </p>
+            mapsUrl ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-[11px] opacity-90 mt-1 leading-snug underline decoration-white/50 underline-offset-2 active:opacity-70"
+                title="Abrir en Google Maps"
+              >
+                📍 {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
+              </a>
+            ) : (
+              <p className="text-[11px] opacity-80 mt-1 leading-snug">
+                {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
+              </p>
+            )
           )}
           {(ot?.sector || ot?.contacto) && (
             <p className="text-[11px] opacity-75 mt-0.5 leading-snug">
@@ -98,7 +119,18 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
               <p className="font-serif text-base font-medium leading-tight truncate">
                 {[ot.razonSocial, estabNombre].filter(Boolean).join(' · ')}
               </p>
-              {contactoLinea && <p className="text-xs opacity-80 mt-0.5 truncate">{contactoLinea}</p>}
+              {contactoLinea && (
+                <p className="text-xs opacity-80 mt-0.5 truncate">
+                  {contactoLinea}
+                  {mapsUrl && (
+                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                      className="ml-2 underline decoration-white/50 underline-offset-2 hover:opacity-100"
+                      title="Abrir en Google Maps">
+                      Maps ↗
+                    </a>
+                  )}
+                </p>
+              )}
             </div>
           )}
           <div className="flex items-center gap-3 shrink-0">
