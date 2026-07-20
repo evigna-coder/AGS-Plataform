@@ -16,8 +16,9 @@ export default function ReportesPage() {
   // En MOBILE no se puede embeber: reportes-ot corre en otro dominio y los
   // browsers móviles particionan el storage de iframes third-party — el popup
   // de Google completa el login pero la sesión nunca llega al iframe y queda
-  // en blanco (UAT 2026-07-20). En pantalla chica se abre en pestaña propia
-  // (contexto first-party, donde el login funciona).
+  // en blanco (UAT 2026-07-20). En pantalla chica se navega DIRECTO a la app
+  // en la misma pestaña (contexto first-party, donde el login funciona); el
+  // botón queda solo como fallback visible durante la navegación.
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
@@ -25,6 +26,10 @@ export default function ReportesPage() {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop) window.location.assign(targetUrl);
+  }, [isDesktop, targetUrl]);
 
   return (
     <div className="h-full flex flex-col">
@@ -45,21 +50,14 @@ export default function ReportesPage() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="text-sm text-slate-600 max-w-xs">
-            La app de reportes se abre en su propia pestaña para que el inicio
-            de sesión funcione correctamente en el celular.
-          </p>
+          <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-600 max-w-xs">Abriendo Reportes…</p>
           <a
             href={targetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-xl bg-teal-700 text-sm font-semibold text-white active:bg-teal-800"
+            className="text-xs text-teal-700 underline underline-offset-2"
           >
-            {reportId ? `Abrir reporte ${reportId} ↗` : 'Abrir Reportes ↗'}
+            Tocá acá si no abre solo
           </a>
-          <p className="text-xs text-slate-400 max-w-xs">
-            Si es la primera vez, iniciá sesión con tu cuenta @agsanalitica.com.
-          </p>
         </div>
       )}
     </div>
