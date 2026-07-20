@@ -48,12 +48,19 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
 
   const direccionCompleta = [ot?.direccion, ot?.localidad].filter(Boolean).join(', ');
 
-  // Link a Google Maps para el GPS: coordenadas validadas si las hay (con
-  // placeId para caer en el lugar exacto), texto de la dirección como fallback.
-  const mapsUrl = estab?.lat != null && estab?.lng != null
-    ? `https://www.google.com/maps/search/?api=1&query=${estab.lat},${estab.lng}${estab.placeId ? `&query_place_id=${estab.placeId}` : ''}`
+  // Links de navegación GPS: coordenadas validadas si las hay (placeId para caer
+  // en el lugar exacto), texto de la dirección como fallback. La mayoría de los
+  // IST usa Waze, así que se ofrecen ambos y elige cada uno.
+  const tieneGeo = estab?.lat != null && estab?.lng != null;
+  const mapsUrl = tieneGeo
+    ? `https://www.google.com/maps/search/?api=1&query=${estab!.lat},${estab!.lng}${estab!.placeId ? `&query_place_id=${estab!.placeId}` : ''}`
     : direccionCompleta
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccionCompleta)}`
+      : null;
+  const wazeUrl = tieneGeo
+    ? `https://www.waze.com/ul?ll=${estab!.lat}%2C${estab!.lng}&navigate=yes`
+    : direccionCompleta
+      ? `https://www.waze.com/ul?q=${encodeURIComponent(direccionCompleta)}&navigate=yes`
       : null;
 
   const estadoChip = (
@@ -85,21 +92,25 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
             {[ot?.tipoServicio, fecha ? `${fecha.small} ${fecha.big}` : null].filter(Boolean).join(' · ') || '—'}
           </p>
           {(estabNombre || direccionCompleta) && (
-            mapsUrl ? (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-[11px] opacity-90 mt-1 leading-snug underline decoration-white/50 underline-offset-2 active:opacity-70"
-                title="Abrir en Google Maps"
-              >
-                📍 {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
-              </a>
-            ) : (
-              <p className="text-[11px] opacity-80 mt-1 leading-snug">
-                {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
-              </p>
-            )
+            <p className="text-[11px] opacity-80 mt-1 leading-snug">
+              📍 {[estabNombre, direccionCompleta].filter(Boolean).join(' — ')}
+            </p>
+          )}
+          {(mapsUrl || wazeUrl) && (
+            <div className="flex gap-2 mt-1.5">
+              {mapsUrl && (
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center min-h-[32px] px-2.5 rounded-full bg-white/15 border border-white/35 font-mono text-[10px] font-semibold uppercase tracking-wider active:bg-white/25">
+                  Maps ↗
+                </a>
+              )}
+              {wazeUrl && (
+                <a href={wazeUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center min-h-[32px] px-2.5 rounded-full bg-white/15 border border-white/35 font-mono text-[10px] font-semibold uppercase tracking-wider active:bg-white/25">
+                  Waze ↗
+                </a>
+              )}
+            </div>
           )}
           {(ot?.sector || ot?.contacto) && (
             <p className="text-[11px] opacity-75 mt-0.5 leading-snug">
@@ -127,6 +138,13 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
                       className="ml-2 underline decoration-white/50 underline-offset-2 hover:opacity-100"
                       title="Abrir en Google Maps">
                       Maps ↗
+                    </a>
+                  )}
+                  {wazeUrl && (
+                    <a href={wazeUrl} target="_blank" rel="noopener noreferrer"
+                      className="ml-2 underline decoration-white/50 underline-offset-2 hover:opacity-100"
+                      title="Abrir en Waze">
+                      Waze ↗
                     </a>
                   )}
                 </p>
