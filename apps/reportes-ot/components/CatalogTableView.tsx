@@ -2386,7 +2386,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         <td
                           key={col.key}
                           data-col-label={col.label || ''}
-                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? (canDuplicate && canRemove ? ' relative pr-8' : ' relative pr-4') : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -2488,7 +2488,8 @@ export const CatalogTableView: React.FC<Props> = ({
                   }
                 >
                   {(() => {
-                    const hasActions = canDuplicate || canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
+                    const showRemoveAction = canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
+                    const hasActions = canDuplicate || showRemoveAction;
                     // Columnas cubiertas por una fusión horizontal que arranca a su izquierda en ESTA fila.
                     const hCoveredIdx = new Set<number>();
                     visibleColumns.forEach((c, ci) => {
@@ -2529,7 +2530,7 @@ export const CatalogTableView: React.FC<Props> = ({
                             isSpanning ? 'bg-white' : '',
                             alignCls,
                             !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
-                            showActionsHere ? 'relative pr-4' : '',
+                            showActionsHere ? (canDuplicate && showRemoveAction ? 'relative pr-8' : 'relative pr-4') : '',
                           ].join(' ')}
                         >
                           {renderTableCell(col, row.rowId, item.kind === 'row' ? item.instanceValue : undefined)}
@@ -2546,7 +2547,7 @@ export const CatalogTableView: React.FC<Props> = ({
                                   </svg>
                                 </button>
                               )}
-                              {(canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                              {showRemoveAction && (
                                 <button
                                   onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
                                   className="text-slate-300 hover:text-red-500 transition-colors"
