@@ -212,3 +212,16 @@ describe('audit_log — inmutable', () => {
     await assertFails(setDoc(doc(anon(), 'audit_log', 'A2'), { accion: 'test' }));
   });
 });
+
+describe('movimientosStock — log inmutable (auditoría I8)', () => {
+  it('staff puede crear y leer; update/delete denegados', async () => {
+    const db = authed();
+    await assertSucceeds(setDoc(doc(db, 'movimientosStock', 'M1'), { tipo: 'ingreso', cantidad: 1 }));
+    await assertFails(updateDoc(doc(db, 'movimientosStock', 'M1'), { cantidad: 99 }));
+    await assertFails(deleteDoc(doc(db, 'movimientosStock', 'M1')));
+  });
+
+  it('sin auth: nada', async () => {
+    await assertFails(setDoc(doc(anon(), 'movimientosStock', 'M2'), { tipo: 'ingreso' }));
+  });
+});

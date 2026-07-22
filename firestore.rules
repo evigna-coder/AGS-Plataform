@@ -152,7 +152,9 @@ service cloud.firestore {
     match /articulos/{articuloId}                 { allow read, write: if esStaff(); }
     match /unidades/{unidadId}                    { allow read, write: if esStaff(); }
     match /minikits/{minikitId}                   { allow read, write: if esStaff(); }
-    match /movimientosStock/{movimientoId}        { allow read, write: if esStaff(); }
+    // Log INMUTABLE de auditoría de stock: solo alta y lectura. Editar/borrar
+    // un asiento falsearía el historial (auditoría I8, 2026-07-20).
+    match /movimientosStock/{movimientoId}        { allow read, create: if esStaff(); }
     match /remitos/{remitoId}                     { allow read, write: if esStaff(); }
     match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
     match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }
