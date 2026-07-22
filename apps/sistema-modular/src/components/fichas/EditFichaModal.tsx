@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Drawer } from '../ui/Drawer';
-import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { SearchableSelect } from '../ui/SearchableSelect';
 import {
   fichasService,
   clientesService,
   establecimientosService,
   ingenierosService,
-  articulosService,
 } from '../../services/firebaseService';
 import type {
   FichaPropiedad,
@@ -17,44 +14,18 @@ import type {
   Cliente,
   Establecimiento,
   Ingeniero,
-  Articulo,
 } from '@ags/shared';
-import { VIA_INGRESO_LABELS } from '@ags/shared';
+import { establecimientoUnicoId } from '@ags/shared';
 import { ensureTicketForFicha } from '../../utils/ensureTicketForFicha';
+import { useFichaItemOptions, newItemDraft, draftFromItem, draftIdentityFields, type ItemFichaDraft } from './useFichaItemOptions';
+import { FichaItemDraftFields } from './FichaItemDraftFields';
+import { FichaClienteOrigenSection } from './FichaClienteOrigenSection';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   ficha: FichaPropiedad;
 }
-
-interface ItemDraft {
-  tempId: string;
-  /** Si el item ya existe en la ficha, su id real; si es nuevo, null. */
-  existingId: string | null;
-  articuloId: string;
-  descripcionLibre: string;
-  serie: string;
-  descripcionProblema: string;
-}
-
-const draftFromItem = (it: ItemFicha): ItemDraft => ({
-  tempId: it.id,
-  existingId: it.id,
-  articuloId: it.articuloId ?? '',
-  descripcionLibre: it.descripcionLibre ?? '',
-  serie: it.serie ?? '',
-  descripcionProblema: it.descripcionProblema ?? '',
-});
-
-const newDraft = (): ItemDraft => ({
-  tempId: crypto.randomUUID(),
-  existingId: null,
-  articuloId: '',
-  descripcionLibre: '',
-  serie: '',
-  descripcionProblema: '',
-});
 
 export function EditFichaModal({ open, onClose, ficha }: Props) {
   const [saving, setSaving] = useState(false);
@@ -63,7 +34,6 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
 
   const [clienteId, setClienteId] = useState(ficha.clienteId);
   const [establecimientoId, setEstablecimientoId] = useState(ficha.establecimientoId ?? '');
@@ -71,24 +41,51 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
   const [traidoPor, setTraidoPor] = useState(ficha.traidoPor);
   const [fechaIngreso, setFechaIngreso] = useState(ficha.fechaIngreso?.split('T')[0] ?? '');
   const [otReferencia, setOtReferencia] = useState(ficha.otReferencia ?? '');
-  const [items, setItems] = useState<ItemDraft[]>(() => ficha.items.map(draftFromItem));
+  const [items, setItems] = useState<ItemFichaDraft[]>(() => ficha.items.map(draftFromItem));
+
+  const { equipoOptions, getItemOptions, applySeleccion, applyEquipo } = useFichaItemOptions(open, clienteId);
 
   useEffect(() => {
     if (!open) return;
     clientesService.getAll().then(setClientes);
     ingenierosService.getAll(true).then(setIngenieros);
-    articulosService.getAll({ activoOnly: true }).then(setArticulos);
   }, [open]);
+
+  // Al abrir, precargar TODO desde la ficha (cliente y establecimiento incluidos).
+  // Sin esto, reaperturas del drawer mostraban estado viejo o selects vacíos.
+  useEffect(() => {
+    if (!open) return;
+    setClienteId(ficha.clienteId);
+    setEstablecimientoId(ficha.establecimientoId ?? '');
+    setViaIngreso(ficha.viaIngreso);
+    setTraidoPor(ficha.traidoPor);
+    setFechaIngreso(ficha.fechaIngreso?.split('T')[0] ?? '');
+    setOtReferencia(ficha.otReferencia ?? '');
+    setItems(ficha.items.map(draftFromItem));
+    setErrors({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ficha.id]);
 
   useEffect(() => {
     if (!clienteId) { setEstablecimientos([]); return; }
-    establecimientosService.getByCliente(clienteId).then(setEstablecimientos);
+    establecimientosService.getByCliente(clienteId).then(ests => {
+      setEstablecimientos(ests);
+      // Autoselección de establecimiento único (regla del proyecto) — solo si el
+      // form no trae uno ya elegido (no pisar el prefill de la ficha).
+      setEstablecimientoId(prev => prev || (establecimientoUnicoId(ests.filter(e => e.activo)) ?? ''));
+    });
   }, [clienteId]);
 
-  const setItemField = <K extends keyof ItemDraft>(idx: number, k: K, v: ItemDraft[K]) => {
+  const setItemField = <K extends keyof ItemFichaDraft>(idx: number, k: K, v: ItemFichaDraft[K]) => {
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [k]: v } : it));
   };
-  const addItem = () => setItems(prev => [...prev, newDraft()]);
+  const handleSeleccion = (idx: number, value: string) => {
+    setItems(prev => prev.map((it, i) => i === idx ? applySeleccion(it, value) : it));
+  };
+  const handleEquipo = (idx: number, value: string) => {
+    setItems(prev => prev.map((it, i) => i === idx ? applyEquipo(it, value) : it));
+  };
+  const addItem = () => setItems(prev => [...prev, newItemDraft()]);
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const validate = () => {
@@ -98,7 +95,7 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
     if (!fechaIngreso) e.fechaIngreso = 'Requerido';
     if (items.length === 0) e.items = 'Al menos un item';
     items.forEach((it, idx) => {
-      if (!it.articuloId && !it.descripcionLibre.trim()) {
+      if (!it.articuloId && !it.moduloId && !it.articuloCodigo.trim() && !it.descripcionLibre.trim()) {
         e[`item-${idx}-id`] = 'Indicar artículo o descripción';
       }
     });
@@ -116,27 +113,18 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
       // Reconstruir items: los existentes mantienen estado/historial/fotos/derivaciones,
       // los nuevos arrancan en 'recibido'. Los eliminados desaparecen.
       const mergedItems: ItemFicha[] = items.map(d => {
-        const art = articulos.find(a => a.id === d.articuloId);
         const existing = d.existingId ? ficha.items.find(it => it.id === d.existingId) : null;
         if (existing) {
           return {
             ...existing,
-            articuloId: d.articuloId || null,
-            articuloCodigo: art?.codigo ?? existing.articuloCodigo ?? null,
-            articuloDescripcion: art?.descripcion ?? existing.articuloDescripcion ?? null,
-            descripcionLibre: d.descripcionLibre.trim() || null,
-            serie: d.serie.trim() || null,
+            ...draftIdentityFields(d),
             descripcionProblema: d.descripcionProblema.trim() || null,
           };
         }
         return {
           id: crypto.randomUUID(),
-          subId: '', // será asignado por fichasService al detectar items sin subId
-          articuloId: d.articuloId || null,
-          articuloCodigo: art?.codigo ?? null,
-          articuloDescripcion: art?.descripcion ?? null,
-          descripcionLibre: d.descripcionLibre.trim() || null,
-          serie: d.serie.trim() || null,
+          subId: '', // será asignado más abajo al detectar items sin subId
+          ...draftIdentityFields(d),
           parentItemId: null,
           estado: 'recibido',
           historial: [{
@@ -195,8 +183,6 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
     }
   };
 
-  const articuloOptions = articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }));
-
   return (
     <Drawer
       open={open}
@@ -214,46 +200,24 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
       }
     >
       <div className="space-y-5 p-5">
-        <section>
-          <h3 className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Cliente y origen</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Cliente *</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={clienteId} onChange={e => { setClienteId(e.target.value); setEstablecimientoId(''); }}>
-                <option value="">Seleccionar cliente</option>
-                {clientes.filter(c => c.activo).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-              </select>
-              {errors.clienteId && <p className="text-[10px] text-red-500 mt-0.5">{errors.clienteId}</p>}
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Establecimiento</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={establecimientoId} onChange={e => setEstablecimientoId(e.target.value)} disabled={!clienteId}>
-                <option value="">Seleccionar</option>
-                {establecimientos.filter(e => e.activo).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Via de ingreso</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={viaIngreso} onChange={e => setViaIngreso(e.target.value as ViaIngreso)}>
-                {(Object.keys(VIA_INGRESO_LABELS) as ViaIngreso[]).map(v => <option key={v} value={v}>{VIA_INGRESO_LABELS[v]}</option>)}
-              </select>
-            </div>
-            {viaIngreso === 'ingeniero' ? (
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Traido por *</label>
-                <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={traidoPor} onChange={e => setTraidoPor(e.target.value)}>
-                  <option value="">Seleccionar ingeniero</option>
-                  {ingenieros.map(i => <option key={i.id} value={i.nombre}>{i.nombre}</option>)}
-                </select>
-                {errors.traidoPor && <p className="text-[10px] text-red-500 mt-0.5">{errors.traidoPor}</p>}
-              </div>
-            ) : (
-              <Input label="Traido por *" value={traidoPor} onChange={e => setTraidoPor(e.target.value)} error={errors.traidoPor} placeholder={viaIngreso === 'envio' ? 'Empresa de transporte' : 'Quien lo trajo'} />
-            )}
-            <Input label="Fecha de ingreso *" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} error={errors.fechaIngreso} />
-            <Input label="OT de referencia" value={otReferencia} onChange={e => setOtReferencia(e.target.value)} />
-          </div>
-        </section>
+        <FichaClienteOrigenSection
+          clientes={clientes}
+          establecimientos={establecimientos}
+          ingenieros={ingenieros}
+          clienteId={clienteId}
+          onClienteChange={id => { setClienteId(id); setEstablecimientoId(''); }}
+          establecimientoId={establecimientoId}
+          onEstablecimientoChange={setEstablecimientoId}
+          viaIngreso={viaIngreso}
+          onViaIngresoChange={setViaIngreso}
+          traidoPor={traidoPor}
+          onTraidoPorChange={setTraidoPor}
+          fechaIngreso={fechaIngreso}
+          onFechaIngresoChange={setFechaIngreso}
+          otReferencia={otReferencia}
+          onOtReferenciaChange={setOtReferencia}
+          errors={errors}
+        />
 
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -263,34 +227,19 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
           {errors.items && <p className="text-[10px] text-red-500 mb-2">{errors.items}</p>}
           <div className="space-y-3">
             {items.map((it, idx) => (
-              <div key={it.tempId} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500">
-                    Item #{idx + 1}{it.existingId ? '' : ' (nuevo)'}
-                  </p>
-                  <button onClick={() => removeItem(idx)} className="text-[11px] text-red-500 hover:text-red-700">Eliminar</button>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Artículo (catálogo)</label>
-                    <SearchableSelect
-                      value={it.articuloId}
-                      onChange={v => setItemField(idx, 'articuloId', v)}
-                      options={articuloOptions}
-                      placeholder="Buscar..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <Input label="Descripción libre" value={it.descripcionLibre} onChange={e => setItemField(idx, 'descripcionLibre', e.target.value)} />
-                    <Input label="N° de serie" value={it.serie} onChange={e => setItemField(idx, 'serie', e.target.value)} />
-                  </div>
-                  {errors[`item-${idx}-id`] && <p className="text-[10px] text-red-500">{errors[`item-${idx}-id`]}</p>}
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Problema reportado</label>
-                    <textarea className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs min-h-[40px]" value={it.descripcionProblema} onChange={e => setItemField(idx, 'descripcionProblema', e.target.value)} />
-                  </div>
-                </div>
-              </div>
+              <FichaItemDraftFields
+                key={it.tempId}
+                idx={idx}
+                draft={it}
+                options={getItemOptions(it.sistemaId)}
+                equipoOptions={equipoOptions}
+                onEquipo={handleEquipo}
+                onSeleccion={handleSeleccion}
+                onField={setItemField}
+                onRemove={removeItem}
+                errorId={errors[`item-${idx}-id`]}
+                markNew
+              />
             ))}
           </div>
         </section>

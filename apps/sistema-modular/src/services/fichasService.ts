@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { FichaPropiedad, ItemFicha, FotoFicha, HistorialFicha, DerivacionProveedor } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, FotoFicha, HistorialFicha, DerivacionProveedor, ParteUsadaFicha } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
@@ -29,7 +29,9 @@ export const fichasService = {
         if (num > maxNum) maxNum = num;
       }
     });
-    return `FPC-${String(maxNum + 1).padStart(4, '0')}`;
+    // 7 dígitos: continúa la numeración del sistema viejo (FPC-0002133, ...)
+    // — decisión 2026-07-20 al empezar la carga real de fichas.
+    return `FPC-${String(maxNum + 1).padStart(7, '0')}`;
   },
 
   async getAll(filters?: {
@@ -307,6 +309,144 @@ export const fichasService = {
       };
     });
     await this.update(fichaId, { items });
+  },
+
+  // ============================================================
+  // --- Vínculo item ↔ OT (asignación + historial automático) ---
+  // ============================================================
+
+  /**
+   * Asigna una OT a un item de la ficha y lo anota en su historial.
+   * También registra el número (y su base sin `.NN`) en `ficha.otIds` para que
+   * `getByOtNumber` encuentre la ficha tanto por la hija puntual (syncCierreOT)
+   * como por la base (avance automático al crear la siguiente hija).
+   */
+  async asignarOTaItem(fichaId: string, itemId: string, otNumber: string): Promise<void> {
+    const ficha = await this.getById(fichaId);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    const num = otNumber.trim();
+    if (!num) throw new Error('Número de OT vacío');
+    const base = num.split('.')[0];
+    const creadoPor = getCreateTrace().createdByName ?? 'admin';
+    const items = ficha.items.map(it => {
+      if (it.id !== itemId) return it;
+      const entry: HistorialFicha = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        estadoAnterior: it.estado,
+        estadoNuevo: it.estado,
+        nota: it.otAsignada && it.otAsignada !== num
+          ? `OT asignada actualizada de ${it.otAsignada} a ${num}`
+          : `OT ${num} asignada`,
+        otNumber: num,
+        creadoPor,
+      };
+      return { ...it, otAsignada: num, historial: [...it.historial, entry] };
+    });
+    const otIds = Array.from(new Set([...(ficha.otIds ?? []), num, base]));
+    await this.update(fichaId, { items, otIds });
+  },
+
+  /**
+   * Al CIERRE ADMINISTRATIVO de una OT: agrega al historial de cada item con
+   * `otAsignada === otNumber` una entrada con el detalle del cierre (informe
+   * técnico, ingeniero, partes usadas del reporte). Idempotente: si el cierre
+   * de esa OT ya está anotado en el item, no duplica (retries de cierre).
+   * Best-effort — la llama otService.cerrarAdministrativamente post-commit.
+   */
+  async syncCierreOT(otNumber: string): Promise<void> {
+    const fichas = (await this.getByOtNumber(otNumber))
+      .filter(f => f.items.some(it => it.otAsignada === otNumber));
+    if (fichas.length === 0) return;
+
+    // Lectura directa del doc del reporte (evita dependencia circular con otService).
+    const snap = await getDoc(doc(db, 'reportes', otNumber));
+    const reporte = snap.exists() ? snap.data() : null;
+    const partesUsadas: ParteUsadaFicha[] = Array.isArray(reporte?.articulos)
+      ? (reporte!.articulos as any[]).map(a => ({
+          codigo: a?.codigo || '',
+          descripcion: a?.descripcion || '',
+          cantidad: typeof a?.cantidad === 'number' ? a.cantidad : Number(a?.cantidad) || 0,
+        }))
+      : [];
+    const now = new Date().toISOString();
+    const creadoPor = getCreateTrace().createdByName ?? 'admin';
+
+    for (const ficha of fichas) {
+      const items = ficha.items.map(it => {
+        if (it.otAsignada !== otNumber) return it;
+        if (it.historial.some(h => h.otNumber === otNumber && h.nota.startsWith('Cierre administrativo'))) return it;
+        const entry: HistorialFicha = {
+          id: crypto.randomUUID(),
+          fecha: now,
+          estadoAnterior: it.estado,
+          estadoNuevo: it.estado,
+          nota: `Cierre administrativo de OT ${otNumber}`,
+          otNumber,
+          reporteTecnico: (reporte?.reporteTecnico as string) || null,
+          detalleOT: {
+            ingenieroNombre: (reporte?.ingenieroAsignadoNombre as string) ?? null,
+            partesUsadas,
+          },
+          creadoPor,
+        };
+        return { ...it, historial: [...it.historial, entry] };
+      });
+      await this.update(ficha.id, { items });
+    }
+  },
+
+  /**
+   * Al crearse una OT hija nueva (ej. 29715.02): si algún item de ficha tiene
+   * `otAsignada` apuntando a una hija ANTERIOR de la misma base (29715.01) y esa
+   * OT ya está cerrada (CIERRE_ADMINISTRATIVO/FINALIZADO), avanza `otAsignada`
+   * a la hija nueva + entrada de historial. Así el item sigue la cadena
+   * .01 → .02 → … → entrega. Best-effort — la llama otService.create.
+   */
+  async avanzarOTAsignadaAHija(nuevaOtNumber: string): Promise<void> {
+    if (!nuevaOtNumber.includes('.')) return;
+    const base = nuevaOtNumber.split('.')[0];
+    const fichas = await this.getByOtNumber(base);
+    if (fichas.length === 0) return;
+
+    const estadoCache = new Map<string, string>();
+    const otCerrada = async (num: string): Promise<boolean> => {
+      if (!estadoCache.has(num)) {
+        const snap = await getDoc(doc(db, 'reportes', num));
+        estadoCache.set(num, snap.exists() ? ((snap.data()?.estadoAdmin as string) ?? '') : '');
+      }
+      const e = estadoCache.get(num);
+      return e === 'CIERRE_ADMINISTRATIVO' || e === 'FINALIZADO';
+    };
+
+    const now = new Date().toISOString();
+    const creadoPor = getCreateTrace().createdByName ?? 'admin';
+    for (const ficha of fichas) {
+      let cambio = false;
+      const items: ItemFicha[] = [];
+      for (const it of ficha.items) {
+        const asignada = it.otAsignada;
+        if (!asignada || asignada === nuevaOtNumber || !asignada.startsWith(`${base}.`) || !(await otCerrada(asignada))) {
+          items.push(it);
+          continue;
+        }
+        cambio = true;
+        const entry: HistorialFicha = {
+          id: crypto.randomUUID(),
+          fecha: now,
+          estadoAnterior: it.estado,
+          estadoNuevo: it.estado,
+          nota: `OT asignada actualizada a ${nuevaOtNumber}`,
+          otNumber: nuevaOtNumber,
+          creadoPor,
+        };
+        items.push({ ...it, otAsignada: nuevaOtNumber, historial: [...it.historial, entry] });
+      }
+      if (cambio) {
+        const otIds = Array.from(new Set([...(ficha.otIds ?? []), nuevaOtNumber]));
+        await this.update(ficha.id, { items, otIds });
+      }
+    }
   },
 
   async getByOtNumber(otNumber: string): Promise<FichaPropiedad[]> {

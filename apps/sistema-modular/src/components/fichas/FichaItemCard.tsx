@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FichaDerivacionSection } from './FichaDerivacionSection';
 import { FichaHistorialSection } from './FichaHistorialSection';
+import { FichaItemOTSection } from './FichaItemOTSection';
 import { FichaStatusTransition } from './FichaStatusTransition';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { fichasService } from '../../services/firebaseService';
@@ -93,6 +94,9 @@ export function FichaItemCard({ ficha, item, canDelete, defaultExpanded = false,
               <p className="text-xs text-slate-700 mt-0.5">{item.descripcionProblema}</p>
             </div>
           )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <FichaItemOTSection ficha={ficha} item={item} onUpdate={onUpdate} />
+          </div>
           <div onClick={(e) => e.stopPropagation()}>
             <FichaStatusTransition currentEstado={item.estado} onTransition={handleTransition} />
           </div>

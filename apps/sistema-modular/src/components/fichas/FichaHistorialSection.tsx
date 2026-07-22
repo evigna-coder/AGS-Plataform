@@ -47,9 +47,38 @@ export function FichaHistorialSection({ historial }: Props) {
                 </Link>
               </p>
             )}
+            {h.detalleOT?.ingenieroNombre && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                Ingeniero/a: <span className="text-slate-700">{h.detalleOT.ingenieroNombre}</span>
+              </p>
+            )}
             {h.reporteTecnico && (
+              h.reporteTecnico.length > 200 ? (
+                <details className="mt-1 p-2 bg-slate-50 rounded text-xs text-slate-600 border border-slate-100">
+                  <summary className="cursor-pointer select-none">
+                    <span className="font-medium">Informe técnico:</span> {h.reporteTecnico.slice(0, 160)}…{' '}
+                    <span className="text-teal-600">ver completo</span>
+                  </summary>
+                  <p className="mt-1.5 whitespace-pre-wrap">{h.reporteTecnico}</p>
+                </details>
+              ) : (
+                <div className="mt-1 p-2 bg-slate-50 rounded text-xs text-slate-600 border border-slate-100">
+                  <span className="font-medium">Informe técnico:</span> {h.reporteTecnico}
+                </div>
+              )
+            )}
+            {(h.detalleOT?.partesUsadas?.length ?? 0) > 0 && (
               <div className="mt-1 p-2 bg-slate-50 rounded text-xs text-slate-600 border border-slate-100">
-                <span className="font-medium">Reporte tecnico:</span> {h.reporteTecnico.slice(0, 200)}{h.reporteTecnico.length > 200 ? '...' : ''}
+                <p className="font-medium mb-0.5">Partes usadas</p>
+                <ul className="space-y-0.5">
+                  {h.detalleOT!.partesUsadas!.map((p, i) => (
+                    <li key={i} className="flex items-baseline gap-1.5">
+                      {p.codigo && <span className="font-mono text-slate-500">{p.codigo}</span>}
+                      <span className="flex-1">{p.descripcion}</span>
+                      <span className="text-slate-400">×{p.cantidad}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
