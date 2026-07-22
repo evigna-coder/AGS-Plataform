@@ -62,7 +62,11 @@ function classifyEntry(entry: AgendaEntry, ot: WorkOrder | null): { estado: Agen
   return { estado: 'sin_realizar', motivos };
 }
 
-/** Universo de OTs de un ppto: vinculadas ∪ OTs cuyo budgets[] contiene el número (mismo criterio que CierreFacturacionWizard). */
+/**
+ * Universo de OTs de un ppto: vinculadas ∪ OTs cuyo budgets[] contiene el número
+ * (mismo criterio que CierreFacturacionWizard). Excluye OTs padre con hijas:
+ * son contenedores no-accionables que nunca reciben cierre administrativo.
+ */
 function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<string> {
   const nums = new Set<string>([
     ...(pres.otsVinculadasNumbers ?? []),
@@ -70,6 +74,11 @@ function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<string> 
   ]);
   for (const ot of allOTs) {
     if ((ot.budgets || []).includes(pres.numero)) nums.add(ot.otNumber);
+  }
+  const padresConHijas = new Set(
+    allOTs.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
+  for (const num of [...nums]) {
+    if (!num.includes('.') && padresConHijas.has(num)) nums.delete(num);
   }
   return nums;
 }
@@ -163,12 +172,16 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const enUniversoAnticipada = pagoAnticipado && ESTADOS_ANTICIPADA.has(p.estado);
       if (!enUniversoTrabajo && !enUniversoAnticipada) continue;
       const nums = otsDelPresupuesto(p, ots);
-      const tieneCierreAdmin = (p.otsListasParaFacturar?.length ?? 0) > 0
+      // "Trabajo realizado" = cierre TÉCNICO en adelante (criterio unificado con el
+      // chip Pend. OC). Antes se exigía cierre ADMINISTRATIVO y un ppto con la OT
+      // solo en cierre técnico no figuraba: si el cierre admin se olvidaba, el
+      // aviso a facturación no aparecía en ningún control (UAT 2026-07-20).
+      const tieneTrabajoRealizado = (p.otsListasParaFacturar?.length ?? 0) > 0
         || [...nums].some(n => {
           const estado = otByNumber.get(n)?.estadoAdmin;
-          return !!estado && OT_CERRADA_ADMIN.has(estado);
+          return !!estado && OT_CERRADA.has(estado);
         });
-      if (!tieneCierreAdmin && !enUniversoAnticipada) continue;
+      if (!tieneTrabajoRealizado && !enUniversoAnticipada) continue;
 
       const avisoEnviado = pptosConAviso.has(p.id);
       const otsPendientes = [...nums]
