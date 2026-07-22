@@ -33,6 +33,7 @@ interface Props {
   clienteNombre?: string;
   patronesSeleccionados?: PatronSeleccionado[];
   onPatronesConsumidosConfirmados?: () => void;
+  hidePdfPreview?: boolean; // true cuando el preview vive en otra pestaña (EditOTCierreTabs)
   /** Carga de materiales durante el cierre (UAT 2026-07-15: reporte sin items no tenía salida). */
   onAddPart?: (prefill?: { codigo: string; descripcion: string }) => void;
   onUpdatePart?: (id: string, field: keyof Part, value: any) => void;
@@ -44,7 +45,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
   horasTrabajadas, tiempoViaje, articulos, readOnly, estadoAdmin,
   razonSocial, tipoServicio, ingenieroNombre,
   otNumber, budgets, clienteId, clienteNombre,
-  patronesSeleccionados, onPatronesConsumidosConfirmados,
+  patronesSeleccionados, onPatronesConsumidosConfirmados, hidePdfPreview,
   onAddPart, onUpdatePart, onRemovePart,
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
@@ -158,7 +159,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
         )}
 
         {/* PDF Preview */}
-        {otNumber && <CierrePDFPreview otNumber={otNumber} />}
+        {otNumber && !hidePdfPreview && <CierrePDFPreview otNumber={otNumber} />}
 
         {/* Facturacion wizard */}
         {otNumber && budgets && budgets.length > 0 && clienteId && (
