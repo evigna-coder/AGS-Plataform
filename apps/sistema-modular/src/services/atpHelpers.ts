@@ -11,7 +11,7 @@
  * comprometido. If the sum is 0, no stock is available or incoming → requires importation.
  */
 
-import { computeStockAmplio } from './stockAmplioService';
+import { computeStockAmplio, atpUnidades, type UnidadStockRow } from './stockAmplioService';
 import type { StockAmplio } from '@ags/shared';
 
 /**
@@ -62,16 +62,20 @@ export async function itemRequiresImportacion(
 
 /**
  * Variante síncrona para cuando ya tenemos el array de unidades precargado (evita round-trip).
- * Usado por UI que ya suscribió a `unidadesService.subscribe` para rendering.
- * KEEP as-is — called by handlePickArticulo with pre-loaded unidades (different caller path).
+ *
+ * Fix auditoría I7: antes tenía su propia fórmula (contaba DOCS en vez de cantidades
+ * e incluía `'asignado'`), lo que podía contradecir al stock amplio. Ahora deriva de
+ * `atpUnidades()` — el mismo criterio de `computeStockAmplio` (suma `cantidad ?? 1`
+ * sobre disponible/reservado/en_transito; 'asignado' excluido, ver
+ * `UNIDAD_ATP_ESTADOS` en stockAmplioService.ts).
+ *
+ * Limitación inherente al camino sincrónico: solo ve `unidades` — no suma OCs
+ * pendientes ni requerimientos condicionales, así que puede reportar "requiere
+ * importación" cuando hay stock entrante por OC. Si podés esperar un round-trip,
+ * usá `itemRequiresImportacion()` (async, ATP completo de 4 buckets).
  */
 export function itemRequiresImportacionFromUnidades(
-  unidades: Array<{ estado: string; activo?: boolean }>,
+  unidades: UnidadStockRow[],
 ): boolean {
-  const atpEstados = new Set<string>(['disponible', 'reservado', 'en_transito', 'asignado']);
-  const atp = unidades.reduce(
-    (acc, u) => acc + (u.activo !== false && atpEstados.has(u.estado) ? 1 : 0),
-    0,
-  );
-  return atp === 0;
+  return atpUnidades(unidades) === 0;
 }

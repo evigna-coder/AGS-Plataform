@@ -7,6 +7,7 @@ import { MoneyInput } from '../ui/MoneyInput';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeStockAmplio } from '../../services/stockAmplioService';
+import { atpFromStockAmplio } from '../../services/atpHelpers';
 import { articulosService } from '../../services/firebaseService';
 
 interface Props {
@@ -112,7 +113,10 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
       let etaDiasEstimados: number | null = null;
       try {
         const stock = await computeStockAmplio(sel.refId);
-        const atp = (stock as { atp?: number }).atp ?? 0;
+        // StockAmplio no tiene campo `atp` — leerlo daba siempre 0 y sugería
+        // a_importar con stock en mano (regresión del wizard; mismo bug que el
+        // AddItemModal viejo, arreglado en v1.14.0 con este helper).
+        const atp = atpFromStockAmplio(stock);
         disponibilidad = atp > 0 ? 'stock' : 'a_importar';
         etaDiasEstimados = atp > 0 ? 0 : 30;
       } catch { /* defaults */ }

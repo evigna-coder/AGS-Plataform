@@ -49,6 +49,10 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
         const allPresupuestos = await presupuestosService.getAll({ clienteId });
         const allOTs = await ordenesTrabajoService.getAll();
 
+        // OTs padre con hijas: contenedores no-accionables, no bloquean el aviso.
+        const padresConHijas = new Set(
+          allOTs.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
+
         const infos: PresupuestoInfo[] = [];
         for (const budgetNum of budgets) {
           const pres = allPresupuestos.find(p => p.numero === budgetNum);
@@ -67,6 +71,7 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
           }
           const otsPendientes = [...nums].filter(num =>
             num !== otNumber &&
+            !padresConHijas.has(num) &&
             estadoPorOt.has(num) &&
             !OT_CERRADA_ADMIN.has(estadoPorOt.get(num) as string));
 

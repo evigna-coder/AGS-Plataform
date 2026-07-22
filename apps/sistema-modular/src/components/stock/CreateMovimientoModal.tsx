@@ -121,10 +121,10 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
               {TIPO_MOV_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
-          <Input inputSize="sm" label="Cantidad *" type="number"
+          <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'} type="number"
             value={String(h.form.cantidad)}
             onChange={e => h.set('cantidad', Number(e.target.value) || 0)}
-            disabled={h.form.origenUnidadIds.length > 0} />
+            disabled={h.form.tipo !== 'ajuste' && h.requiereSerie && h.form.origenUnidadIds.length > 0} />
         </div>
 
         <div>
@@ -149,12 +149,16 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
           {renderOrigenField()}
         </div>
 
-        {/* Selector de unidades (solo cuando origen es ubicación con stock y hay alguna seleccionada) */}
+        {/* Selector de unidades (solo cuando origen es ubicación con stock) */}
         {h.slot.origen === 'ubicacion_con_stock' && h.form.origenKey && h.unidadesEnOrigen.length > 0 && (
           <div>
             <label className={lbl}>
-              Unidades a mover ({h.form.origenUnidadIds.length} de {h.unidadesEnOrigen.length} seleccionadas)
-              <span className="ml-2 text-slate-400 text-[10px]">— opcional, si no seleccionás se mueve "cualquier" {h.form.cantidad}</span>
+              Unidades ({h.form.origenUnidadIds.length} de {h.unidadesEnOrigen.length} seleccionadas)
+              <span className="ml-2 text-slate-400 text-[10px]">
+                {h.form.tipo === 'ajuste' ? '— seleccioná LA unidad a ajustar'
+                  : h.requiereSerie ? '— obligatorio: artículo con n° de serie'
+                  : `— opcional, sin selección se descuenta/mueve por orden de ingreso (FIFO)`}
+              </span>
             </label>
             <div className="border border-slate-200 rounded max-h-48 overflow-y-auto bg-white">
               {h.unidadesEnOrigen.map(u => {
@@ -167,11 +171,17 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
                           ? h.form.origenUnidadIds.filter(id => id !== u.id)
                           : [...h.form.origenUnidadIds, u.id];
                         h.set('origenUnidadIds', next);
-                        if (next.length > 0) h.set('cantidad', next.length);
+                        if (next.length > 0 && h.form.tipo !== 'ajuste') {
+                          const sum = h.unidadesEnOrigen
+                            .filter(x => next.includes(x.id))
+                            .reduce((acc, x) => acc + (x.cantidad ?? 1), 0);
+                          h.set('cantidad', sum);
+                        }
                       }}
                       className="w-3.5 h-3.5 accent-teal-600" />
                     <span className="font-mono text-slate-700 flex-1">
                       {u.nroSerie ? `S/N: ${u.nroSerie}` : u.nroLote ? `Lote: ${u.nroLote}` : '(sin S/N ni lote)'}
+                      {(u.cantidad ?? 1) > 1 && <span className="text-slate-400"> × {u.cantidad}</span>}
                     </span>
                     <span className="text-[10px] text-slate-400 capitalize">{u.condicion.replace('_', ' ')}</span>
                   </label>
@@ -179,6 +189,21 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
               })}
             </div>
           </div>
+        )}
+
+        {/* Serie / lote — obligatorios al CREAR unidades (ingreso / devolución) */}
+        {(h.form.tipo === 'ingreso' || h.form.tipo === 'devolucion') && h.requiereSerie && (
+          <div>
+            <label className={lbl}>Números de serie * ({h.form.cantidad} — uno por línea)</label>
+            <textarea value={h.form.seriesText} onChange={e => h.set('seriesText', e.target.value)}
+              rows={Math.min(Math.max(h.form.cantidad, 2), 6)}
+              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+              placeholder={'SN-0001\nSN-0002\n...'} />
+          </div>
+        )}
+        {(h.form.tipo === 'ingreso' || h.form.tipo === 'devolucion') && h.requiereLote && (
+          <Input inputSize="sm" label="Número de lote *" value={h.form.lote}
+            onChange={e => h.set('lote', e.target.value)} placeholder="Lote..." />
         )}
 
         <div>

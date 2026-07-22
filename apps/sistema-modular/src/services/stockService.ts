@@ -1304,7 +1304,11 @@ export const reservasService = {
   }): Promise<{ reservadas: number }> {
     const { presupuestosService } = await import('./presupuestosService');
     const pres = await presupuestosService.getById(params.presupuestoId).catch(() => null);
-    if (!pres || !['aceptado', 'en_ejecucion'].includes(pres.estado as string)) return { reservadas: 0 };
+    // 'pendiente_facturacion' incluido (auditoría B5): si la OT cerró antes de que
+    // ingresara la mercadería importada, el ppto ya avanzó de estado pero el stock
+    // sigue adeudado al cliente. Sin esto, el ingreso posterior nunca reservaba para
+    // ese ppto y el retry del cierre no encontraba nada que entregar.
+    if (!pres || !['aceptado', 'en_ejecucion', 'pendiente_facturacion'].includes(pres.estado as string)) return { reservadas: 0 };
 
     const necesarias = (pres.items ?? [])
       .filter(i => i.stockArticuloId === params.articuloId)
@@ -1587,6 +1591,11 @@ export const reservasService = {
    * Entrega todas las unidades reservadas para un presupuesto (al cerrar la OT).
    * Best-effort por unidad: si una falla (estado cambiado, race), loguea y sigue.
    * Devuelve cuántas unidades se entregaron efectivamente.
+   *
+   * Nota (auditoría I1): las reservas son a nivel PRESUPUESTO — no discriminan OT.
+   * El caller (otService.cerrarAdministrativamente) solo invoca esto cuando cierra
+   * la ÚLTIMA OT del ppto; invocarlo antes entrega stock que corresponde a OTs
+   * todavía abiertas.
    */
   async entregarPorPresupuesto(params: {
     presupuestoId: string;
@@ -1724,19 +1733,128 @@ export const reservasService = {
     return { deducidas };
   },
 
-  /** Orquesta la deducción de todas las selecciones de stock del cierre. Best-effort. */
+  /**
+   * Orquesta la deducción de todas las selecciones de stock del cierre. Best-effort.
+   *
+   * Anti doble-descuento (auditoría I2): si se pasan `presupuestoIds` (pptos vinculados
+   * a la OT que cierra), lo seleccionado manualmente que ya esté cubierto por RESERVAS
+   * de esos pptos consume LA RESERVA en lugar de una unidad libre adicional:
+   * - selección con `unidadStockId` cuya unidad está reservada para uno de esos pptos
+   *   → se entrega ESA unidad reservada (reservado→entregado), no otra disponible.
+   * - selección por artículo (no serializado) → de la cantidad pedida se resta lo que
+   *   ya está reservado para los pptos; solo el excedente se deduce de 'disponible'.
+   *   La porción reservada la entrega el camino de reservas (al cierre de la última
+   *   OT del ppto — ver I1 en otService).
+   * Criterio elegido: ante la ambigüedad de si la selección manual refiere a lo
+   * reservado o a unidades extra, se asume que refiere a lo reservado — preferimos
+   * sub-deducir (corregible con un ajuste) antes que duplicar el egreso.
+   */
   async entregarSeleccionesCierre(params: {
     selections: StockSelection[];
     otNumber: string;
     clienteId?: string | null;
     clienteNombre?: string | null;
     solicitadoPorNombre: string;
-  }): Promise<{ deducidas: number }> {
+    /** Pptos vinculados a la OT que cierra — habilita el dedupe contra reservas (I2). */
+    presupuestoIds?: string[];
+  }): Promise<{ deducidas: number; cubiertasPorReserva: number }> {
+    // Pool de reservas de los pptos vinculados, para el dedupe I2. Best-effort: si la
+    // lectura de un ppto falla, el dedupe queda parcial (peor caso = comportamiento previo).
+    const unidadesReservadas = new Map<string, UnidadStock>();
+    const poolPorArticulo = new Map<string, number>();
+    for (const pid of params.presupuestoIds ?? []) {
+      try {
+        for (const u of await this.getByPresupuesto(pid)) {
+          unidadesReservadas.set(u.id, u);
+          poolPorArticulo.set(u.articuloId, (poolPorArticulo.get(u.articuloId) ?? 0) + (u.cantidad ?? 1));
+        }
+      } catch (err) {
+        console.warn(`[entregarSeleccionesCierre] reservas del ppto ${pid} ilegibles (dedupe I2 parcial):`, err);
+      }
+    }
+
     let deducidas = 0;
+    let cubiertasPorReserva = 0;
     for (const selection of params.selections) {
-      const r = await this.entregarSeleccionCierre({ selection, ...params });
+      // Caso 1 — unidad puntual (serie/lote) que está RESERVADA para un ppto de esta OT:
+      // consumir la reserva. Sin esto, deducirUnidadDisponible fallaba (estado 'reservado')
+      // y la intención del admin ("esta unidad salió con esta OT") se perdía.
+      const reservada = selection.unidadStockId ? unidadesReservadas.get(selection.unidadStockId) : undefined;
+      if (reservada) {
+        try {
+          await this.entregar({
+            unidadId: reservada.id,
+            unidad: reservada,
+            otNumber: params.otNumber,
+            motivo: `Entregado al cerrar OT ${params.otNumber} (selección de unidad reservada)`,
+            solicitadoPorNombre: params.solicitadoPorNombre,
+          });
+          const qty = reservada.cantidad ?? 1;
+          deducidas += qty;
+          poolPorArticulo.set(reservada.articuloId, Math.max(0, (poolPorArticulo.get(reservada.articuloId) ?? 0) - qty));
+          unidadesReservadas.delete(reservada.id);
+        } catch (err) {
+          console.error(`[entregarSeleccionesCierre] reserva ${reservada.id} no entregada:`, err);
+        }
+        continue;
+      }
+
+      // Caso 2 — selección por artículo: restar del pedido lo ya reservado por los pptos.
+      let sel = selection;
+      if (!selection.unidadStockId && selection.articuloId) {
+        const pool = poolPorArticulo.get(selection.articuloId) ?? 0;
+        const cubiertas = Math.min(selection.cantidad ?? 1, pool);
+        if (cubiertas > 0) {
+          poolPorArticulo.set(selection.articuloId, pool - cubiertas);
+          cubiertasPorReserva += cubiertas;
+          const restante = (selection.cantidad ?? 1) - cubiertas;
+          console.log(`[entregarSeleccionesCierre] ${selection.partCodigo}: ${cubiertas} u. ya reservadas por ppto vinculado — se deducen solo ${restante} adicionales`);
+          if (restante <= 0) continue;
+          sel = { ...selection, cantidad: restante };
+        }
+      }
+
+      const r = await this.entregarSeleccionCierre({
+        selection: sel,
+        otNumber: params.otNumber,
+        clienteId: params.clienteId,
+        clienteNombre: params.clienteNombre,
+        solicitadoPorNombre: params.solicitadoPorNombre,
+      });
       deducidas += r.deducidas;
     }
-    return { deducidas };
+    return { deducidas, cubiertasPorReserva };
+  },
+
+  /**
+   * Unidades de stock que un presupuesto todavía ADEUDA al cliente:
+   * suma de items con `stockArticuloId` − (reservadas + entregadas) para ese ppto.
+   * Usado por el cierre de OT (auditoría B5) para dejar rastro visible cuando la
+   * deducción dio 0 con items de stock pendientes (ej. mercadería aún no ingresada).
+   */
+  async pendienteDeEntrega(presupuestoId: string): Promise<number> {
+    const { presupuestosService } = await import('./presupuestosService');
+    const pres = await presupuestosService.getById(presupuestoId).catch(() => null);
+    if (!pres) return 0;
+    const necesariasPorArt = new Map<string, number>();
+    for (const i of pres.items ?? []) {
+      if (!i.stockArticuloId) continue;
+      necesariasPorArt.set(i.stockArticuloId, (necesariasPorArt.get(i.stockArticuloId) ?? 0) + (i.cantidad || 0));
+    }
+    if (necesariasPorArt.size === 0) return 0;
+    const snap = await getDocs(query(
+      collection(db, 'unidades'),
+      where('reservadoParaPresupuestoId', '==', presupuestoId),
+    ));
+    const cubiertasPorArt = new Map<string, number>();
+    snap.docs
+      .map(d => d.data())
+      .filter(u => u.estado === 'reservado' || u.estado === 'entregado')
+      .forEach(u => cubiertasPorArt.set(u.articuloId, (cubiertasPorArt.get(u.articuloId) ?? 0) + (u.cantidad ?? 1)));
+    let pendiente = 0;
+    for (const [art, nec] of necesariasPorArt) {
+      pendiente += Math.max(0, nec - (cubiertasPorArt.get(art) ?? 0));
+    }
+    return pendiente;
   },
 };

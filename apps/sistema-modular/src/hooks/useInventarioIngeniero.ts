@@ -4,6 +4,7 @@ import {
   instrumentosService, dispositivosService, vehiculosService, minikitsService,
 } from '../services/firebaseService';
 import { movimientosService } from '../services/stockService';
+import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 
@@ -95,13 +96,22 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const handleTransferir = async (item: InventarioItem, targetIngId: string, targetIngNombre: string) => {
     setSaving(true);
     try {
-      // 1. Mark devuelto in source
+      // 1. Mark devuelto in source — skipEntityEffects: la devolución NO debe pasar
+      // la unidad por 'disponible' ni asentar un movimiento de devolución (B3);
+      // el estado final de las entidades y el MovimientoStock 'transferencia' se
+      // setean acá abajo, en un solo salto ingeniero A → ingeniero B.
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
-      await asignacionesService.devolverItems(item.asignacionId, [{ itemId: item.id, cantidad: remaining }]);
+      await asignacionesService.devolverItems(
+        item.asignacionId,
+        [{ itemId: item.id, cantidad: remaining }],
+        { skipEntityEffects: true },
+      );
 
-      // 2. Build clean item for new asignacion
+      // 2. Build clean item for new asignacion — arrastra origenUbicacion para
+      // que la devolución final vuelva al estante original, no al del transferido.
       const newItem: ItemAsignacion = {
         id: crypto.randomUUID(), tipo: item.tipo,
+        origenUbicacion: item.origenUbicacion ?? null,
         unidadId: item.unidadId, articuloId: item.articuloId,
         articuloCodigo: item.articuloCodigo, articuloDescripcion: item.articuloDescripcion,
         cantidad: remaining, cantidadDevuelta: 0, cantidadConsumida: 0,
@@ -125,12 +135,43 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
         estado: 'activa', remitoId: null,
       });
 
-      // 3. Update entity location
-      if (item.unidadId) await unidadesService.update(item.unidadId, { ubicacion: { tipo: 'ingeniero', referenciaId: targetIngId, referenciaNombre: targetIngNombre } });
-      if (item.minikitId) await minikitsService.update(item.minikitId, { asignadoA: { tipo: 'ingeniero', id: targetIngId, nombre: targetIngNombre, desde: new Date().toISOString() } });
+      // 3. Update entity location — mismo estado final que deja la asignación rápida
+      // al asignar (unidad 'asignado' en poder del ingeniero, minikit 'en_campo').
+      // El estado se fuerza explícitamente además de la ubicación para sanear
+      // unidades que transferencias viejas dejaron 'disponible' colgadas de un
+      // ingeniero (B3).
+      if (item.unidadId) await unidadesService.update(item.unidadId, { estado: 'asignado', ubicacion: { tipo: 'ingeniero', referenciaId: targetIngId, referenciaNombre: targetIngNombre } });
+      if (item.minikitId) await minikitsService.update(item.minikitId, { estado: 'en_campo', asignadoA: { tipo: 'ingeniero', id: targetIngId, nombre: targetIngNombre, desde: new Date().toISOString() } });
       if (item.instrumentoId) await instrumentosService.update(item.instrumentoId, { asignadoAId: targetIngId, asignadoANombre: targetIngNombre });
       if (item.dispositivoId) await dispositivosService.update(item.dispositivoId, { asignadoAId: targetIngId, asignadoANombre: targetIngNombre });
       if (item.vehiculoId) await vehiculosService.update(item.vehiculoId, { asignadoA: targetIngNombre });
+
+      // 4. MovimientoStock 'transferencia' ingeniero A → ingeniero B (solo items de
+      // stock). Best-effort: un fallo acá no revierte la transferencia, se loguea.
+      if (item.unidadId || item.articuloId) {
+        try {
+          await movimientosService.create({
+            tipo: 'transferencia',
+            unidadId: item.unidadId ?? '',
+            articuloId: item.articuloId ?? '',
+            articuloCodigo: item.articuloCodigo ?? '',
+            articuloDescripcion: item.articuloDescripcion ?? '',
+            cantidad: remaining,
+            origenTipo: 'ingeniero',
+            origenId: ingenieroId ?? '',
+            origenNombre: ingeniero?.nombre ?? 'Ingeniero',
+            destinoTipo: 'ingeniero',
+            destinoId: targetIngId,
+            destinoNombre: targetIngNombre,
+            remitoId: null,
+            otNumber: null,
+            motivo: `Transferencia entre ingenieros (asignación ${item.asignacionNumero})`,
+            creadoPor: nombreUsuarioActual(),
+          });
+        } catch (err) {
+          console.error('[handleTransferir] no se pudo crear el movimiento de transferencia:', err);
+        }
+      }
 
       await loadData(true);
     } catch (err) {
@@ -140,46 +181,13 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
     finally { setSaving(false); }
   };
 
-  // ── Reponer minikit desde depósito: crea MovimientoStock tipo 'transferencia' ──
-  const handleReponer = useCallback(async (
-    item: InventarioItem,
-    cantidad: number,
-    depotPosicionId: string,
-    depotPosicionNombre: string,
-  ): Promise<boolean> => {
-    if (cantidad <= 0) {
-      console.warn('[handleReponer] cantidad must be > 0');
-      return false;
-    }
-    try {
-      await movimientosService.create({
-        tipo: 'transferencia',
-        unidadId: item.unidadId ?? '',
-        articuloId: item.articuloId ?? '',
-        articuloCodigo: item.articuloCodigo ?? '',
-        articuloDescripcion: item.articuloDescripcion ?? '',
-        cantidad,
-        origenTipo: 'posicion',
-        origenId: depotPosicionId,
-        origenNombre: depotPosicionNombre,
-        destinoTipo: 'minikit',
-        destinoId: item.minikitId ?? '',
-        destinoNombre: item.minikitCodigo ?? 'Minikit',
-        remitoId: null,
-        otNumber: null,
-        motivo: `Reposición de minikit: ${cantidad} unidades de ${item.articuloCodigo ?? item.articuloDescripcion}`,
-        creadoPor: 'Admin',
-      });
-      return true;
-    } catch (err) {
-      console.error('[useInventarioIngeniero] handleReponer:', err);
-      return false;
-    }
-  }, []);
+  // handleReponer eliminado (I5): creaba un MovimientoStock sin tocar existencias.
+  // La reposición de minikit va por el detalle del minikit, cuyo modal aplica el
+  // efecto real vía movimientosAplicarService (fix B4).
 
   return {
     ingeniero, ingenieros, clientes, unidades,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir, handleReponer,
+    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
   };
 }

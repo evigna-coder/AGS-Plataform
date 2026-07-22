@@ -11,13 +11,16 @@
  */
 
 import assert from 'node:assert/strict';
-import { computeStockAmplio, __setTestFirestore } from '../stockAmplioService.js';
+import { computeStockAmplio, atpUnidades, __setTestFirestore } from '../stockAmplioService.js';
+import { atpFromStockAmplio, itemRequiresImportacionFromUnidades } from '../atpHelpers.js';
 import {
   FIXTURE_HAPPY_PATH,
   FIXTURE_DOUBLE_COUNT_REGRESSION,
   FIXTURE_EMPTY,
   FIXTURE_STALE_REQS,
   FIXTURE_CLOSED_OCS,
+  FIXTURE_LOTES_Y_ASIGNADOS,
+  FIXTURE_SOLO_ASIGNADOS,
 } from './fixtures/stockAmplio.js';
 
 async function run() {
@@ -70,6 +73,40 @@ async function run() {
   assert.equal(r5.enTransito, 0, 'closed OCs: recibida/cancelada must NOT count as enTransito');
   assert.equal(r5.breakdown.ocsAbiertas.length, 0, 'closed OCs: no OCs in breakdown');
   console.log('  ✓ Test 5 passed: closed OCs excluded');
+
+  // ── Test 6: Auditoría I7 — lotes suman cantidad, 'asignado' excluido ──────
+  __setTestFirestore(FIXTURE_LOTES_Y_ASIGNADOS);
+  const r6 = await computeStockAmplio('art-1');
+  assert.equal(r6.disponible, 100, 'I7: lote de 100 debe sumar 100 (cantidades, no docs)');
+  assert.equal(r6.reservado, 5, 'I7: lote reservado de 5 debe sumar 5');
+  assert.equal(r6.enTransito, 0, 'I7: sin en_transito');
+  assert.equal(r6.comprometido, 0, 'I7: sin requerimientos');
+  // La variante sincrónica debe dar el MISMO componente-unidades del ATP
+  const rows6 = FIXTURE_LOTES_Y_ASIGNADOS.unidades;
+  assert.equal(
+    atpUnidades(rows6),
+    r6.disponible + r6.reservado + 0 /* unidades en_transito */,
+    'I7: atpUnidades debe coincidir con los buckets de unidades de computeStockAmplio (105)',
+  );
+  assert.equal(atpUnidades(rows6), 105, 'I7: asignado(20)/consumido/inactivo(50) NO cuentan');
+  assert.equal(
+    itemRequiresImportacionFromUnidades(rows6), false,
+    'I7: con 105 unidades ATP no requiere importación',
+  );
+  console.log('  ✓ Test 6 passed: I7 lotes por cantidad + asignado excluido');
+
+  // ── Test 7: Auditoría I7 — solo 'asignado' → ambas fórmulas coinciden ─────
+  __setTestFirestore(FIXTURE_SOLO_ASIGNADOS);
+  const r7 = await computeStockAmplio('art-1');
+  assert.equal(
+    atpFromStockAmplio(r7), 0,
+    'I7: stock solo asignado a ingenieros → ATP async = 0',
+  );
+  assert.equal(
+    itemRequiresImportacionFromUnidades(FIXTURE_SOLO_ASIGNADOS.unidades), true,
+    'I7: stock solo asignado → la variante sync también debe decir "requiere importación"',
+  );
+  console.log('  ✓ Test 7 passed: I7 async y sync coinciden con stock solo asignado');
 
   console.log('\n✅ All stockAmplio tests passed');
 }

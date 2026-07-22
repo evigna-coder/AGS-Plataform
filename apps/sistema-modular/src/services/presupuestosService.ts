@@ -2381,6 +2381,11 @@ export const presupuestosService = {
     });
     batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
     await batch.commit();
+    // Volver a borrador es des-aceptar: las reservas de stock de la aceptación
+    // deben liberarse igual que en anular/hardDelete (auditoría I9, 2026-07-20).
+    await this._liberarReservasDePresupuesto(id, 'Presupuesto vuelto a borrador').catch(err =>
+      console.error('[delete] liberar reservas:', err),
+    );
   },
 
   async hardDelete(id: string) {

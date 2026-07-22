@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -8,24 +8,19 @@ import { CrearRemitoDesdeInventarioModal } from '../../components/stock/CrearRem
 import { InventarioItemRow } from './InventarioItemRow';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
-import { posicionesStockService } from '../../services/stockService';
-import type { PosicionStock } from '@ags/shared';
 
 export const InventarioIngenieroPage = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+  // Nota (fix I5): la reposición de minikit ya no se dispara desde esta página
+  // (el handleReponer del hook creaba movimientos sin mover existencias);
+  // el botón "Reponer" de cada fila ahora lleva al detalle del minikit, cuyo
+  // modal aplica el efecto real vía movimientosAplicar.
   const {
     ingeniero, ingenieros, clientes, unidades,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir, handleReponer,
+    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
   } = useInventarioIngeniero(id);
-
-  const [depositos, setDepositos] = useState<PosicionStock[]>([]);
-  useEffect(() => {
-    posicionesStockService.getAll(true)
-      .then(all => setDepositos(all.filter(p => p.codigo !== 'RESERVAS')))
-      .catch(() => setDepositos([]));
-  }, []);
 
   const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
@@ -121,9 +116,7 @@ export const InventarioIngenieroPage = () => {
             <div className="space-y-1">
               {visibleItems.map(item => (
                 <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
-                  depositos={depositos}
                   onDevolver={handleDevolver} onConsumir={handleConsumir}
-                  onReponer={handleReponer}
                   onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                   onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}
                 />

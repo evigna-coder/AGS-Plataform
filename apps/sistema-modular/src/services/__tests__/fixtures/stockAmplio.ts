@@ -12,6 +12,8 @@ export interface MockUnidad {
   articuloId: string;
   estado: string;
   activo?: boolean;
+  /** Cantidad física del doc (lote/granel). Ausente = 1. */
+  cantidad?: number;
 }
 
 export interface MockOCItem {
@@ -110,6 +112,35 @@ export const FIXTURE_STALE_REQS: MockFirestoreState = {
     { id: 'req-3', articuloId: 'art-1', condicional: true, estado: 'comprado', cantidad: 3 },
     { id: 'req-4', articuloId: 'art-1', condicional: true, estado: 'en_compra', cantidad: 2 },
   ],
+};
+
+// ── Scenario: Auditoría I7 — lotes por cantidad + 'asignado' excluido ─────
+// 1 doc-lote disponible de 100, 1 reservado de 5, 1 asignado de 20, 1 consumido,
+// 1 disponible inactivo de 50.
+// Expected: { disponible:100, enTransito:0, reservado:5, comprometido:0 }
+// ATP-unidades = 105 (asignado/consumido/inactivo NO cuentan; lotes suman cantidad).
+export const FIXTURE_LOTES_Y_ASIGNADOS: MockFirestoreState = {
+  unidades: [
+    { articuloId: 'art-1', estado: 'disponible', activo: true, cantidad: 100 },
+    { articuloId: 'art-1', estado: 'reservado', activo: true, cantidad: 5 },
+    { articuloId: 'art-1', estado: 'asignado', activo: true, cantidad: 20 },
+    { articuloId: 'art-1', estado: 'consumido', activo: true },
+    { articuloId: 'art-1', estado: 'disponible', activo: false, cantidad: 50 },
+  ],
+  ocs: [],
+  requerimientos: [],
+};
+
+// ── Scenario: Auditoría I7 — único stock asignado a ingenieros ────────────
+// Ambas fórmulas (async 4-buckets y sync desde unidades) deben coincidir:
+// ATP = 0 → requiere importación por los dos caminos.
+export const FIXTURE_SOLO_ASIGNADOS: MockFirestoreState = {
+  unidades: [
+    { articuloId: 'art-1', estado: 'asignado', activo: true, cantidad: 3 },
+    { articuloId: 'art-1', estado: 'asignado', activo: true },
+  ],
+  ocs: [],
+  requerimientos: [],
 };
 
 // ── Scenario: Closed OCs excluded from enTransito ─────────────────────────

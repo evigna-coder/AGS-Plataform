@@ -8,7 +8,10 @@ import { presupuestosService } from './presupuestosService';
 import { getAdminSoporteAssignee } from './personalService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
+import { fichasService } from './fichasService';
 import { reservasService } from './stockService';
+import { loanersService } from './loanersService';
+import { OT_ESTADOS_CIERRE_TECNICO_PLUS } from '@ags/shared';
 
 /**
  * FLOW-04: build a minimal plaintext body for the cierre_admin_ot mailQueue doc.
@@ -612,6 +615,29 @@ export const ordenesTrabajoService = {
       }
     }
 
+    // Fichas propiedad del cliente: si un item de ficha tenía asignada una hija
+    // anterior de esta misma base ya cerrada, avanza la asignación a esta hija
+    // nueva (.01 → .02 → …). Best-effort — nunca bloquea la creación.
+    if (otData.otNumber.includes('.')) {
+      try {
+        await fichasService.avanzarOTAsignadaAHija(otData.otNumber);
+      } catch (err) {
+        console.error('[otService] avanzarOTAsignadaAHija failed (non-blocking):', err);
+      }
+    }
+
+    // Loaners: OT sobre módulo AGS → vincular el número al loaner (otIds).
+    // Cubre padre e hija (el create del padre re-entra acá al auto-crear la .01,
+    // porque la hija copia loanerId del padre). Best-effort — nunca bloquea.
+    const loanerIdVinculo = (otData as WorkOrder).loanerId;
+    if (loanerIdVinculo) {
+      try {
+        await loanersService.vincularOT(loanerIdVinculo, otData.otNumber);
+      } catch (err) {
+        console.error('[otService] vincularOT al loaner failed (non-blocking):', err);
+      }
+    }
+
     return otData.otNumber;
   },
 
@@ -738,6 +764,15 @@ export const ordenesTrabajoService = {
         if (ot && data.estadoAdmin === 'FINALIZADO') {
           await this._syncPresupuestoOnFinalize(ot).catch(err =>
             console.error('[otService] Error syncing presupuesto:', err)
+          );
+        }
+        // Loaners: OT de recalificación cerrada TÉCNICAMENTE (o más allá) desde
+        // sistema-modular → liberar el loaner a 'en_base'. Idempotente en el
+        // service (solo actúa si el loaner está en_recalificacion). El cierre
+        // técnico escrito por la app de campo lo cubre el sweep de loaners.
+        if (ot?.loanerId && OT_ESTADOS_CIERRE_TECNICO_PLUS.includes(data.estadoAdmin)) {
+          await loanersService.liberarTrasRecalificacion(ot.loanerId).catch(err =>
+            console.error('[otService] liberarTrasRecalificacion failed (non-blocking):', err)
           );
         }
       } catch (err) {
@@ -964,7 +999,10 @@ export const ordenesTrabajoService = {
     // check falla por error, se avanza el estado como antes (warn) — nunca bloquea.
     const OT_CERRADA_ADMIN = new Set<string>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
     const avanzaEstadoPorPpto = new Map<string, boolean>();
-    if (!yaCerrada) {
+    // El check corre también en el retry de stock (yaCerrada && !stockDeducido):
+    // el camino de reservas (auditoría I1) lo usa para saber si esta es la última
+    // OT del ppto. Con yaCerrada + stockDeducido no hace falta (no se deduce nada).
+    if (!yaCerrada || !ot.cierreAdmin?.stockDeducido) {
       for (const p of presupuestosPorNumero) {
         if (!p) continue;
         try {
@@ -985,8 +1023,22 @@ export const ordenesTrabajoService = {
             const s = await getDoc(doc(db, 'reportes', num));
             if (s.exists()) estadoPorOt.set(num, (s.data()?.estadoAdmin as string) ?? '');
           }
+          // OTs padre (sin .NN) con hijas son contenedores no-accionables: nunca
+          // reciben cierre administrativo y no pueden bloquear el avance del ppto
+          // (UAT 2026-07-20: el gate pedía cerrar 30107/30108/30109 padres, imposible).
+          const padresConHijas = new Set<string>();
+          for (const num of otsDelPpto) {
+            if (num.includes('.')) continue;
+            if ([...otsDelPpto].some(n => n !== num && n.startsWith(`${num}.`))) {
+              padresConHijas.add(num);
+              continue;
+            }
+            try {
+              if ((await this.getItemsByOtPadre(num)).length > 0) padresConHijas.add(num);
+            } catch { /* sin datos: se lo trata como OT normal */ }
+          }
           const todasCerradas = [...otsDelPpto]
-            .filter(num => num !== otNumber)
+            .filter(num => num !== otNumber && !padresConHijas.has(num))
             .every(num => !estadoPorOt.has(num) || OT_CERRADA_ADMIN.has(estadoPorOt.get(num) as string));
           avanzaEstadoPorPpto.set(p.id, todasCerradas);
           if (!todasCerradas) {
@@ -1133,6 +1185,27 @@ export const ordenesTrabajoService = {
         console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
       }
 
+      // Fichas propiedad del cliente: anotar el cierre en el historial de los
+      // items con esta OT asignada (informe técnico, ingeniero, partes usadas).
+      // Best-effort — nunca bloquea el cierre.
+      try {
+        await fichasService.syncCierreOT(otNumber);
+      } catch (err) {
+        console.error('[cerrarAdministrativamente] fichasService.syncCierreOT failed (non-blocking):', err);
+      }
+
+      // Loaners: el cierre administrativo implica cierre técnico ya pasado —
+      // si la OT es de recalificación de un loaner, liberarlo. Best-effort.
+      // (El camino update() → CIERRE_ADMINISTRATIVO delega acá con early-return,
+      // así que este hook cubre también esa ruta.)
+      if (ot.loanerId) {
+        try {
+          await loanersService.liberarTrasRecalificacion(ot.loanerId);
+        } catch (err) {
+          console.error('[cerrarAdministrativamente] liberarTrasRecalificacion failed (non-blocking):', err);
+        }
+      }
+
       // ── Phase 12 BILL-02: recompute cuota estados for all linked presupuestos ──
       // When an OT closes, cuotas with hito='todas_ots_cerradas' may become habilitada.
       // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
@@ -1189,38 +1262,63 @@ export const ordenesTrabajoService = {
     if (ot.cierreAdmin?.stockDeducido) {
       console.log(`[cerrarAdmin] OT ${otNumber} ya tiene stock deducido; se omite la deducción.`);
     } else {
-      let huboDeduccion = false;
+      // Total de unidades efectivamente procesadas por ambos caminos. Auditoría B5:
+      // el flag stockDeducido se marca según este total real, NO por la mera
+      // existencia de selections/presupuestos vinculados.
+      let totalProcesadas = 0;
+      let seleccionesSinStock = 0;      // pedidas por selección manual y no descontadas
+      const pptosDiferidos = new Set<string>(); // camino B pospuesto a la última OT (I1)
 
       // Camino A — SELECCIÓN manual del cierre (entrega de partes).
       // Las unidades/posiciones elegidas en cierreAdmin.stockSelections se descuentan
-      // (disponible→entregado). Independiente del camino de presupuesto (reservado→
-      // entregado): el guard por estado evita solapamiento. Best-effort.
+      // (disponible→entregado). Auditoría I2: se pasan los presupuestoIds vinculados
+      // para que lo seleccionado que ya esté RESERVADO por esos pptos consuma la
+      // reserva (o se excluya de la cantidad) en vez de duplicar el egreso. Best-effort.
       const stockSelections = ot.cierreAdmin?.stockSelections ?? [];
+      const seleccionesSolicitadas = stockSelections.reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
       if (stockSelections.length > 0) {
-        huboDeduccion = true;
         try {
-          const { deducidas } = await reservasService.entregarSeleccionesCierre({
+          const { deducidas, cubiertasPorReserva } = await reservasService.entregarSeleccionesCierre({
             selections: stockSelections,
             otNumber,
             clienteId: ot.clienteId ?? null,
             clienteNombre: ot.razonSocial ?? null,
             solicitadoPorNombre: actor?.name || 'Sistema',
+            presupuestoIds,
           });
+          totalProcesadas += deducidas;
+          seleccionesSinStock = Math.max(0, seleccionesSolicitadas - deducidas - cubiertasPorReserva);
           if (deducidas > 0) {
             console.log(`[cerrarAdmin] ${deducidas} unidad(es) descontada(s) por selección manual en OT ${otNumber}`);
           }
+          if (cubiertasPorReserva > 0) {
+            console.log(`[cerrarAdmin] ${cubiertasPorReserva} u. de la selección ya estaban reservadas por ppto vinculado — las entrega el camino de reservas (sin doble descuento)`);
+          }
         } catch (err) {
+          seleccionesSinStock = seleccionesSolicitadas;
           console.warn(`[cerrarAdmin.stockSelections] OT ${otNumber}:`, err);
         }
       }
 
       // Camino B — entregar unidades RESERVADAS de los presupuestos vinculados.
       // Las unidades reservadas (estado 'reservado') pasan a 'entregado' → salen del ATP.
+      // Auditoría I1: las reservas son a nivel PRESUPUESTO (sin vínculo a una OT
+      // concreta), así que entregarlas al cerrar la PRIMERA OT de un ppto multi-OT
+      // adelantaba TODO el stock reservado. Criterio elegido: se entregan recién al
+      // cierre de la ÚLTIMA OT del ppto (reutiliza el check todas-cerradas de
+      // avanzaEstadoPorPpto, que ya excluye OTs padre contenedoras). Lo que salió
+      // físicamente con ESTA OT lo marca el admin por selección manual (camino A),
+      // que consume reservas vía el dedupe I2. Fail-safe: sin dato en el map
+      // (default true) se entrega como siempre — nunca bloquea por error del check.
       // Best-effort: si falla, el cierre admin no se revierte (el stock se ajusta a mano).
       if (presupuestoIds.length > 0) {
-        huboDeduccion = true;
         let stockEntregado = 0;
         for (const presupuestoId of presupuestoIds) {
+          if (avanzaEstadoPorPpto.get(presupuestoId) === false) {
+            pptosDiferidos.add(presupuestoId);
+            console.log(`[cerrarAdmin.stock] ppto ${presupuestoId}: quedan OTs sin cerrar — las reservas se entregarán al cierre de la última OT (I1)`);
+            continue;
+          }
           try {
             const { entregadas } = await reservasService.entregarPorPresupuesto({
               presupuestoId,
@@ -1232,17 +1330,60 @@ export const ordenesTrabajoService = {
             console.warn(`[cerrarAdmin.stock] ppto ${presupuestoId}:`, err);
           }
         }
+        totalProcesadas += stockEntregado;
         if (stockEntregado > 0) {
           console.log(`[cerrarAdmin] ${stockEntregado} unidad(es) entregada(s) por cierre de OT ${otNumber}`);
         }
       }
 
-      // Marcar stockDeducido UNA sola vez si hubo algún camino de deducción.
-      if (huboDeduccion) {
+      // ── Auditoría B5: marcar stockDeducido SOLO si se procesó ≥1 unidad, o si se
+      // verificó que no había nada que deducir (sin selecciones y pptos sin items de
+      // stock). Antes se marcaba por la sola existencia de pptos vinculados: una OT
+      // cerrada antes del ingreso de la mercadería quedaba con el flag prendido y 0
+      // unidades descontadas, y el guard de re-entrada bloqueaba el retry para siempre.
+      const hayItemsDeStock = presupuestosPorNumero.some(p => (p?.items ?? []).some(i => i.stockArticuloId));
+      const nadaQueDeducir = stockSelections.length === 0 && !hayItemsDeStock;
+      const marcarDeducido = totalProcesadas > 0 || (presupuestoIds.length > 0 && nadaQueDeducir);
+
+      // Rastro visible: unidades de ppto que quedaron adeudadas (ni reservadas ni
+      // entregadas) en los pptos NO diferidos por I1. Best-effort: si el cálculo
+      // falla, no se agrega la nota (el warn de consola queda igual).
+      let pendientesPpto = 0;
+      if (hayItemsDeStock) {
+        for (const presupuestoId of presupuestoIds) {
+          if (pptosDiferidos.has(presupuestoId)) continue;
+          try {
+            pendientesPpto += await reservasService.pendienteDeEntrega(presupuestoId);
+          } catch (err) {
+            console.warn(`[cerrarAdmin.pendientes] ppto ${presupuestoId}:`, err);
+          }
+        }
+      }
+
+      const lineasStock: string[] = [];
+      if (seleccionesSinStock > 0) {
+        lineasStock.push(`[stock] ${seleccionesSinStock} u. de la selección manual no se descontaron (sin disponible o error) — revisar y ajustar a mano.`);
+      }
+      if (pendientesPpto > 0) {
+        lineasStock.push(`[stock] ${pendientesPpto} u. de presupuesto sin descontar al cierre (sin stock reservado — ¿mercadería aún no ingresada?). ${marcarDeducido ? 'Ajustar a mano.' : 'Re-cerrar la OT cuando el stock esté reservado para completar la entrega.'}`);
+      }
+      if (!marcarDeducido && (seleccionesSinStock > 0 || pendientesPpto > 0)) {
+        console.warn(`[cerrarAdmin] OT ${otNumber}: la deducción de stock procesó 0 unidades con stock en juego — stockDeducido queda apagado para permitir el retry (B5).`);
+      }
+
+      if (marcarDeducido || lineasStock.length > 0) {
         try {
+          // Las notas [stock] previas se reemplazan por las de esta corrida (un retry
+          // exitoso las limpia); el resto de notasCierre del admin se preserva.
+          const notasPrevias = (ot.cierreAdmin?.notasCierre ?? '')
+            .split('\n').filter(l => !l.trim().startsWith('[stock]')).join('\n').trim();
+          const notas = [notasPrevias, ...lineasStock].filter(Boolean).join('\n');
           const cierreAdminActual: CierreAdministrativo = {
             horasConfirmadas: false, partesConfirmadas: false, avisoAdminEnviado: false,
-            ...(ot.cierreAdmin ?? {}), stockDeducido: true,
+            stockDeducido: false,
+            ...(ot.cierreAdmin ?? {}),
+            ...(marcarDeducido ? { stockDeducido: true } : {}),
+            notasCierre: notas,
           };
           await this.update(otNumber, { cierreAdmin: cierreAdminActual });
         } catch (err) {

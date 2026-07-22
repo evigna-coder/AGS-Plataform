@@ -10,6 +10,7 @@ import { ImportacionGastosEditor } from './ImportacionGastosEditor';
 import { ImportacionCosteoPanel } from './ImportacionCosteoPanel';
 import { ImportacionIngresarStockModal } from './ImportacionIngresarStockModal';
 import { ImportacionDocumentosSection } from './ImportacionDocumentosSection';
+import { resumenRecepcion } from '../../utils/importacionRecepcion';
 
 interface Props {
   open: boolean;
@@ -56,9 +57,12 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
 
   const [showIngresar, setShowIngresar] = useState(false);
   // Mostramos "Ingresar a stock" siempre que la importación esté guardada, tenga ítems
-  // y no se haya ingresado aún. La disciplina de estados (despachado/recibido) vive en
-  // la página detalle; acá el dato declarado (despacho, items) alcanza para operar.
+  // y la recepción no esté terminada (stockIngresado se prende recién al completar o al
+  // cerrar incompleta — I3 admite N recepciones parciales). La disciplina de estados
+  // (despachado/recibido) y el cierre incompleto viven en la página detalle.
   const puedeIngresar = !!h.imp && !h.imp.stockIngresado && (h.imp.items?.length ?? 0) > 0;
+  const recepcion = h.imp ? resumenRecepcion(h.imp) : null;
+  const recepcionParcial = puedeIngresar && !!recepcion?.huboRecepcion && !recepcion.completo;
 
   // Alta de agente de carga inline (window.prompt no existe en el renderer de Electron).
   const [nuevoAgente, setNuevoAgente] = useState<string | null>(null);
@@ -122,11 +126,15 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
       )}
       {puedeIngresar && (
         <Button variant="secondary" size="sm" onClick={() => setShowIngresar(true)}>
-          Ingresar a stock
+          {recepcionParcial && recepcion
+            ? `Ingresar faltante (${recepcion.recibido}/${recepcion.pedido})`
+            : 'Ingresar a stock'}
         </Button>
       )}
       {h.imp?.stockIngresado && (
-        <span className="text-[11px] text-teal-600 font-medium self-center mr-1">✓ Ingresada a stock</span>
+        <span className="text-[11px] text-teal-600 font-medium self-center mr-1">
+          ✓ Ingresada a stock{h.imp.recepcionCerradaIncompleta ? ' (incompleta)' : ''}
+        </span>
       )}
       <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
       <Button size="sm" onClick={handleSave} disabled={h.saving || !h.ordenCompraId}>

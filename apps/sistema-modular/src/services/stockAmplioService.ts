@@ -77,6 +77,53 @@ export const OC_OPEN_STATES = new Set<string>([
 // importaciones lo escribía — tolerancia para docs existentes (UAT 2026-07-16).
 export const REQ_COMPROMETIDO_EXCL = new Set<string>(['cancelado', 'comprado', 'en_compra', 'completado']);
 
+// ── Pure unit-row helpers (criterio ATP unificado — auditoría I7) ─────────────
+
+/** Subset mínimo de UnidadStock que necesita la matemática de stock por unidades. */
+export interface UnidadStockRow {
+  estado: string;
+  activo?: boolean;
+  cantidad?: number | null;
+}
+
+/**
+ * Estados de unidad que cuentan para el ATP calculado desde `unidades`.
+ *
+ * Criterio único (fix auditoría I7 — antes había dos fórmulas divergentes):
+ *   - Se suman CANTIDADES (`cantidad ?? 1`), nunca cantidad de docs:
+ *     un doc-lote de 100 vale 100, no 1. Serializados guardan cantidad=1,
+ *     así que para ellos la suma colapsa a un conteo.
+ *   - `'asignado'` NO cuenta como ATP: una unidad asignada está en poder de un
+ *     ingeniero (material de campo) y no es prometible a un presupuesto nuevo.
+ *     `computeStockAmplio` tampoco la incluye en ningún bucket, así que contarla
+ *     en la variante sincrónica hacía que el hint "requiere importación"
+ *     contradijera al stock amplio que ve el usuario. Si la unidad se devuelve,
+ *     vuelve a 'disponible' y ahí sí cuenta.
+ *   - Este set es el espejo exacto de los buckets de unidades de
+ *     `computeStockAmplio` (disponible + reservado + en_transito).
+ */
+export const UNIDAD_ATP_ESTADOS = new Set<string>(['disponible', 'reservado', 'en_transito']);
+
+/** Suma de `cantidad` (default 1) de las unidades activas en un estado dado. */
+export function sumCantidadUnidades(unidades: UnidadStockRow[], estado: string): number {
+  return unidades.reduce(
+    (acc, u) => acc + (u.activo !== false && u.estado === estado ? (u.cantidad ?? 1) : 0),
+    0,
+  );
+}
+
+/**
+ * Componente "unidades" del ATP: suma de cantidades activas en `UNIDAD_ATP_ESTADOS`.
+ * NO ve OCs pendientes ni requerimientos condicionales (eso solo lo aporta
+ * `computeStockAmplio`), por lo que es una cota inferior del ATP completo.
+ */
+export function atpUnidades(unidades: UnidadStockRow[]): number {
+  return unidades.reduce(
+    (acc, u) => acc + (u.activo !== false && UNIDAD_ATP_ESTADOS.has(u.estado) ? (u.cantidad ?? 1) : 0),
+    0,
+  );
+}
+
 // ── Test injection hook ───────────────────────────────────────────────────────
 
 /**
@@ -84,7 +131,7 @@ export const REQ_COMPROMETIDO_EXCL = new Set<string>(['cancelado', 'comprado', '
  * Mirrors the data that the private fetchers return from Firestore.
  */
 interface MockState {
-  unidades: Array<{ articuloId: string; estado: string; activo?: boolean }>;
+  unidades: Array<{ articuloId: string; estado: string; activo?: boolean; cantidad?: number }>;
   ocs: Array<{
     id: string;
     estado: string;
@@ -138,14 +185,12 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
 
   // Sum `cantidad` (default 1) rather than counting docs: a single lote doc can
   // represent N physical units. Serialized articles always store cantidad=1, so
-  // the sum collapses to a count for them.
-  const sumCantidad = (estado: string) =>
-    (unidades as any[])
-      .filter((u: any) => u.estado === estado)
-      .reduce((acc: number, u: any) => acc + (u.cantidad ?? 1), 0);
-  const disponible = sumCantidad('disponible');
-  const reservado = sumCantidad('reservado');
-  const unidadesEnTransito = sumCantidad('en_transito');
+  // the sum collapses to a count for them. Shared helper — same criterion as the
+  // sync variant `itemRequiresImportacionFromUnidades` (auditoría I7).
+  const rows = unidades as UnidadStockRow[];
+  const disponible = sumCantidadUnidades(rows, 'disponible');
+  const reservado = sumCantidadUnidades(rows, 'reservado');
+  const unidadesEnTransito = sumCantidadUnidades(rows, 'en_transito');
 
   // 2. OCs abiertas — pending items NOT yet received (not yet in DB as units)
   // These are SEPARATE from unidades.en_transito — DO NOT deduplicate.

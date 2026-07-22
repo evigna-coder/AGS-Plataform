@@ -81,6 +81,11 @@ export const RemitoEditor = () => {
     setItems(prev => prev.map(i => i.localId === localId ? { ...i, [field]: value } : i));
   };
 
+  // La cantidad del remito no puede superar la existencia de la unidad: al
+  // confirmar se aplica el movimiento real de stock (I4) y quedaría bloqueado.
+  const maxCantidad = (unidadId: string) =>
+    availableUnits.find(u => u.id === unidadId)?.cantidad ?? 1;
+
   const removeItem = (localId: string) => {
     setItems(prev => prev.filter(i => i.localId !== localId));
   };
@@ -169,10 +174,14 @@ export const RemitoEditor = () => {
         </Card>
 
         <Card>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-1">
             <h3 className="text-sm font-semibold text-slate-900">Items ({items.length})</h3>
             <Button variant="outline" onClick={() => setUnitSearchOpen(!unitSearchOpen)}>+ Agregar unidad</Button>
           </div>
+          <p className="text-[11px] text-slate-400 mb-4">
+            El borrador no mueve stock. Al confirmar el remito se aplica el movimiento real:
+            egreso para items "Entrega", transferencia al ingeniero para "Sale y vuelve".
+          </p>
 
           {unitSearchOpen && (
             <div className="mb-4 border border-slate-200 rounded-lg p-3 bg-slate-50">
@@ -187,6 +196,9 @@ export const RemitoEditor = () => {
                     className="w-full text-left px-3 py-2 hover:bg-teal-50 transition-colors flex justify-between items-center gap-4">
                     <span className="font-mono text-sm font-semibold text-teal-600">{u.articuloCodigo}</span>
                     <span className="text-sm text-slate-700 flex-1 truncate">{u.articuloDescripcion}</span>
+                    <span className="text-xs text-slate-400 shrink-0">
+                      {u.nroSerie ? `S/N ${u.nroSerie}` : `x${u.cantidad ?? 1}`}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -213,8 +225,9 @@ export const RemitoEditor = () => {
                       <td className="px-4 py-2 font-mono text-sm font-semibold text-teal-600">{item.articuloCodigo}</td>
                       <td className="px-4 py-2 text-sm text-slate-900 truncate max-w-xs">{item.articuloDescripcion}</td>
                       <td className="px-4 py-2">
-                        <input type="number" min={1} value={item.cantidad}
-                          onChange={e => updateItem(item.localId, 'cantidad', Math.max(1, Number(e.target.value) || 1))}
+                        <input type="number" min={1} max={maxCantidad(item.unidadId ?? '')} value={item.cantidad}
+                          onChange={e => updateItem(item.localId, 'cantidad',
+                            Math.min(maxCantidad(item.unidadId ?? ''), Math.max(1, Number(e.target.value) || 1)))}
                           className="w-20 border border-slate-300 rounded-lg px-2 py-1 text-sm" />
                       </td>
                       <td className="px-4 py-2">

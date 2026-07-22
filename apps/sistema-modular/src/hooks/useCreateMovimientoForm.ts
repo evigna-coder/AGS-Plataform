@@ -3,6 +3,7 @@ import {
   movimientosService, articulosService, unidadesService,
   posicionesStockService, minikitsService, ingenierosService, proveedoresService,
 } from '../services/firebaseService';
+import { movimientosAplicarService, type PuntoMovimiento } from '../services/movimientosAplicar';
 import type {
   Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, Proveedor,
   TipoMovimiento, TipoOrigenDestino, MovimientoStock,
@@ -80,6 +81,10 @@ interface FormState {
   destinoKey: string;
   destinoLibre: string;
   observaciones: string;
+  /** Series (una por línea) para ingreso/devolución de artículos con `requiereNumeroSerie`. */
+  seriesText: string;
+  /** Lote para ingreso/devolución de artículos con `requiereNumeroLote`. */
+  lote: string;
 }
 
 const buildEmptyForm = (init: InitOpts): FormState => ({
@@ -92,6 +97,8 @@ const buildEmptyForm = (init: InitOpts): FormState => ({
   destinoKey: init.lockDestino ? `${init.lockDestino.tipo}:${init.lockDestino.id}` : '',
   destinoLibre: '',
   observaciones: '',
+  seriesText: '',
+  lote: '',
 });
 
 export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCreated: () => void, init: InitOpts = {}, creadoPor: string = 'Admin') {
@@ -145,6 +152,8 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
       origenLibre: '',
       destinoKey: init.lockDestino ? `${init.lockDestino.tipo}:${init.lockDestino.id}` : '',
       destinoLibre: '',
+      seriesText: '',
+      lote: '',
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.tipo]);
@@ -166,7 +175,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
         if (!t) continue;
         const key = `${t}:${id}`;
         grouped[key] ??= { key, tipo: t as TipoOrigenDestino, id, nombre: nom || `${t}`, count: 0 };
-        grouped[key].count += 1;
+        grouped[key].count += u.cantidad ?? 1;
       }
       return Object.values(grouped).sort((a, b) => b.count - a.count);
     }
@@ -232,9 +241,25 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   const findOption = (opts: UbicacionLocationOption[], key: string): UbicacionLocationOption | undefined =>
     opts.find(o => o.key === key);
 
+  // ── Derivados para validación / UI ──
+  const articuloSel = useMemo(() => articulos.find(a => a.id === form.articuloId) ?? null, [articulos, form.articuloId]);
+  const requiereSerie = !!articuloSel?.requiereNumeroSerie;
+  const requiereLote = !!articuloSel?.requiereNumeroLote;
+
+  const unidadesSeleccionadas: UnidadStock[] = useMemo(
+    () => form.origenUnidadIds
+      .map(id => unidadesEnOrigen.find(u => u.id === id))
+      .filter((u): u is UnidadStock => !!u),
+    [form.origenUnidadIds, unidadesEnOrigen],
+  );
+
+  const sumCantidad = (list: UnidadStock[]) => list.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+
   const handleSave = async () => {
     if (!form.articuloId) { alert('Seleccione un articulo'); return; }
-    if (!form.cantidad || form.cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
+    if (form.tipo === 'ajuste') {
+      if (!form.cantidad || form.cantidad === 0) { alert('El ajuste no puede ser cero (usá + para sumar y − para restar)'); return; }
+    } else if (!form.cantidad || form.cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
 
     const articulo = articulos.find(a => a.id === form.articuloId);
     if (!articulo) { alert('Articulo no encontrado'); return; }
@@ -271,66 +296,122 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
       if (slot.destino === 'texto_libre' && !destinoNombre) { alert('Complete el destino'); return; }
     }
 
+    const origen: PuntoMovimiento = { tipo: origenTipo, id: origenId, nombre: origenNombre };
+    const destino: PuntoMovimiento = { tipo: destinoTipo, id: destinoId, nombre: destinoNombre };
+    const otNumber =
+      origenTipo === 'consumo_ot' ? origenNombre :
+      destinoTipo === 'consumo_ot' ? destinoNombre : null;
+    const motivo = form.observaciones.trim() || null;
+
+    // ── Validaciones por tipo: nada de asientos que no muevan existencias ──
+
+    // Ingreso / devolución: se CREAN unidades → exigir serie/lote según el artículo.
+    let series: string[] = [];
+    if (form.tipo === 'ingreso' || form.tipo === 'devolucion') {
+      if (requiereSerie) {
+        series = form.seriesText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean);
+        if (series.length !== form.cantidad) {
+          alert(`Artículo con n° de serie: ingresá exactamente ${form.cantidad} serie${form.cantidad !== 1 ? 's' : ''} (una por línea). Cargaste ${series.length}.`);
+          return;
+        }
+        if (new Set(series).size !== series.length) { alert('Hay números de serie repetidos en la carga'); return; }
+        const existentes = new Set(unidades.filter(u => u.activo && u.nroSerie).map(u => u.nroSerie as string));
+        const dup = series.find(s => existentes.has(s));
+        if (dup) { alert(`El n° de serie "${dup}" ya existe para este artículo`); return; }
+      }
+      if (requiereLote && !form.lote.trim()) { alert('Artículo con n° de lote: ingresá el lote'); return; }
+    }
+
+    // Egreso / consumo / transferencia: se descuentan o mueven unidades reales.
+    // Candidatas = las seleccionadas, o FIFO de la ubicación de origen si no se seleccionó ninguna.
+    let candidatas: UnidadStock[] = [];
+    if (form.tipo === 'egreso' || form.tipo === 'consumo' || form.tipo === 'transferencia') {
+      if (requiereSerie && unidadesSeleccionadas.length === 0) {
+        alert('Artículo con n° de serie: seleccioná las unidades específicas (trazabilidad). No se registran movimientos sin unidad identificada.');
+        return;
+      }
+      candidatas = unidadesSeleccionadas.length > 0
+        ? unidadesSeleccionadas
+        : [...unidadesEnOrigen].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // FIFO
+      const disponible = sumCantidad(candidatas);
+      if (disponible < form.cantidad) {
+        alert(`Stock insuficiente: en ${unidadesSeleccionadas.length > 0 ? 'las unidades seleccionadas' : 'el origen'} hay ${disponible} y estás registrando ${form.cantidad}. El movimiento no se registra sin efecto real sobre las existencias.`);
+        return;
+      }
+      if (form.tipo === 'transferencia' && origenTipo === destinoTipo && origenId === destinoId) {
+        alert('El destino es la misma ubicación que el origen');
+        return;
+      }
+    }
+
+    if (form.tipo === 'ajuste' && unidadesSeleccionadas.length !== 1) {
+      alert('Ajuste: seleccioná exactamente UNA unidad de la lista del origen para ajustar su cantidad.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const otNumber =
-        origenTipo === 'consumo_ot' ? origenNombre :
-        destinoTipo === 'consumo_ot' ? destinoNombre : null;
+      switch (form.tipo) {
+        case 'ingreso':
+        case 'devolucion':
+          // Crea las unidades (mismo shape que el alta por intake) + movimiento, en un batch atómico.
+          await movimientosAplicarService.ingresarUnidades({
+            articulo, cantidad: form.cantidad, series, lote: form.lote.trim() || null,
+            tipoMov: form.tipo, origen, destino, otNumber, motivo, creadoPor,
+          });
+          break;
 
-      // Si hay unidades específicas seleccionadas → un movimiento por cada unidad (cada uno cantidad=1)
-      // y mover su ubicación al destino. Sino → un solo movimiento con cantidad=N.
-      if (form.origenUnidadIds.length > 0) {
-        for (const unidadId of form.origenUnidadIds) {
-          const u = unidadesEnOrigen.find(x => x.id === unidadId);
-          if (!u) continue;
-          // Mover unidad al destino si destino es interno
-          if (destinoTipo === 'posicion' || destinoTipo === 'minikit' || destinoTipo === 'ingeniero' || destinoTipo === 'proveedor') {
-            await unidadesService.update(u.id, {
-              ubicacion: { tipo: destinoTipo, referenciaId: destinoId, referenciaNombre: destinoNombre },
+        case 'egreso':
+        case 'consumo': {
+          // Descuenta de verdad (patrón deducirUnidadDisponible): estado terminal o decremento de lote.
+          let restante = form.cantidad;
+          for (const u of candidatas) {
+            if (restante <= 0) break;
+            const aDeducir = Math.min(u.cantidad ?? 1, restante);
+            restante -= await movimientosAplicarService.deducirUnidad({
+              unidad: u, aDeducir,
+              tipoMov: form.tipo,
+              estadoFinal: form.tipo === 'consumo' ? 'consumido' : 'entregado',
+              destino, otNumber, motivo, creadoPor,
             });
           }
-          await movimientosService.create({
-            tipo: form.tipo,
-            unidadId: u.id,
-            articuloId: articulo.id,
-            articuloCodigo: articulo.codigo,
-            articuloDescripcion: articulo.descripcion,
-            cantidad: 1,
-            origenTipo, origenId, origenNombre,
-            destinoTipo, destinoId, destinoNombre,
-            remitoId: null,
-            otNumber,
-            motivo: form.observaciones.trim() || null,
+          break;
+        }
+
+        case 'transferencia': {
+          // Mueve la ubicación real (split de lote si se transfiere una porción).
+          let restante = form.cantidad;
+          for (const u of candidatas) {
+            if (restante <= 0) break;
+            const aMover = Math.min(u.cantidad ?? 1, restante);
+            restante -= await movimientosAplicarService.transferirUnidad({
+              unidad: u, aMover, destino, motivo, creadoPor,
+            });
+          }
+          break;
+        }
+
+        case 'ajuste':
+          await movimientosAplicarService.ajustarUnidad({
+            unidad: unidadesSeleccionadas[0],
+            delta: form.cantidad,
+            motivo: destinoNombre, // slot destino texto_libre = "Motivo del ajuste" (obligatorio)
             creadoPor,
           });
-        }
-      } else {
-        await movimientosService.create({
-          tipo: form.tipo,
-          unidadId: '',
-          articuloId: articulo.id,
-          articuloCodigo: articulo.codigo,
-          articuloDescripcion: articulo.descripcion,
-          cantidad: form.cantidad,
-          origenTipo, origenId, origenNombre,
-          destinoTipo, destinoId, destinoNombre,
-          remitoId: null,
-          otNumber,
-          motivo: form.observaciones.trim() || null,
-          creadoPor,
-        });
+          break;
       }
       handleClose();
       onCreated();
     } catch (err) {
       console.error('[CreateMovimientoModal]', err);
-      alert('Error al registrar el movimiento');
+      alert(err instanceof Error ? `Error al registrar el movimiento: ${err.message}` : 'Error al registrar el movimiento');
     } finally { setSaving(false); }
   };
 
   return {
     saving, form, set, articulos, unidades,
     slot, origenOptions, destinoOptions, unidadesEnOrigen,
+    requiereSerie, requiereLote, unidadesSeleccionadas,
     handleClose, handleSave,
     locks: { tipo: init.lockTipo, articulo: init.lockArticulo, destino: init.lockDestino },
   };

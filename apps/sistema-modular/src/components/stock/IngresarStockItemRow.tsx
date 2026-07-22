@@ -42,7 +42,10 @@ export const IngresarStockItemRow: React.FC<Props> = ({ item, articulo, state, p
   const requiereLote = !!articulo?.requiereNumeroLote;
   const seriesCount = seriesDe(state).length;
   const seriesOk = !requiereSerie || seriesCount === state.cantidadReal;
-  const cantMismatch = state.cantidadReal !== item.cantidadPedida;
+  // Con recepciones parciales (I3), la referencia es lo PENDIENTE (pedido − acumulado).
+  const yaRecibido = item.cantidadRecibida ?? 0;
+  const pendiente = Math.max(0, item.cantidadPedida - yaRecibido);
+  const cantMismatch = state.cantidadReal !== pendiente;
   const valido = rowValido(articulo, state);
 
   return (
@@ -58,7 +61,11 @@ export const IngresarStockItemRow: React.FC<Props> = ({ item, articulo, state, p
             {requiereLote && <span className="text-[10px] px-1 py-0.5 rounded bg-violet-100 text-violet-700">lote</span>}
           </div>
         </div>
-        <span className="text-[10px] text-slate-400 font-mono shrink-0">Pedido: {item.cantidadPedida} {item.unidadMedida}</span>
+        <span className="text-[10px] text-slate-400 font-mono shrink-0">
+          {yaRecibido > 0
+            ? <>Recibido: {yaRecibido}/{item.cantidadPedida} · pendiente {pendiente} {item.unidadMedida}</>
+            : <>Pedido: {item.cantidadPedida} {item.unidadMedida}</>}
+        </span>
       </div>
 
       <div className={`grid ${requiereLote ? 'grid-cols-4' : 'grid-cols-3'} gap-3`}>
@@ -67,7 +74,7 @@ export const IngresarStockItemRow: React.FC<Props> = ({ item, articulo, state, p
           <input type="number" min={0} value={state.cantidadReal}
             onChange={e => { const n = parseInt(e.target.value, 10); onChange({ cantidadReal: isNaN(n) || n < 0 ? 0 : n }); }}
             className={`${inputClass} ${cantMismatch ? 'border-amber-400' : ''}`} />
-          {cantMismatch && <p className="text-[10px] text-amber-600 mt-0.5">≠ pedido ({item.cantidadPedida})</p>}
+          {cantMismatch && <p className="text-[10px] text-amber-600 mt-0.5">≠ {yaRecibido > 0 ? 'pendiente' : 'pedido'} ({pendiente})</p>}
         </div>
         <div>
           <label className={labelClass}>Posición destino</label>

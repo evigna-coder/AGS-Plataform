@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { posicionesStockService, articulosService } from '../../services/stockService';
 import { useIngresarStock, type RecepcionItem } from '../../hooks/useIngresarStock';
+import { pendienteDeItem, resumenRecepcion } from '../../utils/importacionRecepcion';
 import { IngresarStockItemRow, rowValido, seriesDe, type IngresoItemState } from './IngresarStockItemRow';
 
 interface Props {
@@ -12,13 +13,17 @@ interface Props {
   onSuccess: () => void;
 }
 
+// Default de cantidad = lo PENDIENTE del ítem (en la primera recepción coincide
+// con lo pedido; en re-ingresos por faltante, con lo que falta — I3).
 const initState = (it: ItemImportacion): IngresoItemState => ({
   verificado: false, posicionId: '', posicionNombre: '',
-  cantidadReal: it.cantidadPedida, serialesText: '', nroLote: '',
+  cantidadReal: pendienteDeItem(it), serialesText: '', nroLote: '',
 });
 
 export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, onSuccess }) => {
-  const items = imp.items ?? [];
+  // Solo los ítems con faltante: lo ya ingresado en recepciones anteriores no se re-ofrece.
+  const items = (imp.items ?? []).filter(it => pendienteDeItem(it) > 0);
+  const resumen = resumenRecepcion(imp);
   const [posiciones, setPosiciones] = useState<PosicionStock[]>([]);
   const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
   const [itemStates, setItemStates] = useState<Record<string, IngresoItemState>>(
@@ -103,9 +108,21 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
       subtitle={`OC ${imp.ordenCompraNumero}${imp.despachoNumero ? ` · Despacho ${imp.despachoNumero}` : ''} — ${imp.proveedorNombre}`}
       maxWidth="xl" footer={footer} closeOnBackdropClick={false}>
       {items.length === 0 ? (
-        <p className="text-xs text-slate-400 py-4">Esta importación no tiene ítems registrados.</p>
+        <p className="text-xs text-slate-400 py-4">
+          {(imp.items?.length ?? 0) > 0
+            ? 'Todos los ítems del embarque ya fueron ingresados al stock.'
+            : 'Esta importación no tiene ítems registrados.'}
+        </p>
       ) : (
         <div className="space-y-3">
+          {resumen.huboRecepcion && (
+            <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] text-teal-800">
+                <span className="font-medium">Recepción parcial previa:</span> recibido {resumen.recibido} de {resumen.pedido} unidades.
+                Se muestran solo los ítems con faltante; las cantidades sugeridas son lo pendiente.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
             <p className="text-[11px] text-slate-500">
               Cada unidad se vincula a <span className="font-mono text-teal-700">OC {imp.ordenCompraNumero}</span>
@@ -118,15 +135,15 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
 
           {confirmandoFaltantes && noTildados.length > 0 && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
-              <p className="text-xs font-medium text-amber-800">⚠ {noTildados.length} artículo{noTildados.length > 1 ? 's' : ''} sin tildar — se asume que NO llegaron y no se ingresarán:</p>
+              <p className="text-xs font-medium text-amber-800">⚠ {noTildados.length} artículo{noTildados.length > 1 ? 's' : ''} sin tildar — se asume que NO llegaron en esta tanda y no se ingresarán ahora:</p>
               <ul className="mt-1 space-y-0.5">
                 {noTildados.map(it => (
                   <li key={it.id} className="text-[11px] text-amber-700">
-                    • {it.articuloCodigo ? <span className="font-mono">{it.articuloCodigo} </span> : null}{it.descripcion} <span className="text-amber-500">({it.cantidadPedida} {it.unidadMedida})</span>
+                    • {it.articuloCodigo ? <span className="font-mono">{it.articuloCodigo} </span> : null}{it.descripcion} <span className="text-amber-500">({pendienteDeItem(it)} {it.unidadMedida})</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-amber-600 mt-1.5">¿Confirmás que estos artículos no vinieron en este embarque?</p>
+              <p className="text-[11px] text-amber-600 mt-1.5">La importación quedará abierta para ingresar el faltante en otra recepción (o cerrarla incompleta desde el detalle). ¿Confirmás?</p>
             </div>
           )}
           {items.map(it => (

@@ -6,7 +6,7 @@ import {
 } from '../services/firebaseService';
 import { useDebounce } from './useDebounce';
 import { matchesSearch } from '../utils/searchTerms';
-import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
+import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock } from '@ags/shared';
 
 export interface CartItem {
   id: string;
@@ -147,12 +147,17 @@ export function useAsignacionRapida() {
   };
 
   const assignToIngeniero = (ingenieroId: string, ingenieroNombre: string, payload: DragPayload) => {
+    // Auditoría I6: al asignar un artículo se asigna el DOC de unidad COMPLETO
+    // (la unidad entera pasa a 'asignado'). Si el doc es un lote/granel de N,
+    // la cantidad real asignada es N, no 1 — seedearla desde el doc para que
+    // asignación, remito y movimiento queden coherentes.
+    const unidad = payload.unidadId ? unidades.find(u => u.id === payload.unidadId) : undefined;
     setCart(prev => [...prev, {
       ...payload,
       id: crypto.randomUUID(),
       ingenieroId,
       ingenieroNombre,
-      cantidad: 1,
+      cantidad: unidad?.cantidad ?? 1,
     }]);
   };
 
@@ -174,12 +179,30 @@ export function useAsignacionRapida() {
         const cliente = clienteId ? clientes.find(c => c.cuit === clienteId) : null;
         const clienteNombre = cliente?.razonSocial || null;
 
+        // Auditoría I6: la cantidad real de un item con unidadId es la del DOC de
+        // unidad (el flujo asigna el doc completo; un lote de N son N unidades).
+        // Se re-deriva acá por si el doc cambió después de armar el carrito.
+        const cantidadReal = (c: CartItem): number => {
+          if (!c.unidadId) return c.cantidad || 1;
+          const u = unidades.find(x => x.id === c.unidadId);
+          return u?.cantidad ?? c.cantidad ?? 1;
+        };
+
+        // La devolución restaura la posición ORIGINAL de la unidad — se captura
+        // acá porque la asignación pisa `unidad.ubicacion` (UAT 2026-07-20).
+        const origenDe = (c: CartItem): UbicacionStock | null => {
+          if (!c.unidadId) return null;
+          const u = unidades.find(x => x.id === c.unidadId);
+          return u?.ubicacion ? { ...u.ubicacion } : null;
+        };
+
         const items: ItemAsignacion[] = group.items.map(c => ({
           id: c.id, tipo: c.tipo,
+          origenUbicacion: origenDe(c),
           unidadId: c.unidadId ?? null, articuloId: c.articuloId ?? null,
           articuloCodigo: c.tipo === 'articulo' ? c.codigo : null,
           articuloDescripcion: c.articuloDescripcion ?? null,
-          cantidad: c.cantidad, cantidadDevuelta: 0, cantidadConsumida: 0,
+          cantidad: cantidadReal(c), cantidadDevuelta: 0, cantidadConsumida: 0,
           minikitId: c.minikitId ?? null, minikitCodigo: c.tipo === 'minikit' ? c.codigo : null,
           loanerId: c.loanerId ?? null, loanerCodigo: c.tipo === 'loaner' ? c.codigo : null,
           instrumentoId: c.instrumentoId ?? null,
@@ -217,6 +240,11 @@ export function useAsignacionRapida() {
 
         for (const c of group.items) {
           if (c.unidadId) {
+            // Auditoría I6: el egreso debe registrar la ubicación REAL de la unidad
+            // como origen (no un 'Stock' genérico con id vacío) y la cantidad real
+            // del doc (lotes de N cuentan N, no 1).
+            const unidad = unidades.find(u => u.id === c.unidadId);
+            const origen = unidad?.ubicacion;
             await unidadesService.update(c.unidadId, {
               estado: 'asignado',
               ubicacion: { tipo: 'ingeniero', referenciaId: ing.id, referenciaNombre: ing.nombre },
@@ -224,7 +252,12 @@ export function useAsignacionRapida() {
             await movimientosService.create({
               tipo: 'egreso', unidadId: c.unidadId, articuloId: c.articuloId ?? '',
               articuloCodigo: c.codigo, articuloDescripcion: c.articuloDescripcion ?? '',
-              cantidad: c.cantidad, origenTipo: 'posicion', origenId: '', origenNombre: 'Stock',
+              cantidad: cantidadReal(c),
+              // 'transito' no es un TipoOrigenDestino válido; los asignables son
+              // siempre unidades en posición (ver filtro availableUnits).
+              origenTipo: origen && origen.tipo !== 'transito' ? origen.tipo : 'posicion',
+              origenId: origen?.referenciaId ?? '',
+              origenNombre: origen?.referenciaNombre ?? 'Stock',
               destinoTipo: 'ingeniero', destinoId: ing.id, destinoNombre: ing.nombre,
               remitoId, creadoPor: 'sistema', motivo: 'Asignación rápida',
             });

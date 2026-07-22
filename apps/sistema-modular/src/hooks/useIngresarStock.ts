@@ -11,6 +11,7 @@ import {
   getCurrentUserTrace,
 } from '../services/firebase';
 import { articulosService } from '../services/firebaseService';
+import { importacionesService } from '../services/importacionesService';
 import { computeCosteoImportacion } from '../utils/costeoImportacion';
 
 export interface RecepcionItem {
@@ -30,6 +31,17 @@ export function useIngresarStock() {
     setLoading(true);
     setError(null);
     try {
+      // Releer la importación para acumular sobre lo ÚLTIMO persistido (protege
+      // contra un modal abierto con datos viejos o dos pestañas — mitiga M9) y
+      // rechazar el ingreso si la recepción ya quedó cerrada.
+      const fresh = await importacionesService.getById(imp.id).catch(() => null);
+      if (fresh?.stockIngresado) {
+        setError('La recepción de esta importación ya está cerrada (ingresada o cerrada incompleta).');
+        return false;
+      }
+      const itemsBase = fresh?.items ?? imp.items ?? [];
+      const prevRecibidoByItemId = new Map(itemsBase.map(it => [it.id, it.cantidadRecibida ?? 0]));
+
       // Costeo completo del embarque (CIF + gravámenes + factor), en USD.
       // El costo por unidad = costoComputable de la línea / cantidad costeada (cantidadPedida).
       const monedaEmbarque = imp.items?.[0]?.moneda ?? 'USD';
@@ -148,10 +160,12 @@ export function useIngresarStock() {
           });
         }
 
-        // Auto-close linked requerimiento if quantity fulfilled.
+        // Auto-close linked requerimiento cuando el ACUMULADO entre recepciones
+        // cubre lo pedido (I3 — la segunda tanda del faltante también lo cierra).
         // 'comprado' (enum EstadoRequerimiento) — antes escribía 'completado', que no
         // existe en el enum y dejaba el req contando como comprometido en el ATP.
-        if (rec.item.requerimientoId && rec.cantidadReal >= rec.item.cantidadPedida) {
+        const recibidoAcumulado = (prevRecibidoByItemId.get(rec.item.id) ?? 0) + rec.cantidadReal;
+        if (rec.item.requerimientoId && recibidoAcumulado >= rec.item.cantidadPedida) {
           batch.update(
             docRef('requerimientos_compra', rec.item.requerimientoId),
             deepCleanForFirestore({
@@ -178,16 +192,20 @@ export function useIngresarStock() {
         );
       }
 
-      // Mark importacion done and update cantidadRecibida on each item
-      const updatedItems = (imp.items ?? []).map(it => {
+      // Acumular lo recibido por ítem (I3: recepciones parciales múltiples) y marcar
+      // la importación como ingresada SOLO cuando todo lo pedido entró. Mientras haya
+      // faltante la importación admite nuevas recepciones (o el cierre incompleto manual).
+      const updatedItems = itemsBase.map(it => {
         const rec = recepciones.find(r => r.item.id === it.id);
-        return rec ? { ...it, cantidadRecibida: rec.cantidadReal } : it;
+        return rec ? { ...it, cantidadRecibida: (it.cantidadRecibida ?? 0) + rec.cantidadReal } : it;
       });
+      const recepcionCompleta = updatedItems.length > 0 &&
+        updatedItems.every(it => (it.cantidadRecibida ?? 0) >= (it.cantidadPedida || 0));
 
       batch.update(
         docRef('importaciones', imp.id),
         deepCleanForFirestore({
-          stockIngresado: true,
+          stockIngresado: recepcionCompleta,
           items: updatedItems,
           factorEmbarque: costeo.factorEmbarque,
           updatedAt: Timestamp.now(),
@@ -268,5 +286,30 @@ export function useIngresarStock() {
     }
   };
 
-  return { ingresarStock, loading, error };
+  /**
+   * Cierra la recepción con faltantes (decisión del usuario: el proveedor no manda
+   * el remanente). Marca la importación como terminada (`stockIngresado: true`)
+   * dejando el faltante asentado en `notaRecepcionIncompleta`. Los requerimientos
+   * del faltante quedan abiertos a propósito (el material sigue debiéndose).
+   */
+  const cerrarIncompleta = async (imp: Importacion, notaFaltante: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const stamp = new Date().toLocaleDateString('es-AR');
+      await importacionesService.update(imp.id, {
+        stockIngresado: true,
+        recepcionCerradaIncompleta: true,
+        notaRecepcionIncompleta: `Recepción cerrada incompleta (${stamp}).\n${notaFaltante}`.trim(),
+      });
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al cerrar la recepción');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { ingresarStock, cerrarIncompleta, loading, error };
 }

@@ -113,7 +113,8 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
       {tienePresupuestos && (
         <p className="text-[10px] text-cyan-700 mt-1.5">
           ℹ Las unidades <span className="font-semibold">reservadas</span> de los presupuestos vinculados
-          se entregan automáticamente al finalizar la OT (no hace falta seleccionarlas acá).
+          se entregan automáticamente al cerrar la última OT del presupuesto (no hace falta seleccionarlas
+          acá; si las seleccionás igual, se descuenta la reserva — no una unidad extra).
         </p>
       )}
       <div className="flex flex-col gap-1.5 mt-2">

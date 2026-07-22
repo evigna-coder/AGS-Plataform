@@ -7,6 +7,7 @@ import { getRemitoItemCodigo, getRemitoItemDescripcion, getTipoEntidadLabel } fr
 import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAcciones';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
@@ -37,7 +38,8 @@ export const RemitoDetail = () => {
   useDeclareParent('/stock/remitos');
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(false);
+  // Confirmar aplica el movimiento real de stock (I4); ver useRemitoAcciones.
+  const { acting, transition, confirmarRemito, toggleDevuelto } = useRemitoAcciones(id, remito);
 
   useEffect(() => {
     if (!id) return;
@@ -51,25 +53,6 @@ export const RemitoDetail = () => {
     });
     return () => unsub();
   }, [id]);
-
-  const transition = async (estado: EstadoRemito, extra?: Partial<Remito>) => {
-    if (!id || !remito) return;
-    setActing(true);
-    try { await remitosService.update(id, { estado, ...extra }); }
-    catch (e) { console.error('Error updating remito:', e); alert('Error al actualizar remito'); }
-    finally { setActing(false); }
-  };
-
-  const toggleDevuelto = async (itemId: string, current: boolean) => {
-    if (!id || !remito) return;
-    const updatedItems = remito.items.map(it =>
-      it.id === itemId ? { ...it, devuelto: !current, fechaDevolucion: !current ? new Date().toISOString() : null } : it,
-    );
-    setActing(true);
-    try { await remitosService.update(id, { items: updatedItems }); }
-    catch (e) { console.error('Error toggling devuelto:', e); }
-    finally { setActing(false); }
-  };
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remito...</p></div>;
   if (!remito) return (
@@ -97,7 +80,7 @@ export const RemitoDetail = () => {
           </div>
           <div className="flex gap-2">
             {remito.estado === 'borrador' && (
-              <Button size="sm" onClick={() => transition('confirmado')} disabled={acting}>
+              <Button size="sm" onClick={confirmarRemito} disabled={acting}>
                 {acting ? 'Procesando...' : 'Confirmar'}
               </Button>
             )}
@@ -127,6 +110,7 @@ export const RemitoDetail = () => {
                 <LV label="Numero" value={<span className="font-mono">{remito.numero}</span>} />
                 <LV label="Tipo" value={TIPO_LABELS[remito.tipo]} />
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[remito.estado]} color={ESTADO_COLORS[remito.estado]} />} />
+                <LV label="Stock" value={stockRemitoLabel(remito)} />
                 <LV label="Ingeniero" value={remito.ingenieroNombre} />
                 {remito.clienteNombre && <LV label="Cliente" value={remito.clienteNombre} />}
                 {remito.otNumbers && remito.otNumbers.length > 0 && <LV label="OTs asociadas" value={remito.otNumbers.join(', ')} />}
@@ -182,7 +166,7 @@ export const RemitoDetail = () => {
                           </td>
                           <td className="text-xs py-2 text-center">
                             {remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
-                              <button onClick={() => toggleDevuelto(item.id, item.devuelto)} disabled={acting}
+                              <button onClick={() => toggleDevuelto(item, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>
                                 {item.devuelto && <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                               </button>
