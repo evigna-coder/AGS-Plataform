@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { pushEscape } from '../../utils/escapeStack';
+import { useTabOverlay } from '../../contexts/TabOverlayContext';
 
 interface DrawerProps {
   open: boolean;
@@ -34,20 +35,30 @@ export function Drawer({
   children,
   footer,
 }: DrawerProps) {
+  // Scope de pestaña: si existe, el drawer se portalea al overlay root de su
+  // pestaña (absolute — no tapa TabBar/sidebar y se oculta con la pestaña).
+  // Fuera de pestañas mantiene el comportamiento clásico (body + fixed).
+  const tabOverlay = useTabOverlay();
+  const scoped = tabOverlay !== null;
+  const isTabActive = tabOverlay?.isTabActive ?? true;
+
   // ESC cierra solo si el drawer está en la cima del escape-stack global.
   // Si abrís un lightbox de foto encima, el ESC cierra el lightbox y NO el drawer.
+  // Gateado por pestaña activa: un drawer de una pestaña oculta no debe
+  // responder al ESC ni robarle el turno al overlay de la pestaña visible.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isTabActive) return;
     return pushEscape(onClose);
-  }, [open, onClose]);
+  }, [open, isTabActive, onClose]);
 
   if (!open) return null;
+  if (scoped && !tabOverlay.overlayRoot) return null;
 
   return createPortal(
     <aside
-      className="fixed right-0 top-0 bottom-0 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col w-full"
+      className={`${scoped ? 'absolute' : 'fixed'} right-0 top-0 bottom-0 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col w-full`}
       style={{ maxWidth: width }}
-      role="dialog"
+      role={isTabActive ? 'dialog' : undefined}
       aria-modal="false"
     >
       {/* Header */}
@@ -78,6 +89,6 @@ export function Drawer({
         </footer>
       )}
     </aside>,
-    document.body,
+    tabOverlay?.overlayRoot ?? document.body,
   );
 }

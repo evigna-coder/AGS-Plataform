@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTabOverlay } from '../../contexts/TabOverlayContext';
 
 interface ModalProps {
   open: boolean;
@@ -23,7 +24,9 @@ const widthMap = {
   '2xl': 'max-w-6xl',
 };
 
-// Global registry for minimized modals — shared across all Modal instances
+// Global registry for minimized modals — SOLO para modales fuera del sistema
+// de pestañas (fallback). Los modales dentro de una pestaña se registran en el
+// TabOverlayContext de su pestaña (chips scopeados, ver TabOverlayScope).
 let minimizedModals: { id: string; title: string; restore: () => void }[] = [];
 let notifyListeners: (() => void)[] = [];
 function subscribe(fn: () => void) { notifyListeners.push(fn); return () => { notifyListeners = notifyListeners.filter(f => f !== fn); }; }
@@ -49,6 +52,16 @@ export const Modal: React.FC<ModalProps> = ({
   const didAutoFocus = useRef(false);
   const modalId = useRef(`modal-${Math.random().toString(36).slice(2, 8)}`);
 
+  // Scope de pestaña: si existe, el modal se portalea al overlay root de SU
+  // pestaña (absolute, no tapa TabBar/sidebar) y sus listeners globales se
+  // gatean con isTabActive. Si es null (login, overlays globales) el modal
+  // mantiene el comportamiento clásico: portal a body + fixed fullscreen.
+  const tabOverlay = useTabOverlay();
+  const scoped = tabOverlay !== null;
+  const isTabActive = tabOverlay?.isTabActive ?? true;
+  const registerMinimizedScoped = tabOverlay?.registerMinimized;
+  const unregisterMinimizedScoped = tabOverlay?.unregisterMinimized;
+
   // Reset position, minimized state, and auto-focus flag when modal opens
   useEffect(() => {
     if (open) {
@@ -58,26 +71,30 @@ export const Modal: React.FC<ModalProps> = ({
     }
   }, [open]);
 
-  // Register/unregister from minimized registry
+  // Register/unregister from minimized registry (por-pestaña si hay scope,
+  // global si el modal vive fuera del sistema de pestañas)
   useEffect(() => {
     const id = modalId.current;
+    const remove = unregisterMinimizedScoped
+      ? () => unregisterMinimizedScoped(id)
+      : () => { minimizedModals = minimizedModals.filter(m => m.id !== id); notifyAll(); };
     if (open && minimized) {
       const entry = { id, title, restore: () => setMinimized(false) };
-      minimizedModals = [...minimizedModals.filter(m => m.id !== id), entry];
-      notifyAll();
+      if (registerMinimizedScoped) {
+        registerMinimizedScoped(entry);
+      } else {
+        minimizedModals = [...minimizedModals.filter(m => m.id !== id), entry];
+        notifyAll();
+      }
     } else {
-      minimizedModals = minimizedModals.filter(m => m.id !== id);
-      notifyAll();
+      remove();
     }
-    return () => {
-      minimizedModals = minimizedModals.filter(m => m.id !== id);
-      notifyAll();
-    };
-  }, [open, minimized, title]);
+    return remove;
+  }, [open, minimized, title, registerMinimizedScoped, unregisterMinimizedScoped]);
 
   // Auto-focus first interactive field once when modal opens
   useLayoutEffect(() => {
-    if (!open || minimized || didAutoFocus.current || !bodyRef.current) return;
+    if (!open || minimized || !isTabActive || didAutoFocus.current || !bodyRef.current) return;
     didAutoFocus.current = true;
     requestAnimationFrame(() => {
       const focusable = bodyRef.current?.querySelector<HTMLElement>(
@@ -85,12 +102,17 @@ export const Modal: React.FC<ModalProps> = ({
       );
       focusable?.focus();
     });
-  }, [open, minimized]);
+  }, [open, minimized, isTabActive]);
 
   useEffect(() => {
-    if (!open || minimized) return;
+    // Modal en pestaña inactiva (oculta con display:none): no escucha teclas
+    // ni lockea nada — el modal de la pestaña ACTIVA es el único interactivo.
+    if (!open || minimized || !isTabActive) return;
+    // Scroll-lock del body solo en modo fullscreen (fuera de pestañas). En
+    // modo scoped el overlay absolute ya cubre el scroller de la pestaña y el
+    // body no es el scroller de la app.
     const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (!scoped) document.body.style.overflow = 'hidden';
     const handleKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       // If user is typing in an input, blur it first — second Escape will close
@@ -106,14 +128,14 @@ export const Modal: React.FC<ModalProps> = ({
     };
     document.addEventListener('keydown', handleKey);
     return () => {
-      document.body.style.overflow = prev;
+      if (!scoped) document.body.style.overflow = prev;
       document.removeEventListener('keydown', handleKey);
     };
-  }, [open, minimized, onClose]);
+  }, [open, minimized, isTabActive, scoped, onClose]);
 
-  // Focus trap — keep Tab within the modal
+  // Focus trap — keep Tab within the modal (solo en la pestaña activa)
   useEffect(() => {
-    if (!open || minimized) return;
+    if (!open || minimized || !isTabActive) return;
     const dialog = dialogRef.current;
     if (!dialog) return;
 
@@ -134,7 +156,7 @@ export const Modal: React.FC<ModalProps> = ({
     };
     document.addEventListener('keydown', handleTab);
     return () => document.removeEventListener('keydown', handleTab);
-  }, [open, minimized]);
+  }, [open, minimized, isTabActive]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
@@ -144,7 +166,7 @@ export const Modal: React.FC<ModalProps> = ({
   }, [offset]);
 
   useEffect(() => {
-    if (!open || minimized) return;
+    if (!open || minimized || !isTabActive) return;
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
       setOffset({
@@ -159,15 +181,24 @@ export const Modal: React.FC<ModalProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [open, minimized]);
+  }, [open, minimized, isTabActive]);
 
   if (!open || minimized) return null;
+  // Scope de pestaña presente pero el host todavía no montó (primer render):
+  // evitar el flash fullscreen portaleando a body por un frame.
+  if (scoped && !tabOverlay.overlayRoot) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
-      role="dialog"
-      aria-modal="true"
+      // Scoped: absolute dentro del wrapper relative de la pestaña — cubre solo
+      // el área del tab; TabBar y sidebar quedan clickeables y el modal se
+      // oculta junto con la pestaña. Fallback: fixed fullscreen clásico.
+      className={`${scoped ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-[70] p-4`}
+      // role="dialog" solo cuando es visible: useLayoutKeyboardShortcuts usa
+      // querySelector('[role="dialog"]') para suprimir Escape-back, y un modal
+      // de una pestaña OCULTA no debe bloquear el Escape de la activa.
+      role={isTabActive ? 'dialog' : undefined}
+      aria-modal={isTabActive ? 'true' : undefined}
       aria-labelledby={`modal-title-${modalId.current}`}
       onClick={closeOnBackdropClick ? onClose : undefined}
     >
@@ -221,13 +252,15 @@ export const Modal: React.FC<ModalProps> = ({
         )}
       </div>
     </div>,
-    document.body
+    tabOverlay?.overlayRoot ?? document.body
   );
 };
 
 /**
- * Barra de modales minimizados — renderizar una vez en Layout.
- * Muestra chips en la parte inferior con los modales minimizados.
+ * Barra de modales minimizados GLOBALES — renderizar una vez en Layout.
+ * Solo muestra los modales minimizados que viven FUERA del sistema de
+ * pestañas; los scopeados a una pestaña se renderizan dentro de su
+ * TabOverlayScope.
  */
 export const MinimizedModalsBar: React.FC = () => {
   const [, forceUpdate] = useState(0);

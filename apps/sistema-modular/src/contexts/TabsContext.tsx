@@ -33,15 +33,22 @@ interface TabsContextType {
   setActiveTabParent: (parent: string | null) => void;
   /** Lectura del parent declarado del tab activo (usado por useNavigateBack). */
   getActiveTabParent: () => string | null;
+  /** Última query string ('?a=b' o '') vista en este tab para un pathname dado.
+   *  useNavigateBack la usa para restaurar los filtros de lista (useUrlFilters
+   *  los persiste en la URL) cuando el destino del back es un path pelado. */
+  getActiveTabStoredSearch: (pathname: string) => string;
   /** Called by TabRouterBridge when a tab's location changes */
   updateTabLocation: (tabId: string, pathname: string, search: string) => void;
 }
 
 const TabsContext = createContext<TabsContextType | null>(null);
 
-let nextTabCounter = 1;
+// ID único real (no un contador de módulo): con HMR en dev el módulo se
+// re-evalúa y un contador volvía a 1 → la próxima pestaña duplicaba el id de
+// una existente y las dos colisionaban (navegación pisada, ambas "activas",
+// una pestaña "se transformaba" en la otra — UAT 2026-07-20).
 function generateTabId(): string {
-  return `tab_${nextTabCounter++}`;
+  return `tab_${crypto.randomUUID()}`;
 }
 
 /** Get the module prefix from a path: /clientes/123 → /clientes */
@@ -118,6 +125,10 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // sin forzar re-renders de useNavigateBack (que se reconstruye en cada
   // useEffect dep change).
   const tabParents = useRef(new Map<string, string>());
+  // Por tab: pathname → última search vista ahí. Sin esto, volver a una lista
+  // vía parent declarado (path pelado, ej. '/clientes') pisa los filtros que
+  // useUrlFilters había persistido en la query string de esa lista.
+  const tabSearches = useRef(new Map<string, Map<string, string>>());
 
   const registerTabNavigate = useCallback((tabId: string, navigate: NavigateFunction | null) => {
     if (navigate) {
@@ -147,7 +158,14 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return tabParents.current.get(activeTabId) ?? null;
   }, [activeTabId]);
 
+  const getActiveTabStoredSearch = useCallback((pathname: string): string => {
+    return tabSearches.current.get(activeTabId)?.get(pathname) ?? '';
+  }, [activeTabId]);
+
   const updateTabLocation = useCallback((tabId: string, pathname: string, search: string) => {
+    let byPath = tabSearches.current.get(tabId);
+    if (!byPath) { byPath = new Map(); tabSearches.current.set(tabId, byPath); }
+    byPath.set(pathname, search);
     const fullPath = pathname + search;
     setTabs(prev => {
       const tab = prev.find(t => t.id === tabId);
@@ -203,6 +221,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     tabNavigators.current.delete(closingId);
     tabGoBackers.current.delete(closingId);
     tabParents.current.delete(closingId);
+    tabSearches.current.delete(closingId);
   }, [activeTabId]);
 
   const switchTab = useCallback((id: string) => {
@@ -223,7 +242,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       openTab, closeTab, switchTab,
       navigateInActiveTab, goBackInActiveTab,
       registerTabNavigate, registerTabGoBack,
-      setActiveTabParent, getActiveTabParent,
+      setActiveTabParent, getActiveTabParent, getActiveTabStoredSearch,
       updateTabLocation,
     }}>
       {children}

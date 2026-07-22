@@ -92,12 +92,30 @@ export function useSearchableSelect({
     }
   }, [isOpen]);
 
+  // Al cerrar tocando afuera con texto tipeado: coincidencia exacta se selecciona
+  // sola; sin coincidencia y con creatable, el texto queda como valor libre en
+  // vez de descartarse (UAT 2026-07-20: "cargar un contacto no guardado no
+  // permitía" — la usuaria tipeaba el nombre nuevo, tocaba el campo siguiente y
+  // el valor desaparecía si no clickeaba la opción "Nuevo contacto").
+  const commitPendingRef = useRef<() => void>(() => {});
+  commitPendingRef.current = () => {
+    const t = searchTerm.trim().toLowerCase();
+    if (!t) return;
+    const exact = filteredOptions.find(o => {
+      const l = o.label.toLowerCase();
+      return l === t || l.startsWith(`${t} — `);
+    });
+    if (exact) onChange(exact.value);
+    else if (creatable) onChange(searchTerm.trim());
+  };
+
   // Close on click outside (includes portal dropdown)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (containerRef.current && !containerRef.current.contains(target) &&
           listRef.current && !listRef.current.contains(target)) {
+        commitPendingRef.current();
         setIsOpen(false);
       }
     };

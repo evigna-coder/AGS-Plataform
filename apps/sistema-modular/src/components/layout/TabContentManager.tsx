@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { MemoryRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTabs } from '../../contexts/TabsContext';
+import { TabOverlayScope } from '../../contexts/TabOverlayContext';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 
@@ -18,7 +19,7 @@ import { PatronesList, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
-import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
+import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
 import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
@@ -158,6 +159,7 @@ function AppRoutes() {
       <Route path="/stock/remitos/nuevo" element={<Navigate to="/stock/remitos" replace />} />
       <Route path="/stock/remitos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RemitoDetail /></ProtectedRoute>} />
       <Route path="/stock/movimientos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MovimientosPage /></ProtectedRoute>} />
+      <Route path="/stock/consumos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ConsumosPage /></ProtectedRoute>} />
       <Route path="/stock/alertas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AlertasStockPage /></ProtectedRoute>} />
       <Route path="/stock/requerimientos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RequerimientosList /></ProtectedRoute>} />
       <Route path="/stock/requerimientos/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RequerimientosList /></ProtectedRoute>} />
@@ -226,16 +228,12 @@ export function TabContentManager() {
   return (
     <>
       {tabs.map(tab => (
-        <div
-          key={tab.id}
-          className="h-full"
-          style={{ display: tab.id === activeTabId ? undefined : 'none' }}
-        >
+        <TabOverlayScope key={tab.id} isTabActive={tab.id === activeTabId}>
           <MemoryRouter initialEntries={[tab.path]}>
             <TabRouterBridge tabId={tab.id} isActive={tab.id === activeTabId} />
             <AppRoutes />
           </MemoryRouter>
-        </div>
+        </TabOverlayScope>
       ))}
     </>
   );
