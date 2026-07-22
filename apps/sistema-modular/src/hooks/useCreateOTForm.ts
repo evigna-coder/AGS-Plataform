@@ -7,7 +7,7 @@ import {
 import { getResponsablesOT } from '../services/personalService';
 import { pendientesService } from '../services/pendientesService';
 import { deepCleanForFirestore } from '../services/firebase';
-import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT } from '@ags/shared';
+import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT, Loaner } from '@ags/shared';
 import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
 export interface CreateOTFormState {
@@ -80,7 +80,33 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [form, setForm] = useState<CreateOTFormState>(INITIAL_FORM);
   const [prefilled, setPrefilled] = useState(false);
 
+  // ── OT sobre módulo AGS (loaner) ──────────────────────────────────────────
+  // Reemplaza el selector de equipo/sistema por la cascada categoría → loaner.
+  // El cliente se autocompleta a AGS Analítica (editable) y sistemaId queda null.
+  const [otSobreLoaner, setOtSobreLoanerState] = useState(false);
+  const [loanerSeleccionado, setLoanerSeleccionado] = useState<Loaner | null>(null);
+
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const setOtSobreLoaner = (v: boolean) => {
+    setOtSobreLoanerState(v);
+    if (!v) setLoanerSeleccionado(null);
+  };
+
+  const selectLoaner = (loaner: Loaner | null) => {
+    setLoanerSeleccionado(loaner);
+    if (loaner) {
+      // Sin sistema del cliente; cliente auto = AGS Analítica si existe (editable).
+      setForm(prev => {
+        const ags = clientes.find(c => /ags\s*anal[ií]tica/i.test(c.razonSocial));
+        return {
+          ...prev,
+          sistemaId: '', moduloId: '',
+          ...(ags ? { clienteId: ags.id } : {}),
+        };
+      });
+    }
+  };
 
   const hasContrato = form.contratoId !== '';
   const presupuestoRequerido = !hasContrato;
@@ -248,6 +274,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     setForm(INITIAL_FORM);
     setModulos([]); setContactos([]); setPresupuestosCliente([]);
     setContratosCliente([]); setLoadError('');
+    setOtSobreLoanerState(false); setLoanerSeleccionado(null);
   };
 
   const handleSave = async () => {
@@ -284,8 +311,14 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
 
     if (!cliente || !tipoServicioNombre) { alert('Datos incompletos'); return; }
-    // En OT de entrega el equipo es opcional. En OT de servicio sigue siendo obligatorio.
-    if (form.tipoOT !== 'entrega') {
+    // OT sobre módulo AGS: requiere loaner elegido en lugar de sistema.
+    if (otSobreLoaner && !loanerSeleccionado) {
+      alert('Seleccione el módulo AGS (loaner) para la OT');
+      return;
+    }
+    // En OT de entrega el equipo es opcional. En OT sobre loaner el equipo se
+    // reemplaza por el módulo AGS. En OT de servicio sigue siendo obligatorio.
+    if (form.tipoOT !== 'entrega' && !loanerSeleccionado) {
       if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
       if (!sistema) {
         alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
@@ -321,11 +354,17 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         localidad: establecimiento?.localidad ?? '',
         provincia: establecimiento?.provincia ?? '',
         establecimientoId: form.establecimientoId || undefined,
-        sistema: sistema?.nombre ?? '',
-        moduloModelo: modulo?.nombre ?? '',
-        moduloDescripcion: modulo?.descripcion ?? '',
-        moduloSerie: modulo?.serie ?? '',
+        // OT sobre loaner: sin sistema del cliente — los datos del módulo AGS
+        // viajan en los campos de módulo para que el técnico los vea.
+        sistema: loanerSeleccionado ? `Loaner ${loanerSeleccionado.codigo}` : (sistema?.nombre ?? ''),
+        moduloModelo: loanerSeleccionado ? (loanerSeleccionado.moduloCodigo ?? '') : (modulo?.nombre ?? ''),
+        moduloDescripcion: loanerSeleccionado
+          ? (loanerSeleccionado.moduloDescripcion ?? loanerSeleccionado.descripcion ?? '')
+          : (modulo?.descripcion ?? ''),
+        moduloSerie: loanerSeleccionado ? (loanerSeleccionado.serie ?? '') : (modulo?.serie ?? ''),
         codigoInternoCliente: sistema?.codigoInternoCliente ?? '',
+        loanerId: loanerSeleccionado?.id ?? null,
+        loanerCodigo: loanerSeleccionado?.codigo ?? null,
         fechaInicio: '', fechaFin: '',
         fechaServicioAprox: form.fechaServicioAprox || '',
         horasTrabajadas: '', tiempoViaje: '',
@@ -459,5 +498,6 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     contratosCliente, hasContrato, presupuestoRequerido,
     showCrearLead, setShowCrearLead,
     selectedPendienteIds, setSelectedPendienteIds,
+    otSobreLoaner, setOtSobreLoaner, loanerSeleccionado, selectLoaner,
   };
 }

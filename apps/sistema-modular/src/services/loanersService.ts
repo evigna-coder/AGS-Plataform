@@ -1,5 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner } from '@ags/shared';
+import { ref as storageRef, getDownloadURL } from 'firebase/storage';
+import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner } from '@ags/shared';
 import type { MockVentaLoanerState } from './__tests__/fixtures/ventaLoaner';
 import {
   buildRegistrarVenta,
@@ -25,8 +26,12 @@ let _fb: {
   deepCleanForFirestore: any;
   getCreateTrace: any;
   getUpdateTrace: any;
+  getCurrentUserTrace: any;
   onSnapshot: any;
   logBusinessEvent: any;
+  storage: any;
+  uploadBytes: any;
+  deleteObject: any;
 } | null = null;
 
 async function getFirebaseModules() {
@@ -40,8 +45,12 @@ async function getFirebaseModules() {
       deepCleanForFirestore: m.deepCleanForFirestore,
       getCreateTrace: m.getCreateTrace,
       getUpdateTrace: m.getUpdateTrace,
+      getCurrentUserTrace: m.getCurrentUserTrace,
       onSnapshot: m.onSnapshot,
       logBusinessEvent: m.logBusinessEvent,
+      storage: m.storage,
+      uploadBytes: m.uploadBytes,
+      deleteObject: m.deleteObject,
     };
   }
   return _fb!;
@@ -243,7 +252,8 @@ export const loanersService = {
     return this.getAll({ estado: 'en_base', activoOnly: true });
   },
 
-  async registrarPrestamo(id: string, prestamo: Omit<PrestamoLoaner, 'id'>): Promise<void> {
+  /** Registra el préstamo y devuelve el id generado (necesario para vincular fotos de salida). */
+  async registrarPrestamo(id: string, prestamo: Omit<PrestamoLoaner, 'id'>): Promise<string> {
     const loaner = await this.getById(id);
     if (!loaner) throw new Error('Loaner no encontrado');
     const newPrestamo: PrestamoLoaner = { ...prestamo, id: crypto.randomUUID() };
@@ -251,6 +261,7 @@ export const loanersService = {
       estado: 'en_cliente',
       prestamos: [...loaner.prestamos, newPrestamo],
     });
+    return newPrestamo.id;
   },
 
   async registrarDevolucion(loanerId: string, prestamoId: string, data: {
@@ -258,15 +269,113 @@ export const loanersService = {
     condicionRetorno: string;
     remitoRetornoId?: string;
     remitoRetornoNumero?: string;
+    /** Ciclo de recalificación: si true (default), el loaner NO vuelve disponible —
+     *  queda 'en_recalificacion' hasta que su OT de recalificación cierre técnicamente. */
+    requiereRecalificacion?: boolean;
   }): Promise<void> {
     const loaner = await this.getById(loanerId);
     if (!loaner) throw new Error('Loaner no encontrado');
+    const { requiereRecalificacion, ...rest } = data;
+    const recalifica = requiereRecalificacion ?? true;
     const prestamos = loaner.prestamos.map(p =>
       p.id === prestamoId
-        ? { ...p, ...data, estado: 'devuelto' as const }
+        ? { ...p, ...rest, requiereRecalificacion: recalifica, estado: 'devuelto' as const }
         : p
     );
-    await this.update(loanerId, { estado: 'en_base', prestamos, condicion: data.condicionRetorno });
+    await this.update(loanerId, {
+      estado: recalifica ? 'en_recalificacion' : 'en_base',
+      prestamos,
+      condicion: data.condicionRetorno,
+    });
+  },
+
+  /** Vincula un número de OT al loaner (dedup, no pisa los existentes). */
+  async vincularOT(loanerId: string, otNumber: string): Promise<void> {
+    if (!loanerId || !otNumber) return;
+    const loaner = await this.getById(loanerId);
+    if (!loaner) return;
+    const actuales = loaner.otIds ?? [];
+    if (actuales.includes(otNumber)) return;
+    await this.update(loanerId, { otIds: [...actuales, otNumber] });
+  },
+
+  /** Anota en el préstamo el número de la OT de recalificación auto-creada. */
+  async setOtRecalificacionEnPrestamo(loanerId: string, prestamoId: string, otNumber: string): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) return;
+    const prestamos = loaner.prestamos.map(p =>
+      p.id === prestamoId ? { ...p, otRecalificacionNumber: otNumber } : p
+    );
+    await this.update(loanerId, { prestamos });
+  },
+
+  /**
+   * Libera el loaner tras la recalificación: 'en_recalificacion' → 'en_base'.
+   * Idempotente — si el loaner ya no está en recalificación no hace nada.
+   * Devuelve true si efectivamente lo liberó.
+   */
+  async liberarTrasRecalificacion(loanerId: string): Promise<boolean> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner || loaner.estado !== 'en_recalificacion') return false;
+    await this.update(loanerId, { estado: 'en_base' });
+    const { logBusinessEvent } = await getFirebaseModules();
+    logBusinessEvent({
+      eventName: 'loaner.liberado_recalificacion',
+      collection: 'loaners',
+      documentId: loanerId,
+      entityLabel: `Loaner ${loaner.codigo}`,
+    });
+    return true;
+  },
+
+  /** Sube una foto a Storage (`loaners/{id}/fotos/…`) y la agrega al array `fotos`. */
+  async agregarFoto(loanerId: string, file: File | Blob, meta: {
+    nombre?: string | null;
+    descripcion?: string | null;
+    contexto: FotoLoaner['contexto'];
+    prestamoId?: string | null;
+  }): Promise<FotoLoaner> {
+    const { storage, uploadBytes, getCurrentUserTrace } = await getFirebaseModules();
+    const loaner = await this.getById(loanerId);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const rawName = meta.nombre || (file instanceof File ? file.name : 'foto.jpg');
+    const safeName = rawName.replace(/[^\w.\-]/g, '_');
+    const storagePath = `loaners/${loanerId}/fotos/${Date.now()}-${safeName}`;
+    const r = storageRef(storage, storagePath);
+    await uploadBytes(r, file, { contentType: file.type || 'image/jpeg' });
+    const url = await getDownloadURL(r);
+    const trace = getCurrentUserTrace?.();
+    const foto: FotoLoaner = {
+      id: crypto.randomUUID(),
+      url,
+      storagePath,
+      nombre: rawName,
+      descripcion: meta.descripcion ?? null,
+      contexto: meta.contexto,
+      prestamoId: meta.prestamoId ?? null,
+      fecha: new Date().toISOString(),
+      subidoPor: trace?.name ?? null,
+    };
+    await this.update(loanerId, { fotos: [...(loaner.fotos ?? []), foto] });
+    return foto;
+  },
+
+  /** Quita la foto del array y borra el archivo de Storage (best-effort). */
+  async eliminarFoto(loanerId: string, fotoId: string): Promise<void> {
+    const { storage, deleteObject } = await getFirebaseModules();
+    const loaner = await this.getById(loanerId);
+    if (!loaner) return;
+    const foto = (loaner.fotos ?? []).find(f => f.id === fotoId);
+    if (!foto) return;
+    if (foto.storagePath) {
+      try {
+        await deleteObject(storageRef(storage, foto.storagePath));
+      } catch (err) {
+        // Ya borrada o ruta inválida — no es fatal
+        console.warn('No se pudo eliminar foto de Storage:', foto.storagePath, err);
+      }
+    }
+    await this.update(loanerId, { fotos: (loaner.fotos ?? []).filter(f => f.id !== fotoId) });
   },
 
   async registrarExtraccion(id: string, extraccion: Omit<ExtraccionLoaner, 'id'>): Promise<void> {

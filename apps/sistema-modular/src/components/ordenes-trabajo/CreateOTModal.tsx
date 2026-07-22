@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
+import { OTLoanerPicker } from './OTLoanerPicker';
 import {
   useCreateOTForm, type OTPrefill,
   TIPO_SERVICIO_ENTREGA_DEFAULT, TIPO_SERVICIO_ENTREGA_SENTINEL,
@@ -132,7 +133,20 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
             disabled={!h.form.clienteId} />
         </div>
 
-        {/* Sistema + Módulo */}
+        {/* OT sobre módulo AGS (loaner): reemplaza el selector de equipo/sistema */}
+        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={h.otSobreLoaner}
+            onChange={e => h.setOtSobreLoaner(e.target.checked)}
+            className="rounded border-slate-300" />
+          OT sobre módulo AGS (loaner)
+        </label>
+
+        {h.otSobreLoaner ? (
+          <OTLoanerPicker
+            loanerId={h.loanerSeleccionado?.id ?? ''}
+            onSelect={h.selectLoaner} />
+        ) : (
+        /* Sistema + Módulo */
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Sistema / Equipo</label>
@@ -162,6 +176,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
               disabled={!h.form.sistemaId || h.modulos.length === 0} />
           </div>
         </div>
+        )}
 
         {/* Pendientes activas del cliente */}
         <PendientesActivosBanner

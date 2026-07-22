@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -19,6 +19,8 @@ interface Props {
     fechaRetornoPrevista: string | null;
     remitoSalidaId: string | null;
     remitoSalidaNumero: string | null;
+    /** Fotos del estado de salida (opcionales) — se suben con contexto 'prestamo'. */
+    fotos: File[];
   }) => Promise<void>;
 }
 
@@ -30,7 +32,9 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   const [motivo, setMotivo] = useState('');
   const [fechaRetorno, setFechaRetorno] = useState('');
   const [generarRemito, setGenerarRemito] = useState(true);
+  const [fotos, setFotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) clientesService.getAll().then(c => setClientes(c.filter(x => x.activo)));
@@ -80,6 +84,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
         fechaRetornoPrevista: fechaRetorno ? new Date(fechaRetorno).toISOString() : null,
         remitoSalidaId: remitoId,
         remitoSalidaNumero: remitoNumero,
+        fotos,
       });
 
       onClose();
@@ -95,6 +100,8 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     setMotivo('');
     setFechaRetorno('');
     setGenerarRemito(true);
+    setFotos([]);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   return (
@@ -130,6 +137,15 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
           <input type="checkbox" checked={generarRemito} onChange={e => setGenerarRemito(e.target.checked)} className="rounded border-slate-300" />
           Generar remito de salida
         </label>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Fotos de salida <span className="text-slate-400 font-normal">(opcional)</span></label>
+          <input ref={fileRef} type="file" accept="image/*" multiple
+            onChange={e => setFotos(Array.from(e.target.files ?? []))}
+            className="block w-full text-xs text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-teal-50 file:text-teal-700 file:text-xs file:font-medium hover:file:bg-teal-100" />
+          {fotos.length > 0 && (
+            <p className="text-[11px] text-slate-400 mt-1">{fotos.length} foto(s) seleccionada(s)</p>
+          )}
+        </div>
       </div>
     </Modal>
   );

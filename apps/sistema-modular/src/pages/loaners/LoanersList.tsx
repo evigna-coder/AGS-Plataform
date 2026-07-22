@@ -13,6 +13,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 
 const FILTER_SCHEMA = {
   estado: { type: 'string' as const, default: '' },
@@ -54,6 +55,27 @@ export function LoanersList() {
     );
     return () => { unsubRef.current?.(); };
   }, [filters.showInactivos]);
+
+  // Sweep de recalificación (una pasada por montaje, mismo patrón que
+  // patronesDescartesVencidos), en dos fases secuenciales:
+  //  1. procesarRecalificacionesPendientes — devoluciones registradas desde
+  //     portal-ingeniero (sin OT/ticket) → crea la OT interna + ticket, con
+  //     guard anti-duplicado transaccional (dos PCs pueden abrir Loaners a la vez).
+  //  2. liberarLoanersRecalificados — loaners cuya OT ya cerró técnicamente
+  //     — ej. cierre escrito por la app de campo — vuelven a 'en_base'.
+  // La suscripción refresca la lista sola si algo cambió.
+  const sweepDoneRef = useRef(false);
+  useEffect(() => {
+    if (sweepDoneRef.current || loaners.length === 0) return;
+    if (!loaners.some(l => l.estado === 'en_recalificacion')) return;
+    sweepDoneRef.current = true;
+    void (async () => {
+      await procesarRecalificacionesPendientes(loaners).catch(err =>
+        console.warn('[LoanersList] sweep de OTs de recalificación pendientes falló:', err));
+      await liberarLoanersRecalificados(loaners).catch(err =>
+        console.warn('[LoanersList] sweep de recalificación falló:', err));
+    })();
+  }, [loaners]);
 
   const filtered = useMemo(() => {
     let result = loaners;

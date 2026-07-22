@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -6,10 +6,13 @@ import { LoanerInfoSidebar } from '../../components/loaners/LoanerInfoSidebar';
 import { LoanerPrestamosSection } from '../../components/loaners/LoanerPrestamosSection';
 import { LoanerExtraccionesSection } from '../../components/loaners/LoanerExtraccionesSection';
 import { LoanerVentaSection } from '../../components/loaners/LoanerVentaSection';
+import { LoanerOTsSection } from '../../components/loaners/LoanerOTsSection';
+import { LoanerFotosSection } from '../../components/loaners/LoanerFotosSection';
 import { LoanerPrestamoModal } from '../../components/loaners/LoanerPrestamoModal';
 import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucionModal';
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
+import { iniciarRecalificacion, liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import type { Loaner, VentaLoaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -46,24 +49,69 @@ export function LoanerDetail() {
 
   const prestamoActivo = loaner?.prestamos.find(p => p.estado === 'activo');
 
+  // Sweep de recalificación en dos fases (mismo orden que LoanersList): si
+  // este loaner quedó 'en_recalificacion' sin OT (devolución desde el portal),
+  // crear OT + ticket con guard anti-duplicado; y si su OT ya cerró
+  // técnicamente (ej. cierre escrito por la app de campo), liberarlo.
+  // Guard por id para correr una sola vez por loaner montado.
+  const sweepDoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!loaner || loaner.estado !== 'en_recalificacion') return;
+    if (sweepDoneRef.current === loaner.id) return;
+    sweepDoneRef.current = loaner.id;
+    void (async () => {
+      await procesarRecalificacionesPendientes([loaner]).catch(err =>
+        console.warn('[LoanerDetail] sweep de OTs de recalificación pendientes falló:', err));
+      await liberarLoanersRecalificados([loaner]).catch(err =>
+        console.warn('[LoanerDetail] sweep de recalificación falló:', err));
+    })();
+  }, [loaner]);
+
   const handlePrestamo = async (data: {
     clienteId: string; clienteNombre: string;
     establecimientoId: string | null; establecimientoNombre: string | null;
     motivo: string; fechaRetornoPrevista: string | null;
     remitoSalidaId: string | null; remitoSalidaNumero: string | null;
+    fotos: File[];
   }) => {
     if (!loaner) return;
-    await loanersService.registrarPrestamo(loaner.id, {
-      ...data,
+    const { fotos, ...prestamo } = data;
+    const prestamoId = await loanersService.registrarPrestamo(loaner.id, {
+      ...prestamo,
       fechaSalida: new Date().toISOString(),
       estado: 'activo',
     });
+    // Fotos de salida (best-effort — el préstamo ya quedó registrado)
+    for (const file of fotos) {
+      await loanersService.agregarFoto(loaner.id, file, {
+        nombre: file.name, contexto: 'prestamo', prestamoId,
+      }).catch(err => console.warn('[LoanerDetail] foto de salida falló:', err));
+    }
     // subscription auto-refreshes
   };
 
-  const handleDevolucion = async (data: { fechaRetornoReal: string; condicionRetorno: string }) => {
+  const handleDevolucion = async (data: {
+    fechaRetornoReal: string; condicionRetorno: string;
+    requiereRecalificacion: boolean; fotos: File[];
+  }) => {
     if (!loaner || !prestamoActivo) return;
-    await loanersService.registrarDevolucion(loaner.id, prestamoActivo.id, data);
+    const { fotos, ...devolucion } = data;
+    await loanersService.registrarDevolucion(loaner.id, prestamoActivo.id, devolucion);
+    // Fotos del retorno (best-effort — la devolución ya quedó registrada)
+    for (const file of fotos) {
+      await loanersService.agregarFoto(loaner.id, file, {
+        nombre: file.name, contexto: 'devolucion', prestamoId: prestamoActivo.id,
+      }).catch(err => console.warn('[LoanerDetail] foto de retorno falló:', err));
+    }
+    // Ciclo de recalificación: OT interna + ticket. Best-effort — nunca rompe la devolución.
+    if (data.requiereRecalificacion) {
+      const { otNumber, ticketId } = await iniciarRecalificacion(loaner, prestamoActivo);
+      if (otNumber) {
+        alert(`Devolución registrada. Se creó la OT de recalificación ${otNumber}${ticketId ? ' y el ticket de coordinación' : ''}. El loaner queda "En recalificación" hasta el cierre técnico.`);
+      } else {
+        alert('Devolución registrada, pero la OT de recalificación no se pudo crear automáticamente. Revisá el ticket generado o creala a mano.');
+      }
+    }
     // subscription auto-refreshes
   };
 
@@ -151,6 +199,8 @@ export function LoanerDetail() {
           </div>
           <div className="flex-1 space-y-4">
             <LoanerPrestamosSection prestamos={loaner.prestamos} />
+            <LoanerOTsSection otIds={loaner.otIds ?? []} />
+            <LoanerFotosSection loaner={loaner} />
             <LoanerExtraccionesSection extracciones={loaner.extracciones} />
             <LoanerVentaSection loaner={loaner} onVender={() => setVentaOpen(true)} />
           </div>
