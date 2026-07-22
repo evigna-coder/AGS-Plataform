@@ -66,6 +66,30 @@ export function isOTTransicionValida(desde: OTEstadoAdmin | undefined, hacia: OT
   return OT_TRANSICIONES_VALIDAS[desde]?.includes(hacia) ?? false;
 }
 
+/**
+ * Estados administrativos que cuentan como "OT cerrada técnicamente" (cierre
+ * técnico en adelante). Mismo criterio que el control semanal (useControlSemanal
+ * OT_CERRADA) y el chip "Pend. OC — trabajo realizado". Compartido para que los
+ * consumidores (ej. liberación de loaners tras recalificación) no dupliquen el set.
+ */
+export const OT_ESTADOS_CIERRE_TECNICO_PLUS: readonly OTEstadoAdmin[] = [
+  'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
+];
+
+/**
+ * True si la OT quedó cerrada técnicamente (o más allá). Contempla ambas fuentes:
+ * - `estadoAdmin` en cierre técnico o posterior (workflow de sistema-modular), o
+ * - `status === 'FINALIZADO'` (el técnico finalizó el reporte desde la app de campo,
+ *   que escribe `status` directo sin pasar por las transiciones de estadoAdmin).
+ */
+export function esOTCerradaTecnicamente(ot: {
+  estadoAdmin?: OTEstadoAdmin | null;
+  status?: string | null;
+}): boolean {
+  if (ot.estadoAdmin && OT_ESTADOS_CIERRE_TECNICO_PLUS.includes(ot.estadoAdmin)) return true;
+  return ot.status === 'FINALIZADO';
+}
+
 export type TipoOT = 'servicio' | 'entrega';
 
 export const TIPO_OT_LABELS: Record<TipoOT, string> = {
@@ -130,6 +154,10 @@ export interface WorkOrder {
   moduloId?: string;
   leadId?: string | null;
   presupuestoOrigenId?: string | null;
+  /** OT sobre un módulo propio de AGS (loaner): FK → loaners. Cuando está presente, la OT no requiere sistema. */
+  loanerId?: string | null;
+  /** Snapshot del código del loaner (LNR-XXXX) para mostrar sin re-leer. */
+  loanerCodigo?: string | null;
   createdAt?: string;
   createdBy?: string;
   fechaAsignacion?: string;
@@ -2502,6 +2530,34 @@ export interface PatronComponenteConsumido {
   cantidadConsumida: number;
 }
 
+/** Motivo de baja de un lote de patrón. */
+export type MotivoBajaLote = 'vencido' | 'agotado' | 'baja_manual';
+
+export const MOTIVO_BAJA_LOTE_LABELS: Record<MotivoBajaLote, string> = {
+  vencido: 'Vencido',
+  agotado: 'Agotado',
+  baja_manual: 'Baja manual',
+};
+
+/**
+ * Entrada del historial de bajas de lotes de un patrón.
+ * Los lotes no se borran: al vencer (baja automática) o al quitarse desde el
+ * editor pasan acá con snapshot completo — el certificado sigue consultable.
+ */
+export interface PatronLoteBajaEntry {
+  /** UUID propio de la entrada */
+  id: string;
+  /** Snapshot completo del lote al momento de la baja (incluye certificado) */
+  lote: PatronLote;
+  motivo: MotivoBajaLote;
+  /** ISO — cuándo se dio de baja */
+  fechaBaja: string;
+  bajaPorUid?: string | null;
+  bajaPorNombre?: string | null;
+  /** Ticket de descarte generado por la baja automática de vencidos */
+  ticketId?: string | null;
+}
+
 /**
  * Patrón de referencia (estándar/material de referencia).
  * Un patrón se identifica por código de artículo + descripción.
@@ -2520,6 +2576,8 @@ export interface Patron {
   categorias: CategoriaPatron[];
   /** Lotes disponibles. Cada uno es una instancia física independiente. */
   lotes: PatronLote[];
+  /** Historial de lotes dados de baja (vencidos, agotados, baja manual). */
+  lotesBaja?: PatronLoteBajaEntry[];
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3000,6 +3058,14 @@ export interface ItemAsignacion {
   permanente: boolean;
   fechaAsignacion: string;
   fechaDevolucion?: string | null;
+  /**
+   * Ubicación de la que salió la unidad al asignarse — la devolución la restaura
+   * (UAT 2026-07-20: lo devuelto vuelve a SU posición, no a una genérica).
+   * Ausente en items legacy: la devolución cae a la posición DEVOLUCIONES.
+   */
+  origenUbicacion?: UbicacionStock | null;
+  /** ISO de la última fecha en que se consumió (parte o todo) el item. Ausente/null si nunca se consumió. */
+  fechaConsumo?: string | null;
 }
 
 export type EstadoAsignacion = 'activa' | 'completada' | 'cancelada';
@@ -3245,6 +3311,13 @@ export interface AccesorioFicha {
   cantidad: number;
 }
 
+/** Parte usada en una OT, snapshot para el historial de un item de ficha. */
+export interface ParteUsadaFicha {
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
+}
+
 export interface HistorialFicha {
   id: string;
   fecha: string;
@@ -3253,6 +3326,15 @@ export interface HistorialFicha {
   nota: string;
   otNumber?: string | null;
   reporteTecnico?: string | null;
+  /**
+   * Detalle del cierre administrativo de la OT asignada al item (lo escribe
+   * `fichasService.syncCierreOT` al cerrar la OT). Complementa `otNumber` +
+   * `reporteTecnico` con el ingeniero y las partes usadas del reporte.
+   */
+  detalleOT?: {
+    ingenieroNombre?: string | null;
+    partesUsadas?: ParteUsadaFicha[];
+  } | null;
   creadoPor: string;
 }
 
@@ -3345,6 +3427,17 @@ export interface ItemFicha {
   articuloDescripcion?: string | null;
   descripcionLibre?: string | null;
   serie?: string | null;
+  // --- Vínculo al equipo del cliente (si el item es un módulo ya cargado en un sistema) ---
+  sistemaId?: string | null;
+  moduloId?: string | null;
+  /**
+   * Número de OT (hija .NN) que está trabajando este item. El cierre
+   * administrativo de esa OT anota el detalle en el historial del item, y al
+   * crearse una hija nueva de la misma base la asignación avanza sola
+   * (.01 → .02 → …). Ver fichasService.asignarOTaItem / syncCierreOT /
+   * avanzarOTAsignadaAHija.
+   */
+  otAsignada?: string | null;
   // --- Origen interno (item desarmado de otro item de la misma ficha) ---
   parentItemId?: string | null;
   // --- Estado individual ---
@@ -3430,12 +3523,13 @@ export interface FichaPropiedad {
 // --- Loaner (Equipos en préstamo) ---
 // =============================================
 
-export type EstadoLoaner = 'en_base' | 'en_cliente' | 'en_transito' | 'vendido' | 'baja';
+export type EstadoLoaner = 'en_base' | 'en_cliente' | 'en_transito' | 'en_recalificacion' | 'vendido' | 'baja';
 
 export const ESTADO_LOANER_LABELS: Record<EstadoLoaner, string> = {
   en_base: 'En base',
   en_cliente: 'En cliente',
   en_transito: 'En tránsito',
+  en_recalificacion: 'En recalificación',
   vendido: 'Vendido',
   baja: 'Baja',
 };
@@ -3444,6 +3538,7 @@ export const ESTADO_LOANER_COLORS: Record<EstadoLoaner, string> = {
   en_base: 'bg-green-100 text-green-800',
   en_cliente: 'bg-blue-100 text-blue-800',
   en_transito: 'bg-yellow-100 text-yellow-800',
+  en_recalificacion: 'bg-purple-100 text-purple-800',
   vendido: 'bg-slate-100 text-slate-600',
   baja: 'bg-red-100 text-red-800',
 };
@@ -3469,6 +3564,24 @@ export interface PrestamoLoaner {
   remitoRetornoId?: string | null;
   remitoRetornoNumero?: string | null;
   estado: 'activo' | 'devuelto' | 'cancelado';
+  /** Si la devolución disparó el ciclo de recalificación (loaner → en_recalificacion). */
+  requiereRecalificacion?: boolean | null;
+  /** Número de la OT (padre) de recalificación auto-creada al devolver. */
+  otRecalificacionNumber?: string | null;
+}
+
+/** Foto adjunta a un loaner (salida de préstamo, retorno o general). */
+export interface FotoLoaner {
+  id: string;
+  url: string;
+  storagePath: string;
+  nombre?: string | null;
+  descripcion?: string | null;
+  contexto: 'general' | 'prestamo' | 'devolucion';
+  /** FK → PrestamoLoaner.id cuando la foto pertenece a un préstamo puntual. */
+  prestamoId?: string | null;
+  fecha: string;
+  subidoPor?: string | null;
 }
 
 export interface ExtraccionLoaner {
@@ -3525,6 +3638,10 @@ export interface Loaner {
   prestamos: PrestamoLoaner[];
   extracciones: ExtraccionLoaner[];
   venta?: VentaLoaner | null;
+  /** Números de OT vinculadas al loaner (recalificaciones, servicios sobre el módulo). */
+  otIds?: string[];
+  /** Fotos del loaner (salida/retorno de préstamos y generales). */
+  fotos?: FotoLoaner[];
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3730,7 +3847,8 @@ export interface ItemImportacion {
   articuloCodigo?: string | null;                // desnormalizado de ItemOC.articuloCodigo
   descripcion: string;                           // ItemOC.descripcion
   cantidadPedida: number;                        // cantidad solicitada en este embarque
-  cantidadRecibida?: number | null;              // se completa al ingresar al stock
+  /** ACUMULADO ingresado al stock entre recepciones parciales (I3). */
+  cantidadRecibida?: number | null;
   unidadMedida: string;
   precioUnitario?: number | null;                // ItemOC.precioUnitario
   moneda?: 'ARS' | 'USD' | 'EUR' | null;        // ItemOC.moneda
@@ -3808,7 +3926,17 @@ export interface Importacion {
   numeroGuia?: string | null;          // número de guía aérea/marítima
   items?: ItemImportacion[] | null;    // ítems de este embarque (subconjunto de la OC)
   fechaRecepcion?: string | null;      // ISO string — obligatoria para transición a 'recibido'
-  stockIngresado?: boolean | null;     // true cuando el alta de stock ya fue ejecutada
+  /**
+   * true cuando la recepción quedó TERMINADA: todo lo pedido ingresó al stock
+   * (acumulado en items[].cantidadRecibida) o el usuario cerró la recepción como
+   * incompleta. Mientras haya faltante y no se cierre, la importación admite
+   * nuevas recepciones parciales (I3). Docs viejos: true = ingreso único ya hecho.
+   */
+  stockIngresado?: boolean | null;
+  /** true si la recepción se cerró con faltantes por decisión del usuario (el proveedor no manda el remanente). */
+  recepcionCerradaIncompleta?: boolean | null;
+  /** Faltante asentado al cerrar la recepción incompleta (texto por ítem). */
+  notaRecepcionIncompleta?: string | null;
   // Audit
   notas?: string | null;
   createdAt: string;
