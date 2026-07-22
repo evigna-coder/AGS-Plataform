@@ -7,9 +7,11 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { PatronComponentesEditor } from './PatronComponentesEditor';
 import { PatronComponentesAlertBanner } from './PatronComponentesAlertBanner';
-import { validatePatronComponentes } from './patronComponentesValidation';
+import { PatronLotesBajaSection } from './PatronLotesBajaSection';
+import { patronesService } from '../../services/patronesService';
 import {
   CATEGORIA_PATRON_LABELS,
   calcularEstadoCertificado,
@@ -17,8 +19,10 @@ import {
   type ComponentePatron,
   type Patron,
   type PatronLote,
+  type PatronLoteBajaEntry,
   type Marca,
 } from '@ags/shared';
+import { validatePatronComponentes } from './patronComponentesValidation';
 
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
@@ -57,6 +61,12 @@ export const PatronEditorPage = () => {
   const [marca, setMarca] = useState('');
   const [categorias, setCategorias] = useState<CategoriaPatron[]>([]);
   const [lotes, setLotes] = useState<PatronLote[]>([]);
+  // Historial de bajas + set de códigos de lote ya persistidos en el doc.
+  // "Quitar" un lote persistido = baja con historial (service); un lote nuevo
+  // sin guardar se remueve local nomás.
+  const [lotesBaja, setLotesBaja] = useState<PatronLoteBajaEntry[]>([]);
+  const savedLoteCodigos = useRef<Set<string>>(new Set());
+  const confirm = useConfirm();
   // Phase 14 BOM-04 — componentes declarativos (BOM) del patrón.
   const [componentes, setComponentes] = useState<ComponentePatron[]>([]);
 
@@ -114,6 +124,8 @@ export const PatronEditorPage = () => {
         setMarca(p.marca);
         setCategorias(p.categorias);
         setLotes(p.lotes);
+        setLotesBaja(p.lotesBaja ?? []);
+        savedLoteCodigos.current = new Set(p.lotes.map(l => l.lote));
         setComponentes(p.componentes ?? []);
         setLoading(false);
       });
@@ -125,7 +137,34 @@ export const PatronEditorPage = () => {
   };
 
   const addLote = () => setLotes(prev => [...prev, emptyLote()]);
-  const removeLote = (idx: number) => setLotes(prev => prev.filter((_, i) => i !== idx));
+
+  /**
+   * Lote persistido → baja con historial (queda consultable el certificado).
+   * Lote nuevo sin guardar → remove local. Si el código fue editado sin
+   * guardar no matchea el doc y cae al remove local (comportamiento previo).
+   */
+  const removeLote = async (idx: number) => {
+    const lote = lotes[idx];
+    const esPersistido = !isNew && id && lote?.lote && savedLoteCodigos.current.has(lote.lote);
+    if (!esPersistido) {
+      setLotes(prev => prev.filter((_, i) => i !== idx));
+      return;
+    }
+    const motivo = lote.cantidad === 0 ? 'agotado' : 'baja_manual';
+    if (!await confirm(`¿Dar de baja el lote ${lote.lote}? Pasa al historial de bajas — el certificado sigue consultable.`)) return;
+    try {
+      const entry = await patronesService.darDeBajaLote(id, lote.lote, motivo);
+      if (entry) {
+        savedLoteCodigos.current.delete(lote.lote);
+        setLotes(prev => prev.filter((_, i) => i !== idx));
+        setLotesBaja(prev => [...prev, entry]);
+      } else {
+        alert('El lote ya no está en el patrón (posiblemente dado de baja desde otra sesión). Recargá la página.');
+      }
+    } catch {
+      alert('Error al dar de baja el lote');
+    }
+  };
   const updateLote = (idx: number, key: keyof PatronLote, value: any) => {
     setLotes(prev => prev.map((l, i) => i === idx ? { ...l, [key]: value } : l));
   };
@@ -298,10 +337,10 @@ export const PatronEditorPage = () => {
                           {badge.label}
                         </span>
                         <button
-                          onClick={() => removeLote(idx)}
+                          onClick={() => void removeLote(idx)}
                           className="text-[10px] text-red-500 hover:text-red-700 font-medium"
                         >
-                          Quitar
+                          Dar de baja
                         </button>
                       </div>
                     </div>
@@ -382,6 +421,9 @@ export const PatronEditorPage = () => {
             </div>
           )}
         </Card>
+
+        {/* Historial de lotes dados de baja (vencidos / agotados / baja manual) */}
+        {!isNew && <PatronLotesBajaSection entries={lotesBaja} />}
 
         {/* Componentes (BOM) — Phase 14 BOM-04 */}
         <Card>

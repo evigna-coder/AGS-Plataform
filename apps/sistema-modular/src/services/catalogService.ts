@@ -328,8 +328,34 @@ export const instrumentosService = {
 
   // ── Storage: certificados y trazabilidad ──
 
+  /**
+   * Sube/reemplaza el certificado vigente. Si ya había uno, se ARCHIVA en
+   * `certificadosHistorial` antes de reemplazar (mismo criterio que
+   * retornarDeCalibracion) — un certificado vencido nunca se pierde.
+   * Path con timestamp para no pisar el PDF anterior en Storage.
+   */
   async uploadCertificado(instrumentoId: string, file: File): Promise<{ url: string; path: string }> {
-    const path = `certificados/${instrumentoId}/${file.name}`;
+    const inst = await this.getById(instrumentoId);
+    const historial: CertificadoHistorialEntry[] = [...(inst?.certificadosHistorial ?? [])];
+    if (inst?.certificadoUrl && inst.certificadoStoragePath) {
+      const actor = getCurrentUserTrace();
+      historial.unshift({
+        id: crypto.randomUUID(),
+        certificadoUrl: inst.certificadoUrl,
+        certificadoNombre: inst.certificadoNombre ?? 'Certificado',
+        certificadoStoragePath: inst.certificadoStoragePath,
+        certificadoEmisor: inst.certificadoEmisor ?? null,
+        certificadoFechaEmision: inst.certificadoFechaEmision ?? null,
+        certificadoVencimiento: inst.certificadoVencimiento ?? null,
+        trazabilidadUrl: inst.trazabilidadUrl ?? null,
+        trazabilidadNombre: inst.trazabilidadNombre ?? null,
+        trazabilidadStoragePath: inst.trazabilidadStoragePath ?? null,
+        reemplazadoEn: new Date().toISOString(),
+        reemplazadoPorUid: actor?.uid ?? null,
+        reemplazadoPorNombre: actor?.name ?? null,
+      });
+    }
+    const path = `certificados/${instrumentoId}/${Date.now()}-${file.name}`;
     const fileRef = storageRef(storage, path);
     await uploadBytes(fileRef, file, { contentType: file.type || 'application/pdf' });
     const url = await getDownloadURL(fileRef);
@@ -337,6 +363,7 @@ export const instrumentosService = {
       certificadoUrl: url,
       certificadoNombre: file.name,
       certificadoStoragePath: path,
+      certificadosHistorial: historial,
     });
     return { url, path };
   },

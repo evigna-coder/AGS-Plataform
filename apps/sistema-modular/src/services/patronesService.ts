@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
-import type { Patron, CategoriaPatron } from '@ags/shared';
+import type { Patron, CategoriaPatron, PatronLoteBajaEntry, MotivoBajaLote } from '@ags/shared';
 import type { MockPatronBomState } from '../__tests__/fixtures/patronBom';
 import { buildConsumirComponentes } from './patronesConsumirHelpers';
 import { buildUpdatePatron } from './patronesUpdateHelpers';
@@ -20,6 +20,8 @@ let _fb: {
   onSnapshot: any;
   uploadBytes: any;
   deleteObject: any;
+  runTransaction: any;
+  logBusinessEvent: any;
 } | null = null;
 async function getFirebaseModules() {
   if (!_fb) {
@@ -36,6 +38,8 @@ async function getFirebaseModules() {
       onSnapshot: m.onSnapshot,
       uploadBytes: m.uploadBytes,
       deleteObject: m.deleteObject,
+      runTransaction: m.runTransaction,
+      logBusinessEvent: m.logBusinessEvent,
     };
   }
   return _fb;
@@ -66,6 +70,7 @@ function toPatron(id: string, data: any): Patron {
     id,
     ...data,
     lotes: data.lotes ?? [],
+    lotesBaja: data.lotesBaja ?? [],
     categorias: data.categorias ?? [],
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
     updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
@@ -133,17 +138,72 @@ export const patronesService = {
     const { storage, createBatch, docRef, batchAudit, deleteObject } = await getFirebaseModules();
     // Borrar certificados de Storage de todos los lotes antes de eliminar el documento
     const patron = await this.getById(id);
-    if (patron?.lotes) {
-      for (const lote of patron.lotes) {
-        if (lote.certificadoStoragePath) {
-          try { await deleteObject(storageRef(storage, lote.certificadoStoragePath)); } catch { /* ignore */ }
-        }
+    const todosLotes = [...(patron?.lotes ?? []), ...(patron?.lotesBaja ?? []).map(e => e.lote)];
+    for (const lote of todosLotes) {
+      if (lote.certificadoStoragePath) {
+        try { await deleteObject(storageRef(storage, lote.certificadoStoragePath)); } catch { /* ignore */ }
       }
     }
     const batch = createBatch();
     batch.delete(docRef('patrones', id));
     batchAudit(batch, { action: 'delete', collection: 'patrones', documentId: id });
     await batch.commit();
+  },
+
+  // ── Bajas de lotes ──
+
+  /**
+   * Da de baja un lote: lo saca de `lotes` y lo mueve a `lotesBaja` con
+   * snapshot completo (el certificado sigue consultable). Transaccional:
+   * si otro cliente ya lo dio de baja (sweep concurrente de vencidos),
+   * devuelve null y el caller NO debe generar ticket — guard anti-duplicado.
+   */
+  async darDeBajaLote(patronId: string, loteCodigo: string, motivo: MotivoBajaLote): Promise<PatronLoteBajaEntry | null> {
+    const { db, runTransaction, deepCleanForFirestore, getUpdateTrace, logBusinessEvent } = await getFirebaseModules();
+    const { getCurrentUserTrace } = await import('./currentUser');
+    const user = getCurrentUserTrace();
+    const entry: PatronLoteBajaEntry | null = await runTransaction(db, async (txn: any) => {
+      const ref = doc(db, 'patrones', patronId);
+      const snap = await txn.get(ref);
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      const lotes = (data.lotes ?? []) as Patron['lotes'];
+      const idx = lotes.findIndex(l => l.lote === loteCodigo);
+      if (idx === -1) return null; // ya procesado por otro cliente
+      const nueva: PatronLoteBajaEntry = {
+        id: crypto.randomUUID(),
+        lote: lotes[idx],
+        motivo,
+        fechaBaja: new Date().toISOString(),
+        bajaPorUid: user?.uid ?? null,
+        bajaPorNombre: user?.name ?? null,
+        ticketId: null,
+      };
+      txn.update(ref, deepCleanForFirestore({
+        lotes: lotes.filter((_, i) => i !== idx),
+        lotesBaja: [...(data.lotesBaja ?? []), nueva],
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }));
+      return nueva;
+    });
+    if (entry) {
+      logBusinessEvent({
+        eventName: 'patron.lote_baja',
+        collection: 'patrones',
+        documentId: patronId,
+        details: { loteCodigo, motivo },
+      });
+    }
+    return entry;
+  },
+
+  /** Vincula el ticket de descarte a una entrada del historial de bajas. */
+  async setTicketDeBaja(patronId: string, entryId: string, ticketId: string): Promise<void> {
+    const patron = await this.getById(patronId);
+    if (!patron) return;
+    const lotesBaja = (patron.lotesBaja ?? []).map(e => e.id === entryId ? { ...e, ticketId } : e);
+    await this.update(patronId, { lotesBaja });
   },
 
   // ── Storage: certificado por lote ──

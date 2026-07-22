@@ -64,7 +64,8 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-/** Sub-fila desplegada: un renglón por lote con su propio estado/vencimiento/cantidad. */
+/** Sub-fila desplegada: un renglón por lote activo. Las bajas viven en la
+ *  pestaña "Historial de bajas" del listado (crecen sin límite con el tiempo). */
 function PatronLotesDetalle({
   lotes, formatFechaAR,
 }: { lotes: PatronLote[]; formatFechaAR: (iso: string | null | undefined) => string }) {
@@ -114,6 +115,7 @@ export function PatronRow({
   const [open, setOpen] = useState(false);
   const bomStatus = computePatronStatus(p);
   const hasBom = (p.componentes ?? []).length > 0;
+  const bajas = p.lotesBaja ?? [];
   const hasLotes = p.lotes.length > 0;
   const vencCls = estado === 'vencido' ? 'text-red-600 font-medium'
     : estado === 'por_vencer' ? 'text-amber-700 font-medium'
@@ -162,16 +164,26 @@ export function PatronRow({
           </div>
         </td>
         <td className={`px-3 py-2 ${getAlignClass(4)}`}>
-          {!hasLotes ? (
+          {!hasLotes && bajas.length === 0 ? (
             <span className="text-[10px] text-slate-300 italic">Sin lotes</span>
           ) : (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] text-slate-500">
-                {p.lotes.length} {p.lotes.length === 1 ? 'lote' : 'lotes'}
-              </span>
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoBadge.cls}`}>
-                {estadoBadge.label}
-              </span>
+              {hasLotes && (
+                <span className="text-[10px] text-slate-500">
+                  {p.lotes.length} {p.lotes.length === 1 ? 'lote' : 'lotes'}
+                </span>
+              )}
+              {hasLotes && (
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoBadge.cls}`}>
+                  {estadoBadge.label}
+                </span>
+              )}
+              {bajas.length > 0 && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600"
+                  title="Lotes dados de baja — ver pestaña Historial de bajas">
+                  {bajas.length} baja{bajas.length === 1 ? '' : 's'}
+                </span>
+              )}
             </div>
           )}
         </td>

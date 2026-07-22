@@ -298,6 +298,13 @@ export const InstrumentosList = () => {
                             {inst.certificadoNombre || 'Ver PDF'}
                           </a>
                         ) : <span className="text-slate-300">—</span>}
+                        {(inst.certificadosHistorial?.length ?? 0) > 0 && (
+                          <Link to={`/instrumentos/${inst.id}/editar`}
+                            className="ml-1.5 text-[10px] text-slate-400 hover:text-teal-600"
+                            title="Certificados anteriores — historial en el editor">
+                            +{inst.certificadosHistorial!.length} ant.
+                          </Link>
+                        )}
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(5)}`}>
                         {inst.certificadoVencimiento

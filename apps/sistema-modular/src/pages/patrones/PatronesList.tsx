@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePatrones } from '../../hooks/usePatrones';
+import { procesarLotesVencidos } from '../../utils/patronesDescartesVencidos';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -22,6 +23,7 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { PatronRow } from './PatronRow';
+import { PatronesBajasTable } from './PatronesBajasTable';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -69,6 +71,8 @@ const FILTER_SCHEMA = {
   showInactive: { type: 'boolean' as const, default: false },
   // BOM-06: solo patrones con algún lote bloqueado o agotado (saldo BOM ≤ mínimo).
   bloqueados: { type: 'boolean' as const, default: false },
+  // 'activos' = lotes vigentes | 'bajas' = historial de lotes dados de baja
+  vista: { type: 'string' as const, default: 'activos' },
 };
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -104,6 +108,17 @@ export const PatronesList = () => {
 
   useEffect(() => { reload(); }, [filters.categoria, filters.showInactive]);
 
+  // Baja automática de lotes vencidos + ticket de descarte. Una vez por mount;
+  // si dio de baja algo, recarga para que desaparezcan del listado activo.
+  const sweepRan = useRef(false);
+  useEffect(() => {
+    if (sweepRan.current) return;
+    sweepRan.current = true;
+    void procesarLotesVencidos()
+      .then(n => { if (n > 0) reload(); })
+      .catch(err => console.error('Sweep de lotes vencidos falló:', err));
+  }, []);
+
   const filtered = useMemo(() => {
     const base = filters.bloqueados
       ? patrones.filter(p => {
@@ -116,6 +131,8 @@ export const PatronesList = () => {
 
   const vencidos = patrones.filter(p => estadoGlobal(p) === 'vencido');
   const porVencer = patrones.filter(p => estadoGlobal(p) === 'por_vencer');
+  const totalBajas = useMemo(() => patrones.reduce((n, p) => n + (p.lotesBaja?.length ?? 0), 0), [patrones]);
+  const vistaBajas = filters.vista === 'bajas';
 
   const handleDeactivate = async (p: Patron) => {
     if (!await confirm(`¿Desactivar "${p.descripcion}"?`)) return;
@@ -159,11 +176,11 @@ export const PatronesList = () => {
       <PageHeader
         title="Patrones"
         subtitle="Estándares y materiales de referencia con lotes y certificados"
-        count={isInitialLoad ? undefined : filtered.length}
+        count={isInitialLoad ? undefined : vistaBajas ? totalBajas : filtered.length}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => void handleExportPdf()}
-              disabled={exporting || filtered.length === 0}>
+              disabled={exporting || filtered.length === 0 || vistaBajas}>
               {exporting ? 'Generando…' : 'Exportar PDF'}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowMigracion(true)} title="Migrar patrones antiguos desde la colección instrumentos">
@@ -189,6 +206,16 @@ export const PatronesList = () => {
             </div>
           )}
           <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+              {([['activos', 'Lotes activos'], ['bajas', `Historial de bajas${totalBajas ? ` (${totalBajas})` : ''}`]] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setFilter('vista', v)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    filters.vista === v ? 'bg-teal-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="min-w-[160px]">
               <SearchableSelect value={filters.categoria}
                 onChange={(v) => setFilter('categoria', v)}
@@ -221,6 +248,8 @@ export const PatronesList = () => {
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando patrones...</p></div>
         ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
+        ) : vistaBajas ? (
+          <PatronesBajasTable patrones={patrones} formatFechaAR={formatFechaAR} />
         ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
