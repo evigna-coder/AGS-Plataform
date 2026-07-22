@@ -17,17 +17,22 @@ const TIPO_COLORS: Record<TipoOC, string> = { nacional: 'bg-emerald-100 text-eme
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC' };
 
 const FILTER_SCHEMA = {
-  estado: { type: 'string' as const, default: '' },
+  // '__pendientes__' = ocultar estados terminales (recibida/cancelada).
+  // Misma semántica que estadoAdmin en OTList.
+  estado: { type: 'string' as const, default: '__pendientes__' },
   tipo: { type: 'string' as const, default: '' },
   showCanceladas: { type: 'boolean' as const, default: false },
 };
+
+/** Estados terminales: no aparecen bajo el filtro "Pendientes". */
+const ESTADOS_OC_TERMINALES: EstadoOC[] = ['recibida', 'cancelada'];
 
 export const OCList = () => {
   const { ordenes, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('oc-list');
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
-  const filtroEstado = filters.estado as EstadoOC | '';
+  const filtroEstado = filters.estado as EstadoOC | '' | '__pendientes__';
   const filtroTipo = filters.tipo as TipoOC | '';
   const showCanceladas = filters.showCanceladas;
   const [sortField, setSortField] = useState('fechaEntregaEstimada');
@@ -44,9 +49,12 @@ export const OCList = () => {
 
   const filtered = useMemo(() => {
     let result = ordenes.filter(o => {
-      if (filtroEstado && o.estado !== filtroEstado) return false;
+      if (filtroEstado === '__pendientes__') {
+        if (ESTADOS_OC_TERMINALES.includes(o.estado)) return false;
+      } else if (filtroEstado) {
+        if (o.estado !== filtroEstado) return false;
+      } else if (!showCanceladas && o.estado === 'cancelada') return false;
       if (filtroTipo && o.tipo !== filtroTipo) return false;
-      if (!showCanceladas && o.estado === 'cancelada') return false;
       return true;
     });
     return sortByField(result, sortField, sortDir);
@@ -80,6 +88,7 @@ export const OCList = () => {
             onChange={e => setFilter('estado', e.target.value)}
             className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
+            <option value="__pendientes__">Pendientes</option>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_OC_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>

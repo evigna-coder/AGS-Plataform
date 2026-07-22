@@ -10,6 +10,7 @@ export { MinikitsList } from './MinikitsList';
 export { MinikitDetail } from './MinikitDetail';
 export { MinikitFaltantesPage } from './MinikitFaltantesPage';
 export { MovimientosPage } from './MovimientosPage';
+export { ConsumosPage } from './ConsumosPage';
 export { RemitosList } from './RemitosList';
 export { RemitoEditor } from './RemitoEditor';
 export { RemitoDetail } from './RemitoDetail';

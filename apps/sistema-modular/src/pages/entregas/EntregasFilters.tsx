@@ -24,7 +24,7 @@ const ESTADOS_IMP: EstadoImportacion[] = [
 ];
 
 export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOptions }) => {
-  const hasActive = !!(filters.clienteId || filters.semaforo || filters.estadoImp || filters.search);
+  const hasActive = !!(filters.clienteId || filters.semaforo !== '__pendientes__' || filters.estadoImp || filters.search);
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -50,6 +50,7 @@ export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOp
         onChange={(e) => setFilter('semaforo', e.target.value)}
         className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
+        <option value="__pendientes__">Semáforo: Pendientes</option>
         <option value="">Semáforo: Todos</option>
         {SEMAFOROS.map(s => (
           <option key={s} value={s}>{SEMAFORO_LABELS[s]}</option>
@@ -70,7 +71,7 @@ export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOp
           type="button"
           onClick={() => {
             setFilter('clienteId', '');
-            setFilter('semaforo', '');
+            setFilter('semaforo', '__pendientes__');
             setFilter('estadoImp', '');
             setFilter('search', '');
           }}

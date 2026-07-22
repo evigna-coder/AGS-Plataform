@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
 import { PendientesClienteSection } from '../../components/pendientes/PendientesClienteSection';
+import { ConsumosSection } from '../../components/stock/ConsumosSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -310,6 +311,9 @@ export const EquipoDetail = () => {
                 title="Pendientes del equipo"
               />
             )}
+
+            {/* Consumos del equipo (lazy: no consulta hasta expandir) */}
+            <ConsumosSection sistemaId={sistema.id} />
 
             {/* Ubicaciones placeholder */}
             <Card compact>

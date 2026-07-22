@@ -13,6 +13,7 @@ import { useSistemasSearch } from '../../hooks/useSistemasSearch';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
+import { ConsumosSection } from '../../components/stock/ConsumosSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -408,6 +409,10 @@ export const EstablecimientoDetail = () => {
                 </div>
               )}
             </Card>
+
+            {/* Consumos de los equipos del establecimiento (lazy: no consulta hasta expandir) */}
+            <ConsumosSection establecimientoId={id!} titulo="Consumos de los equipos" />
+
             <CreateEquipoModal
               open={showCreateEquipo}
               onClose={() => setShowCreateEquipo(false)}

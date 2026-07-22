@@ -15,7 +15,9 @@ type DisplayEntry =
 
 const FILTER_SCHEMA = {
   clienteId: { type: 'string' as const, default: '' },
-  semaforo:  { type: 'string' as const, default: '' },
+  // '__pendientes__' = ocultar entregados (default del dueño: lo terminado no se muestra).
+  // Misma semántica que estadoAdmin en OTList.
+  semaforo:  { type: 'string' as const, default: '__pendientes__' },
   estadoImp: { type: 'string' as const, default: '' },
   search:    { type: 'string' as const, default: '' },
   sortField: { type: 'string' as const, default: 'diasRestantes' },
@@ -38,11 +40,25 @@ export const EntregasList: React.FC = () => {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [rows]);
 
+  // OCs agrupables (recibidas) con al menos un item pendiente: bajo el filtro
+  // "Pendientes" sus items ya entregados siguen visibles para no desarmar el
+  // grupo. Si TODOS los items del grupo están entregados, el grupo desaparece.
+  const ocsConPendientes = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach(r => {
+      if (r.ocId && r.ocEstado === 'recibida' && r.semaforo !== 'entregado') set.add(r.ocId);
+    });
+    return set;
+  }, [rows]);
+
   const filtered = useMemo((): EntregaRow[] => {
     const term = filters.search.trim().toLowerCase();
     return rows.filter(r => {
       if (filters.clienteId && r.clienteId !== filters.clienteId) return false;
-      if (filters.semaforo && r.semaforo !== filters.semaforo) return false;
+      if (filters.semaforo === '__pendientes__') {
+        const enGrupoConPendientes = r.ocId != null && r.ocEstado === 'recibida' && ocsConPendientes.has(r.ocId);
+        if (r.semaforo === 'entregado' && !enGrupoConPendientes) return false;
+      } else if (filters.semaforo && r.semaforo !== filters.semaforo) return false;
       if (filters.estadoImp && r.importacionEstado !== filters.estadoImp) return false;
       if (term) {
         const hay = [
@@ -54,7 +70,7 @@ export const EntregasList: React.FC = () => {
       }
       return true;
     });
-  }, [rows, filters.clienteId, filters.semaforo, filters.estadoImp, filters.search]);
+  }, [rows, ocsConPendientes, filters.clienteId, filters.semaforo, filters.estadoImp, filters.search]);
 
   const sorted = useMemo(
     () => sortByField(filtered, filters.sortField, filters.sortDir as SortDir),

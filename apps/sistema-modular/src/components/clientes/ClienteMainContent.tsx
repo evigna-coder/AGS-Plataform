@@ -8,6 +8,7 @@ import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
 import { CreateEquipoModal } from '../equipos/CreateEquipoModal';
 import { CreateEstablecimientoModal } from '../establecimientos/CreateEstablecimientoModal';
 import { PendientesClienteSection } from '../pendientes/PendientesClienteSection';
+import { ConsumosSection } from '../stock/ConsumosSection';
 import { SistemaExpandableRow } from '../equipos/SistemaExpandableRow';
 import { SistemasSearchBox } from '../equipos/SistemasSearchBox';
 import { useSistemasSearch } from '../../hooks/useSistemasSearch';
@@ -169,6 +170,9 @@ export const ClienteMainContent = ({
         clienteNombre={cliente.razonSocial}
         title="Pendientes del cliente"
       />
+
+      {/* Consumos de todos los equipos del cliente (lazy: no consulta hasta expandir) */}
+      <ConsumosSection clienteId={clienteId} />
 
       {/* Notas */}
       <Card compact>

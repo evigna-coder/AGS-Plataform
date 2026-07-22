@@ -56,6 +56,7 @@ export const navigation: NavItem[] = [
           { name: 'Historial asig.', path: '/stock/asignaciones/historial' },
           { name: 'Remitos', path: '/stock/remitos' },
           { name: 'Movimientos', path: '/stock/movimientos' },
+          { name: 'Consumos por equipo', path: '/stock/consumos' },
           { name: 'Alertas', path: '/stock/alertas' },
         ],
       },
