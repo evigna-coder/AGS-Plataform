@@ -22,6 +22,10 @@ import QFDocumentosPage from './pages/QFDocumentosPage';
 import RecepcionPage from './pages/RecepcionPage';
 import FichaFotosPage from './pages/FichaFotosPage';
 import PagosVEPPage from './pages/PagosVEPPage';
+import LoanersPage from './pages/LoanersPage';
+import LoanerDetallePage from './pages/LoanerDetallePage';
+import LoanerFotosSalidaPage from './pages/LoanerFotosSalidaPage';
+import LoanerRetornoPage from './pages/LoanerRetornoPage';
 import { canAccessModulo } from '@ags/shared';
 import { UploadQueueIndicator } from './components/recepcion/UploadQueueIndicator';
 import { uploadQueueManager } from './services/uploadQueueManager';
@@ -138,6 +142,10 @@ function PrivateApp() {
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="mis-pendientes" element={<MisReportesPendientesPage />} />
           <Route path="viaticos" element={<ViaticosPage />} />
+          <Route path="loaners" element={<LoanersPage />} />
+          <Route path="loaners/:loanerId" element={<LoanerDetallePage />} />
+          <Route path="loaners/:loanerId/fotos" element={<LoanerFotosSalidaPage />} />
+          <Route path="loaners/:loanerId/retorno" element={<LoanerRetornoPage />} />
           <Route path="qf-documentos" element={<QFDocumentosPage />} />
           {canRecepcion && (
             <>

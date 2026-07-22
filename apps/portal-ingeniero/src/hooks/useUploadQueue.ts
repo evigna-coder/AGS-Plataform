@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { uploadQueueManager, type ManagerState } from '../services/uploadQueueManager';
+import type { PendingFotoFicha, PendingFotoLoaner } from '../services/uploadQueueDB';
 
 /**
  * Suscripción al singleton uploadQueueManager.
@@ -21,6 +22,7 @@ export function useUploadQueue() {
     online: state.online,
     draining: state.draining,
     enqueue: uploadQueueManager.enqueueBlob.bind(uploadQueueManager),
+    enqueueLoaner: uploadQueueManager.enqueueLoanerBlob.bind(uploadQueueManager),
     retry: uploadQueueManager.retry.bind(uploadQueueManager),
     retryAll: uploadQueueManager.retryAll.bind(uploadQueueManager),
     clearAll: uploadQueueManager.clearAll.bind(uploadQueueManager),
@@ -35,7 +37,17 @@ export function usePendingCount(): number {
 }
 
 /** Atajo: pendientes de una ficha específica. */
-export function usePendingForFicha(fichaId: string) {
+export function usePendingForFicha(fichaId: string): PendingFotoFicha[] {
   const { pending } = useUploadQueue();
-  return pending.filter(p => p.fichaId === fichaId);
+  return pending.filter(
+    (p): p is PendingFotoFicha => p.tipo === 'ficha' && p.fichaId === fichaId,
+  );
+}
+
+/** Atajo: pendientes de un loaner específico. */
+export function usePendingForLoaner(loanerId: string): PendingFotoLoaner[] {
+  const { pending } = useUploadQueue();
+  return pending.filter(
+    (p): p is PendingFotoLoaner => p.tipo === 'loaner' && p.loanerId === loanerId,
+  );
 }

@@ -15,6 +15,7 @@ const MORE_ITEMS: MoreItem[] = [
   { to: '/ordenes-trabajo', label: 'Mis OTs', engineerOnly: true },
   { to: '/historial', label: 'Historial', engineerOnly: true },
   { to: '/viaticos', label: 'Viáticos', engineerOnly: true },
+  { to: '/loaners', label: 'Loaners', engineerOnly: true },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },

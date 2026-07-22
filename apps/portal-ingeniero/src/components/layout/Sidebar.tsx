@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/reportes', label: 'Reportes', engineerOnly: true },
   { to: '/mis-pendientes', label: 'Mis Pendientes', engineerOnly: true },
   { to: '/viaticos', label: 'Viáticos', engineerOnly: true },
+  { to: '/loaners', label: 'Loaners', engineerOnly: true },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },

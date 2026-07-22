@@ -6,12 +6,20 @@
  * - Concurrencia 1 (subimos foto por foto) para no saturar la red móvil.
  * - Backoff exponencial en errores (5s → 10s → 30s → 60s, capped).
  * - Emite snapshots a los suscriptores (UI usa useUploadQueue).
+ * - Drena por tipo: 'ficha' → fotoStorageService + fichasPropiedadService;
+ *   'loaner' → loanersPortalService.agregarFoto (upload + append en un lugar).
  */
-import { uploadQueueDB, type PendingFoto } from './uploadQueueDB';
+import {
+  uploadQueueDB,
+  type PendingFoto,
+  type PendingFotoFicha,
+  type PendingFotoLoaner,
+} from './uploadQueueDB';
 import { fotoStorageService } from './fotoStorageService';
 import { fichasPropiedadService } from './fichasPropiedadService';
+import { loanersPortalService } from './loanersPortalService';
 import { getCurrentUser } from './currentUser';
-import type { FotoFicha } from '@ags/shared';
+import type { FotoFicha, FotoLoaner, MomentoFotoFicha } from '@ags/shared';
 
 type Listener = (state: ManagerState) => void;
 
@@ -24,6 +32,11 @@ export interface ManagerState {
 const BACKOFF_MS = [5_000, 10_000, 30_000, 60_000];
 function backoffFor(intentos: number): number {
   return BACKOFF_MS[Math.min(intentos, BACKOFF_MS.length - 1)];
+}
+
+/** Etiqueta corta para logs/UI: a qué doc pertenece la foto pendiente. */
+export function pendingFotoTargetLabel(p: PendingFoto): string {
+  return p.tipo === 'loaner' ? p.loanerCodigo : p.fichaNumero;
 }
 
 class UploadQueueManager {
@@ -60,24 +73,35 @@ class UploadQueueManager {
     fichaNumero: string;
     blob: Blob;
     filename: string;
-    momento: 'ingreso' | 'egreso';
+    momento: MomentoFotoFicha;
   }): Promise<void> {
-    const user = getCurrentUser();
-    const item: PendingFoto = {
-      id: crypto.randomUUID(),
+    const item: PendingFotoFicha = {
+      ...this.baseItem(input.blob, input.filename),
+      tipo: 'ficha',
       fichaId: input.fichaId,
       fichaNumero: input.fichaNumero,
-      blob: input.blob,
-      filename: input.filename,
       momento: input.momento,
-      capturaAt: new Date().toISOString(),
-      intentos: 0,
-      status: 'queued',
-      subidoPor: user?.displayName,
     };
-    await uploadQueueDB.enqueue(item);
-    await this.refresh();
-    void this.tick();
+    await this.pushItem(item);
+  }
+
+  async enqueueLoanerBlob(input: {
+    loanerId: string;
+    loanerCodigo: string;
+    blob: Blob;
+    filename: string;
+    contexto: FotoLoaner['contexto'];
+    prestamoId: string | null;
+  }): Promise<void> {
+    const item: PendingFotoLoaner = {
+      ...this.baseItem(input.blob, input.filename),
+      tipo: 'loaner',
+      loanerId: input.loanerId,
+      loanerCodigo: input.loanerCodigo,
+      contexto: input.contexto,
+      prestamoId: input.prestamoId,
+    };
+    await this.pushItem(item);
   }
 
   /** Reintentar manualmente uno con error. */
@@ -127,6 +151,25 @@ class UploadQueueManager {
     await this.refresh();
   }
 
+  private baseItem(blob: Blob, filename: string) {
+    const user = getCurrentUser();
+    return {
+      id: crypto.randomUUID(),
+      blob,
+      filename,
+      capturaAt: new Date().toISOString(),
+      intentos: 0,
+      status: 'queued' as const,
+      subidoPor: user?.displayName,
+    };
+  }
+
+  private async pushItem(item: PendingFoto): Promise<void> {
+    await uploadQueueDB.enqueue(item);
+    await this.refresh();
+    void this.tick();
+  }
+
   private handleOnline = () => {
     this.setState({ online: true });
     void this.tick();
@@ -146,6 +189,38 @@ class UploadQueueManager {
     this.listeners.forEach(l => l(this.state));
   }
 
+  /** Sube una foto según su tipo. Upload a Storage + metadata al doc Firestore. */
+  private async uploadOne(next: PendingFoto): Promise<void> {
+    if (next.tipo === 'loaner') {
+      // Toda la lógica loaner (path de Storage, shape FotoLoaner, append al
+      // array `fotos`) vive en el service — acá solo se invoca.
+      await loanersPortalService.agregarFoto(next.loanerId, next.blob, {
+        nombre: next.filename,
+        contexto: next.contexto,
+        prestamoId: next.prestamoId,
+        fecha: next.capturaAt,
+        subidoPor: next.subidoPor ?? null,
+      });
+      return;
+    }
+    // 'ficha' — flujo original, sin cambios.
+    const { storagePath, url } = await fotoStorageService.upload(
+      next.fichaNumero, next.blob, next.filename,
+    );
+    const fotoMeta: FotoFicha = {
+      id: crypto.randomUUID(),
+      driveFileId: null,
+      storagePath,
+      nombre: next.filename,
+      url,
+      viewUrl: url,
+      fecha: next.capturaAt,
+      subidoPor: next.subidoPor,
+      momento: next.momento,
+    };
+    await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
+  }
+
   /** Toma una foto en estado 'queued' y la sube. Reagenda si quedan más. */
   private async tick(): Promise<void> {
     if (!this.state.online || this.state.draining) return;
@@ -157,29 +232,14 @@ class UploadQueueManager {
     try {
       await uploadQueueDB.update(next.id, { status: 'uploading' });
       await this.refresh();
-
-      const { storagePath, url } = await fotoStorageService.upload(
-        next.fichaNumero, next.blob, next.filename,
-      );
-      const fotoMeta: FotoFicha = {
-        id: crypto.randomUUID(),
-        driveFileId: null,
-        storagePath,
-        nombre: next.filename,
-        url,
-        viewUrl: url,
-        fecha: next.capturaAt,
-        subidoPor: next.subidoPor,
-        momento: next.momento,
-      };
-      await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
+      await this.uploadOne(next);
       await uploadQueueDB.remove(next.id);
       success = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const intentos = next.intentos + 1;
       console.error(
-        `[uploadQueue] Falló subida foto ${next.filename} (ficha ${next.fichaNumero}, intento ${intentos}):`,
+        `[uploadQueue] Falló subida foto ${next.filename} (${next.tipo} ${pendingFotoTargetLabel(next)}, intento ${intentos}):`,
         err,
       );
       try {

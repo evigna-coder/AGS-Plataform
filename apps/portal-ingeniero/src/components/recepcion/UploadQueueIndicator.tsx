@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useUploadQueue } from '../../hooks/useUploadQueue';
+import { pendingFotoTargetLabel } from '../../services/uploadQueueManager';
 
 /**
- * Banner global con el estado de la cola de subida de fotos.
+ * Banner global con el estado de la cola de subida de fotos (fichas y loaners).
  * Aparece cuando hay pendientes O cuando estamos offline.
  *
  * Tappable: si hay errores, expande mostrando el detalle de cada foto fallida
@@ -63,7 +64,7 @@ export function UploadQueueIndicator() {
           {conError.length > 0 ? conError.map(p => (
             <div key={p.id} className="px-3 py-2 border-b border-current/10 last:border-b-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[10px] truncate">{p.fichaNumero} · {p.filename}</span>
+                <span className="font-mono text-[10px] truncate">{pendingFotoTargetLabel(p)} · {p.filename}</span>
                 <button
                   onClick={() => void discard(p.id)}
                   className="text-[10px] underline shrink-0"
