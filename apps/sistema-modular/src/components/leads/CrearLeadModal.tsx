@@ -51,7 +51,14 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
                 if (ct) { h.handleSelectContacto(ct); }
                 else { h.setContacto(v); }
               }}
-              options={h.contactosCliente.map(c => ({ value: c.nombre, label: `${c.nombre}${c.cargo ? ` — ${c.cargo}` : ''}` }))}
+              options={[
+                ...h.contactosCliente.map(c => ({ value: c.nombre, label: `${c.nombre}${c.cargo ? ` — ${c.cargo}` : ''}` })),
+                // Contacto tipeado que no está guardado en el cliente: opción
+                // sintética para que el select lo muestre como valor elegido.
+                ...(h.contacto && !h.contactosCliente.some(c => c.nombre === h.contacto)
+                  ? [{ value: h.contacto, label: `${h.contacto} (nuevo)` }]
+                  : []),
+              ]}
               placeholder="Buscar o escribir contacto..."
               creatable
               createLabel="Nuevo contacto"

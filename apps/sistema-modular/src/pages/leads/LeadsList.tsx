@@ -136,11 +136,14 @@ export const LeadsList = () => {
   const leadsFiltered = useMemo(() => {
     let result = leads;
 
-    // Visibility by role
+    // Visibility by role. Incluye tickets donde el usuario aparece como emisor
+    // de una posta: sin eso, "Mis derivados" no puede mostrar tickets ajenos
+    // que el usuario derivó hacia otra área/persona.
     if (!isAdmin && usuario) {
       result = result.filter(l =>
         l.asignadoA === usuario.id ||
         l.createdBy === usuario.id ||
+        (l.postas || []).some(p => p.deUsuarioId === usuario.id) ||
         (extraAreas && l.areaActual && extraAreas.has(l.areaActual))
       );
     }
@@ -160,8 +163,15 @@ export const LeadsList = () => {
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id);
     }
+    // "Mis derivados" mira el historial de postas, no solo `derivadoPor` (que
+    // guarda únicamente al ÚLTIMO derivador y queda null si el ticket se creó
+    // ya asignado a otra persona). Cuenta como derivación toda posta emitida
+    // por el usuario hacia otro destinatario, incluida la posta inicial de
+    // creación con asignado directo.
     if (filters.misDerivados && usuario) {
-      result = result.filter(l => l.derivadoPor === usuario.id);
+      result = result.filter(l =>
+        (l.postas || []).some(p => p.deUsuarioId === usuario.id && p.aUsuarioId !== usuario.id)
+      );
     }
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
