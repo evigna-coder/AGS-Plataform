@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import type { ContactoProveedor } from '@ags/shared';
 import { proveedoresService } from '../../services/firebaseService';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
+import { ProveedorContactosEditor, normalizeContactos } from './ProveedorContactosEditor';
 
 interface Props {
   open: boolean;
@@ -21,9 +23,10 @@ const emptyForm = {
 
 export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [form, setForm] = useState(emptyForm);
+  const [contactos, setContactos] = useState<ContactoProveedor[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const handleClose = () => { onClose(); setForm(emptyForm); };
+  const handleClose = () => { onClose(); setForm(emptyForm); setContactos([]); };
 
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
@@ -38,6 +41,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
         contacto: form.contacto.trim() || null,
         email: form.email.trim() || null,
         telefono: form.telefono.trim() || null,
+        contactos: normalizeContactos(contactos),
         pais: form.pais.trim() || null,
         cuit: form.cuit.trim() || null,
         direccion: form.direccion.trim() || null,
@@ -116,6 +120,12 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
               />
             </div>
           </div>
+        </div>
+
+        {/* Otros contactos */}
+        <div>
+          <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Otros contactos</h4>
+          <ProveedorContactosEditor contactos={contactos} onChange={setContactos} />
         </div>
 
         {/* Datos bancarios — solo internacional */}

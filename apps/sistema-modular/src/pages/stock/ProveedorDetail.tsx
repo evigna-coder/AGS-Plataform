@@ -5,7 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
-import type { Proveedor } from '@ags/shared';
+import { ProveedorContactosEditor, normalizeContactos } from '../../components/stock/ProveedorContactosEditor';
+import type { Proveedor, ContactoProveedor } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -53,13 +54,14 @@ export const ProveedorDetail = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(toForm({} as Proveedor));
+  const [contactos, setContactos] = useState<ContactoProveedor[]>([]);
 
   const load = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const data = await proveedoresService.getById(id);
-      if (data) { setProveedor(data); setForm(toForm(data)); }
+      if (data) { setProveedor(data); setForm(toForm(data)); setContactos(data.contactos ?? []); }
       else { alert('Proveedor no encontrado'); navigate('/stock/proveedores'); }
     } catch (err) { console.error('Error cargando proveedor:', err); }
     finally { setLoading(false); }
@@ -85,6 +87,7 @@ export const ProveedorDetail = () => {
         swiftIntermediario: form.swiftIntermediario.trim() || null,
         abaIntermediario: form.abaIntermediario.trim() || null,
         notas: form.notas.trim() || null,
+        contactos: normalizeContactos(contactos),
       };
       await proveedoresService.update(id, dataToSave);
       setProveedor(prev => prev ? { ...prev, ...dataToSave } as Proveedor : prev);
@@ -131,7 +134,7 @@ export const ProveedorDetail = () => {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); setForm(toForm(proveedor)); }}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(false); setForm(toForm(proveedor)); setContactos(proveedor.contactos ?? []); }}>Cancelar</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
               </>
             )}
@@ -212,6 +215,25 @@ export const ProveedorDetail = () => {
                   <Field label="Condiciones de pago" value={proveedor.condicionesPago} />
                   <Field label="Moneda" value={proveedor.moneda} />
                 </div>
+              )}
+            </Card>
+
+            <Card title="Otros contactos" compact>
+              {editing ? (
+                <ProveedorContactosEditor contactos={contactos} onChange={setContactos} />
+              ) : (proveedor.contactos && proveedor.contactos.length > 0) ? (
+                <div className="space-y-2">
+                  {proveedor.contactos.map(c => (
+                    <div key={c.id} className="grid grid-cols-4 gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                      <Field label="Nombre" value={c.nombre} />
+                      <Field label="Email" value={c.email} />
+                      <Field label="Telefono" value={c.telefono} />
+                      <Field label="Rol" value={c.rol} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">Sin contactos adicionales.</p>
               )}
             </Card>
 

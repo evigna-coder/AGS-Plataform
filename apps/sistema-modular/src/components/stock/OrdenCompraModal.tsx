@@ -58,7 +58,6 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
   const puedeEditar = !oc || oc.estado !== 'cancelada';  // se puede editar en cualquier estado salvo cancelada
   const canReceive = !!oc && (oc.estado === 'enviada_proveedor' || oc.estado === 'embarcada');
   const proveedorOC = oc ? h.proveedores.find(p => p.id === oc.proveedorId) ?? null : null;
-  const proveedorEmail = proveedorOC?.email ?? null;
   const sym = oc ? (MONEDA_SYM[oc.moneda] || '$') : '$';
 
   // PDF + envío disponibles solo cuando la OC ya existe (guardada).
@@ -224,7 +223,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
         <EnviarOrdenCompraModal
           open={showEnviar}
           oc={oc}
-          proveedorEmail={proveedorEmail}
+          proveedor={proveedorOC}
           onClose={() => setShowEnviar(false)}
           onSent={() => { setShowEnviar(false); h.reload(); onSaved?.(); }}
         />
