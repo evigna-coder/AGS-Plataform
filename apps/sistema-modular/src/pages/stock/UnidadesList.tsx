@@ -12,8 +12,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
+import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
-import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
+import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
@@ -40,6 +41,7 @@ export const UnidadesList = () => {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
+  const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
@@ -127,15 +129,15 @@ export const UnidadesList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+      <div className="flex-1 min-h-0 px-5 pb-4 flex flex-col">
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} />
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
-          <div className="bg-white overflow-x-auto">
+          <div className="bg-white overflow-auto h-full">
             <table ref={tableRef} className="w-full table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -146,7 +148,7 @@ export const UnidadesList = () => {
                   <col style={{ width: '10%' }} /><col style={{ width: '8%' }} />
                 </colgroup>
               )}
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Codigo articulo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />{resizer(0)}</SortableHeader>
                   <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />{resizer(1)}</SortableHeader>
@@ -180,7 +182,11 @@ export const UnidadesList = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-center">
+                    <td className="px-4 py-2 text-center whitespace-nowrap">
+                      {u.estado === 'disponible' && (
+                        <button onClick={e => { e.stopPropagation(); setMoverUnidad(u); }}
+                          className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
+                      )}
                       <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
                         className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
                     </td>
@@ -194,6 +200,17 @@ export const UnidadesList = () => {
       {ajustandoUnidad && (
         <AjusteStockModal unidad={ajustandoUnidad} onClose={() => setAjustandoUnidad(null)} onSuccess={() => setAjustandoUnidad(null)} />
       )}
+      <CreateMovimientoModal
+        open={!!moverUnidad}
+        onClose={() => setMoverUnidad(null)}
+        onCreated={() => setMoverUnidad(null)}
+        init={moverUnidad ? {
+          lockArticulo: { id: moverUnidad.articuloId, codigo: moverUnidad.articuloCodigo, descripcion: moverUnidad.articuloDescripcion },
+          initOrigen: { tipo: moverUnidad.ubicacion.tipo as TipoOrigenDestino, id: moverUnidad.ubicacion.referenciaId, nombre: moverUnidad.ubicacion.referenciaNombre },
+        } : {}}
+        title="Mover artículo a otro depósito"
+        subtitle="Transferencia de stock entre ubicaciones"
+      />
       <BulkAddStockModal open={cargarStock} onClose={() => setCargarStock(false)} onCreated={() => setCargarStock(false)} />
     </div>
   );

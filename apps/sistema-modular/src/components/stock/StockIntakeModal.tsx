@@ -114,16 +114,21 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onMouseDown={() => !h.saving && h.setFinalizing(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4" onMouseDown={e => e.stopPropagation()}>
             <p className="text-[10px] font-mono text-teal-700 uppercase tracking-widest mb-3">Finalizar ingreso</p>
+            {/* Enter en cualquiera de los dos campos guarda el ingreso (ambos opcionales). */}
             <div className="space-y-3">
               <div>
                 <label className={lbl}>Nº orden de compra</label>
                 <input className="w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  value={h.ocNumero} onChange={e => h.setOcNumero(e.target.value)} placeholder="Opcional" autoFocus />
+                  value={h.ocNumero} onChange={e => h.setOcNumero(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !h.saving) { e.preventDefault(); h.confirmFinalize(); } }}
+                  placeholder="Opcional" autoFocus />
               </div>
               <div>
                 <label className={lbl}>Nº despacho de importación</label>
                 <input className="w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  value={h.despachoNumero} onChange={e => h.setDespachoNumero(e.target.value)} placeholder="Opcional" />
+                  value={h.despachoNumero} onChange={e => h.setDespachoNumero(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !h.saving) { e.preventDefault(); h.confirmFinalize(); } }}
+                  placeholder="Opcional" />
               </div>
               {h.error && <p className="text-[11px] text-red-600">{h.error}</p>}
             </div>

@@ -25,7 +25,7 @@ export interface AggRow {
 
 const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
 
-export const UnidadesAggregatedTable = ({ rows, onAjustar }: { rows: AggRow[]; onAjustar: (u: UnidadStock) => void }) => {
+export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover }: { rows: AggRow[]; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void }) => {
   const [sortField, setSortField] = useState<string>('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -45,7 +45,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar }: { rows: AggRow[]; o
   );
 
   return (
-    <div className="bg-white overflow-x-auto">
+    <div className="bg-white overflow-auto h-full">
       <table className="w-full">
         <thead className="sticky top-0 z-10">
           <tr className="bg-slate-50 border-b border-slate-200">
@@ -62,7 +62,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar }: { rows: AggRow[]; o
           {sorted.map(row => {
             const isOpen = expanded.has(row.articuloId);
             return (
-              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} />
+              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} />
             );
           })}
         </tbody>
@@ -71,7 +71,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar }: { rows: AggRow[]; o
   );
 };
 
-const FragmentRow = ({ row, isOpen, onToggle, onAjustar }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void }) => (
+const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void }) => (
   <>
     <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={onToggle}>
       <td className="px-2 text-center text-slate-400">
@@ -102,7 +102,7 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar }: { row: AggRow; isOpen
                   <th className="py-1.5 px-2 text-center">Condición</th>
                   <th className="py-1.5 px-2 text-center">Estado</th>
                   <th className="py-1.5 px-2 text-left">Ubicación</th>
-                  <th className="py-1.5 px-2 w-16" />
+                  <th className="py-1.5 px-2 w-24" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -121,7 +121,10 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar }: { row: AggRow; isOpen
                       {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
                       {u.ubicacion.referenciaNombre && <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>}
                     </td>
-                    <td className="px-2 py-1.5 text-center">
+                    <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                      {onMover && (u.estado === 'disponible') && (
+                        <button onClick={() => onMover(u)} className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
+                      )}
                       <button onClick={() => onAjustar(u)} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
                     </td>
                   </tr>

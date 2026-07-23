@@ -12,6 +12,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** Datos a precargar (modo "Copiar artículo"). El código NO se arrastra. */
+  preset?: ArticuloModalPreset;
+  /** Override del título (ej: "Copiar artículo"). */
+  title?: string;
+  /** Si es false, al guardar NO navega al detalle (queda en el listado). Default true. */
+  navigateOnCreate?: boolean;
 }
 
 const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
@@ -45,7 +51,9 @@ const emptyForm = {
   notas: '',
 };
 
-export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+type ArticuloModalPreset = Partial<typeof emptyForm>;
+
+export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated, preset, title, navigateOnCreate = true }) => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -58,6 +66,13 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
     if (!open) return;
     marcasService.getAll().then(setMarcas);
     proveedoresService.getAll().then(setProveedores);
+  }, [open]);
+
+  // Al abrir: form fresco (o precargado con el preset de "Copiar"). El código
+  // nunca se arrastra — queda vacío para forzar un número de parte nuevo.
+  useEffect(() => {
+    if (open) setForm(preset ? { ...emptyForm, ...preset, codigo: '' } : emptyForm);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -107,7 +122,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
       const newId = await articulosService.create(data);
       handleClose();
       onCreated();
-      navigate(`/stock/articulos/${newId}`);
+      if (navigateOnCreate) navigate(`/stock/articulos/${newId}`);
     } catch { alert('Error al crear el articulo'); }
     finally { setSaving(false); }
   };
@@ -133,7 +148,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo articulo" maxWidth="lg"
+    <Modal open={open} onClose={handleClose} title={title ?? 'Nuevo articulo'} maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
         <Button size="sm" onClick={handleSave} disabled={saving || !!codigoDupWarning}>

@@ -69,6 +69,8 @@ export interface InitOpts {
   lockArticulo?: { id: string; codigo: string; descripcion: string };
   /** Pre-fija y bloquea el destino. */
   lockDestino?: { tipo: TipoOrigenDestino; id: string; nombre: string };
+  /** Preselecciona el origen (no lo bloquea) — ej: "Mover" desde una ubicación concreta. */
+  initOrigen?: { tipo: TipoOrigenDestino; id: string; nombre: string };
 }
 
 interface FormState {
@@ -184,6 +186,26 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
     }
     return [];
   }, [slot.origen, unidades, proveedores]);
+
+  // Preselección del origen (corre cuando las opciones ya cargaron, así sobrevive
+  // al reset de tipo del mount):
+  //  1) `initOrigen` explícito → esa ubicación (ej: "Mover" desde un renglón).
+  //  2) si el artículo tiene stock en UNA sola ubicación → esa, automáticamente.
+  useEffect(() => {
+    if (slot.origen !== 'ubicacion_con_stock' || form.origenKey) return;
+    if (init.initOrigen) {
+      const key = `${init.initOrigen.tipo}:${init.initOrigen.id}`;
+      if (origenOptions.some(o => o.key === key)) {
+        setForm(prev => (prev.origenKey ? prev : { ...prev, origenKey: key }));
+        return;
+      }
+    }
+    if (origenOptions.length === 1) {
+      const only = origenOptions[0];
+      setForm(prev => (prev.origenKey ? prev : { ...prev, origenKey: only.key }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origenOptions, slot.origen, form.origenKey]);
 
   // ── Destino options + sugerencias históricas en gris ──
   const destinoOptions: UbicacionLocationOption[] = useMemo(() => {

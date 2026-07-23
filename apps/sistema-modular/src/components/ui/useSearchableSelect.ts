@@ -232,6 +232,16 @@ export function useSearchableSelect({
           e.preventDefault(); handleSelect(allOptions[highlightedIndex].value);
         }
         break;
+      default:
+        // Type-to-open: parado en el combobox (cerrado), tipear un caracter abre
+        // el dropdown y siembra la búsqueda — sin tener que clickear o ArrowDown
+        // antes (UAT: "tengo que poder escribir con solo pararme en el buscador").
+        if (!isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          setIsOpen(true);
+          setSearchTerm(e.key);
+          if (inputRef.current) inputRef.current.value = e.key;
+        }
+        break;
     }
   }, [disabled, isOpen, highlightedIndex, allOptions, createOption, handleSelect, handleTabNav]);
 

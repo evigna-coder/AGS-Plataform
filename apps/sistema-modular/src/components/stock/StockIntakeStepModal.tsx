@@ -78,6 +78,7 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
           <div>
             <label className={lbl}>Cantidad</label>
             <input ref={inputRef as any} type="number" min={1} className={ctrl} value={draft.cantidad}
+              onFocus={e => e.currentTarget.select()}
               onChange={e => onPatch({ cantidad: Number(e.target.value) || 0 })} onKeyDown={onKey} />
           </div>
         )}

@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { EquivalenciaDualDisplay } from '../../components/stock/EquivalenciaDualDisplay';
 import { DesagregarStockModal } from '../../components/stock/DesagregarStockModal';
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
+import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -47,6 +48,7 @@ export const ArticuloDetail = () => {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [cargarStock, setCargarStock] = useState(false);
+  const [showMover, setShowMover] = useState(false);
   const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
   const [dualRefreshKey, setDualRefreshKey] = useState(0);
 
@@ -152,7 +154,12 @@ export const ArticuloDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-4">
-            <Card compact title={`Unidades en stock (${unidades.length})`} actions={<Button size="sm" onClick={() => setCargarStock(true)}>+ Cargar stock</Button>}>
+            <Card compact title={`Unidades en stock (${unidades.length})`} actions={
+              <div className="flex gap-2">
+                {unidades.length > 0 && <Button size="sm" variant="outline" onClick={() => setShowMover(true)}>Mover</Button>}
+                <Button size="sm" onClick={() => setCargarStock(true)}>+ Cargar stock</Button>
+              </div>
+            }>
               {unidades.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-4">No hay unidades registradas para este articulo.</p>
               ) : (
@@ -195,6 +202,14 @@ export const ArticuloDetail = () => {
         onClose={() => setCargarStock(false)}
         onCreated={() => { setCargarStock(false); loadUnidades(); }}
         presetArticulo={articulo}
+      />
+      <CreateMovimientoModal
+        open={showMover}
+        onClose={() => setShowMover(false)}
+        onCreated={() => { setShowMover(false); loadUnidades(); }}
+        init={{ lockArticulo: { id: articulo.id, codigo: articulo.codigo, descripcion: articulo.descripcion } }}
+        title="Mover artículo a otro depósito"
+        subtitle="Transferencia de stock entre ubicaciones"
       />
     </div>
   );

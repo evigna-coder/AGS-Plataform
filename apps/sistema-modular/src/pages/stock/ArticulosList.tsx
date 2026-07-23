@@ -13,6 +13,7 @@ import { CreateArticuloModal } from '../../components/stock/CreateArticuloModal'
 import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
 import { ViewArticuloModal } from '../../components/stock/ViewArticuloModal';
 import { DesagregarStockModal } from '../../components/stock/DesagregarStockModal';
+import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { ArticulosListFilters } from './ArticulosListFilters';
 import { ArticulosListRow } from './ArticulosListRow';
 import { useEquivalenciaListExpansion } from './hooks/useEquivalenciaListExpansion';
@@ -93,6 +94,8 @@ export const ArticulosList = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
+  const [moverTarget, setMoverTarget] = useState<Articulo | null>(null);
+  const [copySource, setCopySource] = useState<Articulo | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
@@ -224,6 +227,8 @@ export const ArticulosList = () => {
                     onView={id => setViewId(id)}
                     onDeactivate={handleDeactivate}
                     onDelete={handleDelete}
+                    onMover={a => setMoverTarget(a)}
+                    onCopy={a => setCopySource(a)}
                     hasEquivalencia={hasEquivalencia(art)}
                     expandDual={shouldExpandRow(art)}
                     onDesagregar={a => setDesagregarTarget(a)}
@@ -236,10 +241,40 @@ export const ArticulosList = () => {
         )}
       </div>
 
-      <CreateArticuloModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <CreateArticuloModal
+        open={showCreate || !!copySource}
+        onClose={() => { setShowCreate(false); setCopySource(null); }}
+        onCreated={loadData}
+        navigateOnCreate={!copySource}
+        title={copySource ? 'Copiar artículo' : undefined}
+        preset={copySource ? {
+          descripcion: copySource.descripcion,
+          categoriaEquipo: copySource.categoriaEquipo,
+          marcaId: copySource.marcaId,
+          tipo: copySource.tipo,
+          unidadMedida: copySource.unidadMedida,
+          stockMinimo: copySource.stockMinimo,
+          precioReferencia: copySource.precioReferencia ?? null,
+          monedaPrecio: copySource.monedaPrecio ?? 'USD',
+          proveedorIds: copySource.proveedorIds ?? [],
+          posicionArancelaria: copySource.posicionArancelaria ?? '',
+          tratamiento: copySource.tratamientoArancelario ?? {},
+          requiereNumeroSerie: copySource.requiereNumeroSerie ?? false,
+          requiereNumeroLote: copySource.requiereNumeroLote ?? false,
+          notas: copySource.notas ?? '',
+        } : undefined}
+      />
       <EditArticuloModal open={!!editId} articuloId={editId} onClose={() => setEditId(null)} onSaved={loadData} />
       <ViewArticuloModal open={!!viewId} articuloId={viewId} onClose={() => setViewId(null)} onEdit={id => { setViewId(null); setEditId(id); }} />
       <DesagregarStockModal open={!!desagregarTarget} onClose={() => setDesagregarTarget(null)} articulo={desagregarTarget} onSuccess={() => {}} />
+      <CreateMovimientoModal
+        open={!!moverTarget}
+        onClose={() => setMoverTarget(null)}
+        onCreated={() => setMoverTarget(null)}
+        init={moverTarget ? { lockArticulo: { id: moverTarget.id, codigo: moverTarget.codigo, descripcion: moverTarget.descripcion } } : {}}
+        title="Mover artículo a otro depósito"
+        subtitle="Transferencia de stock entre ubicaciones"
+      />
     </div>
   );
 };

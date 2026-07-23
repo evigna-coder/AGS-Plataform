@@ -21,6 +21,10 @@ interface Props {
   onView: (id: string) => void;
   onDeactivate: (art: Articulo) => void;
   onDelete: (art: Articulo) => void;
+  /** Abre el modal de movimiento (transferencia) con este artículo prefijado. */
+  onMover?: (art: Articulo) => void;
+  /** Abre el modal de creación precargado con los datos de este artículo (sin código). */
+  onCopy?: (art: Articulo) => void;
   /** Phase 13 STKE-07 — true when this row has an equivalencia partner (either side). */
   hasEquivalencia?: boolean;
   /** Phase 13 STKE-07 — true when the search matches this row's linked pair. */
@@ -47,6 +51,8 @@ export function ArticulosListRow({
   onView,
   onDeactivate,
   onDelete,
+  onMover,
+  onCopy,
   hasEquivalencia = false,
   expandDual = false,
   onDesagregar,
@@ -109,6 +115,18 @@ export function ArticulosListRow({
               className="px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">
               Editar
             </button>
+            {onMover && (
+              <button onClick={() => onMover(art)}
+                className="px-2 py-1 text-[10px] font-medium text-teal-600 hover:bg-teal-50 rounded transition-colors">
+                Mover
+              </button>
+            )}
+            {onCopy && (
+              <button onClick={() => onCopy(art)}
+                className="px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                Copiar
+              </button>
+            )}
             {art.activo && (
               <button onClick={() => onDeactivate(art)}
                 className="px-2 py-1 text-[10px] font-medium text-slate-500 hover:bg-slate-100 rounded transition-colors">
