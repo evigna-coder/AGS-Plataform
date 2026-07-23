@@ -319,6 +319,8 @@ async function _registrarVentaInProd(
         articuloCodigo,
         articuloDescripcion,
         cantidad: 1,
+        nroSerie: loaner.serie ?? null,        // denormalizado para filtrar el log por serie
+        nroLote: null,
         origenTipo: 'baja',
         origenId: loaner.id,
         origenNombre: loaner.codigo,

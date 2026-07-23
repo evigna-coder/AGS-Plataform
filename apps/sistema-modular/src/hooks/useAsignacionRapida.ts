@@ -253,6 +253,7 @@ export function useAsignacionRapida() {
               tipo: 'egreso', unidadId: c.unidadId, articuloId: c.articuloId ?? '',
               articuloCodigo: c.codigo, articuloDescripcion: c.articuloDescripcion ?? '',
               cantidad: cantidadReal(c),
+              nroSerie: unidad?.nroSerie ?? null, nroLote: unidad?.nroLote ?? null,
               // 'transito' no es un TipoOrigenDestino válido; los asignables son
               // siempre unidades en posición (ver filtro availableUnits).
               origenTipo: origen && origen.tipo !== 'transito' ? origen.tipo : 'posicion',

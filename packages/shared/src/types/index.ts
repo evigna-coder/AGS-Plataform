@@ -2679,6 +2679,19 @@ export interface CertificadoIngeniero {
 
 export type TipoProveedor = 'nacional' | 'internacional';
 
+/**
+ * Contacto adicional de un proveedor. Un proveedor puede tener varios (ej. Ventas,
+ * Comercio exterior). Los campos legacy `contacto/email/telefono` en `Proveedor`
+ * siguen representando el contacto PRINCIPAL; `contactos[]` son los adicionales.
+ */
+export interface ContactoProveedor {
+  id: string;            // crypto.randomUUID()
+  nombre?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  rol?: string | null;   // ej: "Ventas", "Comercio exterior"
+}
+
 export interface Proveedor {
   id: string;
   nombre: string;
@@ -2686,9 +2699,13 @@ export interface Proveedor {
   // Prefijo de 3 letras para la numeración de OC de este proveedor (ej. 'JAS').
   // El número de OC resulta PREFIJO + 3 dígitos correlativos por proveedor (JAS027).
   codigoOC?: string | null;
+  // Contacto PRINCIPAL (backward-compat). Los contactos adicionales van en `contactos`.
   contacto?: string | null;
   email?: string | null;
   telefono?: string | null;
+  // Contactos adicionales (Ventas, Comercio exterior, etc.). Al enviar una OC se
+  // pueden elegir varios destinatarios entre el principal y estos.
+  contactos?: ContactoProveedor[];
   direccion?: string | null;
   pais?: string | null;
   cuit?: string | null;
@@ -3124,6 +3141,15 @@ export interface MovimientoStock {
   /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
   ordenCompraNumero?: string | null;
   despachoImportacionNumero?: string | null;
+  /**
+   * N° de serie / lote de la unidad, DESNORMALIZADOS en el movimiento al momento del write.
+   * Permiten buscar/filtrar el log de movimientos por serie/lote sin tener que leer la
+   * `unidades` asociada (que además puede ya no existir si se consumió/dio de baja).
+   * Solo los movimientos NUEVOS (y los que entren por migración) los traen; los
+   * históricos previos a esta denormalización quedan sin serie/lote (se ven como "—").
+   */
+  nroSerie?: string | null;
+  nroLote?: string | null;
   motivo?: string | null;
   creadoPor: string;
   createdAt: string;

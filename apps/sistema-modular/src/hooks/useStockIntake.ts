@@ -246,6 +246,7 @@ export function useStockIntake(
           destinoTipo: units[i].ubicacion.tipo as TipoOrigenDestino, destinoId: units[i].ubicacion.referenciaId, destinoNombre: units[i].ubicacion.referenciaNombre,
           remitoId: null, otNumber: null,
           ordenCompraNumero: oc, despachoImportacionNumero: desp,
+          nroSerie: units[i].nroSerie ?? null, nroLote: units[i].nroLote ?? null,
           motivo: 'Ingreso de stock', creadoPor,
         })));
       } catch (movErr) {

@@ -139,6 +139,8 @@ export function useIngresarStock() {
             articuloCodigo: rec.item.articuloCodigo ?? '',
             articuloDescripcion: rec.item.descripcion,
             cantidad: u.cantidad,
+            nroSerie: u.nroSerie ?? null,
+            nroLote: u.nroLote ?? null,
             origenTipo: 'proveedor' as const,
             origenId: imp.id,
             origenNombre: imp.proveedorNombre,

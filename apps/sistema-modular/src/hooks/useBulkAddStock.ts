@@ -167,6 +167,7 @@ export function useBulkAddStock(
           articuloCodigo: articulo.codigo,
           articuloDescripcion: articulo.descripcion,
           cantidad: items[i].cantidad ?? 1,
+          nroSerie: items[i].nroSerie ?? null, nroLote: items[i].nroLote ?? null,
           origenTipo: 'proveedor',
           origenId: prov?.id ?? '',
           origenNombre: prov?.nombre ?? 'Ingreso manual',

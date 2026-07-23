@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -7,27 +7,31 @@ import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
-import type { MovimientoStock, TipoMovimiento } from '@ags/shared';
+import { MovimientoDetailDrawer } from '../../components/stock/MovimientoDetailDrawer';
+import { MovimientosFilters } from './MovimientosFilters';
+import { MovimientosTable } from './MovimientosTable';
+import type { MovimientoStock } from '@ags/shared';
 
-const TIPO_LABELS: Record<TipoMovimiento, string> = {
-  ingreso: 'Ingreso', egreso: 'Egreso', transferencia: 'Transferencia',
-  consumo: 'Consumo', devolucion: 'Devolucion', ajuste: 'Ajuste',
+const formatDay = (d: Date) =>
+  d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+// input type=date → 'YYYY-MM-DD'. Parseamos a hora LOCAL (no UTC) para que el rango
+// coincida con lo que ve el usuario en AR: inicio del día y fin del día.
+const parseInicioDia = (s: string): Date | null => {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
-const TIPO_COLORS: Record<TipoMovimiento, string> = {
-  ingreso: 'bg-green-100 text-green-700', egreso: 'bg-red-100 text-red-700',
-  transferencia: 'bg-blue-100 text-blue-700', consumo: 'bg-amber-100 text-amber-700',
-  devolucion: 'bg-purple-100 text-purple-700', ajuste: 'bg-slate-100 text-slate-600',
+const parseFinDia = (s: string): Date | null => {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
 };
-
-const TIPOS: TipoMovimiento[] = ['ingreso', 'egreso', 'transferencia', 'consumo', 'devolucion', 'ajuste'];
-
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
 
 export const MovimientosPage = () => {
   const { pathname } = useLocation();
@@ -36,6 +40,8 @@ export const MovimientosPage = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
+    fechaDesde: { type: 'string' as const, default: '' },
+    fechaHasta: { type: 'string' as const, default: '' },
     sortField: { type: 'string' as const, default: 'createdAt' },
     sortDir:   { type: 'string' as const, default: 'desc' },
   }), []);
@@ -54,30 +60,85 @@ export const MovimientosPage = () => {
   useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
   const [showCreate, setShowCreate] = useState(false);
   const [showIngreso, setShowIngreso] = useState(false);
+  const [selected, setSelected] = useState<MovimientoStock | null>(null);
+
+  // Primer día del mes actual a las 00:00 (browser real → new Date() OK).
+  const inicioMes = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+  }, []);
+  // Cuando hay término de búsqueda cargamos TODO el historial; sin búsqueda, sólo el mes.
+  const hayBusqueda = debouncedSearch.trim().length > 0;
+
+  // Prioridad de suscripción (server-side `desde`, sin índice compuesto con `tipo`):
+  //  1) búsqueda → todo el historial ({}), para poder encontrar cualquier OC/serie vieja.
+  //  2) sin búsqueda pero con `fechaDesde` → desde esa fecha.
+  //  3) ni búsqueda ni fecha → default mes actual.
+  // `fechaHasta` (y `fechaDesde` cuando no manda la suscripción) se aplican client-side
+  // en `filtered`, así el rango es exacto sin pedir índices nuevos.
+  const desdeSub = useMemo<Date | null>(() => {
+    if (hayBusqueda) return null;
+    return parseInicioDia(filters.fechaDesde) ?? inicioMes;
+  }, [hayBusqueda, filters.fechaDesde, inicioMes]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     unsubRef.current?.();
-    const queryFilters: { tipo?: string } = {};
-    if (filters.tipo) queryFilters.tipo = filters.tipo;
+    setLoading(true);
+    // El filtro por tipo se aplica client-side (ver `filtered`): en modo `desde` no se
+    // combina con where('tipo') server-side para no requerir índice compuesto, y así
+    // cambiar de tipo tampoco fuerza re-suscribir.
+    const queryFilters = desdeSub ? { desde: desdeSub } : {};
     unsubRef.current = movimientosService.subscribe(
       queryFilters,
       (items) => { setItems(items); setLoading(false); },
       (err) => { console.error('Error cargando movimientos:', err); setLoading(false); }
     );
     return () => { unsubRef.current?.(); };
-  }, [filters.tipo]);
+  }, [desdeSub]);
 
   const load = useCallback(() => {}, []);
 
   const filtered = useMemo(() => {
     let list = items;
+    if (filters.tipo) {
+      list = list.filter(m => m.tipo === filters.tipo);
+    }
     if (debouncedSearch) {
-      list = list.filter(m => matchesSearch(debouncedSearch, m.articuloCodigo, m.articuloDescripcion));
+      list = list.filter(m => matchesSearch(
+        debouncedSearch,
+        m.articuloCodigo, m.articuloDescripcion,
+        m.ordenCompraNumero, m.despachoImportacionNumero, m.nroSerie, m.nroLote,
+      ));
+    }
+    // Rango de fecha SIEMPRE client-side, para que sea exacto aunque la suscripción haya
+    // traído de más (modo búsqueda = todo el historial) o de menos no aplica (siempre trae ≥ desde).
+    const desdeClient = parseInicioDia(filters.fechaDesde);
+    const hastaClient = parseFinDia(filters.fechaHasta);
+    if (desdeClient || hastaClient) {
+      const desdeMs = desdeClient?.getTime() ?? -Infinity;
+      const hastaMs = hastaClient?.getTime() ?? Infinity;
+      list = list.filter(m => {
+        const t = new Date(m.createdAt).getTime();
+        return t >= desdeMs && t <= hastaMs;
+      });
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [items, debouncedSearch, filters.sortField, filters.sortDir]);
+  }, [items, filters.tipo, debouncedSearch, filters.fechaDesde, filters.fechaHasta, filters.sortField, filters.sortDir]);
+
+  // Texto de contexto: refleja el modo activo (búsqueda / rango / mes por defecto).
+  const hint = useMemo(() => {
+    if (hayBusqueda) return 'Buscando en todo el historial.';
+    const desde = parseInicioDia(filters.fechaDesde);
+    const hasta = parseFinDia(filters.fechaHasta);
+    if (desde || hasta) {
+      const desdeTxt = desde ? formatDay(desde) : 'inicio';
+      const hastaTxt = hasta ? formatDay(hasta) : 'hoy';
+      return `Rango ${desdeTxt} — ${hastaTxt}.`;
+    }
+    return `Mostrando movimientos desde el ${formatDay(inicioMes)} — buscá o usá el rango para ver el resto del historial.`;
+  }, [hayBusqueda, filters.fechaDesde, filters.fechaHasta, inicioMes]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -92,27 +153,21 @@ export const MovimientosPage = () => {
           </div>
         }
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            value={filters.tipo}
-            onChange={e => setFilter('tipo', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="">Todos los tipos</option>
-            {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
-          </select>
-          <input
-            type="text"
-            placeholder="Buscar por codigo o descripcion..."
-            value={localSearch}
-            onChange={e => setLocalSearch(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-        </div>
+        <MovimientosFilters
+          tipo={filters.tipo}
+          onTipoChange={v => setFilter('tipo', v)}
+          localSearch={localSearch}
+          onSearchChange={setLocalSearch}
+          fechaDesde={filters.fechaDesde}
+          onFechaDesdeChange={v => setFilter('fechaDesde', v)}
+          fechaHasta={filters.fechaHasta}
+          onFechaHastaChange={v => setFilter('fechaHasta', v)}
+        />
       </PageHeader>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 pb-4">
+        <div className="py-2 text-[11px] text-slate-500">{hint}</div>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-slate-500">Cargando movimientos...</p>
@@ -124,55 +179,14 @@ export const MovimientosPage = () => {
             </div>
           </Card>
         ) : (
-          <div className="bg-white overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-left border-b border-slate-200 bg-slate-50">
-                  <SortableHeader label="Fecha" field="createdAt" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Codigo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Cant." field="cantidad" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center" />
-                  <SortableHeader label="Origen" field="origenNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Destino" field="destinoNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Motivo" field="motivo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <SortableHeader label="Usuario" field="creadoPor" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Ref.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(m => (
-                  <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-4 py-2 whitespace-nowrap text-slate-600">{formatDate(m.createdAt)}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[m.tipo]}`}>
-                        {TIPO_LABELS[m.tipo]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 font-mono text-slate-700">{m.articuloCodigo}</td>
-                    <td className="px-4 py-2 text-slate-700 max-w-[200px] truncate">{m.articuloDescripcion}</td>
-                    <td className="px-4 py-2 text-center tabular-nums font-medium">{m.cantidad}</td>
-                    <td className="px-4 py-2 text-slate-600">{m.origenTipo} — {m.origenNombre}</td>
-                    <td className="px-4 py-2 text-slate-600">{m.destinoTipo} — {m.destinoNombre}</td>
-                    <td className="px-4 py-2 text-slate-500 max-w-[150px] truncate">{m.motivo ?? '—'}</td>
-                    <td className="px-4 py-2 text-slate-500">{m.creadoPor}</td>
-                    <td className="px-4 py-2 space-x-2">
-                      {m.remitoId && (
-                        <Link to={`/stock/remitos/${m.remitoId}`} state={fromState} className="text-teal-600 hover:underline text-[10px] font-medium">
-                          Remito
-                        </Link>
-                      )}
-                      {m.otNumber && (
-                        <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} className="text-teal-600 hover:underline text-[10px] font-medium">
-                          OT
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <MovimientosTable
+            items={filtered}
+            sortField={filters.sortField}
+            sortDir={filters.sortDir as SortDir}
+            onSort={handleSort}
+            onSelect={setSelected}
+            fromState={fromState}
+          />
         )}
       </div>
 
@@ -183,6 +197,7 @@ export const MovimientosPage = () => {
         onRequestIngreso={() => { setShowCreate(false); setShowIngreso(true); }}
       />
       <StockIntakeModal open={showIngreso} onClose={() => setShowIngreso(false)} onCreated={() => setShowIngreso(false)} />
+      <MovimientoDetailDrawer open={selected !== null} movimiento={selected} onClose={() => setSelected(null)} />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
@@ -700,7 +700,7 @@ export const movimientosService = {
   },
 
   subscribe(
-    filters: { articuloId?: string; unidadId?: string; tipo?: string; remitoId?: string; otNumber?: string } | undefined,
+    filters: { articuloId?: string; unidadId?: string; tipo?: string; remitoId?: string; otNumber?: string; desde?: Date } | undefined,
     callback: (items: MovimientoStock[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
@@ -719,6 +719,13 @@ export const movimientosService = {
     }
     if (filters?.otNumber) {
       q = query(q, where('otNumber', '==', filters.otNumber));
+    }
+    // Filtro por fecha (default de MovimientosPage = mes actual). El rango `>=` sobre
+    // `createdAt` requiere un orderBy sobre el mismo campo. Deliberadamente NO se combina
+    // con `where('tipo')` para no necesitar un índice compuesto: el caller que usa `desde`
+    // filtra por tipo client-side.
+    if (filters?.desde) {
+      q = query(q, where('createdAt', '>=', Timestamp.fromDate(filters.desde)), orderBy('createdAt', 'desc'));
     }
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => ({
@@ -1173,6 +1180,26 @@ export const reservasService = {
   },
 
   /**
+   * Reservas vivas (estado 'reservado') de un artículo para un cliente dado. Usado por
+   * la conciliación "saldar contra minikit": cuando el ingeniero instaló una parte de su
+   * kit, la unidad reservada en estante para ese mismo cliente+artículo es la que debe
+   * reponer el kit. Match por cliente+artículo (decisión UAT 2026-07-23).
+   */
+  async getReservadasByClienteArticulo(clienteId: string, articuloId: string): Promise<UnidadStock[]> {
+    if (!clienteId || !articuloId) return [];
+    const q = query(
+      collection(db, 'unidades'),
+      where('reservadoParaClienteId', '==', clienteId),
+      where('articuloId', '==', articuloId),
+      where('estado', '==', 'reservado'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as UnidadStock))
+      .filter(u => u.activo !== false);
+  },
+
+  /**
    * Reserves a specific UnidadStock for a presupuesto.
    * Physically moves the unit to the RESERVAS position and sets estado='reservado'.
    * Creates an immutable MovimientoStock of type 'transferencia'.
@@ -1335,8 +1362,13 @@ export const reservasService = {
       } catch { /* nombre vacío — la reserva vale igual */ }
     }
 
+    // Solo estante libre: excluir stock en poder de ingenieros Y el que está dentro de
+    // minikits (ubicación 'minikit', estado 'disponible'). Ese stock está comprometido en
+    // el kit del ingeniero — moverlo a RESERVAS lo sacaría del minikit en los papeles sin
+    // que salga físicamente. La baja de esas partes se concilia en el consumo del kit
+    // (reservasService.saldarConsumoMinikit). UAT 2026-07-23.
     const disponibles = (await unidadesService.getAll({ articuloId: params.articuloId, estado: 'disponible' }))
-      .filter(u => u.ubicacion?.tipo !== 'ingeniero');
+      .filter(u => u.ubicacion?.tipo !== 'ingeniero' && u.ubicacion?.tipo !== 'minikit');
     let reservadas = 0;
     for (const u of disponibles) {
       if (pendiente <= 0) break;
@@ -1627,6 +1659,62 @@ export const reservasService = {
       }
     }
     return { entregadas };
+  },
+
+  /**
+   * Concilia el caso "la parte presupuestada salió del minikit" (UAT 2026-07-23):
+   * cuando el ingeniero instala una parte de su kit, la unidad reservada en estante no
+   * es la que se usa — es la que REPONE el kit. Netea a −1 sin dejar unidades fantasma:
+   *
+   *  1. Consume la unidad del kit (`unidadKit`, disponible en ubicación minikit) → egreso
+   *     atado a la OT/cliente. Es la baja real (−1 del ATP).
+   *  2. Si se pasa `reservaUnidadId`, la unidad reservada (RESERVAS) se libera CON destino
+   *     el minikit → entra al kit como disponible y se cierran los `reservadoPara*`. Es una
+   *     relocación (0 neto), no un segundo egreso: al dejar de estar 'reservado', el cierre
+   *     de la OT ya no la entrega (sin doble descuento).
+   *
+   * Orden deliberado: primero el consumo (la baja importante). Si el paso 2 falla, el kit
+   * queda corto pero la contabilidad es correcta — se repone a mano. Devuelve qué pasó.
+   */
+  async saldarConsumoMinikit(params: {
+    unidadKit: UnidadStock;
+    minikitId: string;
+    minikitNombre: string;
+    otNumber?: string | null;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
+    reservaUnidad?: UnidadStock | null;
+    solicitadoPorNombre: string;
+  }): Promise<{ consumida: boolean; reservaSaldada: boolean; error?: string }> {
+    const ot = params.otNumber || '';
+    await this.deducirUnidadDisponible({
+      unidad: params.unidadKit,
+      aDeducir: params.unidadKit.cantidad ?? 1,
+      otNumber: ot,
+      clienteId: params.clienteId ?? null,
+      clienteNombre: params.clienteNombre ?? null,
+      motivo: ot
+        ? `Consumo de minikit ${params.minikitNombre} en OT ${ot}`
+        : `Consumo de minikit ${params.minikitNombre}`,
+      solicitadoPorNombre: params.solicitadoPorNombre,
+    });
+
+    if (!params.reservaUnidad) return { consumida: true, reservaSaldada: false };
+
+    try {
+      await this.liberar({
+        unidadId: params.reservaUnidad.id,
+        unidad: params.reservaUnidad,
+        motivo: `Saldo de reserva ${params.reservaUnidad.reservadoParaPresupuestoNumero ?? ''} — repone minikit ${params.minikitNombre} tras consumo${ot ? ` (OT ${ot})` : ''}`.trim(),
+        solicitadoPorNombre: params.solicitadoPorNombre,
+        destino: { tipo: 'minikit', referenciaId: params.minikitId, referenciaNombre: params.minikitNombre },
+      });
+      return { consumida: true, reservaSaldada: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'No se pudo saldar la reserva';
+      console.error('[saldarConsumoMinikit] consumo OK pero reserva no saldada:', err);
+      return { consumida: true, reservaSaldada: false, error: msg };
+    }
   },
 
   /**

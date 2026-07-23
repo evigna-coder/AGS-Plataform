@@ -16,6 +16,7 @@ interface UnidadRow {
   codigoArticulo: string;
   cantidad: number;
   nroSerie: string;
+  nroLote: string;
 }
 
 export interface UnidadesParsedData {
@@ -25,7 +26,12 @@ export interface UnidadesParsedData {
 export interface UnidadesMigrationSummary {
   filas: number;
   unidadesACrear: number;
+  /** Documentos de unidad creados (serie → 1 c/u; granel/lote → 1 doc con cantidad N). */
   unidadesCreadas: number;
+  /** Unidades físicas representadas (suma de cantidades). */
+  unidadesFisicas: number;
+  /** Movimientos de 'ingreso' creados (uno por doc de unidad — invariante del circuito). */
+  movimientosCreados: number;
   filasBloqueadas: number;
   filasSinAsignar: number;
   filasWipeadas: number;
@@ -58,6 +64,7 @@ function parseUnidades(rows: Record<string, unknown>[]): UnidadRow[] {
     codigoArticulo: str(r['Código Artículo'] ?? r['Codigo Articulo'] ?? r['CodigoArticulo'] ?? r['codigoArticulo']),
     cantidad: num(r['Cantidad'] ?? r['cantidad'] ?? r['CANTIDAD']),
     nroSerie: str(r['Nro. Serie'] ?? r['Nro Serie'] ?? r['NroSerie'] ?? r['nroSerie'] ?? r['Numero Serie']),
+    nroLote: str(r['Nro. Lote'] ?? r['Nro Lote'] ?? r['NroLote'] ?? r['nroLote'] ?? r['Lote'] ?? r['LOTE']),
   }));
 }
 
@@ -183,9 +190,9 @@ async function wipePreviousBatch(
   const snap = await getDocs(q);
   if (snap.empty) {
     onProgress('No hay unidades previas con ese tag');
-    return 0;
+  } else {
+    onProgress(`Eliminando ${snap.size} unidades previas...`);
   }
-  onProgress(`Eliminando ${snap.size} unidades previas...`);
   const BATCH_LIMIT = 400;
   let batch = writeBatch(db);
   let count = 0;
@@ -201,7 +208,35 @@ async function wipePreviousBatch(
     }
   }
   if (count > 0) await batch.commit();
-  onProgress(`${deleted} unidades previas eliminadas`);
+  if (deleted > 0) onProgress(`${deleted} unidades previas eliminadas`);
+
+  // Movimientos 'ingreso' de la tanda previa: también se limpian para que la
+  // re-corrida no duplique el log. OJO: con las rules movimientosStock
+  // create-only DEPLOYADAS este delete falla — la re-tanda con wipe debe
+  // hacerse ANTES del deploy de rules (o aceptar los movimientos huérfanos).
+  try {
+    const qMov = query(collection(db, 'movimientosStock'), where('creadoPor', '==', createdBy));
+    const snapMov = await getDocs(qMov);
+    if (!snapMov.empty) {
+      onProgress(`Eliminando ${snapMov.size} movimientos de la tanda previa...`);
+      let batchMov = writeBatch(db);
+      let countMov = 0;
+      for (const d of snapMov.docs) {
+        batchMov.delete(d.ref);
+        countMov++;
+        if (countMov >= BATCH_LIMIT) {
+          await batchMov.commit();
+          batchMov = writeBatch(db);
+          countMov = 0;
+        }
+      }
+      if (countMov > 0) await batchMov.commit();
+      onProgress(`${snapMov.size} movimientos previos eliminados`);
+    }
+  } catch (err) {
+    onProgress(`⚠ No se pudieron eliminar los movimientos de la tanda previa (¿rules create-only ya deployadas?): ${err instanceof Error ? err.message : err}`);
+    onProgress('⚠ Los movimientos de ingreso de la tanda anterior quedan huérfanos en el log.');
+  }
   return deleted;
 }
 
@@ -215,6 +250,8 @@ async function writeUnidades(
     filas: rows.length,
     unidadesACrear: 0,
     unidadesCreadas: 0,
+    unidadesFisicas: 0,
+    movimientosCreados: 0,
     filasBloqueadas: 0,
     filasSinAsignar: 0,
     filasWipeadas: 0,
@@ -239,9 +276,10 @@ async function writeUnidades(
   const now = Timestamp.now();
   let batch = writeBatch(db);
   let batchCount = 0;
-  const BATCH_LIMIT = 400;
+  // 2 docs por alta (unidad + movimiento de ingreso) → 200 altas por batch < límite 500.
+  const BATCH_LIMIT = 200;
 
-  onProgress('Creando unidades...');
+  onProgress('Creando unidades + movimientos de ingreso...');
   for (const r of rows) {
     if (!r.codigoArticulo) { summary.filasBloqueadas++; continue; }
     const articulo = articulosByCodigo.get(r.codigoArticulo.toLowerCase());
@@ -253,45 +291,79 @@ async function writeUnidades(
     const ubicacion = ubicacionRef || sinAsignar;
     if (!ubicacionRef) summary.filasSinAsignar++;
 
-    const unidadesDeFila = r.nroSerie ? 1 : r.cantidad;
-    summary.unidadesACrear += unidadesDeFila;
+    // Modelo actual de existencias (auditoría I7, lotes por cantidad):
+    // serie → un doc con cantidad 1; granel/lote → UN doc con cantidad N
+    // (antes se creaban N docs sueltos, inconsistente con el circuito).
+    const cantidadDoc = r.nroSerie ? 1 : r.cantidad;
+    summary.unidadesACrear += 1;
+    summary.unidadesFisicas += cantidadDoc;
 
-    for (let i = 0; i < unidadesDeFila; i++) {
-      const id = crypto.randomUUID();
-      batch.set(doc(db, 'unidades', id), {
-        id,
-        articuloId: articulo.id,
-        articuloCodigo: articulo.codigo,
-        articuloDescripcion: articulo.descripcion,
-        nroSerie: r.nroSerie || null,
-        nroLote: null,
-        condicion: 'nuevo',
-        estado: 'disponible',
-        ubicacion: {
-          tipo: 'posicion',
-          referenciaId: ubicacion.id,
-          referenciaNombre: ubicacion.nombre,
-        },
-        costoUnitario: null,
-        monedaCosto: null,
-        observaciones: null,
-        activo: true,
-        createdAt: now,
-        updatedAt: now,
-        createdBy,
-      });
-      summary.unidadesCreadas++;
-      batchCount++;
-      if (batchCount >= BATCH_LIMIT) {
-        await batch.commit();
-        onProgress(`${summary.unidadesCreadas} unidades creadas...`);
-        batch = writeBatch(db);
-        batchCount = 0;
-      }
+    const id = crypto.randomUUID();
+    batch.set(doc(db, 'unidades', id), {
+      id,
+      articuloId: articulo.id,
+      articuloCodigo: articulo.codigo,
+      articuloDescripcion: articulo.descripcion,
+      nroSerie: r.nroSerie || null,
+      nroLote: r.nroLote || null,
+      cantidad: cantidadDoc,
+      condicion: 'nuevo',
+      estado: 'disponible',
+      ubicacion: {
+        tipo: 'posicion',
+        referenciaId: ubicacion.id,
+        referenciaNombre: ubicacion.nombre,
+      },
+      costoUnitario: null,
+      monedaCosto: null,
+      ordenCompraNumero: null,
+      despachoImportacionNumero: null,
+      observaciones: null,
+      activo: true,
+      createdAt: now,
+      updatedAt: now,
+      createdBy,
+    });
+    summary.unidadesCreadas++;
+
+    // Invariante del circuito (auditoría pre-go-live): toda existencia nace con
+    // su MovimientoStock de ingreso. Sin esto el stock migrado arranca sin log.
+    const movId = crypto.randomUUID();
+    batch.set(doc(db, 'movimientosStock', movId), {
+      id: movId,
+      tipo: 'ingreso',
+      unidadId: id,
+      articuloId: articulo.id,
+      articuloCodigo: articulo.codigo,
+      articuloDescripcion: articulo.descripcion,
+      cantidad: cantidadDoc,
+      // Denormalizado para poder filtrar el log por serie/lote (igual que en la unidad).
+      nroSerie: r.nroSerie || null,
+      nroLote: r.nroLote || null,
+      origenTipo: 'ajuste',
+      origenId: '',
+      origenNombre: 'Migración sistema anterior',
+      destinoTipo: 'posicion',
+      destinoId: ubicacion.id,
+      destinoNombre: ubicacion.nombre,
+      remitoId: null,
+      otNumber: null,
+      motivo: `Carga inicial de stock — migración sistema anterior (tanda ${tag})`,
+      creadoPor: createdBy,
+      createdAt: now,
+    });
+    summary.movimientosCreados++;
+
+    batchCount += 2;
+    if (batchCount >= BATCH_LIMIT * 2) {
+      await batch.commit();
+      onProgress(`${summary.unidadesCreadas} docs de unidad creados (${summary.unidadesFisicas} unidades físicas)...`);
+      batch = writeBatch(db);
+      batchCount = 0;
     }
   }
   if (batchCount > 0) await batch.commit();
-  onProgress(`Migración completada: ${summary.unidadesCreadas} unidades creadas`);
+  onProgress(`Migración completada: ${summary.unidadesCreadas} docs de unidad (${summary.unidadesFisicas} unidades físicas) + ${summary.movimientosCreados} movimientos de ingreso`);
 
   return summary;
 }
@@ -348,7 +420,7 @@ export function useStockUnidadesMigration() {
 
       if (errs.length > 0) addLog(`${errs.length} error(es) bloqueante(s)`);
       if (warns.length > 0) addLog(`${warns.length} advertencia(s) — ${filasSinAsignar} fila(s) irán a SIN_ASIGNAR`);
-      addLog(`${unidadesACrear} unidades se crearán (filas válidas: ${unidades.length - errs.length})`);
+      addLog(`${unidadesACrear} unidades físicas a migrar (filas válidas: ${unidades.length - errs.length}; un doc por fila + su movimiento de ingreso)`);
       if (errs.length === 0) addLog('Validación exitosa — listo para importar');
 
       setStep('validated');

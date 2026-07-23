@@ -9,6 +9,7 @@ import { MinikitVerificacionCard } from '../../components/stock/MinikitVerificac
 import { MinikitRequeridosCard } from '../../components/stock/MinikitRequeridosCard';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitModal';
+import { ConsumirUnidadMinikitModal } from '../../components/stock/ConsumirUnidadMinikitModal';
 import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -56,10 +57,15 @@ export const MinikitDetail = () => {
   const [showRequeridosEditor, setShowRequeridosEditor] = useState(false);
   const [showDuplicate, setShowDuplicate] = useState(false);
   const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem; deficit: number } | null>(null);
+  const [consumirUnidad, setConsumirUnidad] = useState<UnidadStock | null>(null);
 
   const loadRelated = useCallback(async (mk: Minikit) => {
     const allUnidades = await unidadesService.getAll({ activoOnly: true });
-    setUnidades(allUnidades.filter(u => u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === mk.id));
+    // Solo unidades FÍSICAMENTE presentes en el kit (estado 'disponible'). Al consumir una
+    // parte queda 'entregado' y debe salir del contenido para que la verificación calcule
+    // bien el déficit y no la cuente como presente.
+    setUnidades(allUnidades.filter(u =>
+      u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === mk.id && u.estado === 'disponible'));
   }, []);
 
   useEffect(() => {
@@ -235,6 +241,7 @@ export const MinikitDetail = () => {
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Condicion</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Serie</th>
+                        {canVerify && <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center" />}
                       </tr>
                     </thead>
                     <tbody>
@@ -245,6 +252,12 @@ export const MinikitDetail = () => {
                           <td className="text-xs py-2 pr-3"><Badge label={CONDICION_LABELS[u.condicion]} color={CONDICION_COLORS[u.condicion]} /></td>
                           <td className="text-xs py-2 pr-3"><Badge label={u.estado.replace('_', ' ')} color={ESTADO_UNIDAD_COLORS[u.estado] ?? 'bg-slate-100 text-slate-500'} /></td>
                           <td className="text-xs py-2 text-slate-400">{u.nroSerie ? `S/N: ${u.nroSerie}` : '--'}</td>
+                          {canVerify && (
+                            <td className="text-xs py-2 text-center">
+                              <button onClick={() => setConsumirUnidad(u)}
+                                className="text-[11px] font-medium text-teal-600 hover:text-teal-800 whitespace-nowrap">Consumir</button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -315,6 +328,20 @@ export const MinikitDetail = () => {
           onClose={() => setReponerFor(null)}
           onCreated={async () => {
             setReponerFor(null);
+            if (minikit) await loadRelated(minikit);
+          }}
+        />
+      )}
+
+      {consumirUnidad && minikit && (
+        <ConsumirUnidadMinikitModal
+          minikit={{ id: minikit.id, codigo: minikit.codigo, nombre: minikit.nombre }}
+          unidad={consumirUnidad}
+          onClose={() => setConsumirUnidad(null)}
+          onDone={async (res) => {
+            setConsumirUnidad(null);
+            if (res.error) alert(`Unidad consumida, pero la reserva no se pudo saldar: ${res.error}. Reponé el kit a mano.`);
+            else if (res.reservaSaldada) alert('Unidad consumida y reserva saldada — el kit quedó repuesto con la unidad reservada.');
             if (minikit) await loadRelated(minikit);
           }}
         />

@@ -1195,13 +1195,23 @@ export const presupuestosService = {
           const unidadesRaw = await unidadesService
             .getAll({ articuloId: item.stockArticuloId!, estado: 'disponible' })
             .catch(() => []);
-          // Excluir las unidades en poder de ingenieros (minikits en campo): ese stock se
-          // consume en terreno y no debe reservarse centralmente (moverlo a RESERVAS lo
-          // sacaría del minikit). La baja real de esas partes se da en el cierre de la OT.
-          const unidades = unidadesRaw.filter(u => u.ubicacion?.tipo !== 'ingeniero');
-          // Cantidad FÍSICA disponible: sumar u.cantidad (un doc puede ser un lote
-          // con cantidad > 1). Contar docs (.length) sobre-contaba/sobre-reservaba.
-          const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+          // Reservables = SOLO estante libre. Se excluye el stock en poder de ingenieros y
+          // el que está dentro de minikits: esas partes están comprometidas en el kit y
+          // moverlas a RESERVAS las sacaría del minikit en los papeles sin salida física.
+          // Su baja se concilia al consumir el kit (reservasService.saldarConsumoMinikit).
+          // UAT 2026-07-23 (antes el comentario decía que excluía minikits pero el filtro no).
+          const unidades = unidadesRaw.filter(u => u.ubicacion?.tipo !== 'ingeniero' && u.ubicacion?.tipo !== 'minikit');
+          // Float de kits: stock disponible del artículo que vive dentro de minikits. Cuenta
+          // como COBERTURA (comportamiento A): si el estante no alcanza pero el kit sí, no es
+          // faltante de compra — el ingeniero ya lo lleva. Se repone el kit al consumirlo.
+          const qtyEnKits = unidadesRaw
+            .filter(u => u.ubicacion?.tipo === 'minikit')
+            .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+          // Cantidad FÍSICA disponible (para el chequeo de stock mínimo): estante + kits.
+          // Sumar u.cantidad (un doc puede ser un lote con cantidad > 1); contar docs
+          // sobre-contaba/sobre-reservaba.
+          const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0)
+            + qtyEnKits;
           const stockMinimo = articulo?.stockMinimo ?? 0;
           const qtyResultante = qtyDisponible - item.cantidad;
 
@@ -1276,14 +1286,20 @@ export const presupuestosService = {
           }
 
           const reservado = item.cantidad - restante;
-          faltanteReservaTotal += restante;
-          if (reservado > 0) {
+          // Lo que el estante no reservó puede estar cubierto por el float de kits
+          // (comportamiento A): eso NO es faltante de compra, se consume del kit en terreno.
+          const cubiertoPorKit = Math.min(restante, qtyEnKits);
+          const faltanteReal = restante - cubiertoPorKit;
+          faltanteReservaTotal += faltanteReal;
+          if (reservado > 0 || cubiertoPorKit > 0) {
             const codigo = articulo?.codigo ?? '—';
             const desc = articulo?.descripcion ?? item.descripcion ?? '';
-            const faltante = item.cantidad - reservado;
-            reservasResumen.push(
-              `• ${codigo} ${desc} — ${reservado}/${item.cantidad} u.${faltante > 0 ? ` (faltan ${faltante}, en compra)` : ''}`,
-            );
+            const detalle = [
+              reservado > 0 ? `${reservado} reservada${reservado !== 1 ? 's' : ''}` : null,
+              cubiertoPorKit > 0 ? `${cubiertoPorKit} en minikit` : null,
+              faltanteReal > 0 ? `${faltanteReal} en compra` : null,
+            ].filter(Boolean).join(', ');
+            reservasResumen.push(`• ${codigo} ${desc} — ${item.cantidad} u. (${detalle})`);
           }
         } catch (itemErr) {
           console.error(`[aceptarConRequerimientos] item ${item.stockArticuloId} falló:`, itemErr);
