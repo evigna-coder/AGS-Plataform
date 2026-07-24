@@ -153,6 +153,18 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
                   <option value="EUR">EUR</option>
                 </select>
               </div>
+              {!oc && (
+                <div>
+                  <label className={lbl}>Numero de OC</label>
+                  <div className="flex items-stretch gap-1">
+                    <span className="inline-flex items-center text-xs font-mono text-slate-500 bg-slate-100 border border-slate-200 rounded-lg px-2">{h.prefijoOC}</span>
+                    <input value={h.numeroManual} onChange={e => h.setNumeroManual(e.target.value)}
+                      disabled={!h.proveedorId} placeholder="vacio = automatico"
+                      className={`${selectClass} flex-1 disabled:bg-slate-50`} />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Vacio = numeracion automatica.</p>
+                </div>
+              )}
               <Input inputSize="sm" label="Proforma N." value={h.proformaNumero} onChange={e => h.setProformaNumero(e.target.value)} />
               <Input inputSize="sm" label="Fecha proforma" type="date" value={h.fechaProforma} onChange={e => h.setFechaProforma(e.target.value)} />
               <Input inputSize="sm" label="Fecha entrega estimada" type="date" value={h.fechaEntregaEstimada} onChange={e => h.setFechaEntregaEstimada(e.target.value)} />

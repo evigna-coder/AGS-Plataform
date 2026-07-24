@@ -26,6 +26,12 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
   const [fechaEntregaEstimada, setFechaEntregaEstimada] = useState('');
   const [notas, setNotas] = useState('');
   const [items, setItems] = useState<ItemOC[]>([]);
+  // Numeración manual (interina, hasta habilitar el correlativo automático por proveedor).
+  // El prefijo (codigoOC del proveedor) es fijo; el usuario carga el número/sufijo. Solo aplica
+  // a OC nueva — no se reasignan números de OC ya emitidas.
+  const [numeroManual, setNumeroManual] = useState('');
+
+  const prefijoOC = ((proveedores.find(p => p.id === proveedorId)?.codigoOC) || 'OC').toUpperCase();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,7 +56,7 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
       } else {
         setOc(null); setTipo('nacional'); setProveedorId(''); setProveedorNombre('');
         setMoneda('USD'); setProformaNumero(''); setFechaProforma(''); setCondicionesPago(''); setIncoterm('');
-        setFechaEntregaEstimada(''); setNotas(''); setItems([]); setImportaciones([]);
+        setFechaEntregaEstimada(''); setNotas(''); setItems([]); setImportaciones([]); setNumeroManual('');
         if (prefill) {
           if (prefill.proveedorId) {
             const prov = provData.find(p => p.id === prefill.proveedorId);
@@ -114,8 +120,17 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
   const save = useCallback(async (): Promise<string | null> => {
     if (!proveedorId) { alert('Seleccione un proveedor'); return null; }
     if (items.length === 0) { alert('Agregue al menos un item'); return null; }
+    // Número manual solo para OC nueva. Vacío → el service asigna el correlativo (comportamiento actual).
+    const numeroFinal = (!isEdit && numeroManual.trim()) ? `${prefijoOC}${numeroManual.trim()}` : undefined;
     setSaving(true);
     try {
+      if (numeroFinal) {
+        const existentes = await ordenesCompraService.getAll();
+        if (existentes.some(o => (o.numero || '').toUpperCase() === numeroFinal.toUpperCase())) {
+          alert(`Ya existe una orden de compra con el número ${numeroFinal}.`);
+          return null;
+        }
+      }
       const esNacional = tipo === 'nacional';
       const subtotal = items.reduce((s, i) => s + i.cantidad * (i.precioUnitario || 0), 0);
       const impuestos = esNacional
@@ -136,7 +151,7 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
         archivoUrl: null, archivoNombre: null,
       };
       if (isEdit && ocId) { await ordenesCompraService.update(ocId, payload); return ocId; }
-      return await ordenesCompraService.create(payload);
+      return await ordenesCompraService.create(numeroFinal ? { ...payload, numero: numeroFinal } : payload);
     } catch (err) {
       console.error('Error guardando OC:', err);
       alert('Error al guardar la orden de compra');
@@ -145,11 +160,12 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
       setSaving(false);
     }
   }, [tipo, proveedorId, proveedorNombre, moneda, items, proformaNumero, fechaProforma,
-      condicionesPago, incoterm, fechaEntregaEstimada, notas, oc, ocId, isEdit]);
+      condicionesPago, incoterm, fechaEntregaEstimada, notas, oc, ocId, isEdit, numeroManual, prefijoOC]);
 
   return {
     loading, saving, proveedores, oc, importaciones,
     tipo, setTipo, proveedorId, handleProveedorChange, moneda, setMoneda,
+    numeroManual, setNumeroManual, prefijoOC,
     proformaNumero, setProformaNumero, fechaProforma, setFechaProforma,
     condicionesPago, setCondicionesPago, incoterm, setIncoterm, fechaEntregaEstimada, setFechaEntregaEstimada,
     notas, setNotas, items, addItem, pushItem, updateItem, removeItem, calcTotal,
