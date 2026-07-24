@@ -71,8 +71,8 @@ export function MovimientosTable({ items, sortField, sortDir, onSort, onSelect, 
               <td className="px-4 py-2 font-mono text-slate-600 whitespace-nowrap">{m.ordenCompraNumero ?? '—'}</td>
               <td className="px-4 py-2 font-mono text-slate-600 whitespace-nowrap">{m.despachoImportacionNumero ?? '—'}</td>
               <td className="px-4 py-2 text-center tabular-nums font-medium">{m.cantidad}</td>
-              <td className="px-4 py-2 text-slate-600">{m.origenTipo} — {m.origenNombre}</td>
-              <td className="px-4 py-2 text-slate-600">{m.destinoTipo} — {m.destinoNombre}</td>
+              <td className="px-4 py-2 text-slate-600">{m.origenNombre || '—'}</td>
+              <td className="px-4 py-2 text-slate-600">{m.destinoNombre || '—'}</td>
               <td className="px-4 py-2 text-slate-500 max-w-[150px] truncate">{m.motivo ?? '—'}</td>
               <td className="px-4 py-2 text-slate-500">{m.creadoPor}</td>
               <td className="px-4 py-2 space-x-2">
@@ -82,8 +82,8 @@ export function MovimientosTable({ items, sortField, sortDir, onSort, onSelect, 
                   </Link>
                 )}
                 {m.otNumber && (
-                  <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} onClick={e => e.stopPropagation()} className="text-teal-600 hover:underline text-[10px] font-medium">
-                    OT
+                  <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} onClick={e => e.stopPropagation()} className="text-teal-600 hover:underline text-[10px] font-medium font-mono whitespace-nowrap">
+                    OT {m.otNumber}
                   </Link>
                 )}
               </td>
