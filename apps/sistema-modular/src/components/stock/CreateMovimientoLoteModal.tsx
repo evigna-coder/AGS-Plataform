@@ -67,13 +67,6 @@ export const CreateMovimientoLoteModal: React.FC<Props> = ({ open, onClose, onCr
           </div>
         </div>
 
-        <div>
-          <label className={lbl}>Origen *</label>
-          <SearchableSelect value={h.origenKey} onChange={h.setOrigenKey}
-            options={h.locationOptions.map(o => ({ value: o.key, label: o.nombre }))}
-            placeholder="¿Desde qué ubicación salen los artículos?" />
-        </div>
-
         <hr className="border-slate-100" />
 
         <MovimientoLoteLineas h={h} />
