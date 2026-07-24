@@ -1,0 +1,1 @@
+export { ControlFacturasList } from './ControlFacturasList';
