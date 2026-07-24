@@ -170,6 +170,9 @@ service cloud.firestore {
     // Agenda
     match /agendaEntries/{entryId}                { allow read, write: if esStaff(); }
     match /agendaNotas/{notaId}                   { allow read, write: if esStaff(); }
+    // Previsiones = reservas del año siguiente para servicios regulatorios anuales
+    // (OTs sin abrir). Mismo perfil de acceso que la agenda.
+    match /agendaPrevisiones/{previsionId}        { allow read, write: if esStaff(); }
 
     // Workflow / OTs / facturación
     match /pendientes/{pendienteId}               { allow read, write: if esStaff(); }
@@ -183,6 +186,8 @@ service cloud.firestore {
     match /contratos/{contratoId}                  { allow read, write: if esStaff(); }
     match /solicitudesFacturacion/{solicitudId}    { allow read, write: if esStaff(); }
     match /ordenesCompraCliente/{ocId}             { allow read, write: if esStaff(); }
+    // Control de facturas (cuentas a pagar): staff completo. Counter en /_counters/facturas.
+    match /facturas/{facturaId}                    { allow read, write: if esStaff(); }
 
     // Counters atómicos (OT number, contrato number, etc.)
     match /_counters/{counterId}                   { allow read, write: if esStaff(); }
