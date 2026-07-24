@@ -56,7 +56,11 @@ export const OT_TRANSICIONES_VALIDAS: Record<OTEstadoAdmin, OTEstadoAdmin[]> = {
   EN_CURSO: ['COORDINADA', 'CIERRE_TECNICO'],
   CIERRE_TECNICO: ['EN_CURSO', 'CIERRE_ADMINISTRATIVO'],
   CIERRE_ADMINISTRATIVO: ['FINALIZADO'],
-  FINALIZADO: [],
+  // Reabrir: FINALIZADO → CIERRE_ADMINISTRATIVO. Antes era terminal ([]) pero el botón
+  // "Reabrir OT" lo ofrecía igual y tiraba "transición inválida". Reabrir permite corregir
+  // el cierre (ej. materiales/stock que quedaron sin descontar). El re-finalizar re-corre la
+  // deducción, que es idempotente (guard stockDeducido).
+  FINALIZADO: ['CIERRE_ADMINISTRATIVO'],
 };
 
 /** Devuelve true si la transición desde→hacia está permitida. */
@@ -205,7 +209,7 @@ export interface StockSelection {
   partCodigo: string;
   partDescripcion: string;
   cantidad: number;
-  origenTipo: 'posicion' | 'ingeniero';
+  origenTipo: 'posicion' | 'ingeniero' | 'patron';
   origenId: string;
   origenNombre: string;
   /** Artículo de catálogo resuelto — driver de la deducción por posición (no-serializados). */
@@ -215,6 +219,14 @@ export interface StockSelection {
   /** Snapshot de la serie/lote de la unidad elegida — para mostrar en el cierre y el PDF sin re-leer. */
   nroSerie?: string | null;
   nroLote?: string | null;
+  /**
+   * Patrón (activo) elegido como origen — cuando `origenTipo='patron'`. El estándar/patrón
+   * vive en la colección `patrones` (no en stock); al cerrar se descuenta la `cantidad` del
+   * lote elegido. Se usa cuando el material del cierre coincide (por código) con un patrón.
+   */
+  patronId?: string | null;
+  /** Código natural del lote de patrón elegido (NO id). Driver de la deducción del lote. */
+  patronLote?: string | null;
 }
 
 export interface CierreAdministrativo {
@@ -3224,7 +3236,7 @@ export interface MovimientoStock {
    * el espejo contable de una venta de Loaner. Union widening puro: consumidores que sólo leen
    * `subtipo === 'conversion'` siguen funcionando (backwards-compat).
    */
-  subtipo?: 'conversion' | 'venta_loaner';
+  subtipo?: 'conversion' | 'venta_loaner' | 'cierre_ot';
   /**
    * Phase 15 — id del Loaner cuando subtipo='venta_loaner'.
    * Permite query "movimientos de venta de tal loaner". Null/omitido en movimientos no-venta-loaner.

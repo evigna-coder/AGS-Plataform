@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 
@@ -1555,11 +1555,12 @@ export const reservasService = {
   },
 
   /**
-   * Entrega una unidad RESERVADA al cliente (salida definitiva del inventario).
-   * reservado → entregado. Deducción real: 'entregado' está fuera del whitelist de ATP,
-   * así que la unidad deja de contar como stock comprometido. Crea un MovimientoStock
-   * 'egreso' con destino cliente. Conserva los campos reservadoPara* como traza histórica.
-   * Validación atómica de estado: solo entrega si está 'reservado'.
+   * Consume una unidad RESERVADA al cerrar la OT (salida DEFINITIVA del inventario).
+   * reservado → consumido. Registra un MovimientoStock 'consumo' (destino consumo_ot con
+   * el N° de OT), NO 'egreso': lo que sale por la OT es consumo definitivo — el egreso se
+   * reserva para lo que puede volver (remito, asignación a ingeniero). Decisión 2026-07-23.
+   * 'consumido' está fuera del whitelist de ATP (deja de contar como comprometido). Conserva
+   * los campos reservadoPara* como traza. Validación atómica: solo si está 'reservado'.
    */
   async entregar(params: {
     unidadId: string;
@@ -1586,13 +1587,14 @@ export const reservasService = {
       }
 
       const unitPayload = deepCleanForFirestore({
-        estado: 'entregado' as EstadoUnidad,
+        estado: 'consumido' as EstadoUnidad,
         ...getUpdateTrace(),
         updatedAt: now.toDate().toISOString(),
       });
 
       const movPayload = deepCleanForFirestore({
-        tipo: 'egreso' as TipoMovimiento,
+        tipo: 'consumo' as TipoMovimiento,
+        subtipo: 'cierre_ot' as const,
         unidadId: params.unidadId,
         articuloId: params.unidad.articuloId,
         articuloCodigo: params.unidad.articuloCodigo,
@@ -1602,9 +1604,9 @@ export const reservasService = {
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
-        destinoTipo: 'cliente' as TipoOrigenDestino,
-        destinoId: data.reservadoParaClienteId ?? params.otNumber,
-        destinoNombre: data.reservadoParaClienteNombre ?? `OT ${params.otNumber}`,
+        destinoTipo: 'consumo_ot' as TipoOrigenDestino,
+        destinoId: params.otNumber,
+        destinoNombre: `OT ${params.otNumber}`,
         otNumber: params.otNumber,
         motivo: params.motivo,
         creadoPor: params.solicitadoPorNombre,
@@ -1650,7 +1652,7 @@ export const reservasService = {
           unidadId: d.id,
           unidad,
           otNumber: params.otNumber,
-          motivo: `Entregado al cerrar OT ${params.otNumber}`,
+          motivo: `Consumido al cerrar OT ${params.otNumber}`,
           solicitadoPorNombre: params.solicitadoPorNombre,
         });
         entregadas += data.cantidad ?? 1;
@@ -1718,11 +1720,13 @@ export const reservasService = {
   },
 
   /**
-   * Descuenta `aDeducir` unidades de un doc DISPONIBLE (salida hacia cliente al cerrar OT).
-   * - aDeducir >= cantidad del doc → el doc pasa a 'entregado' (sale del ATP).
+   * Descuenta `aDeducir` unidades de un doc DISPONIBLE al cerrar la OT (o al consumir del
+   * minikit). Es CONSUMO definitivo, no egreso: registra un MovimientoStock 'consumo'
+   * (subtipo 'cierre_ot', destino consumo_ot con el N° de OT). El egreso se reserva para lo
+   * que puede volver (remito, asignación). Decisión 2026-07-23.
+   * - aDeducir >= cantidad del doc → el doc pasa a 'consumido' (sale del ATP).
    * - aDeducir < cantidad (lote/bulk) → decrementa `cantidad` del doc.
-   * Crea un MovimientoStock 'egreso'. Validación atómica: solo toca 'disponible'
-   * (así no choca con el camino de presupuesto reservado→entregado).
+   * Validación atómica: solo toca 'disponible' (no choca con el camino reservado→consumido).
    */
   async deducirUnidadDisponible(params: {
     unidad: UnidadStock;
@@ -1747,11 +1751,12 @@ export const reservasService = {
       const qtyActual = data.cantidad ?? 1;
       const total = params.aDeducir >= qtyActual;
       tx.update(unidadRef, deepCleanForFirestore(total
-        ? { estado: 'entregado' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }
+        ? { estado: 'consumido' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }
         : { cantidad: qtyActual - params.aDeducir, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }));
 
       tx.set(movRef, deepCleanForFirestore({
-        tipo: 'egreso' as TipoMovimiento,
+        tipo: 'consumo' as TipoMovimiento,
+        subtipo: 'cierre_ot' as const,
         unidadId: params.unidad.id,
         articuloId: params.unidad.articuloId,
         articuloCodigo: params.unidad.articuloCodigo,
@@ -1760,9 +1765,9 @@ export const reservasService = {
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
-        destinoTipo: 'cliente' as TipoOrigenDestino,
-        destinoId: params.clienteId ?? params.otNumber,
-        destinoNombre: params.clienteNombre ?? `OT ${params.otNumber}`,
+        destinoTipo: 'consumo_ot' as TipoOrigenDestino,
+        destinoId: params.otNumber,
+        destinoNombre: `OT ${params.otNumber}`,
         otNumber: params.otNumber,
         motivo: params.motivo,
         creadoPor: params.solicitadoPorNombre,
@@ -1789,6 +1794,17 @@ export const reservasService = {
     solicitadoPorNombre: string;
   }): Promise<{ deducidas: number }> {
     const sel = params.selection;
+
+    // Origen = lote de patrón (activo). No es stock: descuenta la cantidad del lote
+    // en la colección `patrones` y asienta un consumo trazable al N° de OT.
+    if (sel.origenTipo === 'patron' && sel.patronId && sel.patronLote) {
+      return this.consumirPatronLoteCierre({
+        selection: sel,
+        otNumber: params.otNumber,
+        solicitadoPorNombre: params.solicitadoPorNombre,
+      });
+    }
+
     let candidatos: UnidadStock[] = [];
     if (sel.unidadStockId) {
       const snap = await getDoc(docRef('unidades', sel.unidadStockId));
@@ -1809,7 +1825,7 @@ export const reservasService = {
         await this.deducirUnidadDisponible({
           unidad: u, aDeducir, otNumber: params.otNumber,
           clienteId: params.clienteId, clienteNombre: params.clienteNombre,
-          motivo: `Entregado al cerrar OT ${params.otNumber}`,
+          motivo: `Consumido al cerrar OT ${params.otNumber}`,
           solicitadoPorNombre: params.solicitadoPorNombre,
         });
         deducidas += aDeducir;
@@ -1819,6 +1835,71 @@ export const reservasService = {
       }
     }
     return { deducidas };
+  },
+
+  /**
+   * Consumo al cierre de un LOTE de patrón (activo) elegido como origen. Decremente
+   * atómicamente `cantidad` del lote en `patrones` (floor en 0; si el lote no trackea
+   * cantidad se deja intacto) y asienta un MovimientoStock 'consumo' (subtipo 'cierre_ot',
+   * destino consumo_ot con el N° de OT). NO usa `entidadTipo:'patron'` a propósito: ese
+   * discriminador lo reserva el descuento BOM (patronesConsumirHelpers) para su idempotencia,
+   * y este consumo por-lote es un camino distinto (no debe disparar el read-only del BOM).
+   */
+  async consumirPatronLoteCierre(params: {
+    selection: StockSelection;
+    otNumber: string;
+    solicitadoPorNombre: string;
+  }): Promise<{ deducidas: number }> {
+    const sel = params.selection;
+    if (!sel.patronId || !sel.patronLote) return { deducidas: 0 };
+    const aDeducir = sel.cantidad ?? 1;
+    const now = Timestamp.now();
+    const movRef = doc(db, 'movimientosStock', crypto.randomUUID());
+    const patronRef = docRef('patrones', sel.patronId);
+
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(patronRef);
+      if (!snap.exists()) throw new Error(`Patrón ${sel.patronId} no encontrado`);
+      const data = snap.data() as { lotes?: PatronLote[] };
+      const lotes = data.lotes ?? [];
+      const idx = lotes.findIndex(l => l.lote === sel.patronLote);
+      if (idx === -1) throw new Error(`Lote ${sel.patronLote} no encontrado en patrón ${sel.patronId}`);
+
+      // Solo decrementamos si el lote trackea cantidad; si es null se consume sin restar saldo.
+      if (typeof lotes[idx].cantidad === 'number') {
+        const nuevosLotes = [...lotes];
+        nuevosLotes[idx] = { ...lotes[idx], cantidad: Math.max(0, (lotes[idx].cantidad ?? 0) - aDeducir) };
+        tx.update(patronRef, deepCleanForFirestore({
+          lotes: nuevosLotes, ...getUpdateTrace(), updatedAt: now,
+        }));
+      }
+
+      tx.set(movRef, deepCleanForFirestore({
+        tipo: 'consumo' as TipoMovimiento,
+        subtipo: 'cierre_ot' as const,
+        patronId: sel.patronId,
+        lote: sel.patronLote,
+        articuloId: null,
+        articuloCodigo: sel.partCodigo,
+        articuloDescripcion: sel.partDescripcion,
+        cantidad: aDeducir,
+        origenTipo: 'patron' as TipoOrigenDestino,
+        origenId: sel.patronId,
+        origenNombre: sel.origenNombre || `Patrón ${sel.partCodigo} · Lote ${sel.patronLote}`,
+        destinoTipo: 'consumo_ot' as TipoOrigenDestino,
+        destinoId: params.otNumber,
+        destinoNombre: `OT ${params.otNumber}`,
+        otNumber: params.otNumber,
+        nroLote: sel.patronLote,
+        motivo: `Consumido al cerrar OT ${params.otNumber} (patrón)`,
+        creadoPor: params.solicitadoPorNombre,
+        ...getCreateTrace(),
+        createdAt: now,
+      }));
+    });
+
+    logAudit({ action: 'update', collection: 'patrones', documentId: sel.patronId });
+    return { deducidas: aDeducir };
   },
 
   /**
@@ -1874,7 +1955,7 @@ export const reservasService = {
             unidadId: reservada.id,
             unidad: reservada,
             otNumber: params.otNumber,
-            motivo: `Entregado al cerrar OT ${params.otNumber} (selección de unidad reservada)`,
+            motivo: `Consumido al cerrar OT ${params.otNumber} (selección de unidad reservada)`,
             solicitadoPorNombre: params.solicitadoPorNombre,
           });
           const qty = reservada.cantidad ?? 1;

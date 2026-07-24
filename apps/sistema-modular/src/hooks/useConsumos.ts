@@ -163,8 +163,10 @@ export function useConsumos(opts?: { enabled?: boolean }) {
 
   const rows = useMemo<ConsumoRow[]>(() => {
     const base = [
+      // Egresos con OT: data VIEJA de cierres (antes de 2026-07-23 el cierre asentaba 'egreso').
       ...movEgresos.map(m => movToRow(m, 'cierre_ot')),
-      ...movConsumos.map(m => movToRow(m, 'consumo_manual')),
+      // Consumos: los del cierre llevan subtipo 'cierre_ot'; el resto es consumo manual.
+      ...movConsumos.map(m => movToRow(m, m.subtipo === 'cierre_ot' ? 'cierre_ot' : 'consumo_manual')),
       ...asgRows,
     ];
     const clienteNombreById = new Map(clientes.map(c => [c.id, c.razonSocial]));

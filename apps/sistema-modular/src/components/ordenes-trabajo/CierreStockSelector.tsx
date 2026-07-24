@@ -1,5 +1,5 @@
 import type { Part, StockSelection, UnidadStock, CondicionUnidad } from '@ags/shared';
-import { useCierreStockUnits, type StockPosicion } from '../../hooks/useCierreStockUnits';
+import { useCierreStockUnits, type StockPosicion, type PartStockInfo, type PatronLoteOrigen } from '../../hooks/useCierreStockUnits';
 
 interface Props {
   articulos: Part[];
@@ -23,6 +23,34 @@ function unidadLabel(u: UnidadStock): string {
   return `${ident} · ${u.ubicacion.referenciaNombre} · ${CONDICION_LABEL[u.condicion] ?? u.condicion}`;
 }
 
+/** Etiqueta de un lote de patrón: lote + saldo + vencimiento. */
+function loteLabel(l: PatronLoteOrigen): string {
+  const saldo = l.cantidad != null ? ` (×${l.cantidad})` : '';
+  const vto = l.fechaVencimiento ? ` · vto ${l.fechaVencimiento.slice(0, 10)}` : '';
+  return `Lote ${l.lote}${saldo}${vto}`;
+}
+
+/** Opciones de origen unificadas (patrón + stock) para el select de una parte. */
+type OrigenOption =
+  | { kind: 'patron'; value: string; label: string; lote: PatronLoteOrigen }
+  | { kind: 'unidad'; value: string; label: string; unidad: UnidadStock }
+  | { kind: 'posicion'; value: string; label: string; pos: StockPosicion };
+
+function buildOptions(stock: PartStockInfo): OrigenOption[] {
+  const opts: OrigenOption[] = [];
+  for (const l of stock.patronLotes) {
+    opts.push({ kind: 'patron', value: `patron:${l.lote}`, label: loteLabel(l), lote: l });
+  }
+  if (stock.requiereTrazabilidad) {
+    for (const u of stock.unidades) opts.push({ kind: 'unidad', value: `unidad:${u.id}`, label: unidadLabel(u), unidad: u });
+  } else {
+    for (const p of stock.posiciones) {
+      opts.push({ kind: 'posicion', value: `posicion:${p.referenciaId}`, label: `${p.referenciaNombre} (×${p.cantidad})`, pos: p });
+    }
+  }
+  return opts;
+}
+
 export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, onChange, disabled }) => {
   const { get, loading } = useCierreStockUnits(articulos);
 
@@ -39,8 +67,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
   const removeSelection = (partId: string) => onChange(selections.filter(s => s.partId !== partId));
 
   /** Selección por unidad puntual (artículos con serie/lote). La unidad define el origen. */
-  const selectUnidad = (part: Part, unidad: UnidadStock | null) => {
-    if (!unidad) { removeSelection(part.id); return; }
+  const selectUnidad = (part: Part, unidad: UnidadStock) => {
     updateSelection(part, {
       articuloId: unidad.articuloId,
       origenTipo: unidad.ubicacion.tipo === 'ingeniero' ? 'ingeniero' : 'posicion',
@@ -49,19 +76,55 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
       unidadStockId: unidad.id,
       nroSerie: unidad.nroSerie ?? null,
       nroLote: unidad.nroLote ?? null,
+      patronId: null,
+      patronLote: null,
     });
   };
 
   /** Selección por posición de descarga (artículos sin trazabilidad). */
-  const selectPosicion = (part: Part, pos: StockPosicion | null) => {
-    if (!pos) { removeSelection(part.id); return; }
+  const selectPosicion = (part: Part, pos: StockPosicion) => {
     updateSelection(part, {
       articuloId: get(part.id).articulo?.id ?? null,
       origenTipo: pos.tipo === 'ingeniero' ? 'ingeniero' : 'posicion',
       origenId: pos.referenciaId,
       origenNombre: pos.referenciaNombre,
       unidadStockId: null,
+      patronId: null,
+      patronLote: null,
     });
+  };
+
+  /** Selección por lote de patrón (activo). Descuenta la cantidad del lote al cerrar. */
+  const selectPatronLote = (part: Part, lote: PatronLoteOrigen) => {
+    updateSelection(part, {
+      articuloId: null,
+      unidadStockId: null,
+      origenTipo: 'patron',
+      origenId: lote.patronId,
+      origenNombre: `Patrón ${lote.patronCodigo} · Lote ${lote.lote}`,
+      patronId: lote.patronId,
+      patronLote: lote.lote,
+      nroSerie: null,
+      nroLote: lote.lote,
+    });
+  };
+
+  /** Value del select que refleja la selección actual. */
+  const currentValue = (sel: StockSelection | undefined): string => {
+    if (!sel) return '';
+    if (sel.origenTipo === 'patron' && sel.patronLote) return `patron:${sel.patronLote}`;
+    if (sel.unidadStockId) return `unidad:${sel.unidadStockId}`;
+    if (sel.origenId) return `posicion:${sel.origenId}`;
+    return '';
+  };
+
+  const onSelectOrigen = (part: Part, stock: PartStockInfo, value: string) => {
+    if (!value) { removeSelection(part.id); return; }
+    const opt = buildOptions(stock).find(o => o.value === value);
+    if (!opt) return;
+    if (opt.kind === 'patron') selectPatronLote(part, opt.lote);
+    else if (opt.kind === 'unidad') selectUnidad(part, opt.unidad);
+    else selectPosicion(part, opt.pos);
   };
 
   if (articulos.length === 0) return null;
@@ -84,6 +147,9 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
             {articulos.map(part => {
               const sel = getSelection(part.id);
               const stock = get(part.id);
+              const options = buildOptions(stock);
+              const stockGroup = options.filter(o => o.kind !== 'patron');
+              const patronGroup = options.filter(o => o.kind === 'patron');
               return (
                 <tr key={part.id} className="bg-white/40 align-top">
                   <td className="px-2 py-1.5">
@@ -94,35 +160,33 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                   <td className="px-2 py-1.5">
                     {disabled ? (
                       <span className="text-[11px] text-slate-600">
-                        {sel?.nroSerie ? `S/N ${sel.nroSerie}` : sel?.nroLote ? `Lote ${sel.nroLote}` : sel?.origenNombre || '—'}
+                        {sel?.origenTipo === 'patron'
+                          ? sel.origenNombre || '—'
+                          : sel?.nroSerie ? `S/N ${sel.nroSerie}` : sel?.nroLote ? `Lote ${sel.nroLote}` : sel?.origenNombre || '—'}
                       </span>
-                    ) : stock.requiereTrazabilidad ? (
-                      stock.unidades.length === 0 ? (
-                        <span className="text-[11px] text-amber-600">Sin stock disponible</span>
-                      ) : (
-                        <select
-                          value={sel?.unidadStockId ?? ''}
-                          onChange={e => selectUnidad(part, stock.unidades.find(u => u.id === e.target.value) ?? null)}
-                          className="w-full border border-slate-200 rounded px-1.5 py-0.5 text-[11px]"
-                        >
-                          <option value="">Elegir {stock.articulo?.requiereNumeroSerie ? 'serie' : 'lote'}…</option>
-                          {stock.unidades.map(u => (
-                            <option key={u.id} value={u.id}>{unidadLabel(u)}</option>
-                          ))}
-                        </select>
-                      )
-                    ) : stock.posiciones.length === 0 ? (
+                    ) : options.length === 0 ? (
                       <span className="text-[11px] text-amber-600">Sin stock disponible</span>
                     ) : (
                       <select
-                        value={sel && !sel.unidadStockId ? sel.origenId : ''}
-                        onChange={e => selectPosicion(part, stock.posiciones.find(p => p.referenciaId === e.target.value) ?? null)}
+                        value={currentValue(sel)}
+                        onChange={e => onSelectOrigen(part, stock, e.target.value)}
                         className="w-full border border-slate-200 rounded px-1.5 py-0.5 text-[11px]"
                       >
-                        <option value="">Elegir posición…</option>
-                        {stock.posiciones.map(p => (
-                          <option key={p.key} value={p.referenciaId}>{p.referenciaNombre} (×{p.cantidad})</option>
-                        ))}
+                        <option value="">Elegir origen…</option>
+                        {patronGroup.length > 0 && (
+                          <optgroup label="Patrón (activo)">
+                            {patronGroup.map(o => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {stockGroup.length > 0 && (
+                          <optgroup label="Stock">
+                            {stockGroup.map(o => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     )}
                   </td>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { Part, Articulo, UnidadStock, TipoUbicacionStock } from '@ags/shared';
+import type { Part, Articulo, Patron, UnidadStock, TipoUbicacionStock } from '@ags/shared';
 import { articulosService, unidadesService } from '../services/stockService';
+import { patronesService } from '../services/patronesService';
 
 /** Ubicación con stock disponible agregado (para elegir posición de descarga). */
 export interface StockPosicion {
@@ -9,6 +10,16 @@ export interface StockPosicion {
   referenciaId: string;
   referenciaNombre: string;
   cantidad: number;
+}
+
+/** Lote de un patrón (activo) ofrecido como origen de descarga en el cierre. */
+export interface PatronLoteOrigen {
+  patronId: string;
+  patronCodigo: string;
+  lote: string;
+  /** Saldo del lote (unidades/viales). `null` = cantidad no trackeada (se consume igual, sin decrementar). */
+  cantidad: number | null;
+  fechaVencimiento: string | null;
 }
 
 /** Info de stock resuelta para una parte del cierre. */
@@ -21,9 +32,32 @@ export interface PartStockInfo {
   unidades: UnidadStock[];
   /** Posiciones con stock disponible (agregado por ubicación). Para no-traceables: elegir descarga. */
   posiciones: StockPosicion[];
+  /** Patrón (activo) que matchea el código de la parte, si existe. */
+  patron: Patron | null;
+  /** Lotes del patrón con saldo, FIFO por vencimiento — origen alternativo de descarga. */
+  patronLotes: PatronLoteOrigen[];
 }
 
-const EMPTY: PartStockInfo = { articulo: null, requiereTrazabilidad: false, unidades: [], posiciones: [] };
+const EMPTY: PartStockInfo = {
+  articulo: null, requiereTrazabilidad: false, unidades: [], posiciones: [], patron: null, patronLotes: [],
+};
+
+/** Normaliza un código para el match parte↔patrón (trim; case-insensitive por las dudas). */
+const normCodigo = (c?: string | null) => (c ?? '').trim().toUpperCase();
+
+/** Lotes del patrón ofrecibles como origen: excluye los explícitamente en 0, FIFO por vencimiento. */
+function patronLotesDisponibles(patron: Patron): PatronLoteOrigen[] {
+  return (patron.lotes ?? [])
+    .filter(l => (l.cantidad ?? Infinity) > 0)
+    .map(l => ({
+      patronId: patron.id,
+      patronCodigo: patron.codigoArticulo,
+      lote: l.lote,
+      cantidad: l.cantidad ?? null,
+      fechaVencimiento: l.fechaVencimiento ?? null,
+    }))
+    .sort((a, b) => (a.fechaVencimiento ?? '9999-12-31').localeCompare(b.fechaVencimiento ?? '9999-12-31'));
+}
 
 /** Agrupa unidades disponibles por ubicación, sumando cantidad. */
 function agruparPosiciones(unidades: UnidadStock[]): StockPosicion[] {
@@ -62,6 +96,12 @@ export function useCierreStockUnits(articulos: Part[]): {
     let cancelled = false;
     setLoading(true);
     (async () => {
+      // Patrones (activos) — colección chica de estándares/materiales de referencia.
+      // Se cargan una vez y se matchean por código contra las partes del cierre.
+      const patrones = await patronesService.getAll({ activoOnly: true }).catch(() => []);
+      const patronPorCodigo = new Map<string, Patron>();
+      for (const p of patrones) patronPorCodigo.set(normCodigo(p.codigoArticulo), p);
+
       const result: Record<string, PartStockInfo> = {};
       await Promise.all(articulos.map(async part => {
         let articulo: Articulo | null = null;
@@ -77,7 +117,11 @@ export function useCierreStockUnits(articulos: Part[]): {
           const todas = await unidadesService.getByArticulo(articulo.id).catch(() => []);
           unidades = todas.filter(u => u.estado === 'disponible');
         }
-        result[part.id] = { articulo, requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades) };
+        const patron = patronPorCodigo.get(normCodigo(part.codigo)) ?? null;
+        result[part.id] = {
+          articulo, requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
+          patron, patronLotes: patron ? patronLotesDisponibles(patron) : [],
+        };
       }));
       if (!cancelled) { setInfo(result); setLoading(false); }
     })();

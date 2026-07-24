@@ -228,21 +228,43 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     ];
     setSaving(true);
     try {
+      // 1. Persistir el cierre (con las selecciones de stock) para que la deducción las lea.
+      await ordenesTrabajoService.update(otNumber, { cierreAdmin: cierreActualizado } as Partial<WorkOrder>);
+
+      // 2. Ejecutar la deducción de stock ACÁ, con las selecciones ya cargadas. La deducción
+      //    corría al ENTRAR a cierre admin (cuando la selección de origen todavía estaba vacía)
+      //    y nunca procesaba lo que el admin elegía en el panel → stock sin descontar (bug
+      //    2026-07-23). Es idempotente (guard stockDeducido) y no re-notifica (guard yaCerrada).
+      let dedujoOk = true;
+      try {
+        await ordenesTrabajoService.cerrarAdministrativamente(otNumber, {});
+      } catch (err) {
+        dedujoOk = false;
+        console.error('[useEditOTForm] deducción de stock al finalizar falló:', err);
+      }
+
+      // 3. Pasar a FINALIZADO. SIN `cierreAdmin` en el payload: cerrarAdministrativamente ya
+      //    escribió stockDeducido/notasCierre y pisarlos revertiría la deducción.
       await ordenesTrabajoService.update(otNumber, {
         estadoAdmin: 'FINALIZADO' as OTEstadoAdmin,
         estadoAdminFecha: ahora,
         estadoHistorial: historialActualizado,
-        cierreAdmin: cierreActualizado,
         status: 'FINALIZADO',
       } as Partial<WorkOrder>);
+
+      // 4. Releer para reflejar el cierre deducido (stockDeducido, notasCierre) en la UI.
+      const updated = await ordenesTrabajoService.getByOtNumber(otNumber);
       setForm(prev => ({
         ...prev,
         estadoAdmin: 'FINALIZADO' as OTEstadoAdmin,
         estadoAdminFecha: ahora,
         estadoHistorial: historialActualizado,
-        cierreAdmin: cierreActualizado,
+        cierreAdmin: updated?.cierreAdmin ?? cierreActualizado,
         status: 'FINALIZADO',
       }));
+      if (!dedujoOk) {
+        alert('La OT se finalizó, pero la deducción de stock falló. Revisá el stock del cierre y descontá a mano si hace falta.');
+      }
       onSaved();
       onClose();
     } catch (err) {
