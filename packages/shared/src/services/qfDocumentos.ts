@@ -85,6 +85,55 @@ export interface QFDocumentosServiceDeps {
   getCurrentUser: () => UsuarioAGS | null;
 }
 
+const QF_TIPOS: QFTipo[] = ['QF', 'QI', 'QD', 'QP'];
+
+/**
+ * Parsea el número QF de una CARÁTULA de la Biblioteca (tabla `tableType: 'cover'`).
+ * El dato vive partido en dos campos del pie de carátula:
+ *   - `coverQF`       → "Formulario N°: QF7.0606" (suele traer prefijo) → tipo+familia+numero
+ *   - `coverRevision` → "REV: 09" / "Rev. 09"                          → versión
+ * El match del número es LAXO (busca `XX{fam}.{num}` en cualquier parte del texto) porque
+ * el campo se escribe a mano con prefijos variables. Si no hay revisión, asume "01".
+ */
+export function parseQFNumero(
+  coverQF: string | null | undefined,
+  coverRevision?: string | null,
+): { tipo: QFTipo; familia: number; numero: string; version: string } | null {
+  const m = /([A-Za-z]{2})\s*(\d+)\.(\d+)/.exec(coverQF ?? '');
+  if (!m) return null;
+  const tipo = m[1].toUpperCase() as QFTipo;
+  if (!QF_TIPOS.includes(tipo)) return null;
+  const rev = /(\d+)/.exec(coverRevision ?? '');
+  const version = (rev ? rev[1] : '01').padStart(2, '0').slice(-2);
+  return { tipo, familia: Number(m[2]), numero: m[3].padStart(4, '0'), version };
+}
+
+/** "08/05/2026" → "2026-05-08". Devuelve null si no matchea dd/mm/yyyy. */
+export function parseFechaCaratula(f: string | null | undefined): string | null {
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(f ?? '');
+  if (!m) return null;
+  return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+}
+
+/** Una CARÁTULA de la Biblioteca (tabla `tableType: 'cover'`), aplanada para el sync. */
+export interface QFSyncItem {
+  /** Campo "N° QF" del pie de carátula. */
+  coverQF: string | null | undefined;
+  /** Campo "Revisión" del pie de carátula — de acá sale la versión. */
+  coverRevision?: string | null;
+  /** Campo "Fecha" del pie de carátula (dd/mm/yyyy). */
+  coverFecha?: string | null;
+  nombre: string;
+  sistema?: string | null;
+}
+
+export interface QFSyncReport {
+  creados: string[];       // numeroCompleto de los QF nuevos
+  actualizados: string[];  // numeroCompleto de los que subieron de versión
+  sinCambios: number;      // ya existían con versión igual o mayor
+  salteados: { valor: string; motivo: string }[];
+}
+
 /** Factory: bind qfDocumentos a una instancia Firestore + accessor de usuario actual de cada app. */
 export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
   const { db, getCurrentUser } = deps;
@@ -248,6 +297,73 @@ export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
         ultimoUsuarioEmail: user.email,
         ultimoUsuarioNombre: user.displayName,
       });
+    },
+
+    /**
+     * Sincroniza el registro desde los proyectos de la Biblioteca de tablas: por cada
+     * proyecto con `footerQF` válido, crea el QF si no existe o le sube la versión si la
+     * carátula quedó adelante. NO pisa nombre/descripción de los que ya existen (el
+     * registro sigue editable a mano) — solo crea faltantes y bumpea versiones. Idempotente.
+     */
+    async sincronizarDesdeBiblioteca(items: QFSyncItem[]): Promise<QFSyncReport> {
+      const user = getCurrentUser();
+      if (!user) throw new Error('Usuario no autenticado');
+      const report: QFSyncReport = { creados: [], actualizados: [], sinCambios: 0, salteados: [] };
+
+      // Dedup por numeroCompleto: si dos proyectos comparten QF, gana la mayor versión.
+      const byNumero = new Map<string, { parsed: NonNullable<ReturnType<typeof parseQFNumero>>; item: QFSyncItem }>();
+      for (const item of items) {
+        // Salteados SIEMPRE reportados con motivo (antes se ignoraban en silencio y el
+        // reporte daba 0 sin explicar nada).
+        if (!item.coverQF || !item.coverQF.trim()) {
+          report.salteados.push({ valor: item.nombre || '(sin nombre)', motivo: 'Carátula sin N° QF cargado' });
+          continue;
+        }
+        const parsed = parseQFNumero(item.coverQF, item.coverRevision);
+        if (!parsed) { report.salteados.push({ valor: item.coverQF, motivo: 'No se pudo leer el número QF' }); continue; }
+        const nc = formatQFNumeroCompleto(parsed.tipo, parsed.familia, parsed.numero);
+        const prev = byNumero.get(nc);
+        if (!prev || Number(parsed.version) > Number(prev.parsed.version)) byNumero.set(nc, { parsed, item });
+      }
+
+      for (const [nc, { parsed, item }] of byNumero) {
+        const ref = doc(db, COL, nc);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          const fechaIso = parseFechaCaratula(item.coverFecha);
+          const fechaAlta = fechaIso ? Timestamp.fromDate(new Date(fechaIso + 'T00:00:00')) : Timestamp.now();
+          const now = Timestamp.now();
+          await setDoc(ref, cleanFirestoreData({
+            tipo: parsed.tipo, familia: parsed.familia, numero: parsed.numero, numeroCompleto: nc,
+            versionActual: parsed.version,
+            nombre: (item.nombre || nc).trim(),
+            descripcion: item.sistema?.trim() || null,
+            estado: 'vigente' as QFEstado,
+            fechaCreacion: fechaAlta,
+            fechaUltimaActualizacion: now,
+            ultimoUsuarioEmail: user.email,
+            ultimoUsuarioNombre: user.displayName,
+            historial: [{ version: parsed.version, fecha: fechaAlta, usuarioEmail: user.email, usuarioNombre: user.displayName, cambios: 'Alta desde Biblioteca de tablas' }],
+          }));
+          report.creados.push(nc);
+        } else {
+          const data = snap.data() as RawDocData;
+          if (Number(parsed.version) > Number(data.versionActual)) {
+            const now = Timestamp.now();
+            await updateDoc(ref, {
+              versionActual: parsed.version,
+              fechaUltimaActualizacion: now,
+              ultimoUsuarioEmail: user.email,
+              ultimoUsuarioNombre: user.displayName,
+              historial: arrayUnion({ version: parsed.version, fecha: now, usuarioEmail: user.email, usuarioNombre: user.displayName, cambios: `Sincronizado desde Biblioteca (v${parsed.version})` }),
+            });
+            report.actualizados.push(nc);
+          } else {
+            report.sinCambios++;
+          }
+        }
+      }
+      return report;
     },
   };
 }
