@@ -1,4 +1,5 @@
 import type { TipoMovimiento } from '@ags/shared';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 
 const TIPO_LABELS: Record<TipoMovimiento, string> = {
   ingreso: 'Ingreso', egreso: 'Egreso', transferencia: 'Transferencia',
@@ -15,6 +16,9 @@ interface Props {
   onFechaDesdeChange: (val: string) => void;
   fechaHasta: string;
   onFechaHastaChange: (val: string) => void;
+  cliente: string;
+  onClienteChange: (val: string) => void;
+  clientes: { value: string; label: string }[];
 }
 
 const inputCls = 'px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
@@ -31,6 +35,7 @@ export function MovimientosFilters({
   localSearch, onSearchChange,
   fechaDesde, onFechaDesdeChange,
   fechaHasta, onFechaHastaChange,
+  cliente, onClienteChange, clientes,
 }: Props) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -45,6 +50,11 @@ export function MovimientosFilters({
         onChange={e => onSearchChange(e.target.value)}
         className={`${inputCls} w-64`}
       />
+      <div className="w-56">
+        <SearchableSelect value={cliente} onChange={onClienteChange} size="sm"
+          options={[{ value: '', label: 'Todos los clientes' }, ...clientes]}
+          placeholder="Todos los clientes" emptyMessage="Sin clientes" />
+      </div>
       <label className="flex items-center gap-1.5">
         <span className={labelCls}>Desde</span>
         <input type="date" value={fechaDesde} onChange={e => onFechaDesdeChange(e.target.value)} className={inputCls} />

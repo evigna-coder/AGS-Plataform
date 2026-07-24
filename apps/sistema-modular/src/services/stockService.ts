@@ -1568,6 +1568,8 @@ export const reservasService = {
     otNumber: string;
     motivo: string;
     solicitadoPorNombre: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
   }): Promise<void> {
     const now = Timestamp.now();
     const movId = crypto.randomUUID();
@@ -1606,8 +1608,12 @@ export const reservasService = {
         origenNombre: params.unidad.ubicacion.referenciaNombre,
         destinoTipo: 'consumo_ot' as TipoOrigenDestino,
         destinoId: params.otNumber,
-        destinoNombre: `OT ${params.otNumber}`,
+        // Destino visible = cliente de la OT (el N° de OT ya vive en su propia columna/link).
+        destinoNombre: params.clienteNombre || `OT ${params.otNumber}`,
         otNumber: params.otNumber,
+        // Denormalizado para filtrar Movimientos por cliente sin join a la OT.
+        clienteId: params.clienteId ?? null,
+        clienteNombre: params.clienteNombre ?? null,
         motivo: params.motivo,
         creadoPor: params.solicitadoPorNombre,
         ...getCreateTrace(),
@@ -1635,6 +1641,8 @@ export const reservasService = {
     presupuestoId: string;
     otNumber: string;
     solicitadoPorNombre: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
   }): Promise<{ entregadas: number }> {
     const q = query(
       collection(db, 'unidades'),
@@ -1654,6 +1662,8 @@ export const reservasService = {
           otNumber: params.otNumber,
           motivo: `Consumido al cerrar OT ${params.otNumber}`,
           solicitadoPorNombre: params.solicitadoPorNombre,
+          clienteId: params.clienteId ?? null,
+          clienteNombre: params.clienteNombre ?? null,
         });
         entregadas += data.cantidad ?? 1;
       } catch (err) {
@@ -1767,8 +1777,11 @@ export const reservasService = {
         origenNombre: params.unidad.ubicacion.referenciaNombre,
         destinoTipo: 'consumo_ot' as TipoOrigenDestino,
         destinoId: params.otNumber,
-        destinoNombre: `OT ${params.otNumber}`,
+        // Destino visible = cliente de la OT (el N° de OT vive en su columna/link).
+        destinoNombre: params.clienteNombre || `OT ${params.otNumber}`,
         otNumber: params.otNumber,
+        clienteId: params.clienteId ?? null,
+        clienteNombre: params.clienteNombre ?? null,
         motivo: params.motivo,
         creadoPor: params.solicitadoPorNombre,
         ...getCreateTrace(),
@@ -1801,6 +1814,8 @@ export const reservasService = {
       return this.consumirPatronLoteCierre({
         selection: sel,
         otNumber: params.otNumber,
+        clienteId: params.clienteId ?? null,
+        clienteNombre: params.clienteNombre ?? null,
         solicitadoPorNombre: params.solicitadoPorNombre,
       });
     }
@@ -1849,6 +1864,8 @@ export const reservasService = {
     selection: StockSelection;
     otNumber: string;
     solicitadoPorNombre: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
   }): Promise<{ deducidas: number }> {
     const sel = params.selection;
     if (!sel.patronId || !sel.patronLote) return { deducidas: 0 };
@@ -1888,8 +1905,10 @@ export const reservasService = {
         origenNombre: sel.origenNombre || `Patrón ${sel.partCodigo} · Lote ${sel.patronLote}`,
         destinoTipo: 'consumo_ot' as TipoOrigenDestino,
         destinoId: params.otNumber,
-        destinoNombre: `OT ${params.otNumber}`,
+        destinoNombre: params.clienteNombre || `OT ${params.otNumber}`,
         otNumber: params.otNumber,
+        clienteId: params.clienteId ?? null,
+        clienteNombre: params.clienteNombre ?? null,
         nroLote: sel.patronLote,
         motivo: `Consumido al cerrar OT ${params.otNumber} (patrón)`,
         creadoPor: params.solicitadoPorNombre,
@@ -1957,6 +1976,8 @@ export const reservasService = {
             otNumber: params.otNumber,
             motivo: `Consumido al cerrar OT ${params.otNumber} (selección de unidad reservada)`,
             solicitadoPorNombre: params.solicitadoPorNombre,
+            clienteId: params.clienteId ?? null,
+            clienteNombre: params.clienteNombre ?? null,
           });
           const qty = reservada.cantidad ?? 1;
           deducidas += qty;

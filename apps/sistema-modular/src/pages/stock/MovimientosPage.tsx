@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { movimientosService } from '../../services/firebaseService';
+import { movimientosService, clientesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
@@ -40,6 +40,7 @@ export const MovimientosPage = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
+    cliente: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
     sortField: { type: 'string' as const, default: 'createdAt' },
@@ -53,6 +54,15 @@ export const MovimientosPage = () => {
 
   const [items, setItems] = useState<MovimientoStock[]>([]);
   const [loading, setLoading] = useState(true);
+  // Clientes para el filtro (solo aplica a movimientos con cliente denormalizado: consumo/egreso a cliente).
+  const [clientes, setClientes] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    clientesService.getAll()
+      .then(cs => setClientes(cs
+        .map(c => ({ value: c.id, label: c.razonSocial }))
+        .sort((a, b) => a.label.localeCompare(b.label))))
+      .catch(err => console.error('Error cargando clientes:', err));
+  }, []);
   // Local search state for responsive typing — syncs to URL debounced
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -105,6 +115,9 @@ export const MovimientosPage = () => {
     if (filters.tipo) {
       list = list.filter(m => m.tipo === filters.tipo);
     }
+    if (filters.cliente) {
+      list = list.filter(m => m.clienteId === filters.cliente);
+    }
     if (debouncedSearch) {
       list = list.filter(m => matchesSearch(
         debouncedSearch,
@@ -125,7 +138,7 @@ export const MovimientosPage = () => {
       });
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [items, filters.tipo, debouncedSearch, filters.fechaDesde, filters.fechaHasta, filters.sortField, filters.sortDir]);
+  }, [items, filters.tipo, filters.cliente, debouncedSearch, filters.fechaDesde, filters.fechaHasta, filters.sortField, filters.sortDir]);
 
   // Texto de contexto: refleja el modo activo (búsqueda / rango / mes por defecto).
   const hint = useMemo(() => {
@@ -162,6 +175,9 @@ export const MovimientosPage = () => {
           onFechaDesdeChange={v => setFilter('fechaDesde', v)}
           fechaHasta={filters.fechaHasta}
           onFechaHastaChange={v => setFilter('fechaHasta', v)}
+          cliente={filters.cliente}
+          onClienteChange={v => setFilter('cliente', v)}
+          clientes={clientes}
         />
       </PageHeader>
 

@@ -1324,6 +1324,8 @@ export const ordenesTrabajoService = {
               presupuestoId,
               otNumber,
               solicitadoPorNombre: actor?.name || 'Sistema',
+              clienteId: ot.clienteId ?? null,
+              clienteNombre: ot.razonSocial ?? null,
             });
             stockEntregado += entregadas;
           } catch (err) {
