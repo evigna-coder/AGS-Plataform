@@ -44,31 +44,35 @@ export const navigation: NavItem[] = [
     ],
   },
   {
-    name: 'Stock', path: '/stock', icon: '📦', modulo: 'stock',
+    // Sin `modulo` propio: el grupo Stock se muestra si hay ≥1 hijo visible. El gate vive
+    // en cada hoja (sub-módulo), no en el grupo — así una hoja de módulo propio (Pagos VEP,
+    // Calif. Proveedores) sigue visible para quien tenga ESE módulo aunque no tenga el resto
+    // del sub-grupo. El landing '/stock' lo resuelve StockHome según permisos.
+    name: 'Stock', path: '/stock', icon: '📦',
     children: [
       {
         name: 'Operación', path: '#stock-operacion', icon: '🔁',
         children: [
-          { name: 'Unidades', path: '/stock/unidades' },
-          { name: 'Minikits', path: '/stock/minikits' },
-          { name: 'Faltantes en minikits', path: '/stock/minikits/faltantes' },
-          { name: 'Asignaciones', path: '/stock/asignaciones' },
-          { name: 'Historial asig.', path: '/stock/asignaciones/historial' },
-          { name: 'Remitos', path: '/stock/remitos' },
-          { name: 'Movimientos', path: '/stock/movimientos' },
-          { name: 'Consumos por equipo', path: '/stock/consumos' },
-          { name: 'Alertas', path: '/stock/alertas' },
+          { name: 'Unidades', path: '/stock/unidades', modulo: 'stock-operacion' },
+          { name: 'Minikits', path: '/stock/minikits', modulo: 'stock-operacion' },
+          { name: 'Faltantes en minikits', path: '/stock/minikits/faltantes', modulo: 'stock-operacion' },
+          { name: 'Asignaciones', path: '/stock/asignaciones', modulo: 'stock-operacion' },
+          { name: 'Historial asig.', path: '/stock/asignaciones/historial', modulo: 'stock-operacion' },
+          { name: 'Remitos', path: '/stock/remitos', modulo: 'stock-operacion' },
+          { name: 'Movimientos', path: '/stock/movimientos', modulo: 'stock-operacion' },
+          { name: 'Consumos por equipo', path: '/stock/consumos', modulo: 'stock-operacion' },
+          { name: 'Alertas', path: '/stock/alertas', modulo: 'stock-operacion' },
         ],
       },
       {
         name: 'Compras', path: '#stock-compras', icon: '🛒',
         children: [
-          { name: 'Requerimientos', path: '/stock/requerimientos' },
-          { name: 'Planificación', path: '/stock/planificacion' },
-          { name: 'Ordenes de Compra', path: '/stock/ordenes-compra' },
-          { name: 'Importaciones', path: '/stock/importaciones' },
+          { name: 'Requerimientos', path: '/stock/requerimientos', modulo: 'stock-compras' },
+          { name: 'Planificación', path: '/stock/planificacion', modulo: 'stock-compras' },
+          { name: 'Ordenes de Compra', path: '/stock/ordenes-compra', modulo: 'stock-compras' },
+          { name: 'Importaciones', path: '/stock/importaciones', modulo: 'stock-compras' },
           { name: 'Pagos VEP', path: '/stock/pagos-vep', icon: '💸', modulo: 'pagos' },
-          { name: 'Entregas', path: '/entregas' },
+          { name: 'Entregas', path: '/entregas', modulo: 'stock-compras' },
         ],
       },
       {
@@ -86,12 +90,12 @@ export const navigation: NavItem[] = [
       {
         name: 'Catálogos', path: '#stock-catalogos', icon: '📇',
         children: [
-          { name: 'Articulos', path: '/stock/articulos' },
-          { name: 'Proveedores', path: '/stock/proveedores' },
+          { name: 'Articulos', path: '/stock/articulos', modulo: 'stock-catalogos' },
+          { name: 'Proveedores', path: '/stock/proveedores', modulo: 'stock-catalogos' },
           { name: 'Calif. Proveedores', path: '/calificacion-proveedores', icon: '⭐', modulo: 'calificacion-proveedores' },
-          { name: 'Posiciones', path: '/stock/posiciones' },
-          { name: 'Pos. Arancelarias', path: '/stock/posiciones-arancelarias' },
-          { name: 'Marcas', path: '/stock/marcas' },
+          { name: 'Posiciones', path: '/stock/posiciones', modulo: 'stock-catalogos' },
+          { name: 'Pos. Arancelarias', path: '/stock/posiciones-arancelarias', modulo: 'stock-catalogos' },
+          { name: 'Marcas', path: '/stock/marcas', modulo: 'stock-catalogos' },
         ],
       },
     ],
@@ -104,6 +108,12 @@ export const navigation: NavItem[] = [
     ],
   },
   { name: 'Documentos QF', path: '/qf-documentos', icon: '📄' },
+  {
+    name: 'Administración', path: '#administracion', icon: '🧾',
+    children: [
+      { name: 'Control de facturas', path: '/control-facturas', modulo: 'control-facturas' },
+    ],
+  },
   {
     name: 'Admin', path: '/admin', icon: '⚙️', modulo: 'admin',
     children: [

@@ -19,7 +19,7 @@ import { PatronesList, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
-import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
+import { StockHome, MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
 import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
@@ -29,6 +29,7 @@ import { AgendaPage } from '../../pages/agenda';
 import { ControlSemanal } from '../../pages/control-semanal';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
+import { ControlFacturasList } from '../../pages/control-facturas';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
 import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
@@ -146,7 +147,7 @@ function AppRoutes() {
       <Route path="/loaners/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanerDetail /></ProtectedRoute>} />
       <Route path="/loaners/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanerEditor /></ProtectedRoute>} />
       {/* Stock */}
-      <Route path="/stock" element={<Navigate to="/stock/articulos" replace />} />
+      <Route path="/stock" element={<StockHome />} />
       <Route path="/stock/articulos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ArticulosList /></ProtectedRoute>} />
       <Route path="/stock/articulos/nuevo" element={<Navigate to="/stock/articulos" replace />} />
       <Route path="/stock/articulos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ArticuloDetail /></ProtectedRoute>} />
@@ -197,6 +198,8 @@ function AppRoutes() {
       {/* Contratos */}
       <Route path="/contratos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratosList /></ProtectedRoute>} />
       <Route path="/contratos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratoDetail /></ProtectedRoute>} />
+      {/* Control de facturas */}
+      <Route path="/control-facturas" element={<ProtectedRoute modulo="control-facturas"><ControlFacturasList /></ProtectedRoute>} />
       {/* Documentos QF — visible para todos los usuarios autenticados */}
       <Route path="/qf-documentos" element={<ProtectedRoute><QFDocumentosList /></ProtectedRoute>} />
       {/* Admin */}

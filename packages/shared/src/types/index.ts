@@ -775,6 +775,13 @@ export interface TipoServicio {
   activo: boolean;
   /** Si true, el flujo OT muestra el selector de tablas de protocolo (Fase 3) */
   requiresProtocol: boolean;
+  /**
+   * Si true, el servicio es regulatorio con vigencia anual: cada vez que se REALIZA
+   * (agenda `completado`) se reserva el mismo lugar del año siguiente como
+   * `AgendaPrevision` (OT sin abrir). Data-driven a propósito — la regla se define
+   * tildando este flag en el catálogo, no hardcodeando nombres de servicio.
+   */
+  generaRecurrenciaAnual?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -2725,6 +2732,61 @@ export interface Proveedor {
   updatedAt: string;
 }
 
+// --- Control de Facturas (cuentas a pagar liviano) ---
+
+export type EstadoFactura = 'pendiente' | 'aprobada' | 'pagada';
+
+export const FACTURA_ESTADO_LABELS: Record<EstadoFactura, string> = {
+  pendiente: 'Pendiente',
+  aprobada: 'Aprobada',
+  pagada: 'Pagada',
+};
+
+export const FACTURA_ESTADO_COLORS: Record<EstadoFactura, string> = {
+  pendiente: 'bg-amber-100 text-amber-700',
+  aprobada: 'bg-blue-100 text-blue-700',
+  pagada: 'bg-emerald-100 text-emerald-700',
+};
+
+/** Comentario embebido en una factura (control de pagos a proveedores). */
+export interface ComentarioFactura {
+  texto: string;
+  autor: string;
+  fecha: string; // ISO
+}
+
+/**
+ * Factura a pagar (módulo Control de facturas). Carga mínima: proveedor + PDF.
+ * La fecha es la de CARGA (`createdAt`, automática) — no hay fecha manual. El listado
+ * muestra la antigüedad en días desde la carga. El proveedor puede venir del catálogo
+ * (`proveedorId`) o como texto libre (solo `proveedorNombre`, `proveedorId` en null).
+ */
+export interface Factura {
+  id: string;
+  /** Correlativo FAC-00001, generado al cargar. */
+  numero?: string;
+  /** Id del proveedor en el catálogo, o null si se cargó como texto libre. */
+  proveedorId?: string | null;
+  proveedorNombre: string;
+  pdfUrl: string;
+  /** Ruta en Storage del PDF (para borrado / regeneración de URL). */
+  pdfPath: string;
+  estado: EstadoFactura;
+  comentarios: ComentarioFactura[];
+  /** Ticket derivado para validar/pagar la factura. */
+  ticketId?: string | null;
+  /** Área + responsable a quien se derivó el ticket al cargar la factura. */
+  areaDestino?: TicketArea | null;
+  responsableId?: string | null;
+  responsableNombre?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 // --- Calificación de Proveedores ---
 
 export type EstadoCalificacion = 'aprobado' | 'condicional' | 'no_aprobado' | 'sin_datos';
@@ -4184,7 +4246,9 @@ export type ModuloId =
   | 'ordenes-trabajo'
   | 'leads'
   | 'presupuestos'
-  | 'stock'
+  | 'stock-operacion'
+  | 'stock-compras'
+  | 'stock-catalogos'
   | 'fichas'
   | 'loaners'
   | 'instrumentos'
@@ -4199,6 +4263,7 @@ export type ModuloId =
   | 'contratos'
   | 'calificacion-proveedores'
   | 'pagos'
+  | 'control-facturas'
   | 'usuarios'
   | 'admin';
 
@@ -4206,7 +4271,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'usuarios', 'admin'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'control-facturas', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -4214,11 +4279,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos', 'control-facturas'],
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos', 'control-facturas'],
   },
   ventas: {
     apps: ['sistema-modular'],
@@ -4226,11 +4291,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_contable: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock', 'facturacion', 'calificacion-proveedores'],
+    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas'],
   },
   administracion: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock', 'facturacion', 'calificacion-proveedores'],
+    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas'],
   },
 };
 
@@ -4245,7 +4310,27 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/tipos-servicio': 'ordenes-trabajo',
   '/leads': 'leads',
   '/presupuestos': 'presupuestos',
-  '/stock': 'stock',
+  // Stock partido en sub-módulos (getModuloFromPath usa el prefijo más largo).
+  // NO existe '/stock' → un módulo: el landing lo resuelve StockHome según permisos.
+  '/stock/unidades': 'stock-operacion',
+  '/stock/minikits': 'stock-operacion',
+  '/stock/remitos': 'stock-operacion',
+  '/stock/movimientos': 'stock-operacion',
+  '/stock/consumos': 'stock-operacion',
+  '/stock/alertas': 'stock-operacion',
+  '/stock/asignaciones': 'stock-operacion',
+  '/stock/requerimientos': 'stock-compras',
+  '/stock/planificacion': 'stock-compras',
+  '/stock/ordenes-compra': 'stock-compras',
+  '/stock/importaciones': 'stock-compras',
+  '/entregas': 'stock-compras',
+  '/stock/articulos': 'stock-catalogos',
+  '/stock/proveedores': 'stock-catalogos',
+  '/stock/posiciones': 'stock-catalogos',
+  '/stock/posiciones-arancelarias': 'stock-catalogos',
+  '/stock/marcas': 'stock-catalogos',
+  // '/stock/ingenieros' NO se mapea a propósito: cae a su `allowedRoles` declarado
+  // (admin/admin_soporte/administracion), como venía. El nav ya lo gatea por 'usuarios'.
   '/fichas': 'fichas',
   '/loaners': 'loaners',
   '/instrumentos': 'instrumentos',
@@ -4259,6 +4344,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/facturacion': 'facturacion',
   '/contratos': 'contratos',
   '/calificacion-proveedores': 'calificacion-proveedores',
+  '/control-facturas': 'control-facturas',
   '/usuarios': 'usuarios',
   '/admin': 'admin',
 };
@@ -4270,10 +4356,12 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'establecimientos': 'Establecimientos',
   'equipos': 'Equipos',
   'ordenes-trabajo': 'Ordenes de Trabajo',
-  'leads': 'Leads',
+  'leads': 'Tickets',
   'presupuestos': 'Presupuestos',
-  'stock': 'Stock',
-  'fichas': 'Fichas Técnicas',
+  'stock-operacion': 'Stock · Operación',
+  'stock-compras': 'Stock · Compras',
+  'stock-catalogos': 'Stock · Catálogos',
+  'fichas': 'Fichas Propiedad',
   'loaners': 'Loaners',
   'instrumentos': 'Instrumentos',
   'patrones': 'Patrones',
@@ -4287,6 +4375,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'contratos': 'Contratos',
   'calificacion-proveedores': 'Calif. Proveedores',
   'pagos': 'Pagos VEP',
+  'control-facturas': 'Control de facturas',
   'usuarios': 'Usuarios',
   'admin': 'Administración',
 };
@@ -4298,10 +4387,43 @@ export const APP_LABELS: Record<AppId, string> = {
 };
 
 /**
+ * Agrupación de módulos para el panel de permisos (espeja el sidebar). Cada ModuloId
+ * aparece exactamente una vez. Si agregás un módulo nuevo, sumalo a un grupo — hay un
+ * test/verificación de cobertura implícita: ALL_MODULOS debe quedar cubierto.
+ */
+export const MODULO_GROUPS: { label: string; modulos: ModuloId[] }[] = [
+  { label: 'General', modulos: ['dashboard'] },
+  { label: 'Comercial', modulos: ['clientes', 'establecimientos', 'ingreso-empresas', 'leads', 'presupuestos', 'contratos', 'facturacion'] },
+  { label: 'Operaciones', modulos: ['ordenes-trabajo', 'equipos', 'agenda', 'pendientes'] },
+  { label: 'Stock', modulos: ['stock-operacion', 'stock-compras', 'stock-catalogos', 'pagos', 'calificacion-proveedores'] },
+  { label: 'Activos propios', modulos: ['instrumentos', 'patrones', 'dispositivos', 'vehiculos', 'fichas', 'loaners'] },
+  { label: 'Administración', modulos: ['control-facturas', 'usuarios', 'table-catalog', 'admin'] },
+];
+
+/**
  * Resuelve los permisos efectivos de un usuario.
  * Si tiene overrides en `permisos`, usa esos. Si no, usa los defaults del rol.
  * Admin SIEMPRE tiene acceso total (no se puede restringir).
  */
+/**
+ * Módulos legacy que se partieron en sub-módulos. Los overrides guardados de usuarios
+ * viejos pueden tener el módulo viejo (ej. 'stock'); al leerlos se expanden a los nuevos
+ * para que nadie pierda acceso tras el split (UAT 2026-07-23). Idempotente.
+ */
+const LEGACY_MODULO_EXPANSION: Record<string, ModuloId[]> = {
+  stock: ['stock-operacion', 'stock-compras', 'stock-catalogos'],
+};
+
+export function expandLegacyModulos(modulos: readonly string[]): ModuloId[] {
+  const out = new Set<ModuloId>();
+  for (const m of modulos) {
+    const expanded = LEGACY_MODULO_EXPANSION[m];
+    if (expanded) expanded.forEach(x => out.add(x));
+    else out.add(m as ModuloId);
+  }
+  return [...out];
+}
+
 export function getUserPermissions(usuario: UsuarioAGS): { apps: AppId[]; modulos: ModuloId[] } {
   if (!usuario.role) return { apps: [], modulos: [] };
   if (usuario.role === 'admin') return ROLE_DEFAULTS.admin;
@@ -4311,7 +4433,7 @@ export function getUserPermissions(usuario: UsuarioAGS): { apps: AppId[]; modulo
 
   return {
     apps: usuario.permisos.apps ?? defaults.apps,
-    modulos: usuario.permisos.modulos ?? defaults.modulos,
+    modulos: usuario.permisos.modulos ? expandLegacyModulos(usuario.permisos.modulos) : defaults.modulos,
   };
 }
 
@@ -4520,6 +4642,103 @@ export interface AgendaNota {
 }
 
 export type ZoomLevel = 'week' | '2weeks' | 'month' | '2months' | 'year';
+
+// =============================================
+// --- Previsiones de agenda (recurrencia anual regulatoria) ---
+// =============================================
+
+/**
+ * Estado de una previsión.
+ * - `prevista`: la generó el batch y nadie la tocó → el batch puede pisarla/refrescarla.
+ * - `reprogramada`: la coordinadora cambió fecha y/o ingeniero → el batch NO la toca.
+ * - `convertida`: ya se abrió la OT real (`otNumberGenerada`) → el batch NO la toca.
+ * - `descartada`: decidieron no repetir el servicio → el batch NO la toca.
+ */
+export type EstadoPrevision = 'prevista' | 'reprogramada' | 'convertida' | 'descartada';
+
+export const ESTADO_PREVISION_LABELS: Record<EstadoPrevision, string> = {
+  prevista: 'Prevista',
+  reprogramada: 'Reprogramada',
+  convertida: 'Convertida en OT',
+  descartada: 'Descartada',
+};
+
+export const ESTADO_PREVISION_COLORS: Record<EstadoPrevision, string> = {
+  prevista: 'bg-slate-200 text-slate-700',
+  reprogramada: 'bg-amber-100 text-amber-800',
+  convertida: 'bg-emerald-100 text-emerald-700',
+  descartada: 'bg-red-100 text-red-600',
+};
+
+/**
+ * Reserva de lugar en la agenda del año siguiente para un servicio regulatorio
+ * con vigencia anual (ver `TipoServicio.generaRecurrenciaAnual`).
+ *
+ * NO es una OT ni una `AgendaEntry`: vive en la colección aparte `agendaPrevisiones`
+ * justamente para no ensuciar la agenda del año en curso. Recién al "Convertir en OT"
+ * se crean la OT real y su entrada de agenda.
+ *
+ * Doc id determinístico = `${anioDestino}_${origenAgendaEntryId}` → el generador es
+ * idempotente y re-ejecutable mientras se carga la agenda.
+ */
+export interface AgendaPrevision {
+  id: string;
+  /** Año en el que cae la previsión (= año de `fechaInicio`). */
+  anioDestino: number;
+
+  // Bloque de agenda (espeja AgendaEntry; la duración es nativa por fechaInicio/fechaFin)
+  fechaInicio: string;           // 'YYYY-MM-DD'
+  fechaFin: string;              // 'YYYY-MM-DD'
+  ingenieroId: string;
+  ingenieroNombre: string;
+
+  // Denormalizado para mostrar sin joins
+  clienteNombre: string;
+  tipoServicio: string;
+  sistemaNombre: string | null;
+  establecimientoNombre: string | null;
+  equipoModelo?: string | null;
+  equipoAgsId?: string | null;
+
+  /** Ids resueltos desde la OT origen — habilitan precargar el alta de OT al convertir. */
+  clienteId?: string | null;
+  establecimientoId?: string | null;
+  sistemaId?: string | null;
+  moduloId?: string | null;
+  tipoServicioId?: string | null;
+
+  // Trazabilidad al servicio del año anterior
+  origenAgendaEntryId: string;
+  origenOtNumber: string;
+
+  estado: EstadoPrevision;
+  /** Snapshot al generar: el cliente tenía contrato vigente. NO se recalcula al leer. */
+  tieneContrato: boolean;
+  /** Número de la OT creada al convertir. */
+  otNumberGenerada?: string | null;
+  notas?: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+/** Reporte del batch `previsionesService.generar()`. Mismo espíritu que QFSyncReport. */
+export interface PrevisionesGenerarReport {
+  anioOrigen: number;
+  anioDestino: number;
+  /** Previsiones nuevas. */
+  creadas: number;
+  /** Ya existían en estado `prevista` y se refrescaron. */
+  actualizadas: number;
+  /** Ya existían con cambios manuales (reprogramada/convertida/descartada) → intactas. */
+  respetadas: number;
+  /** Entradas del año origen que no pudieron convertirse en previsión, con motivo. */
+  salteadas: { valor: string; motivo: string }[];
+}
 
 // =============================================
 // --- Pendientes (recordatorios por cliente/equipo) ---

@@ -16,11 +16,10 @@ import { Modal } from '../../components/ui/Modal';
 import type { UsuarioAGS, UserRole, AppId, ModuloId, UserPermissionsOverride } from '@ags/shared';
 import {
   USER_ROLE_LABELS, USER_STATUS_LABELS, USER_STATUS_COLORS,
-  ROLE_DEFAULTS, MODULO_LABELS, APP_LABELS, getUserPermissions,
+  ROLE_DEFAULTS, MODULO_LABELS, MODULO_GROUPS, APP_LABELS, getUserPermissions,
 } from '@ags/shared';
 
 const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'admin_ing_soporte', 'ventas', 'admin_contable', 'administracion'];
-const ALL_MODULOS = Object.keys(MODULO_LABELS) as ModuloId[];
 const ALL_APPS = Object.keys(APP_LABELS) as AppId[];
 
 export const UsuariosList = () => {
@@ -419,33 +418,40 @@ function EditUserModal({ usuario, onClose, onSaved }: {
               </div>
             </div>
 
-            {/* Modulos */}
+            {/* Modulos — agrupados como el sidebar (MODULO_GROUPS) */}
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-2">Modulos</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {ALL_MODULOS.map(mod => {
-                  const isChecked = modulos.includes(mod);
-                  const isRoleDefault = roleDefaults.modulos.includes(mod);
-                  return (
-                    <label key={mod} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-                      !useCustom ? 'opacity-60 cursor-not-allowed' : ''
-                    } ${isChecked ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={!useCustom}
-                        onChange={() => toggleModulo(mod)}
-                        className="w-3.5 h-3.5 accent-teal-600 rounded"
-                      />
-                      <span className="text-[11px] text-slate-700">{MODULO_LABELS[mod]}</span>
-                      {useCustom && isChecked !== isRoleDefault && (
-                        <span className={`ml-auto text-[8px] font-bold ${isChecked ? 'text-emerald-500' : 'text-red-400'}`}>
-                          {isChecked ? '+' : '-'}
-                        </span>
-                      )}
-                    </label>
-                  );
-                })}
+              <div className="space-y-3">
+                {MODULO_GROUPS.map(group => (
+                  <div key={group.label}>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{group.label}</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {group.modulos.map(mod => {
+                        const isChecked = modulos.includes(mod);
+                        const isRoleDefault = roleDefaults.modulos.includes(mod);
+                        return (
+                          <label key={mod} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            !useCustom ? 'opacity-60 cursor-not-allowed' : ''
+                          } ${isChecked ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={!useCustom}
+                              onChange={() => toggleModulo(mod)}
+                              className="w-3.5 h-3.5 accent-teal-600 rounded"
+                            />
+                            <span className="text-[11px] text-slate-700">{MODULO_LABELS[mod]}</span>
+                            {useCustom && isChecked !== isRoleDefault && (
+                              <span className={`ml-auto text-[8px] font-bold ${isChecked ? 'text-emerald-500' : 'text-red-400'}`}>
+                                {isChecked ? '+' : '-'}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

@@ -1,3 +1,4 @@
+export { StockHome } from './StockHome';
 export { MarcasPage } from './MarcasPage';
 export { IngenierosPage } from './IngenierosPage';
 export { ProveedoresPage } from './ProveedoresPage';
