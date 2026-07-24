@@ -10,7 +10,9 @@ const LBL = 'text-[10px] font-semibold text-slate-400 uppercase tracking-wider m
 const FIELD = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
 
 export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
-  const [delta, setDelta] = useState<number>(0);
+  // Input como string para permitir tipear el signo "-" (Number('-') es NaN y reseteaba).
+  const [deltaStr, setDeltaStr] = useState('');
+  const delta = Number(deltaStr) || 0;
   const [justificacion, setJustificacion] = useState('');
   const [justifError, setJustifError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -92,7 +94,10 @@ export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
         </div>
         <div>
           <label className={LBL}>Ajuste (+ ingreso / - salida)</label>
-          <input type="number" value={delta} onChange={e => setDelta(Number(e.target.value))} className={FIELD} />
+          <input type="text" inputMode="numeric" value={deltaStr} placeholder="0"
+            onFocus={e => e.currentTarget.select()}
+            onChange={e => { const v = e.target.value; if (/^-?\d*$/.test(v)) setDeltaStr(v); }}
+            className={FIELD} />
           <p className="text-[11px] text-slate-500 mt-1">
             Cantidad actual: <span className="font-mono">{cantidadActual}</span>
             {delta !== 0 && (

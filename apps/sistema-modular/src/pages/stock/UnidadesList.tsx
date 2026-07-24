@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { unidadesService } from '../../services/firebaseService';
+import { posicionesStockService } from '../../services/stockService';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
@@ -26,6 +28,7 @@ export const UnidadesList = () => {
     search: { type: 'string' as const, default: '' },
     estado: { type: 'string' as const, default: '' },
     condicion: { type: 'string' as const, default: '' },
+    deposito: { type: 'string' as const, default: '' },
     showInactive: { type: 'boolean' as const, default: false },
     sortField: { type: 'string' as const, default: 'articuloCodigo' },
     sortDir:   { type: 'string' as const, default: 'asc' },
@@ -39,7 +42,17 @@ export const UnidadesList = () => {
   const [cargarStock, setCargarStock] = useState(false);
 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
+  const [depositos, setDepositos] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Depósitos (posiciones) para el filtro por ubicación. Se cargan una vez.
+  useEffect(() => {
+    posicionesStockService.getAll(true)
+      .then(list => setDepositos(list
+        .map(p => ({ value: p.id, label: p.codigo ? `${p.codigo} — ${p.nombre}` : p.nombre }))
+        .sort((a, b) => a.label.localeCompare(b.label))))
+      .catch(err => console.error('Error cargando depósitos:', err));
+  }, []);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -65,13 +78,14 @@ export const UnidadesList = () => {
 
   const filtered = useMemo(() => {
     let list = unidades;
+    if (filters.deposito) list = list.filter(u => u.ubicacion?.referenciaId === filters.deposito);
     if (debouncedSearch) {
       list = list.filter(u =>
         matchesSearch(debouncedSearch, u.articuloCodigo, u.articuloDescripcion, u.nroSerie, u.nroLote, u.reservadoParaPresupuestoNumero, u.reservadoParaClienteNombre)
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [unidades, debouncedSearch, filters.sortField, filters.sortDir]);
+  }, [unidades, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const aggregated = useMemo((): AggRow[] => {
     const byArticulo = new Map<string, AggRow>();
@@ -117,6 +131,11 @@ export const UnidadesList = () => {
             <option value="">Todas las condiciones</option>
             {(Object.keys(CONDICION_LABELS) as CondicionUnidad[]).map(k => <option key={k} value={k}>{CONDICION_LABELS[k]}</option>)}
           </select>
+          <div className="w-56">
+            <SearchableSelect value={filters.deposito} onChange={v => setFilter('deposito', v)} size="sm"
+              options={[{ value: '', label: 'Todos los depositos' }, ...depositos]}
+              placeholder="Todos los depositos" emptyMessage="Sin depositos" />
+          </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
             <input type="checkbox" checked={filters.showInactive} onChange={e => setFilter('showInactive', e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300" />
             Inactivos

@@ -35,9 +35,9 @@ interface Props {
  */
 export function MovimientosTable({ items, sortField, sortDir, onSort, onSelect, fromState }: Props) {
   return (
-    <div className="bg-white overflow-x-auto">
+    <div className="bg-white">
       <table className="w-full text-xs border-collapse">
-        <thead className="sticky top-0 z-10">
+        <thead className="sticky top-0 z-10 bg-slate-50">
           <tr className="text-left border-b border-slate-200 bg-slate-50">
             <SortableHeader label="Fecha" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={onSort} className={TH} />
             <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={onSort} className={TH} />

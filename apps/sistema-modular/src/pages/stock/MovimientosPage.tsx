@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
+import { CreateMovimientoLoteModal } from '../../components/stock/CreateMovimientoLoteModal';
 import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { MovimientoDetailDrawer } from '../../components/stock/MovimientoDetailDrawer';
 import { MovimientosFilters } from './MovimientosFilters';
@@ -166,7 +166,7 @@ export const MovimientosPage = () => {
       </PageHeader>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         <div className="py-2 text-[11px] text-slate-500">{hint}</div>
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -190,7 +190,7 @@ export const MovimientosPage = () => {
         )}
       </div>
 
-      <CreateMovimientoModal
+      <CreateMovimientoLoteModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={load}

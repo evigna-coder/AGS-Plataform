@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef } from 'react';
+import { InputHTMLAttributes, forwardRef, type FocusEvent } from 'react';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -13,9 +13,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   error,
   inputSize = 'md',
   className = '',
+  onFocus,
   ...props
 }, ref) => {
   const isSmall = inputSize === 'sm';
+  // Regla global: en campos numéricos, al enfocar se selecciona todo el contenido para
+  // poder reemplazar el número directo sin borrarlo primero (UAT 2026-07-23).
+  const selectOnFocus = props.type === 'number' || props.inputMode === 'numeric' || props.inputMode === 'decimal';
+  const handleFocus = (e: FocusEvent<HTMLInputElement>) => {
+    if (selectOnFocus) e.currentTarget.select();
+    onFocus?.(e);
+  };
   return (
     <div className="w-full">
       {label && (
@@ -38,6 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           ${error ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : ''}
           ${className}`}
         {...props}
+        onFocus={handleFocus}
       />
       {error && (
         <p className="mt-1.5 text-xs text-red-600">{error}</p>

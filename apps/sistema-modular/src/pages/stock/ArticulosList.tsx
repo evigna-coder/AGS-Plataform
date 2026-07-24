@@ -44,7 +44,7 @@ function ArticulosListThead({ allSelected, onToggleAll, sortField, sortDir, onSo
     </SortableHeader>
   );
   return (
-    <thead className="bg-slate-50 border-b border-slate-200">
+    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
       <tr>
         <th className="px-3 py-2 w-8 relative">
           <input type="checkbox" checked={allSelected} onChange={onToggleAll} className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700" />
@@ -187,7 +187,7 @@ export const ArticulosList = () => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando articulos...</p></div>
         ) : filtered.length === 0 ? (
@@ -196,7 +196,7 @@ export const ArticulosList = () => {
             <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">Crear primer articulo</button>
           </div></Card>
         ) : (
-          <div className="bg-white overflow-x-auto" data-testid="articulos-list">
+          <div className="bg-white" data-testid="articulos-list">
             <table ref={tableRef} className="w-full table-fixed">
               {colWidths
                 ? <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
