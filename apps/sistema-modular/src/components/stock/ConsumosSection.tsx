@@ -52,8 +52,8 @@ export const ConsumosSection = ({ clienteId, establecimientoId, sistemaId, titul
         : '';
   const linkTo = `/stock/consumos${linkParams ? `?${linkParams}` : ''}`;
 
-  const th = 'px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap';
-  const td = 'px-3 py-2 text-xs';
+  const th = 'px-2.5 py-1 text-left font-mono text-[9px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap';
+  const td = 'px-2.5 py-1 text-[11px]';
 
   return (
     <Card compact>
