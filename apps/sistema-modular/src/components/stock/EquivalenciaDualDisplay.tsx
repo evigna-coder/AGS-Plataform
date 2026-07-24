@@ -19,8 +19,10 @@ async function resolveStock(art: Articulo): Promise<number> {
   if (art.resumenStock?.disponible != null) {
     return art.resumenStock.disponible;
   }
+  // Fallback en vivo: sumar `cantidad` (los docs pueden ser agregados, cantidad > 1),
+  // NO contar docs. `computeStockAmplio` usa la suma; el conteo de docs subcontaba.
   const units = await unidadesService.getAll({ articuloId: art.id, estado: 'disponible', activoOnly: true });
-  return units.length;
+  return units.reduce((s, u) => s + (u.cantidad ?? 1), 0);
 }
 
 /**
