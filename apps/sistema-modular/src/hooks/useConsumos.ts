@@ -52,6 +52,17 @@ export interface ConsumoRow {
   origen: OrigenConsumo;
 }
 
+/**
+ * OT padre de un item hijo: "29562.01" → "29562"; null si no es hijo.
+ * Los OTs hijo pueden no denormalizar `sistemaId`/`clienteId` (vive en el padre); reportes-ot
+ * resuelve con este mismo fallback (services/firebaseService.ts). Sin esto, un consumo cargado
+ * contra una OT hija no se atribuía al equipo/cliente en los históricos embebidos.
+ */
+function parentOtNumber(n: string): string | null {
+  const i = n.lastIndexOf('.');
+  return i > 0 ? n.slice(0, i) : null;
+}
+
 function movToRow(m: MovimientoStock, origen: OrigenConsumo): ConsumoRow {
   const ot = m.otNumber || (m.destinoTipo === 'consumo_ot' ? m.destinoId : '') || null;
   return {
@@ -145,6 +156,11 @@ export function useConsumos(opts?: { enabled?: boolean }) {
           if (ot) nums.add(ot);
         }
         for (const r of itemsConsumidos) if (r.otNumber) nums.add(r.otNumber);
+        // Traer también los OT padre de los hijos, para el fallback de sistemaId/clienteId.
+        for (const n of [...nums]) {
+          const p = parentOtNumber(n);
+          if (p) nums.add(p);
+        }
         const fetched = await Promise.all(
           Array.from(nums).map(async n => [n, await ordenesTrabajoService.getByOtNumber(n)] as const),
         );
@@ -173,17 +189,20 @@ export function useConsumos(opts?: { enabled?: boolean }) {
     const estabBySistema = new Map(sistemas.map(s => [s.id, s.establecimientoId ?? null]));
     return base.map(r => {
       const ot = r.otNumber ? otsByNumber.get(r.otNumber) : undefined;
-      const clienteId = ot?.clienteId || r.clienteId;
-      const sistemaId = ot?.sistemaId || null;
+      // Fallback al OT padre cuando el hijo no denormaliza cliente/equipo.
+      const parentNum = r.otNumber ? parentOtNumber(r.otNumber) : null;
+      const padre = parentNum ? otsByNumber.get(parentNum) : undefined;
+      const clienteId = ot?.clienteId || padre?.clienteId || r.clienteId;
+      const sistemaId = ot?.sistemaId || padre?.sistemaId || null;
       return {
         ...r,
         clienteId: clienteId ?? null,
-        clienteNombre: ot?.razonSocial || r.clienteNombre || (clienteId ? clienteNombreById.get(clienteId) ?? null : null),
+        clienteNombre: ot?.razonSocial || padre?.razonSocial || r.clienteNombre || (clienteId ? clienteNombreById.get(clienteId) ?? null : null),
         sistemaId,
-        sistemaNombre: ot?.sistema || null,
-        // El scope por establecimiento se resuelve por la OT si lo denormaliza,
+        sistemaNombre: ot?.sistema || padre?.sistema || null,
+        // El scope por establecimiento se resuelve por la OT (o el padre) si lo denormaliza,
         // sino por el sistema (sistemas tienen establecimientoId).
-        establecimientoId: ot?.establecimientoId || (sistemaId ? estabBySistema.get(sistemaId) ?? null : null),
+        establecimientoId: ot?.establecimientoId || padre?.establecimientoId || (sistemaId ? estabBySistema.get(sistemaId) ?? null : null),
       };
     }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   }, [movConsumos, movEgresos, asgRows, otsByNumber, clientes, sistemas]);
