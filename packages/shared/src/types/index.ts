@@ -2970,6 +2970,13 @@ export interface Articulo {
    */
   presentaciones?: Presentacion[];
   /**
+   * Índice plano denormalizado de `presentaciones[].codigoParte`, para la VISTA INVERSA:
+   * Firestore no soporta `array-contains` dentro de objetos, así que guardamos los códigos sueltos
+   * y consultamos `where('presentacionCodigos','array-contains', codigo)` para hallar la base de una
+   * presentación. Siempre derivado de `presentaciones` (se mantiene en sync al guardar el artículo).
+   */
+  presentacionCodigos?: string[];
+  /**
    * Snapshot denormalizado del costo de la ÚLTIMA importación ingresada de este artículo
    * (last-wins). Conveniencia para listas/detalle sin abrir las unidades. La verdad por lote
    * vive en `UnidadStock.costoUnitario` / `factorImportacion`. Siempre en USD (`ultimoCostoMoneda`).

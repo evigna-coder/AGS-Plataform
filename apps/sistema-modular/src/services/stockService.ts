@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 
@@ -204,6 +204,29 @@ export const articulosService = {
       createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     } as Articulo;
+  },
+
+  /**
+   * Vista inversa de presentaciones: dado un N° de parte, encuentra el artículo BASE que lo
+   * declara como presentación (y su factor). Usa el índice plano `presentacionCodigos`
+   * (array-contains). Devuelve null si ese código no es presentación de ninguna base.
+   * Nota: requiere que la base tenga `presentacionCodigos` poblado (se setea al guardar el artículo).
+   */
+  async findBaseDePresentacion(codigo: string): Promise<{ base: Articulo; presentacion: Presentacion } | null> {
+    if (!codigo) return null;
+    const q = query(collection(db, 'articulos'), where('presentacionCodigos', 'array-contains', codigo));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      const base = {
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      } as Articulo;
+      const presentacion = (base.presentaciones ?? []).find(p => p.codigoParte === codigo && p.activo !== false);
+      if (presentacion) return { base, presentacion };
+    }
+    return null;
   },
 
   async create(data: Omit<Articulo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {

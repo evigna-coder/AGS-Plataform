@@ -5,6 +5,7 @@ import { articulosService, unidadesService, marcasService } from '../../services
 import { EquivalenciaDualDisplay } from './EquivalenciaDualDisplay';
 import { DesagregarStockModal } from './DesagregarStockModal';
 import { PresentacionesInfo } from './PresentacionesInfo';
+import { PresentacionInversaInfo } from './PresentacionInversaInfo';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
 // Estados que cuentan como stock real (para el desglose por depósito). Los terminales
@@ -173,8 +174,9 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           refreshKey={dualRefreshKey}
         />
 
-        {/* Presentaciones (N° de parte del mismo artículo) */}
+        {/* Presentaciones (N° de parte del mismo artículo) — base y vista inversa */}
         <PresentacionesInfo presentaciones={articulo.presentaciones ?? []} stockBase={totalEnStock} />
+        <PresentacionInversaInfo articulo={articulo} />
 
         {/* Unidades en stock (unificado: incluye cantidad por ubicación — antes había una tabla aparte
             "Stock por depósito" con la misma información). */}

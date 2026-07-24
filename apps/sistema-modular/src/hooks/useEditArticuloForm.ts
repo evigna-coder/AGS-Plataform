@@ -99,6 +99,10 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     if (!form.descripcion.trim()) { alert('La descripcion es obligatoria'); return; }
     if (codigoDupWarning) { alert(codigoDupWarning); return; }
     if (!articuloId) return;
+    // Presentaciones: descartar filas incompletas; factor entero > 0.
+    const presentacionesLimpias = form.presentaciones
+      .filter(p => p.codigoParte.trim() && Number(p.factor) > 0)
+      .map(p => ({ codigoParte: p.codigoParte.trim(), descripcion: p.descripcion?.trim() || null, factor: Number(p.factor), activo: p.activo !== false }));
     setSaving(true);
     try {
       await articulosService.update(articuloId, {
@@ -114,10 +118,9 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         requiereNumeroLote: form.requiereNumeroLote,
         notas: form.notas.trim() || null, activo: true,
         origen: form.origen.trim() || null,
-        // Presentaciones: descartar filas incompletas; factor entero > 0.
-        presentaciones: form.presentaciones
-          .filter(p => p.codigoParte.trim() && Number(p.factor) > 0)
-          .map(p => ({ codigoParte: p.codigoParte.trim(), descripcion: p.descripcion?.trim() || null, factor: Number(p.factor), activo: p.activo !== false })),
+        presentaciones: presentacionesLimpias,
+        // Índice plano para la vista inversa (findBaseDePresentacion).
+        presentacionCodigos: presentacionesLimpias.map(p => p.codigoParte),
       });
       handleClose();
       onSaved();
