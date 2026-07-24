@@ -2882,6 +2882,21 @@ export interface TratamientoArancelario {
  * Campos denormalizados (`articuloCodigoDestino`, `articuloDescripcionDestino`) se persisten
  * para evitar joins en listas; se refrescan via `articulosService.update()` cuando el destino se renombra.
  */
+/**
+ * Presentación de un artículo: un N° de parte alternativo del MISMO artículo, con su factor a
+ * la unidad base. El stock es un pool único en unidad base (ver plan presentaciones-de-compra,
+ * "Model 1: pool único"); comprar/presupuestar/vender por una presentación transacciona
+ * `cantidad × factor` unidades base. NO son artículos con stock propio.
+ */
+export interface Presentacion {
+  /** N° de parte del proveedor/venta de esta presentación (ej. "5190-2209", "4491"). */
+  codigoParte: string;
+  descripcion?: string | null;
+  /** Unidades base por 1 de esta presentación (entero > 0). Ej. 10, 100, 10000. */
+  factor: number;
+  activo?: boolean;
+}
+
 export interface ArticuloEquivalencia {
   /** FK → articulos (del lado de uso) */
   articuloIdDestino: string;
@@ -2948,6 +2963,12 @@ export interface Articulo {
    * `null` cuando no hay equivalencia configurada.
    */
   articuloIdDestinoEquivalencia?: string | null;
+  /**
+   * Presentaciones (N° de parte alternativos) del mismo artículo — pool de stock único en unidad
+   * base. Ver `Presentacion` y el plan presentaciones-de-compra. Reemplaza (a futuro) el modelo
+   * `equivalencias` 1:1. Aditivo: vacío/omitido = artículo sin presentaciones.
+   */
+  presentaciones?: Presentacion[];
   /**
    * Snapshot denormalizado del costo de la ÚLTIMA importación ingresada de este artículo
    * (last-wins). Conveniencia para listas/detalle sin abrir las unidades. La verdad por lote
@@ -3265,6 +3286,13 @@ export interface MovimientoStock {
   lote?: string | null;
   /** Phase 14 BOM-01 — código del componente consumido (match exacto con Patron.componentes[].codigoComponente). */
   codigoComponente?: string | null;
+  /**
+   * Cliente denormalizado en el movimiento (consumos/egresos al cerrar una OT). Permite filtrar
+   * Movimientos por cliente y mostrar el cliente como Destino sin join a la OT. Null en movimientos
+   * sin cliente (ingreso, transferencia, ajuste). Solo lo traen los movimientos nuevos.
+   */
+  clienteId?: string | null;
+  clienteNombre?: string | null;
 }
 
 // --- Remitos (despachos digitales) ---

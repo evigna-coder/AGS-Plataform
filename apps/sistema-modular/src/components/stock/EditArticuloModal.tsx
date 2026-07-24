@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useEditArticuloForm, formatPA } from '../../hooks/useEditArticuloForm';
 import { EquivalenciaSection } from './EquivalenciaSection';
+import { PresentacionesSection } from './PresentacionesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
@@ -174,7 +175,16 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           </div>
         )}
 
-        {/* Equivalencia */}
+        {/* Presentaciones (N° de parte del mismo artículo — pool único) */}
+        <hr className="border-[#E5E5E5]" />
+        <PresentacionesSection
+          presentaciones={h.form.presentaciones}
+          onAdd={h.addPresentacion}
+          onUpdate={h.updatePresentacion}
+          onRemove={h.removePresentacion}
+        />
+
+        {/* Equivalencia (modelo 1:1 legacy — se migra a Presentaciones) */}
         <hr className="border-[#E5E5E5]" />
         <EquivalenciaSection
           articuloId={articuloId}

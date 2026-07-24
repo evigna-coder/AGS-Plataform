@@ -1,5 +1,6 @@
 import type { Articulo, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
 import { EquivalenciaBadge } from '../../components/stock/EquivalenciaBadge';
+import { PresentacionesBadge } from '../../components/stock/PresentacionesBadge';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
   HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro', GENERAL: 'General',
@@ -81,6 +82,7 @@ export function ArticulosListRow({
                 factor={art.equivalencias?.[0]?.factor}
               />
             )}
+            <PresentacionesBadge presentaciones={art.presentaciones ?? []} />
           </span>
         </td>
         <td className={`px-4 py-2 text-xs text-slate-900 max-w-md truncate ${getAlignClass(2)}`}>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { unidadesService } from '../../services/firebaseService';
+import { unidadesService, articulosService } from '../../services/firebaseService';
 import { posicionesStockService } from '../../services/stockService';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -16,11 +16,14 @@ import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
-import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino } from '@ags/shared';
+import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Presentacion } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', entregado: 'Entregado', baja: 'Baja' };
+// Estados terminales: la unidad ya SALIÓ del stock (su rastro vive en Movimientos, no acá).
+// Se ocultan de "Unidades" salvo que el usuario filtre explícitamente por uno de ellos.
+const UNIDAD_FUERA_DE_STOCK: EstadoUnidad[] = ['entregado', 'consumido', 'vendido', 'baja'];
 const ESTADO_COLORS: Record<EstadoUnidad, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', entregado: 'bg-teal-100 text-teal-700', baja: 'bg-red-100 text-red-700' };
 
 export const UnidadesList = () => {
@@ -53,6 +56,17 @@ export const UnidadesList = () => {
         .sort((a, b) => a.label.localeCompare(b.label))))
       .catch(err => console.error('Error cargando depósitos:', err));
   }, []);
+  // Presentaciones por artículo (para el badge en la lista). Solo se guardan los que las tienen.
+  const [presentacionesByArticulo, setPresentacionesByArticulo] = useState<Map<string, Presentacion[]>>(new Map());
+  useEffect(() => {
+    articulosService.getAll()
+      .then(arts => {
+        const m = new Map<string, Presentacion[]>();
+        for (const a of arts) if ((a.presentaciones?.length ?? 0) > 0) m.set(a.id, a.presentaciones!);
+        setPresentacionesByArticulo(m);
+      })
+      .catch(err => console.error('Error cargando presentaciones:', err));
+  }, []);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -78,6 +92,9 @@ export const UnidadesList = () => {
 
   const filtered = useMemo(() => {
     let list = unidades;
+    // "Stock real": ocultar unidades ya salidas (entregado/consumido/vendido/baja) en la vista
+    // por defecto. Si el usuario elige explícitamente uno de esos estados en el filtro, se muestran.
+    if (!filters.estado) list = list.filter(u => !UNIDAD_FUERA_DE_STOCK.includes(u.estado));
     if (filters.deposito) list = list.filter(u => u.ubicacion?.referenciaId === filters.deposito);
     if (debouncedSearch) {
       list = list.filter(u =>
@@ -85,7 +102,7 @@ export const UnidadesList = () => {
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [unidades, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir]);
+  }, [unidades, filters.estado, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const aggregated = useMemo((): AggRow[] => {
     const byArticulo = new Map<string, AggRow>();
@@ -103,8 +120,12 @@ export const UnidadesList = () => {
       prev.units.push(u);
       byArticulo.set(u.articuloId, prev);
     });
-    return [...byArticulo.values()].map(row => ({ ...row, total: row.disponible + row.reservado + row.asignado }));
-  }, [filtered]);
+    return [...byArticulo.values()].map(row => ({
+      ...row,
+      total: row.disponible + row.reservado + row.asignado,
+      presentaciones: presentacionesByArticulo.get(row.articuloId),
+    }));
+  }, [filtered, presentacionesByArticulo]);
 
   const isInitialLoad = loading && unidades.length === 0;
   const thBase = 'relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider';

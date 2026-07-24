@@ -130,7 +130,7 @@ export const ArticulosList = () => {
 
   const filtered = useMemo(() => {
     let list = articulos;
-    if (debouncedSearch) { list = list.filter(a => matchesSearch(debouncedSearch, a.codigo, a.descripcion)); }
+    if (debouncedSearch) { list = list.filter(a => matchesSearch(debouncedSearch, a.codigo, a.descripcion, ...(a.presentaciones ?? []).map(p => p.codigoParte))); }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [articulos, debouncedSearch, filters.sortField, filters.sortDir]);
 

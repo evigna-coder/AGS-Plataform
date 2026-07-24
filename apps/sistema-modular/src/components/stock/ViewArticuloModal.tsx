@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { articulosService, unidadesService, marcasService } from '../../services/firebaseService';
 import { EquivalenciaDualDisplay } from './EquivalenciaDualDisplay';
 import { DesagregarStockModal } from './DesagregarStockModal';
-import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
+import { PresentacionesInfo } from './PresentacionesInfo';
+import type { Articulo, UnidadStock, Marca, CondicionUnidad, EstadoUnidad } from '@ags/shared';
+
+// Estados que cuentan como stock real (para el desglose por depósito). Los terminales
+// (entregado/consumido/vendido/baja) ya salieron y no suman.
+const ESTADOS_EN_STOCK: EstadoUnidad[] = ['disponible', 'reservado', 'asignado', 'en_transito'];
 
 interface Props {
   open: boolean;
@@ -67,6 +72,13 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
   const handleEdit = () => {
     if (articuloId) { onClose(); onEdit(articuloId); }
   };
+
+  // Unidades en stock real (excluye estados terminales: entregado/consumido/vendido/baja) + total físico.
+  const unidadesEnStock = useMemo(
+    () => unidades.filter(u => ESTADOS_EN_STOCK.includes(u.estado)),
+    [unidades],
+  );
+  const totalEnStock = unidadesEnStock.reduce((s, u) => s + (u.cantidad ?? 1), 0);
 
   if (loading || !articulo) {
     return (
@@ -161,43 +173,49 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           refreshKey={dualRefreshKey}
         />
 
-        {/* Unidades */}
+        {/* Presentaciones (N° de parte del mismo artículo) */}
+        <PresentacionesInfo presentaciones={articulo.presentaciones ?? []} stockBase={totalEnStock} />
+
+        {/* Unidades en stock (unificado: incluye cantidad por ubicación — antes había una tabla aparte
+            "Stock por depósito" con la misma información). */}
         <hr className="border-[#E5E5E5]" />
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">
-          Unidades en stock ({unidades.length})
+          Unidades en stock ({totalEnStock})
         </p>
 
-        {unidades.length === 0 ? (
-          <p className="text-xs text-slate-400 italic py-2">No hay unidades registradas.</p>
+        {unidadesEnStock.length === 0 ? (
+          <p className="text-xs text-slate-400 italic py-2">Sin stock disponible.</p>
         ) : (
           <div className="border border-[#E5E5E5] rounded-md overflow-hidden">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-[#F0F0F0]">
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">Ubicacion</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-right w-16">Cant.</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">S/N</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Lote</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Condicion</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Estado</th>
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Ubicacion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {unidades.map(u => (
+                {unidadesEnStock.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="px-2 py-1.5 font-mono text-slate-700">{u.nroSerie || '—'}</td>
-                    <td className="px-2 py-1.5 text-slate-600">{u.nroLote || '—'}</td>
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1.5 text-slate-600">
+                      {TIPO_UBICACION_LABELS[u.ubicacion.tipo] || u.ubicacion.tipo}: {u.ubicacion.referenciaNombre}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-semibold text-slate-700 tabular-nums">{u.cantidad ?? 1}</td>
+                    <td className="px-2 py-1.5 font-mono text-slate-700 text-center">{u.nroSerie || '—'}</td>
+                    <td className="px-2 py-1.5 text-slate-600 text-center">{u.nroLote || '—'}</td>
+                    <td className="px-2 py-1.5 text-center">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${CONDICION_COLORS[u.condicion]}`}>
                         {CONDICION_LABELS[u.condicion]}
                       </span>
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1.5 text-center">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[u.estado] ?? 'bg-slate-100 text-slate-600'}`}>
                         {u.estado.replace('_', ' ')}
                       </span>
-                    </td>
-                    <td className="px-2 py-1.5 text-slate-500">
-                      {TIPO_UBICACION_LABELS[u.ubicacion.tipo] || u.ubicacion.tipo}: {u.ubicacion.referenciaNombre}
                     </td>
                   </tr>
                 ))}

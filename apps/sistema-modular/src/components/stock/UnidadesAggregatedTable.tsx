@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../ui/SortableHeader';
-import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
+import { PresentacionesBadge } from './PresentacionesBadge';
+import type { UnidadStock, CondicionUnidad, EstadoUnidad, Presentacion } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
@@ -21,6 +22,8 @@ export interface AggRow {
   asignado: number;
   total: number;
   units: UnidadStock[];
+  /** Presentaciones (N° de parte) del artículo — para el badge. Resuelto en UnidadesList. */
+  presentaciones?: Presentacion[];
 }
 
 const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
@@ -81,6 +84,9 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover }: { row: AggRo
         <Link to={`/stock/articulos/${row.articuloId}`} onClick={e => e.stopPropagation()} className="text-teal-600 hover:underline font-semibold">{row.codigo}</Link>
         {row.hasSerie && <span className="ml-1.5 px-1 py-0.5 rounded text-[8px] bg-teal-50 text-teal-700">S/N</span>}
         {row.hasLote && <span className="ml-1 px-1 py-0.5 rounded text-[8px] bg-indigo-50 text-indigo-700">Lote</span>}
+        {row.presentaciones && row.presentaciones.length > 0 && (
+          <span className="ml-1 inline-flex align-middle"><PresentacionesBadge presentaciones={row.presentaciones} /></span>
+        )}
       </td>
       <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[220px]">{row.descripcion}</td>
       <td className="px-3 py-2 text-sm font-semibold text-teal-700 text-right">{row.disponible}</td>
