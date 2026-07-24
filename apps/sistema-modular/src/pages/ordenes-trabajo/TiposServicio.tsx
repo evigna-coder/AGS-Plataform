@@ -7,32 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-
-// Lista estándar: réplica de la del reporte de servicio (reportes-ot →
-// ServiceReportSection) + proveedores externos y entrega de insumos. El botón
-// "Cargar tipos estándar" crea solo los que falten (match por nombre normalizado).
-const TIPOS_SERVICIO_ESTANDAR = [
-  'Calibración',
-  'Calificación de instalación',
-  'Calificación de operación',
-  'Calificación de operación de software',
-  'Capacitación',
-  'Cortesía',
-  'Desinstalación',
-  'Instalación',
-  'Limpieza de fuente de Iones',
-  'Mantenimiento preventivo con consumibles',
-  'Mantenimiento preventivo sin consumibles',
-  'Mantenimiento preventivo sin consumibles, incluye limpieza de módulos',
-  'Otros',
-  'Recalificación post reparación',
-  'Reparación en bench',
-  'Trabajo en bench',
-  'Visita de diagnóstico / reparación',
-  'Aznarez',
-  'ELS',
-  'Entrega de insumos',
-];
+import { TIPOS_SERVICIO_ESTANDAR } from '../../utils/tiposServicioEstandar';
 
 const normalizar = (s: string) => s.trim().toLowerCase();
 
@@ -42,7 +17,7 @@ export const TiposServicio = () => {
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TipoServicio | null>(null);
-  const [formData, setFormData] = useState({ nombre: '' });
+  const [formData, setFormData] = useState({ nombre: '', generaRecurrenciaAnual: false });
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
 
@@ -74,18 +49,20 @@ export const TiposServicio = () => {
         await tiposServicioService.update(editing.id, {
           nombre: formData.nombre.trim(),
           activo: editing.activo,
+          generaRecurrenciaAnual: formData.generaRecurrenciaAnual,
         });
       } else {
         await tiposServicioService.create({
           nombre: formData.nombre.trim(),
           activo: true,
           requiresProtocol: false,
+          generaRecurrenciaAnual: formData.generaRecurrenciaAnual,
         });
       }
       await loadData();
       setShowModal(false);
       setEditing(null);
-      setFormData({ nombre: '' });
+      setFormData({ nombre: '', generaRecurrenciaAnual: false });
     } catch (error) {
       console.error('Error guardando tipo de servicio:', error);
       alert('Error al guardar el tipo de servicio');
@@ -103,7 +80,7 @@ export const TiposServicio = () => {
     try {
       setSeeding(true);
       for (const nombre of faltantes) {
-        await tiposServicioService.create({ nombre, activo: true, requiresProtocol: false });
+        await tiposServicioService.create({ nombre, activo: true, requiresProtocol: false, generaRecurrenciaAnual: false });
       }
       await loadData();
     } catch (error) {
@@ -116,7 +93,7 @@ export const TiposServicio = () => {
 
   const handleEdit = (tipo: TipoServicio) => {
     setEditing(tipo);
-    setFormData({ nombre: tipo.nombre });
+    setFormData({ nombre: tipo.nombre, generaRecurrenciaAnual: tipo.generaRecurrenciaAnual ?? false });
     setShowModal(true);
   };
 
@@ -153,7 +130,7 @@ export const TiposServicio = () => {
           <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
             {seeding ? 'Cargando...' : 'Cargar tipos estándar'}
           </Button>
-          <Button onClick={() => { setEditing(null); setFormData({ nombre: '' }); setShowModal(true); }}>
+          <Button onClick={() => { setEditing(null); setFormData({ nombre: '', generaRecurrenciaAnual: false }); setShowModal(true); }}>
             + Nuevo Tipo
           </Button>
         </div>
@@ -163,7 +140,7 @@ export const TiposServicio = () => {
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-400 mb-4">No hay tipos de servicio registrados</p>
-            <Button onClick={() => { setEditing(null); setFormData({ nombre: '' }); setShowModal(true); }}>
+            <Button onClick={() => { setEditing(null); setFormData({ nombre: '', generaRecurrenciaAnual: false }); setShowModal(true); }}>
               Crear primer tipo de servicio
             </Button>
           </div>
@@ -174,7 +151,14 @@ export const TiposServicio = () => {
             <Card key={tipo.id}>
               <div className="flex justify-between items-center">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-slate-900">{tipo.nombre}</h3>
+                  <h3 className="font-semibold text-slate-900">
+                    {tipo.nombre}
+                    {tipo.generaRecurrenciaAnual && (
+                      <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 align-middle">
+                        Recurrencia anual
+                      </span>
+                    )}
+                  </h3>
                   {!tipo.activo && (
                     <span className="text-xs text-slate-400 italic">(Inactivo)</span>
                   )}
@@ -202,29 +186,43 @@ export const TiposServicio = () => {
       {/* Modal */}
       <Modal
         open={showModal}
-        onClose={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '' }); }}
+        onClose={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '', generaRecurrenciaAnual: false }); }}
         title={editing ? 'Editar Tipo de Servicio' : 'Nuevo Tipo de Servicio'}
         maxWidth="sm"
         minimizable={false}
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '' }); }}>
+            <Button variant="outline" onClick={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '', generaRecurrenciaAnual: false }); }}>
               Cancelar
             </Button>
             <Button onClick={handleSave}>Guardar</Button>
           </>
         }
       >
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            Nombre del Tipo de Servicio *
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Nombre del Tipo de Servicio *
+            </label>
+            <Input
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              placeholder="Ej: Mantenimiento preventivo, Calificacion de operacion..."
+              required
+            />
+          </div>
+          <label className="flex items-start gap-2 text-xs text-slate-600">
+            <input type="checkbox" className="rounded border-slate-300 mt-0.5"
+              checked={formData.generaRecurrenciaAnual}
+              onChange={(e) => setFormData({ ...formData, generaRecurrenciaAnual: e.target.checked })} />
+            <span>
+              Recurrencia anual
+              <span className="block text-[11px] text-slate-400">
+                Servicio regulatorio con vigencia de 1 año: al completarse en la agenda reserva
+                el mismo lugar del año siguiente como previsión (sin abrir OT).
+              </span>
+            </span>
           </label>
-          <Input
-            value={formData.nombre}
-            onChange={(e) => setFormData({ nombre: e.target.value })}
-            placeholder="Ej: Mantenimiento preventivo, Calificacion de operacion..."
-            required
-          />
         </div>
       </Modal>
     </div>

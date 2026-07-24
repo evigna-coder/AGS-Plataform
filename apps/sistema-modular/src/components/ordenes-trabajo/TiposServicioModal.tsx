@@ -13,7 +13,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(true);
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nombre: '', activo: true, requiresProtocol: false });
+  const [form, setForm] = useState({ nombre: '', activo: true, requiresProtocol: false, generaRecurrenciaAnual: false });
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -26,10 +26,17 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
     finally { setLoading(false); }
   };
 
-  const resetForm = () => { setForm({ nombre: '', activo: true, requiresProtocol: false }); setEditingId(null); setShowForm(false); };
+  const resetForm = () => {
+    setForm({ nombre: '', activo: true, requiresProtocol: false, generaRecurrenciaAnual: false });
+    setEditingId(null); setShowForm(false);
+  };
 
   const handleEdit = (t: TipoServicio) => {
-    setForm({ nombre: t.nombre, activo: t.activo, requiresProtocol: t.requiresProtocol ?? false });
+    setForm({
+      nombre: t.nombre, activo: t.activo,
+      requiresProtocol: t.requiresProtocol ?? false,
+      generaRecurrenciaAnual: t.generaRecurrenciaAnual ?? false,
+    });
     setEditingId(t.id); setShowForm(true);
   };
 
@@ -67,7 +74,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
               <label className={lbl}>Nombre *</label>
               <Input inputSize="sm" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Mantenimiento preventivo" />
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <label className="flex items-center gap-2 text-xs text-slate-600">
                 <input type="checkbox" checked={form.activo} onChange={e => setForm({ ...form, activo: e.target.checked })} className="rounded border-slate-300" />
                 Activo
@@ -76,7 +83,16 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
                 <input type="checkbox" checked={form.requiresProtocol} onChange={e => setForm({ ...form, requiresProtocol: e.target.checked })} className="rounded border-slate-300" />
                 Requiere protocolo
               </label>
+              <label className="flex items-center gap-2 text-xs text-slate-600"
+                title="Servicio regulatorio con vigencia de 1 año: al completarse reserva el mismo lugar en la agenda del año siguiente (previsión, sin abrir OT)">
+                <input type="checkbox" checked={form.generaRecurrenciaAnual} onChange={e => setForm({ ...form, generaRecurrenciaAnual: e.target.checked })} className="rounded border-slate-300" />
+                Recurrencia anual
+              </label>
             </div>
+            <p className="text-[11px] text-slate-400">
+              "Recurrencia anual": al completarse en la agenda, el generador de previsiones reserva
+              el mismo lugar del año siguiente (sin crear OT).
+            </p>
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <Button variant="secondary" size="sm" onClick={resetForm}>Cancelar</Button>
               <Button size="sm" onClick={handleSave} disabled={saving || !form.nombre.trim()}>
@@ -96,6 +112,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
               <tr>
                 <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Nombre</th>
                 <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Protocolo</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider" title="Reserva lugar en la agenda del año siguiente">Recurrencia anual</th>
                 <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Estado</th>
                 <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Acciones</th>
               </tr>
@@ -108,6 +125,9 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
                   </td>
                   <td className="px-3 py-2 text-center text-slate-500">
                     {t.requiresProtocol ? '✓' : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-center text-slate-500">
+                    {t.generaRecurrenciaAnual ? '✓' : '—'}
                   </td>
                   <td className="px-3 py-2">
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${t.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>

@@ -14,7 +14,8 @@ import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS, type TipoOT } f
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  /** Recibe el número de la OT recién creada. */
+  onCreated: (otNumber?: string) => void;
   prefill?: OTPrefill;
 }
 

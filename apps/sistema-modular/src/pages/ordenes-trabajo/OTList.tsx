@@ -1,10 +1,10 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { ordenesTrabajoService, modulosService } from '../../services/firebaseService';
-import type { ModuloSistema } from '@ags/shared';
+import { useState, useCallback } from 'react';
+import { ordenesTrabajoService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useOTListData } from '../../hooks/useOTListData';
-import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
-import { OT_ESTADO_LABELS } from '@ags/shared';
+import { useOTBulkActions } from '../../hooks/useOTBulkActions';
+import { useModuloSearchTerms } from '../../hooks/useModuloSearchTerms';
+import type { WorkOrder } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -17,12 +17,16 @@ import { OTKpiBar } from '../../components/ordenes-trabajo/OTKpiBar';
 import { OTBulkActionsBar } from '../../components/ordenes-trabajo/OTBulkActionsBar';
 import { OTListTable, OT_DATA_COLUMNS } from '../../components/ordenes-trabajo/OTListTable';
 import { OTColumnsMenu } from '../../components/ordenes-trabajo/OTColumnsMenu';
+import { OTTabs } from '../../components/ordenes-trabajo/OTTabs';
+import { PrevisionesList } from './PrevisionesList';
 import { type SortDir, toggleSort } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { exportOTsToCSV } from '../../utils/otCsvExport';
 
 const FILTER_SCHEMA = {
+  /** Solapa activa del módulo: 'ots' (default) | 'previsiones'. */
+  tab: { type: 'string' as const, default: 'ots' },
   clienteId: { type: 'string' as const, default: '' },
   sistemaId: { type: 'string' as const, default: '' },
   estadoAdmin: { type: 'string' as const, default: '__pendientes__' },
@@ -72,32 +76,9 @@ export const OTList = () => {
 
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden, toggleCol, showAllCols } = useResizableColumns('ot-list-v2');
 
-  // Módulos reales de todos los sistemas (una query collectionGroup, cacheada) —
-  // fuente principal para buscar un sistema por módulo/serie en el filtro
-  // (UAT 2026-07-17: modelo ej. G1314A, N° de serie, descripción).
-  const [modulosAll, setModulosAll] = useState<ModuloSistema[]>([]);
-  useEffect(() => {
-    modulosService.getAllGrouped()
-      .then(setModulosAll)
-      .catch(err => console.warn('[OTList] no se pudieron cargar módulos para el filtro:', err));
-  }, []);
-
-  const moduloTermsBySistema = useMemo(() => {
-    const m = new Map<string, string>();
-    const add = (sistemaId: string | null | undefined, ...parts: (string | null | undefined)[]) => {
-      if (!sistemaId) return;
-      const terms = parts.filter(Boolean).join(' ');
-      if (!terms) return;
-      const prev = m.get(sistemaId);
-      if (!prev) m.set(sistemaId, terms);
-      else if (!prev.includes(terms)) m.set(sistemaId, `${prev} ${terms}`);
-    };
-    // Fuente principal: los módulos del equipo (nombre=modelo, descripción, serie).
-    for (const mod of modulosAll) add(mod.sistemaId, mod.nombre, mod.descripcion, mod.serie);
-    // Complemento: lo denormalizado en las OTs (cubre datos legacy sin módulos cargados).
-    for (const ot of ordenes) add(ot.sistemaId, ot.moduloModelo, ot.moduloDescripcion, ot.moduloSerie);
-    return m;
-  }, [modulosAll, ordenes]);
+  // Índice de términos de módulo (modelo / descripción / serie) por sistema, para
+  // que el buscador del filtro encuentre un equipo por su módulo.
+  const moduloTermsBySistema = useModuloSearchTerms(ordenes);
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -105,43 +86,11 @@ export const OTList = () => {
   const [newItemParent, setNewItemParent] = useState<WorkOrder | null>(null);
   const [showTiposServicio, setShowTiposServicio] = useState(false);
 
-  // Bulk selection
-  const [selectedOTs, setSelectedOTs] = useState<Set<string>>(new Set());
-  const toggleSelect = (otNum: string) => setSelectedOTs(prev => {
-    const next = new Set(prev);
-    next.has(otNum) ? next.delete(otNum) : next.add(otNum);
-    return next;
-  });
-  const toggleSelectAll = () => {
-    if (selectedOTs.size === grouped.length) setSelectedOTs(new Set());
-    else setSelectedOTs(new Set(grouped.map(g => g.ot.otNumber)));
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedOTs.size === 0) return;
-    if (!await confirm(`¿Eliminar ${selectedOTs.size} OTs seleccionadas?`)) return;
-    try {
-      for (const otNum of selectedOTs) await ordenesTrabajoService.delete(otNum);
-      setSelectedOTs(new Set());
-    } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
-  };
-
-  const handleBulkEstado = async (nuevoEstado: OTEstadoAdmin) => {
-    if (selectedOTs.size === 0) return;
-    if (!await confirm(`¿Cambiar ${selectedOTs.size} OTs a ${OT_ESTADO_LABELS[nuevoEstado]}?`)) return;
-    try {
-      const ahora = new Date().toISOString();
-      for (const otNum of selectedOTs) {
-        const ot = ordenes.find(o => o.otNumber === otNum);
-        await ordenesTrabajoService.update(otNum, {
-          estadoAdmin: nuevoEstado, estadoAdminFecha: ahora,
-          estadoHistorial: [...(ot?.estadoHistorial || []), { estado: nuevoEstado, fecha: ahora, nota: 'Cambio masivo' }],
-          ...(nuevoEstado === 'FINALIZADO' ? { status: 'FINALIZADO' as const } : {}),
-        });
-      }
-      setSelectedOTs(new Set());
-    } catch { alert('Error al cambiar estados'); }
-  };
+  // Selección múltiple + acciones masivas (borrar / cambiar estado).
+  const {
+    selectedOTs, toggleSelect, toggleSelectAll, clearSelection,
+    handleBulkDelete, handleBulkEstado, allSelected,
+  } = useOTBulkActions(ordenes, grouped, confirm);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -168,6 +117,12 @@ export const OTList = () => {
 
   const isInitialLoad = loading && ordenes.length === 0;
 
+  // Solapa "Previsiones" (OTs sin abrir). Va después de todos los hooks para no
+  // romper el orden; la suscripción de OTs queda viva y el volver es instantáneo.
+  if (filters.tab === 'previsiones') {
+    return <PrevisionesList onTabChange={t => setFilter('tab', t)} />;
+  }
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -186,6 +141,9 @@ export const OTList = () => {
           </div>
         }
       >
+        <div className="mb-3">
+          <OTTabs tab="ots" onChange={t => setFilter('tab', t)} />
+        </div>
         <OTFiltersBar
           filters={filters}
           setFilter={setFilter as (key: string, value: string | boolean) => void}
@@ -204,7 +162,7 @@ export const OTList = () => {
         count={selectedOTs.size}
         onChangeEstado={handleBulkEstado}
         onDelete={handleBulkDelete}
-        onClear={() => setSelectedOTs(new Set())}
+        onClear={clearSelection}
       />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
@@ -225,7 +183,7 @@ export const OTList = () => {
             grouped={grouped}
             sistemas={sistemas}
             selectedOTs={selectedOTs}
-            allSelected={selectedOTs.size === grouped.length && grouped.length > 0}
+            allSelected={allSelected}
             toggleSelect={toggleSelect}
             toggleSelectAll={toggleSelectAll}
             sortField={filters.sortField}

@@ -77,6 +77,22 @@ export const agendaService = {
     });
   },
 
+  /**
+   * Entradas cuyo `fechaInicio` cae dentro del año calendario `anio`.
+   * Query de rango simple (sin filtrar estado en Firestore) para no necesitar un
+   * índice compuesto: el filtro por `estadoAgenda` lo hace el caller en memoria.
+   */
+  async getByAnio(anio: number): Promise<AgendaEntry[]> {
+    const q = query(
+      collection(db, 'agendaEntries'),
+      where('fechaInicio', '>=', `${anio}-01-01`),
+      where('fechaInicio', '<=', `${anio}-12-31`),
+      orderBy('fechaInicio', 'asc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => parseAgendaEntry(d));
+  },
+
   async getByOtNumber(otNumber: string): Promise<AgendaEntry[]> {
     const q = query(collection(db, 'agendaEntries'), where('otNumber', '==', otNumber));
     const snap = await getDocs(q);
@@ -201,6 +217,13 @@ export const feriadosService = {
       snap.docs.forEach(d => fechas.add(d.id));
       callback(fechas);
     });
+  },
+
+  /** Lectura one-shot (el doc id ES la fecha 'YYYY-MM-DD'). Para batches que no
+   *  pueden esperar a un subscribe (ej. generador de previsiones). */
+  async getAllFechas(): Promise<Set<string>> {
+    const snap = await getDocs(collection(db, 'feriados'));
+    return new Set(snap.docs.map(d => d.id));
   },
 
   async add(fecha: string): Promise<void> {

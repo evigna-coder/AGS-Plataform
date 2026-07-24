@@ -59,9 +59,16 @@ export interface OTPrefill {
   presupuestoNumero?: string;
   ordenCompra?: string;
   leadId?: string;
+  /** Precarga del tipo de servicio (ej. al convertir una previsión de agenda). */
+  tipoServicioId?: string;
+  /** Precarga del ingeniero asignado. */
+  ingenieroId?: string;
+  /** Precarga de la fecha de servicio ('YYYY-MM-DD'). */
+  fechaServicioAprox?: string;
 }
 
-export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: () => void, prefill?: OTPrefill) {
+/** `onCreated` recibe el número de la OT creada (los callers que no lo necesitan lo ignoran). */
+export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (otNumber?: string) => void, prefill?: OTPrefill) {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -145,6 +152,9 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     if (prefill.presupuestoNumero) updates.presupuestoNumero = prefill.presupuestoNumero;
     if (prefill.ordenCompra) updates.ordenCompra = prefill.ordenCompra;
     if (prefill.leadId) updates.leadId = prefill.leadId;
+    if (prefill.tipoServicioId) updates.tipoServicioId = prefill.tipoServicioId;
+    if (prefill.ingenieroId) updates.ingenieroId = prefill.ingenieroId;
+    if (prefill.fechaServicioAprox) updates.fechaServicioAprox = prefill.fechaServicioAprox;
     setForm(prev => ({ ...prev, ...updates }));
   }, [open, prefill, prefilled, clientes]);
 
@@ -483,7 +493,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       }
 
       handleClose();
-      onCreated();
+      onCreated(otNum);
     } catch (err) {
       console.error('Error creando OT:', err);
       alert(err instanceof Error ? err.message : 'Error al crear la orden de trabajo');
