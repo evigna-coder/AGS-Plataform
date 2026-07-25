@@ -156,6 +156,7 @@ service cloud.firestore {
     // un asiento falsearía el historial (auditoría I8, 2026-07-20).
     match /movimientosStock/{movimientoId}        { allow read, create: if esStaff(); }
     match /remitos/{remitoId}                     { allow read, write: if esStaff(); }
+    match /certificaciones/{certificacionId}      { allow read, write: if esStaff(); }
     match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
     match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }
     match /consumibles_por_modulo/{moduloId}      { allow read, write: if esStaff(); }

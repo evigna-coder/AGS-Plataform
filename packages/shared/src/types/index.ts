@@ -176,6 +176,9 @@ export interface WorkOrder {
    */
   retenidaFacturacion?: boolean;
   requisitoFacturacionPendiente?: RequisitoFacturacion | null;
+  /** Certificación del cliente que liberó esta OT (clientes 'certificacion'). Trazabilidad. */
+  certificacionId?: string | null;
+  certificacionNumero?: string | null;
   contratoId?: string | null;
   problemaFallaInicial?: string;
   ingenieroAsignadoId?: string | null;
@@ -3451,6 +3454,36 @@ export interface Remito {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+}
+
+// =============================================
+// --- Certificación de servicios (circuito B) ---
+// =============================================
+
+/**
+ * Certificación del cliente que habilita a facturar servicios ya ejecutados
+ * (clientes con `requisitoFacturacion === 'certificacion'`, ej. YPF/Y-tec).
+ * A fin de mes se envía el listado de servicios; el cliente devuelve la
+ * certificación, que cubre N OTs y las libera para facturación de una vez.
+ */
+export interface Certificacion {
+  id: string;
+  /** N° de certificación del cliente (opcional). */
+  numero?: string | null;
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  /** Fecha de la certificación (ISO). */
+  fecha: string;
+  /** OTs cubiertas por esta certificación (se liberan al registrarla). */
+  otNumbers: string[];
+  /** Escaneo/archivo de la certificación en Storage. */
+  archivoUrl?: string | null;
+  archivoPath?: string | null;
+  observaciones?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
 }
 
 // =============================================

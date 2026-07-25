@@ -28,7 +28,7 @@ import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujos
 import { AgendaPage } from '../../pages/agenda';
 import { ControlSemanal } from '../../pages/control-semanal';
 import { PendientesList } from '../../pages/pendientes';
-import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
+import { FacturacionList, FacturacionDetail, PendientesDocumentacionPage } from '../../pages/facturacion';
 import { ControlFacturasList } from '../../pages/control-facturas';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
@@ -194,6 +194,7 @@ function AppRoutes() {
       <Route path="/pendientes" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><PendientesList /></ProtectedRoute>} />
       {/* Facturacion */}
       <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />
+      <Route path="/facturacion/pendientes-documentacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PendientesDocumentacionPage /></ProtectedRoute>} />
       <Route path="/facturacion/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionDetail /></ProtectedRoute>} />
       {/* Contratos */}
       <Route path="/contratos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratosList /></ProtectedRoute>} />

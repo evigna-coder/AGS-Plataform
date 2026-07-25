@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { remitosService } from '../services/firebaseService';
+import { remitosService, ordenesTrabajoService } from '../services/firebaseService';
 import {
   movimientosAplicarService, remitoMueveStock, itemRemitoConEfectoAplicado,
 } from '../services/movimientosAplicar';
@@ -81,6 +81,18 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
         remitoFirmadoUrl: url,
         remitoFirmadoPath: storagePath,
       });
+      // Auto-release (circuito B): las OTs de este remito retenidas por 'remito_firmado'
+      // quedan liberadas para facturación al llegar el remito firmado. Best-effort.
+      for (const otNumber of remito.otNumbers ?? []) {
+        try {
+          const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
+          if (ot?.retenidaFacturacion && ot.requisitoFacturacionPendiente === 'remito_firmado') {
+            await ordenesTrabajoService.liberarParaFacturacion(otNumber);
+          }
+        } catch (err) {
+          console.warn('[subirFirma] auto-release de OT falló:', otNumber, err);
+        }
+      }
     } catch (e) {
       console.error('Error subiendo remito firmado:', e);
       alert(e instanceof Error ? e.message : 'Error al subir el remito firmado');

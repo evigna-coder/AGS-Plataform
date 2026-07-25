@@ -179,6 +179,19 @@ export const ordenesTrabajoService = {
     return ordenes;
   },
 
+  /** Circuito B: OTs retenidas por documentación de facturación (retenidaFacturacion==true). */
+  async getRetenidas(): Promise<WorkOrder[]> {
+    const snap = await getDocs(query(
+      collection(db, 'reportes'),
+      where('retenidaFacturacion', '==', true),
+    ));
+    return snap.docs.map(d => ({
+      otNumber: d.id,
+      ...d.data(),
+      updatedAt: d.data().updatedAt || new Date().toISOString(),
+    })) as WorkOrder[];
+  },
+
   /**
    * Phase 12 W4: Scoped query — returns only OTs linked to a specific presupuesto numero.
    * Uses array-contains on 'budgets' field (single-field; no composite index required).
