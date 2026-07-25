@@ -242,4 +242,5 @@ export {
   buildTemplate100AlCierre,
   buildTemplate30_70,
   buildTemplate50_50,
+  buildTemplateMensual,
 } from './cuotasFacturacionTemplates.js';

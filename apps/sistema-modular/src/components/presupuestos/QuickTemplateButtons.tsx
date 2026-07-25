@@ -11,15 +11,18 @@ import {
   buildTemplate100AlCierre,
   buildTemplate30_70,
   buildTemplate50_50,
+  buildTemplateMensual,
 } from '../../utils/cuotasFacturacion';
 
 interface Props {
   monedasActivas: MonedaCuota[];
   onApply: (next: PresupuestoCuotaFacturacion[]) => void;
   disabled?: boolean;
+  /** Fecha de inicio del contrato — habilita el template "Mensual (12)" (circuito C). */
+  contratoFechaInicio?: string;
 }
 
-export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply, disabled }) => (
+export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply, disabled, contratoFechaInicio }) => (
   <div className="flex flex-wrap items-center gap-2 py-2">
     <span className="font-mono text-[10px] uppercase tracking-wide text-slate-400">
       Plantillas:
@@ -51,5 +54,16 @@ export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply,
     >
       50/50 anticipo+entrega
     </Button>
+    {contratoFechaInicio && (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={() => onApply(buildTemplateMensual(monedasActivas, contratoFechaInicio, 12))}
+        data-testid="esquema-quick-mensual"
+      >
+        Mensual (12)
+      </Button>
+    )}
   </div>
 );

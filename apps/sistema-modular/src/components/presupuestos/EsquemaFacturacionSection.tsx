@@ -29,6 +29,8 @@ interface Props {
   itemsForTotals: PresupuestoItem[];   // to compute totalsByCurrency (I3)
   readOnly: boolean;                   // ppto.estado !== 'borrador'
   onChange: (next: PresupuestoCuotaFacturacion[]) => void;
+  /** Fecha de inicio del contrato — habilita el template "Mensual (12)" (circuito C). */
+  contratoFechaInicio?: string;
 }
 
 function newCuotaId(): string {
@@ -51,7 +53,7 @@ function deriveMonedasActivas(moneda: MonedaPresupuesto, items: PresupuestoItem[
 }
 
 export const EsquemaFacturacionSection: React.FC<Props> = ({
-  esquema, moneda, itemsForTotals, readOnly, onChange,
+  esquema, moneda, itemsForTotals, readOnly, onChange, contratoFechaInicio,
 }) => {
   const [open, setOpen] = useState(true);
 
@@ -143,6 +145,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
                 monedasActivas={monedasActivas}
                 onApply={onChange}
                 disabled={readOnly}
+                contratoFechaInicio={contratoFechaInicio}
               />
             </div>
           )}
@@ -212,6 +215,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
                 monedasActivas={monedasActivas}
                 onApply={onChange}
                 disabled={readOnly}
+                contratoFechaInicio={contratoFechaInicio}
               />
             )}
             <Button

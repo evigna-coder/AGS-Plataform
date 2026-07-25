@@ -32,6 +32,7 @@ export const navigation: NavItem[] = [
       { name: 'Contratos', path: '/contratos', icon: '📑', modulo: 'contratos' },
       { name: 'Facturación', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
       { name: 'Pend. documentación', path: '/facturacion/pendientes-documentacion', icon: '📄', modulo: 'facturacion' },
+      { name: 'Cuotas por facturar', path: '/facturacion/cuotas-por-facturar', icon: '🗓️', modulo: 'facturacion' },
     ],
   },
   {

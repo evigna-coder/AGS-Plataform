@@ -1487,6 +1487,12 @@ export interface PresupuestoCuotaFacturacion {
   estado: CuotaFacturacionEstado;
   solicitudFacturacionId?: string | null;
   montoFacturadoPorMoneda?: Partial<Record<MonedaCuota, number>> | null;
+  /**
+   * Facturación mensual de contrato (circuito C): mes en que se espera facturar
+   * esta cuota (ISO). La cola "Cuotas por facturar" filtra por esta fecha (default
+   * hito `manual` → habilitada; la cola gatea por mes). Ausente en cuotas por hito.
+   */
+  fechaPrevista?: string | null;
 }
 
 // --- Cuotas de Presupuesto ---

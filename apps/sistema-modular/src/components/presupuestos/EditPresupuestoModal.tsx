@@ -319,6 +319,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             itemsForTotals={form.items}
             readOnly={form.estado !== 'borrador'}
             onChange={(next) => setField('esquemaFacturacion', next)}
+            contratoFechaInicio={form.contratoFechaInicio ?? undefined}
           />
         )}
 

@@ -110,3 +110,39 @@ export function buildTemplate50_50(
     },
   ];
 }
+
+/**
+ * Template: facturación MENSUAL de contrato (circuito C).
+ * `meses` cuotas (default 12), hito `manual` (siempre habilitada — la cola gatea por
+ * mes), cada una con `fechaPrevista` = inicio + i meses y descripción "Cuota i/meses".
+ * Los porcentajes se reparten por igual (2 decimales) y el remanente cae en la última
+ * cuota para que sumen exactamente 100 (validateEsquemaSum).
+ */
+export function buildTemplateMensual(
+  monedasActivas: MonedaCuota[],
+  fechaInicioISO: string,
+  meses = 12,
+): PresupuestoCuotaFacturacion[] {
+  const inicio = new Date(fechaInicioISO);
+  const pctBase = Math.floor((100 / meses) * 100) / 100; // 2 decimales, floor
+  const cuotas: PresupuestoCuotaFacturacion[] = [];
+  let acumulado = 0;
+  for (let i = 0; i < meses; i++) {
+    const pct = i === meses - 1 ? Math.round((100 - acumulado) * 100) / 100 : pctBase;
+    acumulado += pct;
+    const fecha = new Date(inicio);
+    fecha.setMonth(fecha.getMonth() + i);
+    cuotas.push({
+      id: newCuotaId(),
+      numero: i + 1,
+      porcentajePorMoneda: mkPorcUniform(monedasActivas, pct),
+      descripcion: `Cuota ${i + 1}/${meses}`,
+      hito: 'manual',
+      estado: 'pendiente',
+      solicitudFacturacionId: null,
+      montoFacturadoPorMoneda: null,
+      fechaPrevista: fecha.toISOString(),
+    });
+  }
+  return cuotas;
+}
