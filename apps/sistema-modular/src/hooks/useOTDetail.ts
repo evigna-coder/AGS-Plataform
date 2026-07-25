@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, presupuestosService } from '../services/firebaseService';
 import { ingenierosService } from '../services/personalService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoAdmin } from '@ags/shared';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoAdmin, RequisitoFacturacion } from '@ags/shared';
 import { useOTFormState } from './useOTFormState';
 import { useOTFieldHandlers } from './useOTFieldHandlers';
 import { useOTActions } from './useOTActions';
@@ -41,6 +41,10 @@ export function useOTDetail(otNumber?: string) {
 
   const [presupuestoOrigenNumero, setPresupuestoOrigenNumero] = useState<string | null>(null);
 
+  // Circuito B: retención documental de facturación (no editable — refleja el server).
+  const [retenidaFacturacion, setRetenidaFacturacion] = useState(false);
+  const [requisitoFacturacionPendiente, setRequisitoFacturacionPendiente] = useState<RequisitoFacturacion | null>(null);
+
   // ── Field handlers (extracted) ─────────────────────────────────
   const fields = useOTFieldHandlers({
     form, setField, setFields, markInteracted, validate, dirtyRef,
@@ -62,6 +66,9 @@ export function useOTDetail(otNumber?: string) {
         navigate('/ordenes-trabajo');
         return;
       }
+      // Retención documental: refleja siempre el server (no es un campo editable).
+      setRetenidaFacturacion(!!ot.retenidaFacturacion);
+      setRequisitoFacturacionPendiente(ot.requisitoFacturacionPendiente ?? null);
       if (dirtyRef.current) return; // skip while user has unsaved edits
       loadFromOT(ot);
       if (!initialLoadDone.current) {
@@ -207,6 +214,20 @@ export function useOTDetail(otNumber?: string) {
     fields.handleEstadoAdminChange('FINALIZADO');
   }, [form, otNumber, setField, fields.handleEstadoAdminChange]);
 
+  // ── Circuito B: liberar una OT retenida por documentación ─────
+  const handleLiberarFacturacion = useCallback(async () => {
+    if (!otNumber) return;
+    if (!await confirm('¿Liberar esta OT para facturación? La documentación que exige el cliente (remito firmado / certificación) debe estar presente.')) return;
+    try {
+      setSaving(true);
+      await ordenesTrabajoService.liberarParaFacturacion(otNumber, { uid: firebaseUser?.uid || '', name: usuario?.displayName });
+      setRetenidaFacturacion(false);
+      setRequisitoFacturacionPendiente(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al liberar para facturación');
+    } finally { setSaving(false); }
+  }, [otNumber, firebaseUser?.uid, usuario?.displayName, confirm]);
+
   // ── Computed ──────────────────────────────────────────────────
   const readOnly = form.estadoAdmin === 'FINALIZADO';
   const readOnlyTecnico = readOnly || form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || form.status === 'FINALIZADO';
@@ -215,6 +236,7 @@ export function useOTDetail(otNumber?: string) {
   return {
     loading, saving, status: form.status, readOnly, readOnlyTecnico, enCierreAdmin,
     handleSave, handleDelete, handleConfirmarCierre,
+    retenidaFacturacion, requisitoFacturacionPendiente, handleLiberarFacturacion,
     // Field handlers (spread from extracted hook)
     ...fields,
     // Override: handleEstadoAdminChange intercepts CIERRE_ADMINISTRATIVO to run cerrarAdministrativamente atomically (FLOW-04).

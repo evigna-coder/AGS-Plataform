@@ -168,6 +168,14 @@ export interface WorkOrder {
   fechaCierre?: string;
   materialesParaServicio?: string;
   comentarioFacturacion?: string | null;
+  /**
+   * Retenida por documentación de facturación (circuito B): el cliente exige
+   * remito firmado o certificación (ver `Cliente.requisitoFacturacion`). Mientras
+   * sea true, la OT NO entra en `Presupuesto.otsListasParaFacturar` al cerrar admin.
+   * Se libera con `otService.liberarParaFacturacion` una vez la documentación está.
+   */
+  retenidaFacturacion?: boolean;
+  requisitoFacturacionPendiente?: RequisitoFacturacion | null;
   contratoId?: string | null;
   problemaFallaInicial?: string;
   ingenieroAsignadoId?: string | null;

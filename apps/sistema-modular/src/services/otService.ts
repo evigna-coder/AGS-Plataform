@@ -1,10 +1,11 @@
 import { collection, getDocs, doc, getDoc, query, where, documentId, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
-import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte } from '@ags/shared';
+import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
+import { clientesService } from './clientesService';
 import { getAdminSoporteAssignee } from './personalService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
@@ -919,6 +920,89 @@ export const ordenesTrabajoService = {
   },
 
   /**
+   * Circuito B — libera para facturación una OT retenida por documentación
+   * (`retenidaFacturacion`). Hace el trabajo diferido del cierre: registra el
+   * otNumber en `otsListasParaFacturar[]` de cada presupuesto vinculado (avanzando
+   * a 'pendiente_facturacion' si corresponde) y limpia el flag de retención.
+   *
+   * Se invoca cuando la documentación que exige el cliente ya está: remito firmado
+   * (clientes 'remito_firmado') o certificación registrada (clientes 'certificacion').
+   *
+   * @returns pptosNotificados — IDs de presupuestos que recibieron el otNumber.
+   */
+  async liberarParaFacturacion(
+    otNumber: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<{ pptosNotificados: string[] }> {
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error('OT no encontrada');
+    if (!ot.retenidaFacturacion) {
+      console.log(`[liberarParaFacturacion] OT ${otNumber} no está retenida; nada que liberar.`);
+      return { pptosNotificados: [] };
+    }
+
+    // Resolver presupuestos vinculados (mismo join que el cierre).
+    const presupuestoNumeros = ot.budgets || [];
+    let presupuestoIds: string[] = [];
+    if (presupuestoNumeros.length > 0) {
+      try {
+        const all = await presupuestosService.getAll();
+        presupuestoIds = presupuestoNumeros
+          .map(num => all.find(p => p.numero === num))
+          .filter((p): p is Presupuesto => !!p)
+          .map(p => p.id);
+      } catch (err) {
+        console.warn('[liberarParaFacturacion] presupuestos read failed:', err);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const pptosNotificados: string[] = [];
+
+    await runTransaction(db, async (tx) => {
+      const otRef = doc(db, 'reportes', otNumber);
+      const otSnap = await tx.get(otRef);
+      if (!otSnap.exists()) throw new Error(`OT ${otNumber} no encontrada (tx)`);
+
+      const pptoSnaps = new Map<string, { ref: ReturnType<typeof doc>; current: string[]; estado: string }>();
+      for (const pid of presupuestoIds) {
+        const pRef = doc(db, 'presupuestos', pid);
+        const pSnap = await tx.get(pRef);
+        pptoSnaps.set(pid, {
+          ref: pRef,
+          current: pSnap.exists() ? (pSnap.data()?.otsListasParaFacturar ?? []) : [],
+          estado: pSnap.data()?.estado ?? '',
+        });
+      }
+
+      // Limpiar retención en la OT.
+      tx.update(otRef, deepCleanForFirestore({
+        retenidaFacturacion: false,
+        requisitoFacturacionPendiente: null,
+        updatedAt: nowIso,
+        updatedBy: actor?.uid ?? null,
+        updatedByName: actor?.name ?? null,
+      }));
+
+      // Registrar en otsListasParaFacturar + avanzar estado (idéntico a Write 4+ del cierre).
+      for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
+        const yaListo = current.includes(otNumber);
+        const avanzaEstado = estado === 'aceptado' || estado === 'en_ejecucion';
+        if (!yaListo || avanzaEstado) {
+          tx.update(pRef, deepCleanForFirestore({
+            ...(yaListo ? {} : { otsListasParaFacturar: [...current, otNumber] }),
+            ...(avanzaEstado ? { estado: 'pendiente_facturacion' } : {}),
+            updatedAt: nowIso,
+          }));
+          pptosNotificados.push(pid);
+        }
+      }
+    });
+
+    return { pptosNotificados };
+  },
+
+  /**
    * FLOW-04: cierra una OT administrativamente de forma atómica.
    *
    * Modelo Tier-1 (Presupuesto-céntrico): ya NO crea solicitudesFacturacion aquí.
@@ -990,6 +1074,21 @@ export const ordenesTrabajoService = {
     const ocIds = Array.from(new Set(
       presupuestosPorNumero.flatMap(p => (p?.ordenesCompraIds || [])),
     ));
+
+    // ── Gate documental de facturación (circuito B): si el cliente exige remito
+    // firmado o certificación, la OT cierra normalmente pero NO entra a
+    // otsListasParaFacturar; queda retenida hasta `liberarParaFacturacion`. Fail-safe:
+    // si la lectura del cliente falla, no se retiene (comportamiento previo).
+    let requisitoCliente: RequisitoFacturacion = 'ninguno';
+    if (ot.clienteId) {
+      try {
+        const cli = await clientesService.getById(ot.clienteId);
+        requisitoCliente = cli?.requisitoFacturacion ?? 'ninguno';
+      } catch (err) {
+        console.warn('[cerrarAdministrativamente] no se pudo leer requisitoFacturacion del cliente:', err);
+      }
+    }
+    const retenerPorDoc = requisitoCliente !== 'ninguno';
 
     // ── Item 10 (UAT 2026-07-17): el ppto avanza a 'pendiente_facturacion' recién
     // cuando cierra la ÚLTIMA de sus OTs. La OT en curso cuenta como cerrada.
@@ -1084,10 +1183,12 @@ export const ordenesTrabajoService = {
 
       // ═══════════════ WRITE PHASE (todos los tx.set/update después de los reads) ═══════════════
 
-      // Write 1: update OT a CIERRE_ADMINISTRATIVO
+      // Write 1: update OT a CIERRE_ADMINISTRATIVO (+ retención documental si aplica)
       tx.update(otRef, deepCleanForFirestore({
         estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
         fechaCierre: cierreData.fechaCierre ?? nowIso,
+        retenidaFacturacion: retenerPorDoc,
+        requisitoFacturacionPendiente: retenerPorDoc ? requisitoCliente : null,
         updatedAt: nowIso,
         updatedBy: actor?.uid ?? null,
         updatedByName: actor?.name ?? null,
@@ -1155,7 +1256,9 @@ export const ordenesTrabajoService = {
       // Se usa manual merge (no arrayUnion — sentinel prohibido en tx). Además, el cierre
       // genera el aviso a facturación → el presupuesto pasa a 'pendiente_facturacion' (a la
       // espera de que Administración confirme la factura). No se pisa anulado/finalizado.
-      for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
+      // Retenida por documentación (circuito B): no entra a otsListasParaFacturar ni
+      // avanza el ppto acá — eso ocurre en liberarParaFacturacion cuando la doc esté.
+      if (!retenerPorDoc) for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
         const yaListo = current.includes(otNumber);
         // Item 10: avanzar solo si TODAS las OTs del ppto quedaron cerradas
         // (check pre-tx; default true = comportamiento previo, fail-safe).

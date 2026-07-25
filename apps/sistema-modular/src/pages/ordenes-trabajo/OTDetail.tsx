@@ -191,6 +191,19 @@ export const OTDetail = () => {
 
           {/* Main content */}
           <div className="flex-1 min-w-0 space-y-4">
+            {ot.retenidaFacturacion && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">Retenida por documentación</p>
+                  <p className="text-[11px] text-amber-700">
+                    Este cliente exige {ot.requisitoFacturacionPendiente === 'certificacion' ? 'la certificación' : 'el remito firmado'} para facturar. La OT no entra a facturación hasta liberarla.
+                  </p>
+                </div>
+                <Button size="sm" onClick={ot.handleLiberarFacturacion} disabled={ot.saving} className="bg-amber-600 hover:bg-amber-700 text-white shrink-0">
+                  Liberar para facturación
+                </Button>
+              </div>
+            )}
             <OTProtocolSection
               readOnly={ot.readOnlyTecnico}
               problemaFallaInicial={ot.problemaFallaInicial}
