@@ -3,6 +3,7 @@ import { remitosService } from '../services/firebaseService';
 import {
   movimientosAplicarService, remitoMueveStock, itemRemitoConEfectoAplicado,
 } from '../services/movimientosAplicar';
+import { remitoFirmaStorageService } from '../services/remitoFirmaStorageService';
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 import type { Remito, RemitoItem, EstadoRemito } from '@ags/shared';
 
@@ -67,7 +68,44 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
     } finally { setActing(false); }
   };
 
-  return { acting, transition, confirmarRemito, toggleDevuelto };
+  /** Sube el escaneo del remito firmado por el cliente y lo marca firmado. */
+  const subirFirma = async (file: File) => {
+    if (!id || !remito) return;
+    setActing(true);
+    try {
+      if (remito.remitoFirmadoPath) await remitoFirmaStorageService.remove(remito.remitoFirmadoPath);
+      const { storagePath, url } = await remitoFirmaStorageService.upload(id, file, file.name);
+      await remitosService.update(id, {
+        firmado: true,
+        fechaFirma: new Date().toISOString(),
+        remitoFirmadoUrl: url,
+        remitoFirmadoPath: storagePath,
+      });
+    } catch (e) {
+      console.error('Error subiendo remito firmado:', e);
+      alert(e instanceof Error ? e.message : 'Error al subir el remito firmado');
+    } finally { setActing(false); }
+  };
+
+  /** Quita la firma (borra el escaneo de Storage y limpia los campos). */
+  const quitarFirma = async () => {
+    if (!id || !remito) return;
+    setActing(true);
+    try {
+      if (remito.remitoFirmadoPath) await remitoFirmaStorageService.remove(remito.remitoFirmadoPath);
+      await remitosService.update(id, {
+        firmado: false,
+        fechaFirma: null,
+        remitoFirmadoUrl: null,
+        remitoFirmadoPath: null,
+      });
+    } catch (e) {
+      console.error('Error quitando firma:', e);
+      alert(e instanceof Error ? e.message : 'Error al quitar la firma');
+    } finally { setActing(false); }
+  };
+
+  return { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma };
 }
 
 /** Leyenda del efecto de stock del remito, para el detalle. */

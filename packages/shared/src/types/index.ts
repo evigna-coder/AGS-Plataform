@@ -291,6 +291,15 @@ export interface ContactoCliente {
 }
 
 /** Cliente: solo datos fiscales y generales. Sin contactos ni condición de pago (van en Establecimiento). */
+/** Documentación que el cliente exige para poder facturar un servicio. */
+export type RequisitoFacturacion = 'ninguno' | 'remito_firmado' | 'certificacion';
+
+export const REQUISITO_FACTURACION_LABELS: Record<RequisitoFacturacion, string> = {
+  ninguno: 'Ninguno',
+  remito_firmado: 'Remito firmado',
+  certificacion: 'Certificación',
+};
+
 export interface Cliente {
   /** ID del documento = CUIT normalizado, o LEGACY-{uuid} si no tiene CUIT (cuit es null) */
   id: string;
@@ -315,6 +324,14 @@ export interface Cliente {
   notas?: string;
   /** Si true, las OTs de este cliente deben incluir documentación de trazabilidad */
   requiereTrazabilidad?: boolean;
+  /**
+   * Documentación que este cliente exige para poder facturar un servicio:
+   * - 'remito_firmado': hace falta el remito de servicio firmado (ej. Craveri, Bayer).
+   * - 'certificacion': hace falta la certificación del cliente (ej. YPF, Y-tec); el
+   *   remito firmado se trackea pero NO bloquea la facturación.
+   * - 'ninguno' (default): flujo actual, sin gate documental.
+   */
+  requisitoFacturacion?: RequisitoFacturacion;
   /** Si true, el cliente tiene buen historial de pago (auto-habilita "cliente confiable") */
   pagaEnTiempo?: boolean;
   /** Tipo de servicio predominante: 'contrato' | 'per_incident' | etc. */
@@ -3410,6 +3427,16 @@ export interface Remito {
   sistemaCodigoInterno?: string | null;
   ordenClienteNumero?: string | null;
   datoInternoCliente?: string | null;
+  /**
+   * Remito de servicio firmado por el cliente (escaneo subido a Storage). Se
+   * trackea siempre; gatea la facturación solo cuando el cliente exige
+   * 'remito_firmado' (ver `Cliente.requisitoFacturacion`). Para clientes de
+   * 'certificacion' el firmado es deseable pero NO bloquea.
+   */
+  firmado?: boolean;
+  fechaFirma?: string | null;
+  remitoFirmadoUrl?: string | null;
+  remitoFirmadoPath?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;

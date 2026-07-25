@@ -8,6 +8,7 @@ import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } fro
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAcciones';
+import { RemitoFirmaCard } from '../../components/remitos/RemitoFirmaCard';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
@@ -39,7 +40,7 @@ export const RemitoDetail = () => {
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);
   // Confirmar aplica el movimiento real de stock (I4); ver useRemitoAcciones.
-  const { acting, transition, confirmarRemito, toggleDevuelto } = useRemitoAcciones(id, remito);
+  const { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma } = useRemitoAcciones(id, remito);
 
   useEffect(() => {
     if (!id) return;
@@ -122,6 +123,9 @@ export const RemitoDetail = () => {
                 <LV label="Fecha devolucion" value={formatDate(remito.fechaDevolucion)} />
               </div>
             </Card>
+            {remito.tipo === 'servicio' && (
+              <RemitoFirmaCard remito={remito} acting={acting} onSubir={subirFirma} onQuitar={quitarFirma} />
+            )}
             {remito.observaciones && (
               <Card compact title="Observaciones">
                 <p className="text-xs text-slate-700">{remito.observaciones}</p>
@@ -191,11 +195,19 @@ export const RemitoDetail = () => {
 // ── Multi-type helpers ──
 
 function resolveItemCodigo(item: RemitoItem): string {
+  if (item.servicioDescripcion != null) return item.servicioCode || '';
   if (item.tipoEntidad) return getRemitoItemCodigo(item);
   return item.articuloCodigo || '';
 }
 
 function resolveItemDescripcion(item: RemitoItem): string {
+  if (item.servicioDescripcion != null) {
+    const refs = [
+      item.presupuestoNumero && `Ppto ${item.presupuestoNumero}`,
+      item.ocNumero && `OC ${item.ocNumero}`,
+    ].filter(Boolean).join(' · ');
+    return refs ? `${item.servicioDescripcion} — ${refs}` : item.servicioDescripcion;
+  }
   if (item.tipoEntidad) return getRemitoItemDescripcion(item);
   return item.articuloDescripcion || '';
 }

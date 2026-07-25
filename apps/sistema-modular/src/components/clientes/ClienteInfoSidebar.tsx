@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Cliente } from '@ags/shared';
+import type { Cliente, RequisitoFacturacion } from '@ags/shared';
+import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
@@ -191,6 +192,19 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
               <span className="text-xs text-slate-600">Requiere Trazabilidad</span>
             </label>
             <p className="text-[11px] text-slate-400 ml-5.5">Los reportes requeriran documentacion de trazabilidad</p>
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Requisito para facturar</label>
+              <select
+                value={formData?.requisitoFacturacion ?? 'ninguno'}
+                onChange={(e) => setFormData({ ...formData, requisitoFacturacion: e.target.value as RequisitoFacturacion })}
+                className="w-full border rounded-lg px-2 py-1 text-xs border-slate-300 bg-white"
+              >
+                {(Object.keys(REQUISITO_FACTURACION_LABELS) as RequisitoFacturacion[]).map((k) => (
+                  <option key={k} value={k}>{REQUISITO_FACTURACION_LABELS[k]}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1">Documentacion que exige para poder facturar sus servicios (remito firmado / certificacion)</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -201,6 +215,12 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
               <p className="text-[11px] font-medium text-slate-400 mb-0.5">Requiere Trazabilidad</p>
               <p className={`text-xs font-medium ${cliente.requiereTrazabilidad ? 'text-green-600' : 'text-slate-400'}`}>
                 {cliente.requiereTrazabilidad ? 'Si' : 'No'}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-slate-400 mb-0.5">Requisito para facturar</p>
+              <p className={`text-xs font-medium ${cliente.requisitoFacturacion && cliente.requisitoFacturacion !== 'ninguno' ? 'text-amber-600' : 'text-slate-400'}`}>
+                {REQUISITO_FACTURACION_LABELS[cliente.requisitoFacturacion ?? 'ninguno']}
               </p>
             </div>
           </div>

@@ -7,7 +7,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
 import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
-import type { CondicionIva } from '@ags/shared';
+import type { CondicionIva, RequisitoFacturacion } from '@ags/shared';
+import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -19,7 +20,8 @@ const emptyForm = {
   razonSocial: '', cuit: '', pais: 'Argentina', direccionFiscal: '',
   localidadFiscal: '', provinciaFiscal: '', codigoPostalFiscal: '',
   rubro: '', condicionIva: '' as CondicionIva | '', ingresosBrutos: '',
-  convenioMultilateral: false, requiereTrazabilidad: false, notas: '',
+  convenioMultilateral: false, requiereTrazabilidad: false,
+  requisitoFacturacion: 'ninguno' as RequisitoFacturacion, notas: '',
 };
 
 export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
@@ -79,7 +81,8 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
       setSaving(true);
       const data: any = {
         razonSocial: form.razonSocial.trim(), pais: form.pais, rubro: form.rubro.trim(),
-        convenioMultilateral: form.convenioMultilateral, requiereTrazabilidad: form.requiereTrazabilidad, activo: true,
+        convenioMultilateral: form.convenioMultilateral, requiereTrazabilidad: form.requiereTrazabilidad,
+        requisitoFacturacion: form.requisitoFacturacion, activo: true,
       };
       data.cuit = form.cuit?.trim() || null;
       if (form.direccionFiscal?.trim()) data.direccionFiscal = form.direccionFiscal.trim();
@@ -201,6 +204,12 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
                 ]} placeholder="Seleccionar..." />
             </div>
             <Input inputSize="sm" label="Ingresos Brutos" value={form.ingresosBrutos} onChange={e => set('ingresosBrutos', e.target.value)} />
+            <div>
+              <label className={lbl}>Requisito para facturar</label>
+              <SearchableSelect value={form.requisitoFacturacion} onChange={v => set('requisitoFacturacion', v as RequisitoFacturacion)}
+                options={(Object.keys(REQUISITO_FACTURACION_LABELS) as RequisitoFacturacion[]).map(k => ({ value: k, label: REQUISITO_FACTURACION_LABELS[k] }))}
+                placeholder="Seleccionar..." />
+            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.convenioMultilateral} onChange={e => set('convenioMultilateral', e.target.checked)} className="w-3.5 h-3.5" />
               <span className="text-xs text-slate-600">Convenio Multilateral</span>
