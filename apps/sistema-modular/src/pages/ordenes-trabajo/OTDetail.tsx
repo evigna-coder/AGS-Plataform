@@ -7,6 +7,7 @@ import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection'
 import { OTCierreAdminSection } from '../../components/ordenes-trabajo/OTCierreAdminSection';
 import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { RemitoServicioModal } from '../../components/remitos/RemitoServicioModal';
 import { useOTDetail } from '../../hooks/useOTDetail';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTEstadoAdmin } from '@ags/shared';
@@ -38,6 +39,7 @@ export const OTDetail = () => {
   useDeclareParent(cameFrom ?? '/ordenes-trabajo');
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
+  const [showRemitoServicio, setShowRemitoServicio] = useState(false);
 
   if (ot.loading) {
     return (
@@ -93,6 +95,11 @@ export const OTDetail = () => {
             <Button variant="outline" size="sm" onClick={() => setShowCrearPresupuesto(true)}>
               Crear Presupuesto
             </Button>
+            {ot.sistemaId && (
+              <Button variant="outline" size="sm" onClick={() => setShowRemitoServicio(true)}>
+                Remito servicio
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => ot.openInReportesOT()}>
               Abrir reporte
             </Button>
@@ -266,6 +273,18 @@ export const OTDetail = () => {
           origenTipo: 'ot',
           origenId: otNumber,
           origenRef: `OT-${otNumber}`,
+        }}
+      />
+      <RemitoServicioModal
+        open={showRemitoServicio}
+        onClose={() => setShowRemitoServicio(false)}
+        onCreated={() => setShowRemitoServicio(false)}
+        prefill={{
+          clienteId: ot.clienteId || undefined,
+          clienteNombre: ot.cliente?.razonSocial,
+          sistemaId: ot.sistemaId || undefined,
+          sistemaNombre: ot.sistema?.nombre,
+          sistemaCodigoInterno: ot.codigoInternoCliente || undefined,
         }}
       />
     </div>

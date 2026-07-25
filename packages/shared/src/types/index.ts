@@ -3310,7 +3310,8 @@ export type TipoRemito =
   | 'devolucion'
   | 'interno'
   | 'derivacion_proveedor'
-  | 'loaner_salida';
+  | 'loaner_salida'
+  | 'servicio';
 
 export type EstadoRemito =
   | 'borrador'
@@ -3358,6 +3359,17 @@ export interface RemitoItem {
   /** Trazabilidad a la asignación */
   asignacionId?: string | null;
   asignacionItemId?: string | null;
+  /**
+   * Remito de servicio (tipo `'servicio'`): la línea representa un servicio
+   * realizado, no un bien físico. No toca stock. Trae las referencias comerciales
+   * que el remito debe detallar por servicio.
+   */
+  servicioCode?: string | null;
+  servicioDescripcion?: string | null;
+  /** OT de la que salió esta línea de servicio (trazabilidad; una OT ≈ un servicio). */
+  otNumberOrigen?: string | null;
+  presupuestoNumero?: string | null;
+  ocNumero?: string | null;
 }
 
 export interface Remito {
@@ -3388,6 +3400,16 @@ export interface Remito {
   /** FK → proveedores (para derivaciones a proveedor) */
   proveedorId?: string | null;
   proveedorNombre?: string | null;
+  /**
+   * Remito de servicio (tipo `'servicio'`): equipo al que refieren los servicios
+   * (el remito se arma por equipo, consolidando N OTs → 1 remito) y los datos
+   * comerciales que pide el cliente.
+   */
+  sistemaId?: string | null;
+  sistemaNombre?: string | null;
+  sistemaCodigoInterno?: string | null;
+  ordenClienteNumero?: string | null;
+  datoInternoCliente?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;

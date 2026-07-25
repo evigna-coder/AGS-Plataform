@@ -85,10 +85,11 @@ export interface RemitoOverlayDestinatario {
 }
 
 export interface RemitoOverlayItem {
-  /** Número de fila (Item) */
-  numero: number;
-  cantidad: number;
-  /** Producto: usamos el número de ficha (FPC-XXXX) */
+  /** Número de fila (Item). `''` para filas-cabecera sin numerar (remito de servicio). */
+  numero: number | string;
+  /** Cantidad. `''` para filas-cabecera. */
+  cantidad: number | string;
+  /** Producto: N° de ficha (FPC-XXXX) en remitos de ficha; código de equipo en servicio. */
   producto: string;
   /** Descripción libre que va a la columna ancha */
   descripcion: string;

@@ -1134,6 +1134,60 @@ export const remitosService = {
     await batch.commit();
     return { id };
   },
+
+  /**
+   * Remito de SERVICIO (tipo `'servicio'`) — impreso sobre el papel preimpreso R.
+   *
+   * Se arma por EQUIPO: consolida N líneas de servicio (típicamente una por OT del
+   * mismo equipo) en un solo remito, para no emitir un remito por servicio. NO toca
+   * stock — es un entregable/comprobante, no un movimiento.
+   *
+   * Numeración: preimpresa manual (la del papel), igual que los remitos de ficha.
+   */
+  async createRemitoServicio(input: CreateRemitoServicioInput): Promise<{ id: string }> {
+    const id = crypto.randomUUID();
+    const items: RemitoItem[] = input.lineas.map(l => ({
+      id: crypto.randomUUID(),
+      cantidad: 1,
+      tipoItem: 'entrega',
+      devuelto: false,
+      servicioCode: l.servicioCode ?? null,
+      servicioDescripcion: l.servicioDescripcion,
+      otNumberOrigen: l.otNumberOrigen ?? null,
+      presupuestoNumero: l.presupuestoNumero ?? null,
+      ocNumero: l.ocNumero ?? null,
+    }));
+    const otNumbers = Array.from(new Set(
+      input.lineas.map(l => l.otNumberOrigen).filter((n): n is string => !!n),
+    ));
+    const payload = deepCleanForFirestore({
+      numero: input.numero,
+      tipo: 'servicio' as const,
+      estado: 'confirmado' as const,
+      ingenieroId: '',
+      ingenieroNombre: '',
+      otNumbers,
+      clienteId: input.clienteId ?? null,
+      clienteNombre: input.clienteNombre ?? null,
+      sistemaId: input.sistemaId ?? null,
+      sistemaNombre: input.sistemaNombre ?? null,
+      sistemaCodigoInterno: input.sistemaCodigoInterno ?? null,
+      ordenClienteNumero: input.ordenClienteNumero ?? null,
+      datoInternoCliente: input.datoInternoCliente ?? null,
+      items,
+      observaciones: input.observaciones ?? null,
+      fechaSalida: input.fecha,
+      fechaDevolucion: null,
+      ...getCreateTrace(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.set(docRef('remitos', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: payload });
+    await batch.commit();
+    return { id };
+  },
 };
 
 /** Datos de razón social/domicilio/IVA/CUIT que van impresos en una columna. */
@@ -1185,6 +1239,35 @@ export interface CreateRemitoItemsInput {
   clienteId?: string | null;
   clienteNombre?: string | null;
   otNumbers?: string[];
+}
+
+/** Una línea de servicio del remito de servicio (típicamente una por OT del equipo). */
+export interface RemitoServicioLinea {
+  servicioDescripcion: string;
+  servicioCode?: string | null;
+  /** OT origen (una OT ≈ un servicio). */
+  otNumberOrigen?: string | null;
+  presupuestoNumero?: string | null;
+  ocNumero?: string | null;
+}
+
+export interface CreateRemitoServicioInput {
+  /** Número preimpreso del papel (ej. "0001-00017091"). */
+  numero: string;
+  fecha: string;
+  destinatario: DatosTransportista;
+  transportista?: DatosTransportista | null;
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  /** Equipo al que refieren los servicios (el remito se arma por equipo). */
+  sistemaId?: string | null;
+  sistemaNombre?: string | null;
+  sistemaCodigoInterno?: string | null;
+  /** Datos comerciales que pide el cliente. */
+  ordenClienteNumero?: string | null;
+  datoInternoCliente?: string | null;
+  lineas: RemitoServicioLinea[];
+  observaciones?: string | null;
 }
 
 // ========== RESERVAS DE STOCK ==========
