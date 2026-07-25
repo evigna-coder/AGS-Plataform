@@ -66,6 +66,12 @@ export const RemitosList = () => {
 
   const loadData = useCallback(() => {}, []);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(
+    () => [{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))],
+    [clientes],
+  );
+
   const handleDelete = async (id: string) => {
     if (!await confirm('¿Eliminar este remito borrador?')) return;
     try {
@@ -117,7 +123,7 @@ export const RemitosList = () => {
           </select>
           <div className="min-w-[180px]">
             <SearchableSelect value={filters.clienteId} onChange={v => setFilter('clienteId', v)}
-              options={[{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOpts}
               placeholder="Cliente..." />
           </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">

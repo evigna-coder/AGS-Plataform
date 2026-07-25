@@ -108,9 +108,16 @@ export function MovimientoDetailDrawer({ open, movimiento, onClose }: Props) {
           {loadingUnidad ? (
             <p className="text-xs text-slate-400 italic">Cargando datos de la unidad…</p>
           ) : unidadNotFound ? (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded-md px-3 py-2">
-              La unidad ya no existe en stock (consumida o dada de baja). Se muestra sólo el detalle del movimiento.
-            </p>
+            <>
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-md px-3 py-2 mb-2">
+                La unidad ya no existe en stock (consumida o dada de baja). Se muestran los datos
+                denormalizados en el movimiento.
+              </p>
+              {/* Fallback denormalizado: para consumos/bajas la unidad ya no existe, pero el
+                  movimiento conserva serie/lote al momento del write. */}
+              <Field label="N° de serie">{m.nroSerie ?? '—'}</Field>
+              <Field label="N° de lote">{m.nroLote ?? '—'}</Field>
+            </>
           ) : unidad ? (
             <>
               <Field label="N° de serie">{unidad.nroSerie ?? '—'}</Field>

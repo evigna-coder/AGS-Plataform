@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -30,6 +30,12 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
     draftWasOpen.current = !!h.draft;
   }, [h.draft, h.finalizing]);
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloOptions = useMemo(
+    () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [h.articulos],
+  );
+
   return (
     <Modal open={open} onClose={onClose} title="Ingresar stock" maxWidth="xl"
       subtitle="Alta manual de stock — proveedor, artículos y trazabilidad"
@@ -53,7 +59,7 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
         <div>
           <label className={lbl}>Agregar artículo</label>
           <SearchableSelect value="" onChange={(v) => { const a = h.articulos.find(x => x.id === v); if (a) h.startArticulo(a); }}
-            options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+            options={articuloOptions}
             disabled={!!h.draft}
             autoFocusToken={searchFocusTick}
             placeholder="Buscar por código o descripción y elegir..." />

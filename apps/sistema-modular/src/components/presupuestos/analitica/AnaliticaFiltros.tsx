@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { Cliente, UsuarioAGS } from '@ags/shared';
 import { TIPO_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Button } from '../../ui/Button';
@@ -31,6 +32,9 @@ export const AnaliticaFiltros: React.FC<Props> = ({ filters, onChange, onReset, 
     onChange('fechaDesde', desde);
     onChange('fechaHasta', hasta);
   };
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
 
   const hoy = new Date();
   const presets: Array<{ label: string; desde: string; hasta: string }> = [
@@ -74,7 +78,7 @@ export const AnaliticaFiltros: React.FC<Props> = ({ filters, onChange, onReset, 
         className={inputCls} title="Hasta" />
       <div className="min-w-[130px]">
         <SearchableSelect size="sm" value={filters.cliente} onChange={v => onChange('cliente', v)}
-          options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+          options={clienteOptions}
           placeholder="Cliente" />
       </div>
       <div className="min-w-[100px]">

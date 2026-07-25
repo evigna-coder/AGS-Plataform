@@ -64,6 +64,9 @@ export const ContratosList = () => {
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [contratos, filters, debouncedSearch]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
+
   const activos = contratos.filter(c => c.estado === 'activo');
   const fmtDate = (iso: string) => iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
   const hasFilters = filters.cliente || filters.estado || filters.search;
@@ -77,7 +80,7 @@ export const ContratosList = () => {
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="w-48">
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]} placeholder="Cliente" />
+              options={clienteOptions} placeholder="Cliente" />
           </div>
           <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
             <option value="">Estado: Todos</option>

@@ -1,11 +1,17 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Tipos de Servicio (lista simple)
 export const tiposServicioService = {
   // Obtener todos los tipos de servicio
   async getAll() {
+    // Cache (TTL 2 min): catálogo casi estático, alto reuso en selects; invalidateCache en las mutaciones.
+    const cacheKey = 'tipos_servicio:all';
+    const cached = getCached<TipoServicio[]>(cacheKey);
+    if (cached) return cached;
+
     console.log('📥 Cargando tipos de servicio...');
     const querySnapshot = await getDocs(collection(db, 'tipos_servicio'));
     const tipos = querySnapshot.docs.map(doc => ({
@@ -17,6 +23,7 @@ export const tiposServicioService = {
 
     tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
     console.log(`✅ ${tipos.length} tipos de servicio cargados`);
+    setCache(cacheKey, tipos);
     return tipos;
   },
 
@@ -48,6 +55,7 @@ export const tiposServicioService = {
     batch.set(ref, payload);
     batchAudit(batch, { action: 'create', collection: 'tipos_servicio', documentId: ref.id, after: payload });
     await batch.commit();
+    invalidateCache('tipos_servicio');
     return ref.id;
   },
 
@@ -62,6 +70,7 @@ export const tiposServicioService = {
     batch.update(docRef('tipos_servicio', id), payload);
     batchAudit(batch, { action: 'update', collection: 'tipos_servicio', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('tipos_servicio');
   },
 
   // Eliminar tipo de servicio
@@ -70,6 +79,7 @@ export const tiposServicioService = {
     batch.delete(docRef('tipos_servicio', id));
     batchAudit(batch, { action: 'delete', collection: 'tipos_servicio', documentId: id });
     await batch.commit();
+    invalidateCache('tipos_servicio');
   },
 
   subscribe(callback: (items: TipoServicio[]) => void, onError?: (err: Error) => void): () => void {
@@ -90,6 +100,11 @@ export const tiposServicioService = {
 
 export const posicionesArancelariasService = {
   async getAll(activoOnly: boolean = true): Promise<PosicionArancelaria[]> {
+    // Cache (TTL 2 min): catálogo casi estático, alto reuso en selects; invalidateCache en las mutaciones.
+    const cacheKey = `posiciones_arancelarias:${activoOnly}`;
+    const cached = getCached<PosicionArancelaria[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (activoOnly) {
       q = query(collection(db, 'posiciones_arancelarias'), where('activo', '==', true));
@@ -103,6 +118,7 @@ export const posicionesArancelariasService = {
       updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
     })) as PosicionArancelaria[];
     items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -129,6 +145,7 @@ export const posicionesArancelariasService = {
     batch.set(doc(db, 'posiciones_arancelarias', id), payload);
     batchAudit(batch, { action: 'create', collection: 'posiciones_arancelarias', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('posiciones_arancelarias');
     return id;
   },
 
@@ -142,6 +159,7 @@ export const posicionesArancelariasService = {
     batch.update(docRef('posiciones_arancelarias', id), payload);
     batchAudit(batch, { action: 'update', collection: 'posiciones_arancelarias', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('posiciones_arancelarias');
   },
 
   async delete(id: string): Promise<void> {
@@ -149,6 +167,7 @@ export const posicionesArancelariasService = {
     batch.delete(docRef('posiciones_arancelarias', id));
     batchAudit(batch, { action: 'delete', collection: 'posiciones_arancelarias', documentId: id });
     await batch.commit();
+    invalidateCache('posiciones_arancelarias');
   },
 
   async getByCodigo(codigo: string): Promise<PosicionArancelaria | null> {

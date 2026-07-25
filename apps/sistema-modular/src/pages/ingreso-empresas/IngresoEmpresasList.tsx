@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ingresoEmpresasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -31,6 +32,7 @@ export const IngresoEmpresasList = () => {
     sortDir:   { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
@@ -93,8 +95,8 @@ export const IngresoEmpresasList = () => {
           <input
             type="text"
             placeholder="Buscar cliente..."
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select

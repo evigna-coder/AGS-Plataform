@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, Presupuesto } from '@ags/shared';
@@ -22,7 +23,10 @@ interface Props {
 
 export const EditOTFormFields: React.FC<Props> = ({
   form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
-}) => (
+}) => {
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  return (
   <>
     {/* Tipo de Servicio */}
     <div>
@@ -38,7 +42,7 @@ export const EditOTFormFields: React.FC<Props> = ({
       <label className={lbl}>Cliente *</label>
       <SearchableSelect value={form.clienteId}
         onChange={v => { set('clienteId', v); set('sistemaId', ''); set('moduloId', ''); set('contactoId', ''); }}
-        options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+        options={clienteOptions}
         placeholder="Seleccionar cliente..." disabled={readOnly} />
     </div>
 
@@ -180,4 +184,5 @@ export const EditOTFormFields: React.FC<Props> = ({
         className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 disabled:bg-slate-100 disabled:text-slate-400" />
     </div>
   </>
-);
+  );
+};

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -41,6 +41,9 @@ export const CreateRemitoModal: React.FC<Props> = ({ open, onClose, onCreated })
     Promise.all([ingenierosService.getAll(), clientesService.getAll(true)])
       .then(([ing, cli]) => { setIngenieros(ing); setClientes(cli); });
   }, [open]);
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const handleClose = () => { onClose(); setForm(emptyForm); };
@@ -108,7 +111,7 @@ export const CreateRemitoModal: React.FC<Props> = ({ open, onClose, onCreated })
             <label className={lbl}>Cliente *</label>
             <SearchableSelect value={form.clienteId}
               onChange={v => set('clienteId', v)}
-              options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+              options={clienteOpts}
               placeholder="Seleccionar cliente..." />
           </div>
         )}

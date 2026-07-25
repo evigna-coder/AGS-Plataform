@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useEquivalenciaSection } from '../../hooks/useEquivalenciaSection';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -13,6 +14,15 @@ const section = "text-[9px] font-mono font-semibold text-teal-700/70 uppercase t
 
 export function EquivalenciaSection({ articuloId, onMutated }: Props) {
   const h = useEquivalenciaSection({ articuloId, onMutated });
+
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloDestinoOptions = useMemo(
+    () => h.articulosDestino.map(a => ({
+      value: a.id,
+      label: `${a.codigo} — ${a.descripcion}`,
+    })),
+    [h.articulosDestino],
+  );
 
   return (
     <div className="space-y-2" data-testid="equivalencia-section">
@@ -40,10 +50,7 @@ export function EquivalenciaSection({ articuloId, onMutated }: Props) {
           <div>
             <label className={lbl}>Artículo destino (uso) *</label>
             <SearchableSelect
-              options={h.articulosDestino.map(a => ({
-                value: a.id,
-                label: `${a.codigo} — ${a.descripcion}`,
-              }))}
+              options={articuloDestinoOptions}
               value={h.selectedDestinoId}
               onChange={h.setSelectedDestinoId}
               placeholder={h.loadingArticulos ? 'Cargando…' : 'Seleccionar artículo…'}

@@ -16,6 +16,9 @@ interface Props {
   filters: Filters;
   setFilter: <K extends keyof Filters>(k: K, v: Filters[K]) => void;
   clienteOptions: Array<{ value: string; label: string }>;
+  // Buscador desacoplado: valor local (responsivo) + setter debounced hacia la URL.
+  search: string;
+  onSearchChange: (v: string) => void;
 }
 
 const SEMAFOROS: Semaforo[] = ['verde', 'amarillo', 'rojo', 'entregado', 'sin_eta'];
@@ -23,15 +26,15 @@ const ESTADOS_IMP: EstadoImportacion[] = [
   'preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
 ];
 
-export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOptions }) => {
+export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOptions, search, onSearchChange }) => {
   const hasActive = !!(filters.clienteId || filters.semaforo !== '__pendientes__' || filters.estadoImp || filters.search);
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <input
         type="text"
-        value={filters.search}
-        onChange={(e) => setFilter('search', e.target.value)}
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Buscar item, presupuesto, OT, OC..."
         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64"
         data-testid="entregas-search"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   asignacionesService, clientesService, sistemasService, ordenesTrabajoService,
 } from '../services/firebaseService';
@@ -44,6 +44,9 @@ export interface ConsumoRow {
   clienteNombre: string | null;
   sistemaId: string | null;
   sistemaNombre: string | null;
+  /** Código interno del equipo asignado por el cliente (Sistema.codigoInternoCliente).
+   *  Resuelto por sistemaId → sistema; null si el consumo no resuelve equipo. */
+  sistemaCodigoInterno: string | null;
   /** Resuelto vía OT.establecimientoId, o sistemaId → sistema.establecimientoId. */
   establecimientoId: string | null;
   articuloCodigo: string | null;
@@ -75,6 +78,7 @@ function movToRow(m: MovimientoStock, origen: OrigenConsumo): ConsumoRow {
     clienteNombre: m.destinoTipo === 'cliente' ? m.destinoNombre || null : null,
     sistemaId: null,
     sistemaNombre: null,
+    sistemaCodigoInterno: null,
     establecimientoId: null,
     articuloCodigo: m.articuloCodigo || m.codigoComponente || null,
     articuloDescripcion: m.articuloDescripcion
@@ -89,13 +93,14 @@ function movToRow(m: MovimientoStock, origen: OrigenConsumo): ConsumoRow {
  *
  * `enabled` (default true) permite carga LAZY para los embeds en detalles
  * (ConsumosSection): con `enabled: false` el hook NO dispara ninguna consulta.
- * La carga arranca la primera vez que `enabled` pasa a true y no se repite
- * (el caller no debe alternar enabled de vuelta a false mientras carga —
- * ConsumosSection usa un latch "everExpanded" para eso).
+ * La carga arranca cuando `enabled` es (o pasa a) true; el `[enabled]` del efecto
+ * garantiza que se ejecute una sola vez y no se repita en re-renders. NO se usa un
+ * ref-latch: un latch que sobrevive al cleanup + el guard `alive` dejaban `loading`
+ * pegado en true si el efecto se limpiaba antes de terminar el async (StrictMode en
+ * dev, o cualquier remount) — era el "Consumos por equipo colgado para siempre".
  */
 export function useConsumos(opts?: { enabled?: boolean }) {
   const enabled = opts?.enabled ?? true;
-  const startedRef = useRef(false);
   const [movConsumos, setMovConsumos] = useState<MovimientoStock[]>([]);
   const [movEgresos, setMovEgresos] = useState<MovimientoStock[]>([]);
   const [asgRows, setAsgRows] = useState<ConsumoRow[]>([]);
@@ -105,9 +110,9 @@ export function useConsumos(opts?: { enabled?: boolean }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!enabled || startedRef.current) return;
-    startedRef.current = true;
+    if (!enabled) return;
     let alive = true;
+    setLoading(true);
     (async () => {
       try {
         const [consumos, egresos, asignaciones, cls, sis] = await Promise.all([
@@ -133,6 +138,7 @@ export function useConsumos(opts?: { enabled?: boolean }) {
               clienteNombre: it.clienteNombre ?? a.clienteNombre ?? null,
               sistemaId: null,
               sistemaNombre: null,
+              sistemaCodigoInterno: null,
               establecimientoId: null,
               articuloCodigo: it.articuloCodigo || it.minikitCodigo || it.instrumentoNombre || null,
               articuloDescripcion: it.articuloDescripcion ?? null,
@@ -187,6 +193,7 @@ export function useConsumos(opts?: { enabled?: boolean }) {
     ];
     const clienteNombreById = new Map(clientes.map(c => [c.id, c.razonSocial]));
     const estabBySistema = new Map(sistemas.map(s => [s.id, s.establecimientoId ?? null]));
+    const codigoBySistema = new Map(sistemas.map(s => [s.id, s.codigoInternoCliente ?? null]));
     return base.map(r => {
       const ot = r.otNumber ? otsByNumber.get(r.otNumber) : undefined;
       // Fallback al OT padre cuando el hijo no denormaliza cliente/equipo.
@@ -200,6 +207,7 @@ export function useConsumos(opts?: { enabled?: boolean }) {
         clienteNombre: ot?.razonSocial || padre?.razonSocial || r.clienteNombre || (clienteId ? clienteNombreById.get(clienteId) ?? null : null),
         sistemaId,
         sistemaNombre: ot?.sistema || padre?.sistema || null,
+        sistemaCodigoInterno: sistemaId ? codigoBySistema.get(sistemaId) ?? null : null,
         // El scope por establecimiento se resuelve por la OT (o el padre) si lo denormaliza,
         // sino por el sistema (sistemas tienen establecimientoId).
         establecimientoId: ot?.establecimientoId || padre?.establecimientoId || (sistemaId ? estabBySistema.get(sistemaId) ?? null : null),

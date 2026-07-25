@@ -248,6 +248,11 @@ export const instrumentosService = {
     categoria?: CategoriaInstrumento | CategoriaPatron;
     activoOnly?: boolean;
   }): Promise<InstrumentoPatron[]> {
+    // Cache (TTL 2 min): catálogo casi estático, alto reuso en selects; invalidateCache en las mutaciones.
+    const cacheKey = `instrumentos:${filters?.activoOnly ?? false}:${filters?.tipo ?? ''}:${filters?.categoria ?? ''}`;
+    const cached = getCached<InstrumentoPatron[]>(cacheKey);
+    if (cached) return cached;
+
     let q = query(collection(db, 'instrumentos'));
     if (filters?.activoOnly) {
       q = query(q, where('activo', '==', true));
@@ -261,6 +266,7 @@ export const instrumentosService = {
       items = items.filter(i => i.categorias.includes(filters.categoria!));
     }
     items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -283,6 +289,7 @@ export const instrumentosService = {
     batch.set(docRef('instrumentos', id), payload);
     batchAudit(batch, { action: 'create', collection: 'instrumentos', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('instrumentos');
     return id;
   },
 
@@ -296,6 +303,7 @@ export const instrumentosService = {
     batch.update(docRef('instrumentos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'instrumentos', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('instrumentos');
   },
 
   async deactivate(id: string): Promise<void> {
@@ -319,6 +327,7 @@ export const instrumentosService = {
     batch.delete(docRef('instrumentos', id));
     batchAudit(batch, { action: 'delete', collection: 'instrumentos', documentId: id });
     await batch.commit();
+    invalidateCache('instrumentos');
   },
 
   async reemplazar(idViejo: string, idNuevo: string): Promise<void> {

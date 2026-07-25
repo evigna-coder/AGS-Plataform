@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { posicionesStockService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -32,6 +33,7 @@ export const PosicionesPage = () => {
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
   const [zonaFilter, setZonaFilter] = useState('');
   const [nombreFilter, setNombreFilter] = useState('');
+  const debouncedNombre = useDebounce(nombreFilter, 300);
   const [tipoFilter, setTipoFilter] = useState<TipoPosicionStock | ''>('');
   const [sortByName, setSortByName] = useState(false);
 
@@ -93,10 +95,15 @@ export const PosicionesPage = () => {
     catch { alert('Error al eliminar'); }
   };
 
-  let workingTree = zonaFilter ? tree.filter(n => filterByZona(n, zonaFilter)) : tree;
-  if (nombreFilter.trim() || tipoFilter) workingTree = applyFilters(workingTree, nombreFilter.trim().toLowerCase(), tipoFilter);
-  if (sortByName) workingTree = sortByNameFn(workingTree);
-  const filteredTree = workingTree;
+  // Memoizado: el filtrado del árbol (recursivo) corría inline en cada render y sobre
+  // el valor crudo del buscador. Ahora depende del término debounced y solo recalcula
+  // cuando cambian sus entradas.
+  const filteredTree = useMemo(() => {
+    let wt = zonaFilter ? tree.filter(n => filterByZona(n, zonaFilter)) : tree;
+    if (debouncedNombre.trim() || tipoFilter) wt = applyFilters(wt, debouncedNombre.trim().toLowerCase(), tipoFilter);
+    if (sortByName) wt = sortByNameFn(wt);
+    return wt;
+  }, [tree, zonaFilter, debouncedNombre, tipoFilter, sortByName]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">

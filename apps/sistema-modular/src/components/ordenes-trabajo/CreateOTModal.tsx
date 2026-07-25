@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -26,6 +27,9 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
   const h = useCreateOTForm(open, onClose, onCreated, prefill);
 
   const selectedContrato = h.contratosCliente.find(c => c.id === h.form.contratoId);
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => h.clientes.map(c => ({ value: c.id, label: c.razonSocial })), [h.clientes]);
 
   return (
     <>
@@ -85,7 +89,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
           <label className={lbl}>Cliente *</label>
           <SearchableSelect value={h.form.clienteId}
             onChange={v => h.set('clienteId', v)}
-            options={h.clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+            options={clienteOptions}
             placeholder="Seleccionar cliente..." />
         </div>
 

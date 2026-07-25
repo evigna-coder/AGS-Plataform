@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { WorkOrder, Part, TipoServicio, Cliente, Articulo } from '@ags/shared';
 import { Card } from '../ui/Card';
@@ -53,6 +53,12 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
     setShowStockPicker(false);
   }, [stockArticulos, onAddPart]);
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const stockArticuloOptions = useMemo(
+    () => stockArticulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [stockArticulos],
+  );
+
   return (
     <div className="space-y-4">
       {/* Materials / Parts */}
@@ -71,7 +77,7 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
             <SearchableSelect
               value=""
               onChange={handleAddFromStock}
-              options={stockArticulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+              options={stockArticuloOptions}
               placeholder="Buscar artículo por código o descripción..."
             />
           </div>

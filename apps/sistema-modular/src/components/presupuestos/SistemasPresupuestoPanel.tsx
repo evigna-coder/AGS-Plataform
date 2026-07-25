@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Sistema } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -19,6 +19,11 @@ export const SistemasPresupuestoPanel = ({
 
   const linkedSistemas = clienteSistemas.filter(s => linkedSistemaIds.includes(s.id));
   const availableSistemas = clienteSistemas.filter(s => !linkedSistemaIds.includes(s.id));
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const availableSistemaOptions = useMemo(() => availableSistemas.map(s => ({
+    value: s.id,
+    label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`,
+  })), [clienteSistemas, linkedSistemaIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRemove = async (sistemaId: string) => {
     const sistema = clienteSistemas.find(s => s.id === sistemaId);
@@ -61,10 +66,7 @@ export const SistemasPresupuestoPanel = ({
           <SearchableSelect
             value=""
             onChange={(v) => { if (v) setAdding(false); }}
-            options={availableSistemas.map(s => ({
-              value: s.id,
-              label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`,
-            }))}
+            options={availableSistemaOptions}
             placeholder="Seleccionar sistema para vincular..."
           />
           <p className="text-[10px] text-slate-400 mt-1">Agregue un item al sistema para vincularlo</p>

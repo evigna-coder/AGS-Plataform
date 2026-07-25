@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Cliente, Establecimiento, Sistema, ContactoEstablecimiento } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
@@ -16,7 +17,13 @@ interface Props {
 
 export const PresupuestoFormCliente: React.FC<Props> = ({
   form, setForm, clientes, establecimientos, sistemasFiltrados, contactos,
-}) => (
+}) => {
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const establecimientoOptions = useMemo(() => [{ value: '', label: 'Sin establecimiento' }, ...establecimientos.map(e => ({ value: e.id, label: `${e.nombre}${e.localidad ? ` — ${e.localidad}` : ''}` }))], [establecimientos]);
+
+  return (
   <>
     <div className="grid grid-cols-4 gap-2.5">
       <div>
@@ -30,13 +37,13 @@ export const PresupuestoFormCliente: React.FC<Props> = ({
           )}
         </div>
         <SearchableSelect value={form.clienteId} onChange={v => setForm(prev => ({ ...prev, clienteId: v, establecimientoId: '', sistemaId: '', contactoId: '' }))}
-          options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))} placeholder="Seleccionar cliente..." />
+          options={clienteOptions} placeholder="Seleccionar cliente..." />
       </div>
       {form.clienteId && establecimientos.length > 0 && (
         <div>
           <label className={lbl}>Establecimiento</label>
           <SearchableSelect value={form.establecimientoId} onChange={v => setForm(prev => ({ ...prev, establecimientoId: v, sistemaId: '', contactoId: '' }))}
-            options={[{ value: '', label: 'Sin establecimiento' }, ...establecimientos.map(e => ({ value: e.id, label: `${e.nombre}${e.localidad ? ` — ${e.localidad}` : ''}` }))]}
+            options={establecimientoOptions}
             placeholder="Seleccionar..." />
         </div>
       )}
@@ -70,4 +77,5 @@ export const PresupuestoFormCliente: React.FC<Props> = ({
       </p>
     )}
   </>
-);
+  );
+};

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Lead, UsuarioAGS, Cliente } from '@ags/shared';
 import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor, TICKET_AREA_LABELS, TICKET_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
@@ -37,6 +37,8 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
     if (!showVincular) return;
     clientesService.getAll(false).then(setClientes).catch(() => setClientes([]));
   }, [showVincular]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
   const handleVincular = () => {
     const cli = clientes.find(c => c.id === selectedClienteId);
     if (!cli) return;
@@ -176,7 +178,7 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
           <SearchableSelect
             value={selectedClienteId}
             onChange={setSelectedClienteId}
-            options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+            options={clienteOpts}
             placeholder="Buscar cliente..."
           />
         </div>

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useEntregas } from '../../hooks/useEntregas';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EntregasFilters } from './EntregasFilters';
@@ -29,6 +30,7 @@ const thClass = 'text-left text-[11px] font-medium text-slate-400 tracking-wider
 export const EntregasList: React.FC = () => {
   const { rows, loading, updateItem } = useEntregas();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const [search, setSearch] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
 
   const clienteOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -119,7 +121,7 @@ export const EntregasList: React.FC = () => {
         subtitle="Visor de cumplimiento de entregas comprometidas"
         count={sorted.length}
       >
-        <EntregasFilters filters={filters} setFilter={setFilter} clienteOptions={clienteOptions} />
+        <EntregasFilters filters={filters} setFilter={setFilter} clienteOptions={clienteOptions} search={search} onSearchChange={setSearch} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4 overflow-hidden flex flex-col">

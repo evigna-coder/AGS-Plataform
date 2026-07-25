@@ -5,7 +5,7 @@
  * (antes solo decía "Sin materiales registrados" sin salida — en el modal de
  * OT no existe otra sección de materiales).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Articulo, CierreAdministrativo, Part } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
@@ -40,6 +40,12 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
     }
   }, [showPicker, stockArticulos.length]);
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloOptions = useMemo(
+    () => stockArticulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [stockArticulos],
+  );
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -61,7 +67,7 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
               const art = stockArticulos.find(a => a.id === artId);
               if (art) { onAddPart!({ codigo: art.codigo, descripcion: art.descripcion }); setShowPicker(false); }
             }}
-            options={stockArticulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+            options={articuloOptions}
             placeholder="Buscar artículo por código o descripción..."
           />
         </div>

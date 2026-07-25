@@ -200,6 +200,11 @@ export const EquiposList = () => {
     return est?.sectores || [];
   }, [reassignEstId, estMap]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const reassignEstOptions = useMemo(() => reassignEstFiltrados.map(e => ({ value: e.id, label: `${e.nombre} — ${e.localidad}` })), [reassignEstFiltrados]);
+
   const openReassign = () => {
     const firstSelected = sistemas.find(s => selected.has(s.id));
     if (firstSelected) {
@@ -426,7 +431,7 @@ export const EquiposList = () => {
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Cliente</label>
             <SearchableSelect value={reassignClienteId}
               onChange={v => { setReassignClienteId(v); setReassignEstId(''); }}
-              options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+              options={clienteOptions}
               placeholder="Seleccionar cliente..." />
           </div>
           {reassignClienteId && (
@@ -434,7 +439,7 @@ export const EquiposList = () => {
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Establecimiento destino *</label>
               <SearchableSelect value={reassignEstId}
                 onChange={v => { setReassignEstId(v); setReassignSector(''); }}
-                options={reassignEstFiltrados.map(e => ({ value: e.id, label: `${e.nombre} — ${e.localidad}` }))}
+                options={reassignEstOptions}
                 placeholder="Seleccionar establecimiento..." />
               {reassignEstFiltrados.length === 0 && (
                 <p className="text-[10px] text-amber-600 mt-1">Este cliente no tiene establecimientos registrados.</p>

@@ -7,6 +7,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, Ingeniero, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 
 const ITEM_ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
@@ -53,6 +54,7 @@ export const AsignacionesList = () => {
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const [busq, setBusq] = useDebouncedUrlText(filters.busqueda, v => setFilter('busqueda', v));
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
 
   const unsubRef = useRef<(() => void) | null>(null);
@@ -106,8 +108,8 @@ export const AsignacionesList = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
         <div className="flex gap-3">
           <input
-            value={filters.busqueda}
-            onChange={e => setFilter('busqueda', e.target.value)}
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
             placeholder="Buscar artículo, instrumento, patrón, cliente…"
             className="w-72 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
           />

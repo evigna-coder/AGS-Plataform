@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService, presupuestosService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, TipoServicio, TipoOT, PresupuestoItem } from '@ags/shared';
@@ -309,6 +309,9 @@ export const OTNew = () => {
     generateNextOT();
   }, []);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -397,7 +400,7 @@ export const OTNew = () => {
               <SearchableSelect
                 value={formData.clienteId}
                 onChange={(value) => setFormData(prev => ({ ...prev, clienteId: value, sistemaId: '', contactoId: '' }))}
-                options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                options={clienteOptions}
                 placeholder="Seleccionar cliente..."
                 required
               />

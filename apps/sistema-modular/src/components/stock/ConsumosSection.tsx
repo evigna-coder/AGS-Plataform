@@ -101,8 +101,9 @@ export const ConsumosSection = ({ clienteId, establecimientoId, sistemaId, titul
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
                       {showEquipo && (
-                        <td className={`${td} text-slate-600 truncate max-w-[140px]`}>
-                          {r.sistemaNombre || <span className="text-[10px] text-slate-300">—</span>}
+                        <td className={`${td} text-slate-600 max-w-[140px]`}>
+                          <span className="block truncate">{r.sistemaNombre || <span className="text-[10px] text-slate-300">—</span>}</span>
+                          {r.sistemaCodigoInterno && <span className="block text-[10px] font-mono text-slate-400 truncate">ID: {r.sistemaCodigoInterno}</span>}
                         </td>
                       )}
                       <td className={td}>

@@ -5,7 +5,7 @@ import { facturacionService } from '../../services/facturacionService';
 import { clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { useAuth } from '../../contexts/AuthContext';
 import { exportSolicitudesExcel, exportSolicitudesPDF } from '../../utils/exports/exportSolicitudesFacturacion';
 import type { SolicitudFacturacion, SolicitudFacturacionEstado, Cliente } from '@ags/shared';
@@ -39,7 +39,10 @@ export const FacturacionList = () => {
     sortDir:    { type: 'string' as const, default: 'desc' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
-  const debouncedSearch = useDebounce(filters.search, 300);
+  // Input responsivo: el texto se mantiene local y se empuja a la URL con debounce.
+  // El filtro consume filters.search directo (ya viene debounced por el hook) —
+  // sin un segundo useDebounce que agregaría 300ms extra de latencia.
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
   const unsubRef = useRef<(() => void) | null>(null);
 
   const handleSort = (f: string) => {
@@ -88,11 +91,14 @@ export const FacturacionList = () => {
       if (filters.fechaHasta && s.createdAt > filters.fechaHasta + 'T23:59:59') return false;
       return true;
     });
-    if (debouncedSearch.trim()) {
-      result = result.filter(s => matchesSearch(debouncedSearch, s.presupuestoNumero, s.clienteNombre, s.numeroFactura));
+    if (filters.search.trim()) {
+      result = result.filter(s => matchesSearch(filters.search, s.presupuestoNumero, s.clienteNombre, s.numeroFactura));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
-  }, [solicitudes, filters, debouncedSearch]);
+  }, [solicitudes, filters]);
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
 
   // Summary cards
   const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
@@ -146,8 +152,8 @@ export const FacturacionList = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <input
             type="text"
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
             placeholder="Buscar por presupuesto, cliente, nro factura..."
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56"
           />
@@ -156,7 +162,7 @@ export const FacturacionList = () => {
               size="sm"
               value={filters.cliente}
               onChange={v => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOptions}
               placeholder="Cliente"
             />
           </div>

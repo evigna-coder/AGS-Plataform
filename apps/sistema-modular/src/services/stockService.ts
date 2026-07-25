@@ -3,11 +3,17 @@ import { runTransaction } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // ========== POSICIONES DE STOCK ==========
 
 export const posicionesStockService = {
   async getAll(activoOnly: boolean = true): Promise<PosicionStock[]> {
+    // Cache (TTL 2 min): catálogo casi estático, alto reuso en selects; invalidateCache en las mutaciones.
+    const cacheKey = `posicionesStock:${activoOnly}`;
+    const cached = getCached<PosicionStock[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (activoOnly) {
       q = query(collection(db, 'posicionesStock'), where('activo', '==', true));
@@ -22,6 +28,7 @@ export const posicionesStockService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as PosicionStock[];
     items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -49,6 +56,7 @@ export const posicionesStockService = {
     batch.set(doc(db, 'posicionesStock', id), payload);
     batchAudit(batch, { action: 'create', collection: 'posiciones_stock', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('posicionesStock');
     return id;
   },
 
@@ -62,6 +70,7 @@ export const posicionesStockService = {
     batch.update(docRef('posicionesStock', id), payload);
     batchAudit(batch, { action: 'update', collection: 'posiciones_stock', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('posicionesStock');
   },
 
   async getByParent(parentId: string | null): Promise<PosicionStock[]> {
@@ -98,6 +107,7 @@ export const posicionesStockService = {
     batch.delete(docRef('posicionesStock', id));
     batchAudit(batch, { action: 'delete', collection: 'posiciones_stock', documentId: id });
     await batch.commit();
+    invalidateCache('posicionesStock');
   },
 
   subscribe(
@@ -158,6 +168,15 @@ export const articulosService = {
     tipo?: string;
     activoOnly?: boolean;
   }): Promise<Articulo[]> {
+    // Cache (TTL 2 min): el catálogo de artículos (~2200) alimenta selects en
+    // muchos modales; sin cache cada apertura re-leía la colección entera y se
+    // sentía el "tarda en cargar". La key incluye los filtros; invalidateCache
+    // ('articulos') en create/update/delete borra todas las variantes. Las
+    // listas en vivo usan subscribe() y no tocan esta cache.
+    const cacheKey = `articulos:${filters?.activoOnly !== false}:${filters?.categoriaEquipo ?? ''}:${filters?.marcaId ?? ''}:${filters?.tipo ?? ''}`;
+    const cached = getCached<Articulo[]>(cacheKey);
+    if (cached) return cached;
+
     let q = query(collection(db, 'articulos'));
     if (filters?.activoOnly !== false) {
       q = query(q, where('activo', '==', true));
@@ -179,6 +198,7 @@ export const articulosService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as Articulo[];
     items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -242,6 +262,7 @@ export const articulosService = {
     batch.set(doc(db, 'articulos', id), payload);
     batchAudit(batch, { action: 'create', collection: 'articulos', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('articulos');
     return id;
   },
 
@@ -255,6 +276,7 @@ export const articulosService = {
     batch.update(docRef('articulos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'articulos', documentId: id, after: payload });
     await batch.commit();
+    invalidateCache('articulos');
 
     // Phase 13 STKE-02 — recompute denormalized equivalencia fields on origenes pointing to this articulo.
     // LAZY DYNAMIC IMPORT: avoids module-load cycle with equivalenciasService.ts (which also imports
@@ -307,6 +329,7 @@ export const articulosService = {
     batch.delete(docRef('articulos', id));
     batchAudit(batch, { action: 'delete', collection: 'articulos', documentId: id });
     await batch.commit();
+    invalidateCache('articulos');
   },
 
   subscribe(

@@ -9,6 +9,7 @@ import {
 import { clientesService } from '../../services/firebaseService';
 import { pendientesService, type PendienteFilters } from '../../services/pendientesService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Card } from '../../components/ui/Card';
@@ -73,6 +74,7 @@ export const PendientesList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
   const debouncedSearch = useDebounce(filters.search, 300);
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
 
   // Load clientes (para filtro)
   useEffect(() => {
@@ -159,8 +161,8 @@ export const PendientesList = () => {
           <input
             type="text"
             placeholder="Buscar en descripción, cliente, equipo..."
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64"
           />
 

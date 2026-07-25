@@ -50,6 +50,15 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
 
   const selectedSistema = useMemo(() => sistemas.find(s => s.id === sistemaId) || null, [sistemas, sistemaId]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const sistemaOptions = useMemo(() => sistemas.map(s => ({
+    value: s.id,
+    label: `${s.nombre}${s.codigoInternoCliente ? ` — ${s.codigoInternoCliente}` : ''}`,
+  })), [sistemas]);
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const plantillaOptions = useMemo(() => plantillas.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre })), [plantillas]);
+
   // Auto-populate sector & plantilla when a sistema is picked
   useEffect(() => {
     if (!selectedSistema) return;
@@ -115,10 +124,7 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
           <div>
             <label className={labelCls}>Sistema *</label>
             <SearchableSelect value={sistemaId} onChange={setSistemaId}
-              options={sistemas.map(s => ({
-                value: s.id,
-                label: `${s.nombre}${s.codigoInternoCliente ? ` — ${s.codigoInternoCliente}` : ''}`,
-              }))}
+              options={sistemaOptions}
               placeholder="Seleccionar..." />
           </div>
           <div>
@@ -133,7 +139,7 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
           <div>
             <label className={labelCls}>Plantilla *</label>
             <SearchableSelect value={plantillaId} onChange={setPlantillaId}
-              options={plantillas.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre }))}
+              options={plantillaOptions}
               placeholder={loadingPlantillas ? 'Cargando...' : 'Seleccionar...'} />
             {selectedSistema && !plantillaId && plantillas.length > 0 && (
               <p className="text-[10px] text-amber-600 mt-0.5">No se encontró plantilla automática para "{selectedSistema.nombre}".</p>

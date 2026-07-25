@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ModuloSistema, Sistema } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -35,6 +35,9 @@ export const MoveModuloModal: React.FC<Props> = ({ modulo, currentSistemaId, onM
 
   const target = sistemas.find(s => s.id === targetId);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const sistemaOptions = useMemo(() => sistemas.map(s => ({ value: s.id, label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}` })), [sistemas]);
+
   return (
     <Modal
       open={true}
@@ -61,7 +64,7 @@ export const MoveModuloModal: React.FC<Props> = ({ modulo, currentSistemaId, onM
             <SearchableSelect
               value={targetId}
               onChange={setTargetId}
-              options={sistemas.map(s => ({ value: s.id, label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}` }))}
+              options={sistemaOptions}
               placeholder="Buscar sistema destino..."
             />
           </div>

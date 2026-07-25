@@ -99,6 +99,9 @@ export function FichasList() {
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [fichas, filters.estado, filters.cliente, filters.sortField, filters.sortDir]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
+
   const handleDelete = async (id: string) => {
     if (!await confirm('Eliminar esta ficha?')) return;
     await fichasService.delete(id);
@@ -124,7 +127,7 @@ export function FichasList() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="min-w-[160px]">
             <SearchableSelect value={filters.cliente} onChange={(v) => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOptions}
               placeholder="Cliente" />
           </div>
           <div className="min-w-[150px]">

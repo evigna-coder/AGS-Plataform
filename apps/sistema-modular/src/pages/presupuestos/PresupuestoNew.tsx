@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { presupuestosService, clientesService, sistemasService, contactosService, leadsService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, OrigenPresupuesto } from '@ags/shared';
@@ -57,6 +57,13 @@ export const PresupuestoNew = () => {
       alert('Error al cargar los datos');
     }
   };
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  const sistemaOptions = useMemo(() => [
+    { value: '', label: 'Sin sistema específico' },
+    ...sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` })),
+  ], [sistemasFiltrados]);
 
   const loadContactos = async (clienteId: string) => {
     try {
@@ -151,7 +158,7 @@ export const PresupuestoNew = () => {
               <SearchableSelect
                 value={formData.clienteId}
                 onChange={(value) => setFormData({ ...formData, clienteId: value, sistemaId: '', contactoId: '' })}
-                options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                options={clienteOptions}
                 placeholder="Seleccionar cliente..."
                 required
               />
@@ -166,10 +173,7 @@ export const PresupuestoNew = () => {
                   <SearchableSelect
                     value={formData.sistemaId}
                     onChange={(value) => setFormData({ ...formData, sistemaId: value })}
-                    options={[
-                      { value: '', label: 'Sin sistema específico' },
-                      ...sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))
-                    ]}
+                    options={sistemaOptions}
                     placeholder="Seleccionar sistema..."
                   />
                 </div>

@@ -13,6 +13,7 @@ const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
   contrato: 'administracion',
 };
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, logBusinessEvent, onSnapshot } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 import { leadsService } from './leadsService';
 import { adminConfigService } from './adminConfigService';
 import { usuariosService, getAdminSoporteAssignee } from './personalService';
@@ -2930,6 +2931,11 @@ export const plantillasTextoPresupuestoService = {
 // --- Conceptos de Servicio (catálogo de precios) ---
 export const conceptosServicioService = {
   async getAll(): Promise<ConceptoServicio[]> {
+    // Cache (TTL 2 min): catálogo casi estático, alto reuso en selects; invalidateCache en las mutaciones.
+    const cacheKey = 'conceptos_servicio:all';
+    const cached = getCached<ConceptoServicio[]>(cacheKey);
+    if (cached) return cached;
+
     const querySnapshot = await getDocs(collection(db, 'conceptos_servicio'));
     const items = querySnapshot.docs.map(docSnap => {
       const data = docSnap.data();
@@ -2941,6 +2947,7 @@ export const conceptosServicioService = {
       } as ConceptoServicio;
     });
     items.sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -2970,6 +2977,7 @@ export const conceptosServicioService = {
     batch.set(ref, cleaned);
     batchAudit(batch, { action: 'create', collection: 'conceptos_servicio', documentId: ref.id, after: cleaned });
     await batch.commit();
+    invalidateCache('conceptos_servicio');
     return ref.id;
   },
 
@@ -2979,6 +2987,7 @@ export const conceptosServicioService = {
     batch.update(docRef('conceptos_servicio', id), cleaned);
     batchAudit(batch, { action: 'update', collection: 'conceptos_servicio', documentId: id, after: cleaned });
     await batch.commit();
+    invalidateCache('conceptos_servicio');
   },
 
   async delete(id: string): Promise<void> {
@@ -2986,5 +2995,6 @@ export const conceptosServicioService = {
     batch.delete(docRef('conceptos_servicio', id));
     batchAudit(batch, { action: 'delete', collection: 'conceptos_servicio', documentId: id });
     await batch.commit();
+    invalidateCache('conceptos_servicio');
   },
 };

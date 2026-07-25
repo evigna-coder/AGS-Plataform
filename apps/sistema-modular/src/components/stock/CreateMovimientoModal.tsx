@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -36,6 +37,14 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
   const destinoLockeado = !!init.lockDestino;
 
   const articuloElegido = h.articulos.find(a => a.id === h.form.articuloId);
+
+  // Memoizado: sin esto se recreaba un array de ~2200 objetos en CADA render del
+  // modal, cambiando la identidad de `options` e invalidando los memos internos
+  // del SearchableSelect (re-filtrado por tecla). Depende solo de h.articulos.
+  const articuloOptions = useMemo(
+    () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [h.articulos],
+  );
 
   const renderOrigenField = () => {
     if (h.slot.origen === 'ubicacion_con_stock' || h.slot.origen === 'proveedor') {
@@ -137,7 +146,7 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
           ) : (
             <SearchableSelect value={h.form.articuloId}
               onChange={v => { h.set('articuloId', v); h.set('origenKey', ''); h.set('origenUnidadIds', []); }}
-              options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+              options={articuloOptions}
               placeholder="Buscar artículo..." />
           )}
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -52,6 +52,9 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
     }
   }, [open, editData]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+
   const handleClienteChange = (id: string) => {
     const c = clientes.find(c => c.id === id);
     setForm(f => ({ ...f, clienteId: id, clienteNombre: c?.razonSocial ?? '' }));
@@ -100,7 +103,7 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
             <SearchableSelect
               value={form.clienteId}
               onChange={handleClienteChange}
-              options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+              options={clienteOpts}
               placeholder="Buscar cliente..."
               required
             />

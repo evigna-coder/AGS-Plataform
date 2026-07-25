@@ -123,6 +123,9 @@ export const CreatePendienteModal: React.FC<Props> = ({
     return sistemas.filter(s => s.clienteId === form.clienteId && s.activo !== false);
   }, [sistemas, form.clienteId]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+
   const handleClienteChange = (id: string) => {
     const cliente = clientes.find(c => c.id === id);
     setForm(prev => ({
@@ -212,7 +215,7 @@ export const CreatePendienteModal: React.FC<Props> = ({
             <SearchableSelect
               value={form.clienteId}
               onChange={handleClienteChange}
-              options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+              options={clienteOpts}
               placeholder={loadingRefs ? 'Cargando...' : 'Seleccionar cliente...'}
             />
           </div>

@@ -269,6 +269,9 @@ export const PresupuestosList = () => {
     return result;
   }, [presupuestos, filters, debouncedSearch, solicitudSets, trabajoRealizadoIds]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
+
   // (UAT 2026-07-17) El "Pipeline: ..." del subtítulo se unificó con el que ya
   // muestra la tarjeta Enviados del dashboard — decía lo mismo en dos lugares.
 
@@ -388,7 +391,7 @@ export const PresupuestosList = () => {
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOptions}
               placeholder="Cliente" />
           </div>
           <div className="min-w-[100px]">

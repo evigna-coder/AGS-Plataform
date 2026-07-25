@@ -127,6 +127,12 @@ export const EstablecimientosList = () => {
     return map;
   }, [clientes]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(
+    () => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))],
+    [clientes],
+  );
+
   const filtered = useMemo(() => {
     let result = establecimientos;
     if (filters.cliente) result = result.filter(e => (e.clienteCuit || (e as any).clienteId) === filters.cliente);
@@ -176,7 +182,7 @@ export const EstablecimientosList = () => {
             <SearchableSelect size="sm"
               value={filters.cliente}
               onChange={(v) => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOpts}
               placeholder="Cliente"
             />
           </div>

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoHistorial } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
@@ -75,6 +76,11 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   const roHoras = readOnly; // horas: readonly solo en FINALIZADO, editables en cierre admin
   const roBudgets = readOnly; // presupuestos: editables en cierre admin
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const sistemaOptions = useMemo(() => sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` })), [sistemasFiltrados]);
+
   return (
     <div className="w-72 shrink-0 space-y-4">
       {/* Client */}
@@ -83,7 +89,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
         <div className="space-y-2">
           <div>
             <span className={lbl}>Razon Social</span>
-            <SearchableSelect value={clienteId || ''} onChange={onClienteChange} options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))} placeholder="Seleccionar..." disabled={roTecnico} />
+            <SearchableSelect value={clienteId || ''} onChange={onClienteChange} options={clienteOptions} placeholder="Seleccionar..." disabled={roTecnico} />
           </div>
           <div>
             <span className={lbl}>Contacto</span>
@@ -117,7 +123,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
         <div className="space-y-2">
           <div>
             <span className={lbl}>Sistema</span>
-            <SearchableSelect value={sistemaId || ''} onChange={onSistemaChange} options={sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))} placeholder="Seleccionar..." disabled={roTecnico || !clienteId} />
+            <SearchableSelect value={sistemaId || ''} onChange={onSistemaChange} options={sistemaOptions} placeholder="Seleccionar..." disabled={roTecnico || !clienteId} />
           </div>
           <div>
             <span className={lbl}>Codigo Interno</span>

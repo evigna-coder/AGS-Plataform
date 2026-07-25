@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -17,6 +18,11 @@ interface Props {
 export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const h = useCreateContratoForm(open, onClose, onCreated);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => h.clientes.map(c => ({ value: c.id, label: c.razonSocial })), [h.clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const presupuestoOptions = useMemo(() => [{ value: '', label: 'Sin presupuesto' }, ...h.presupuestos.map(p => ({ value: p.id, label: p.numero }))], [h.presupuestos]);
+
   return (
     <Modal open={open} onClose={h.handleClose} title="Nuevo contrato" subtitle="Defina los terminos del contrato de servicio" maxWidth="xl">
       <div className="space-y-4">
@@ -26,12 +32,12 @@ export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated 
           <div>
             <label className={lbl}>Cliente *</label>
             <SearchableSelect value={h.form.clienteId} onChange={v => h.setForm(prev => ({ ...prev, clienteId: v, sistemaIds: [], presupuestoId: '' }))}
-              options={h.clientes.map(c => ({ value: c.id, label: c.razonSocial }))} placeholder="Seleccionar cliente..." />
+              options={clienteOptions} placeholder="Seleccionar cliente..." />
           </div>
           <div>
             <label className={lbl}>Presupuesto (contrato)</label>
             <SearchableSelect value={h.form.presupuestoId} onChange={v => h.setForm(prev => ({ ...prev, presupuestoId: v }))}
-              options={[{ value: '', label: 'Sin presupuesto' }, ...h.presupuestos.map(p => ({ value: p.id, label: p.numero }))]}
+              options={presupuestoOptions}
               placeholder="Seleccionar..." />
           </div>
         </div>

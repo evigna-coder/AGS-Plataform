@@ -80,7 +80,16 @@ export function MovimientosTable({ items, sortField, sortDir, onSort, onSelect, 
                 </span>
               </td>
               <td className="px-4 py-2 font-mono text-slate-700 truncate">{m.articuloCodigo}</td>
-              <td className="px-4 py-2 text-slate-700 truncate">{m.articuloDescripcion}</td>
+              <td className="px-4 py-2 text-slate-700 overflow-hidden">
+                <div className="truncate">{m.articuloDescripcion}</div>
+                {/* Serie/lote denormalizados: sub-línea SOLO cuando existen (la mayoría no tiene),
+                    así se puede rastrear qué unidad se consumió sin agregar una columna casi vacía. */}
+                {m.nroSerie
+                  ? <div className="text-[10px] font-mono text-teal-600 truncate">S/N: {m.nroSerie}</div>
+                  : m.nroLote
+                    ? <div className="text-[10px] font-mono text-slate-400 truncate">Lote: {m.nroLote}</div>
+                    : null}
+              </td>
               <td className="px-4 py-2 font-mono text-slate-600 truncate">{m.ordenCompraNumero ?? '—'}</td>
               <td className="px-4 py-2 font-mono text-slate-600 truncate">{m.despachoImportacionNumero ?? '—'}</td>
               <td className="px-4 py-2 text-center tabular-nums font-medium">{m.cantidad}</td>

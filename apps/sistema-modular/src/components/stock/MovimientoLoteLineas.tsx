@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -14,6 +14,12 @@ export const MovimientoLoteLineas: React.FC<{ h: ReturnType<typeof useMovimiento
   const [err, setErr] = useState<string | null>(null);
   const onAdd = () => setErr(h.addLinea());
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloOptions = useMemo(
+    () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [h.articulos],
+  );
+
   return (
     <div className="space-y-3">
       <label className={lbl}>Artículos del movimiento</label>
@@ -23,7 +29,7 @@ export const MovimientoLoteLineas: React.FC<{ h: ReturnType<typeof useMovimiento
         <SearchableSelect
           value={h.draftArticuloId}
           onChange={v => { h.setDraftArticuloId(v); setErr(null); }}
-          options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+          options={articuloOptions}
           placeholder="Buscar artículo por código o descripción..."
         />
 

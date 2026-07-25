@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
 import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema, ConfiguracionGC } from '@ags/shared';
@@ -254,6 +254,11 @@ export const EquipoNew = () => {
     }
   };
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` })), [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const establecimientoOptions = useMemo(() => establecimientos.map(e => ({ value: e.id, label: e.nombre })), [establecimientos]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -276,7 +281,7 @@ export const EquipoNew = () => {
                 <SearchableSelect
                   value={formData.clienteId}
                   onChange={(value) => setFormData({ ...formData, clienteId: value, establecimientoId: '' })}
-                  options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
+                  options={clienteOptions}
                   placeholder="Seleccionar cliente..."
                   required
                   error={errors.clienteId}
@@ -287,7 +292,7 @@ export const EquipoNew = () => {
                 <SearchableSelect
                   value={formData.establecimientoId}
                   onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
-                  options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+                  options={establecimientoOptions}
                   placeholder={formData.clienteId ? 'Seleccionar establecimiento...' : 'Primero seleccione un cliente'}
                   required
                   error={errors.establecimientoId}

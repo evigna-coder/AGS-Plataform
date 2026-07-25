@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -34,6 +35,12 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
   const showLote = h.requiereLote || !h.requiereSerie; // lote-only o sin-traza muestran lote opcional
   const showCantidad = !h.requiereSerie;
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloOptions = useMemo(
+    () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
+    [h.articulos],
+  );
+
   return (
     <Modal open={open} onClose={onClose} title="Cargar stock" maxWidth="xl"
       subtitle={h.articulo ? `${h.articulo.codigo} — ${h.articulo.descripcion.slice(0, 50)}` : 'Alta de unidades en lote'}
@@ -49,7 +56,7 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
           <div className="max-w-md">
             <label className={lbl}>Artículo *</label>
             <SearchableSelect value={h.articuloId} onChange={h.setArticuloId}
-              options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+              options={articuloOptions}
               placeholder="Buscar artículo..."
               autoFocusToken={open && !h.articuloId} />
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Cliente, Establecimiento } from '@ags/shared';
 import { clientesService, establecimientosService, sistemasService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
@@ -64,6 +64,11 @@ export const MoveSistemaModal: React.FC<MoveSistemaModalProps> = ({
   const sectores = selectedEst?.sectores || [];
 
   const hasTarget = targetEstId !== '';
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const establecimientoOptions = useMemo(() => establecimientos.map(e => ({ value: e.id, label: e.nombre })), [establecimientos]);
 
   const handleMove = async () => {
     if (!hasTarget) return;
@@ -135,7 +140,7 @@ export const MoveSistemaModal: React.FC<MoveSistemaModalProps> = ({
                 setTargetEstId('');
                 setTargetSector('');
               }}
-              options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+              options={clienteOptions}
               placeholder="Seleccionar cliente..."
             />
           </div>
@@ -153,7 +158,7 @@ export const MoveSistemaModal: React.FC<MoveSistemaModalProps> = ({
                   setTargetEstId(val);
                   if (val !== targetEstId) setTargetSector('');
                 }}
-                options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+                options={establecimientoOptions}
                 placeholder="Seleccionar establecimiento..."
               />
             )}

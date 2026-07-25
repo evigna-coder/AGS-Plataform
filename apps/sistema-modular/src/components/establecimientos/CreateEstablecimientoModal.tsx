@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -52,6 +52,9 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
     }
   }, [open, preselectedClienteId]);
 
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const handleClose = () => { onClose(); setForm(emptyForm); };
 
@@ -104,7 +107,7 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
               <label className={lbl}>Cliente *</label>
               <SearchableSelect value={form.clienteCuit}
                 onChange={v => set('clienteCuit', v)}
-                options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                options={clienteOpts}
                 placeholder="Seleccionar cliente..." />
             </div>
             <Input inputSize="sm" label="Nombre *" value={form.nombre}

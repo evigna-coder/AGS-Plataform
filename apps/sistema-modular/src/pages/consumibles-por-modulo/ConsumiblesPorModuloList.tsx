@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import { consumiblesPorModuloService } from '../../services/consumiblesPorModuloService';
 import type { ConsumiblesPorModulo, ConsumibleModulo } from '@ags/shared';
@@ -34,6 +35,7 @@ export const ConsumiblesPorModuloList = () => {
   const [formInitial, setFormInitial] = useState<FormInitial>(EMPTY_FORM);
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const q = filters.q;
+  const [qInput, setQInput] = useDebouncedUrlText(filters.q, v => setFilter('q', v));
 
   const load = async () => {
     try {
@@ -116,8 +118,8 @@ export const ConsumiblesPorModuloList = () => {
           <div className="flex items-center gap-3 flex-wrap mb-4">
             <input
               type="text"
-              value={q}
-              onChange={e => setFilter('q', e.target.value)}
+              value={qInput}
+              onChange={e => setQInput(e.target.value)}
               placeholder="Buscar por código o descripción..."
               className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
             />

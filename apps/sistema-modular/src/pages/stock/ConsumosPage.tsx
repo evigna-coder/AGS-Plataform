@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useConsumos, ORIGEN_CONSUMO_LABELS, ORIGEN_CONSUMO_COLORS } from '../../hooks/useConsumos';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -24,6 +25,7 @@ const fmtFecha = (iso?: string | null) =>
 export const ConsumosPage = () => {
   const { rows, clientes, sistemas, loading } = useConsumos();
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  const [busq, setBusq] = useDebouncedUrlText(filters.busqueda, v => setFilter('busqueda', v));
 
   const filtered = useMemo(() => {
     const q = filters.busqueda.trim();
@@ -34,7 +36,7 @@ export const ConsumosPage = () => {
       const dia = (r.fecha || '').slice(0, 10);
       if (filters.fechaDesde && dia < filters.fechaDesde) return false;
       if (filters.fechaHasta && dia > filters.fechaHasta) return false;
-      if (q && !matchesSearch(q, r.articuloCodigo, r.articuloDescripcion, r.otNumber, r.clienteNombre, r.sistemaNombre)) return false;
+      if (q && !matchesSearch(q, r.articuloCodigo, r.articuloDescripcion, r.otNumber, r.clienteNombre, r.sistemaNombre, r.sistemaCodigoInterno)) return false;
       return true;
     });
   }, [rows, filters.clienteId, filters.equipoId, filters.establecimientoId, filters.fechaDesde, filters.fechaHasta, filters.busqueda]);
@@ -72,8 +74,8 @@ export const ConsumosPage = () => {
       <PageHeader title="Consumos por equipo" subtitle="Qué se consumió en cada OT: partes, componentes y materiales" count={filtered.length}>
         <div className="flex items-center gap-2 flex-wrap">
           <input
-            value={filters.busqueda}
-            onChange={e => setFilter('busqueda', e.target.value)}
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
             placeholder="Buscar artículo, OT, cliente, equipo…"
             className="w-64 border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
@@ -141,7 +143,10 @@ export const ConsumosPage = () => {
                       ) : <span className="text-[10px] text-slate-300">—</span>}
                     </td>
                     <td className={`${td} text-slate-600 truncate max-w-[160px]`}>{r.clienteNombre || <span className="text-[10px] text-slate-300">—</span>}</td>
-                    <td className={`${td} text-slate-600 truncate max-w-[160px]`}>{r.sistemaNombre || <span className="text-[10px] text-slate-300">—</span>}</td>
+                    <td className={`${td} text-slate-600 max-w-[160px]`}>
+                      <span className="block truncate">{r.sistemaNombre || <span className="text-[10px] text-slate-300">—</span>}</span>
+                      {r.sistemaCodigoInterno && <span className="block text-[10px] font-mono text-slate-400 truncate">ID: {r.sistemaCodigoInterno}</span>}
+                    </td>
                     <td className={td}>
                       <span className="font-mono font-semibold text-teal-800 whitespace-nowrap">{r.articuloCodigo || '—'}</span>
                       {r.articuloDescripcion && <span className="block text-[10px] text-slate-400 max-w-[260px] truncate">{r.articuloDescripcion}</span>}

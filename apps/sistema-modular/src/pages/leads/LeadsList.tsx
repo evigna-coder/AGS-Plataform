@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Lead, TicketArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import {
@@ -65,6 +66,7 @@ export const LeadsList = () => {
   }), []);
   const [filters, setFilter, setFilters, _resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const debouncedSearch = useDebounce(filters.search, 300);
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
 
   const unsubRef = useRef<(() => void) | null>(null);
   const colMenuRefs = useRef(new Map<number, ColMenuHandle>());
@@ -292,7 +294,7 @@ export const LeadsList = () => {
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>
           </div>
         }>
-        <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
+        <LeadFilters search={busq} onSearchChange={setBusq}
           estadoFilter={filters.estadoFilter as 'nuevo' | 'en_proceso' | 'finalizado' | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
           usuarios={usuarios} />

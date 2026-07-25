@@ -57,31 +57,36 @@ export function useSearchableSelect({
     [options, searchTerms]
   );
 
-  // In creatable mode, add "Create: X" option if no exact match
+  // Cap rendered options to avoid DOM thrashing. Applies SIEMPRE — filtrando o
+  // no: un término poco selectivo (ej. "boca" sobre ~2200 artículos) montaba
+  // cientos de <li> y lagueaba la tecla (UAT 2026-07-24). Se muestran los
+  // primeros MAX_VISIBLE + hint "+N más — escribí para filtrar"; los ocultos se
+  // alcanzan acotando la búsqueda. El cap se aplica sobre `allOptions` (no un
+  // slice solo-de-render) para que teclado y DOM naveguen la MISMA lista.
+  const MAX_VISIBLE = 50;
+  const totalCount = filteredOptions.length;
+
+  // In creatable mode, add "Create: X" option if no exact match. El createOpt se
+  // agrega DESPUÉS del cap para que nunca quede oculto por el recorte.
   const trimmedSearch = searchTerm.trim();
   const allOptions = useMemo(() => {
+    const capped = filteredOptions.length > MAX_VISIBLE
+      ? filteredOptions.slice(0, MAX_VISIBLE)
+      : filteredOptions;
     const showCreate = creatable && trimmedSearch &&
       !filteredOptions.some(opt => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
     const createOpt: SearchableSelectOption | null = showCreate
       ? { value: `__create__:${trimmedSearch}`, label: `${createLabel}: "${trimmedSearch}"` }
       : null;
-    return createOpt ? [...filteredOptions, createOpt] : filteredOptions;
+    return createOpt ? [...capped, createOpt] : capped;
   }, [filteredOptions, creatable, trimmedSearch, createLabel]);
 
   const createOption = allOptions.length > 0 && allOptions[allOptions.length - 1].value.startsWith('__create__:')
     ? allOptions[allOptions.length - 1] : null;
 
-  // Cap rendered options to avoid DOM thrashing when the dropdown opens on the
-  // full unfiltered list. Once the user types a search term we render every
-  // match — the dropdown is scrollable, and capping a filtered result hides
-  // hits the user explicitly searched for (e.g. 300+ "HPLC" conceptos).
-  const MAX_VISIBLE = 50;
-  const isFiltering = searchLower.length > 0;
-  const totalCount = allOptions.length;
-  const visibleOptions = useMemo(() =>
-    (!isFiltering && allOptions.length > MAX_VISIBLE) ? allOptions.slice(0, MAX_VISIBLE) : allOptions,
-    [allOptions, isFiltering]
-  );
+  // visibleOptions === allOptions (ya capeada); se mantiene el nombre por el
+  // consumidor. El hint del footer compara totalCount vs lo mostrado.
+  const visibleOptions = allOptions;
 
   // Reset search when dropdown closes — also clear the uncontrolled input
   useEffect(() => {

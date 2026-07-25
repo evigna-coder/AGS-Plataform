@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../ui/Button';
@@ -59,6 +59,20 @@ export const OTFiltersBar: React.FC<Props> = ({
   moduloTermsBySistema,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
+  // Memoizado: identidad estable de options para el SearchableSelect.
+  const sistemaOptions = useMemo(() => [{ value: '', label: 'Sistema' }, ...sistemas.map(s => {
+    const idEquipo = s.agsVisibleId || '';
+    const codInterno = s.codigoInternoCliente || '';
+    return {
+      value: s.id,
+      label: s.nombre,
+      linkedCode: [idEquipo, codInterno, moduloTermsBySistema?.get(s.id)].filter(Boolean).join(' '),
+      subLabel: [idEquipo, codInterno].filter(Boolean).join(' · ') || undefined,
+    };
+  })], [sistemas, moduloTermsBySistema]);
 
   // Inputs de texto con estado local instantáneo + propagación debounced al filtro
   // (que escribe la URL vía useUrlFilters). Sin esto, atar el value directo a
@@ -127,7 +141,7 @@ export const OTFiltersBar: React.FC<Props> = ({
             <SearchableSelect size="sm"
               value={filters.clienteId}
               onChange={(value) => setFilter('clienteId', value)}
-              options={[{ value: '', label: 'Cliente' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              options={clienteOptions}
               placeholder="Cliente"
             />
           </div>
@@ -137,16 +151,7 @@ export const OTFiltersBar: React.FC<Props> = ({
             <SearchableSelect size="sm"
               value={filters.sistemaId}
               onChange={(value) => setFilter('sistemaId', value)}
-              options={[{ value: '', label: 'Sistema' }, ...sistemas.map(s => {
-                const idEquipo = s.agsVisibleId || '';
-                const codInterno = s.codigoInternoCliente || '';
-                return {
-                  value: s.id,
-                  label: s.nombre,
-                  linkedCode: [idEquipo, codInterno, moduloTermsBySistema?.get(s.id)].filter(Boolean).join(' '),
-                  subLabel: [idEquipo, codInterno].filter(Boolean).join(' · ') || undefined,
-                };
-              })]}
+              options={sistemaOptions}
               placeholder="Sistema / ID equipo / módulo"
             />
           </div>

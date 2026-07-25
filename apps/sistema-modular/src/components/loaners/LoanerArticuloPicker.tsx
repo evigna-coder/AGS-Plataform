@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/stockService';
 import type { Articulo } from '@ags/shared';
@@ -43,17 +43,23 @@ export function LoanerArticuloPicker({ open, value, onChange, onError }: Props) 
     onChange(id, art);
   };
 
+  // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  const articuloOptions = useMemo(
+    () => articulos.map(a => ({
+      value: a.id,
+      label: a.descripcion ?? a.codigo ?? a.id,
+      linkedCode: a.codigo,
+    })),
+    [articulos],
+  );
+
   return (
     <div>
       <label className={lbl}>Vincular artículo del catálogo *</label>
       <SearchableSelect
         value={value}
         onChange={handleChange}
-        options={articulos.map(a => ({
-          value: a.id,
-          label: a.descripcion ?? a.codigo ?? a.id,
-          linkedCode: a.codigo,
-        }))}
+        options={articuloOptions}
         placeholder="Buscar artículo..."
         required
       />
