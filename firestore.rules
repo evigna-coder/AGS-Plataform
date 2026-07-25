@@ -34,6 +34,13 @@ service cloud.firestore {
     function miCliente(rid) {
       return esCliente() && request.auth.token.get('clienteId', '') == rid;
     }
+    // Un CLIENTE pertenece a un establecimiento si su id está en el claim
+    // establecimientoIds (lista que asigna setClientClaims). Acceso seguro con .get()
+    // (claim ausente → lista vacía → sin acceso, fail-closed). Cubre los equipos legacy
+    // cuyo clienteId es null pero sí tienen establecimientoId (el vínculo canónico).
+    function clienteEnEstablecimiento(estId) {
+      return esCliente() && estId in request.auth.token.get('establecimientoIds', []);
+    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // SUPERFICIES PÚBLICAS (sin login, por diseño). Acotadas al mínimo necesario.
@@ -62,12 +69,14 @@ service cloud.firestore {
     }
 
     // Equipos (sistemas): lectura anónima CERRADA. El visitante anónimo del QR lee
-    // la proyección segura vía Cloud Function `getEquipoPublico`. Staff lee todo;
-    // un CLIENTE solo sus propios equipos. (Fase A.1 + C del plan.)
-    // Nota: equipos legacy con clienteId null (solo establecimientoId) no son visibles
-    // por esta regla para clientes — pendiente matcheo por establecimiento (Fase D).
+    // la proyección segura vía Cloud Function `getEquipoPublico`. Staff lee todo; un
+    // CLIENTE lee sus propios equipos, ya sea por clienteId (denorm) o por pertenencia
+    // al establecimiento del equipo — esto cubre los legacy con clienteId null, cuyo
+    // vínculo canónico es establecimientoId. (Fase A.1 + C/D del plan.)
     match /sistemas/{sistemaId} {
-      allow read: if esStaff() || miCliente(resource.data.clienteId);
+      allow read: if esStaff()
+        || miCliente(resource.data.clienteId)
+        || clienteEnEstablecimiento(resource.data.get('establecimientoId', ''));
       allow write: if esStaff();
       match /modulos/{moduloId} {
         allow read, write: if esStaff();
@@ -91,17 +100,21 @@ service cloud.firestore {
     match /appointments/{appointmentId}{ allow read, write: if esStaff(); }
     match /invoices/{invoiceId}        { allow read, write: if esStaff(); }
 
-    // Clientes (+ contactos legacy)
+    // Clientes (+ contactos legacy). Un CLIENTE lee SOLO su propio doc (datos propios);
+    // write y los contactos internos siguen siendo solo de staff.
     match /clientes/{clienteId} {
-      allow read, write: if esStaff();
+      allow read: if esStaff() || miCliente(clienteId);
+      allow write: if esStaff();
       match /contactos/{contactoId} {
         allow read, write: if esStaff();
       }
     }
 
-    // Establecimientos (sedes/plantas por cliente)
+    // Establecimientos (sedes/plantas por cliente). Un CLIENTE lee SOLO los
+    // establecimientos que tiene asignados en su claim; write y contactos siguen staff.
     match /establecimientos/{establecimientoId} {
-      allow read, write: if esStaff();
+      allow read: if esStaff() || clienteEnEstablecimiento(establecimientoId);
+      allow write: if esStaff();
       match /contactos/{contactoId} {
         allow read, write: if esStaff();
       }
@@ -160,7 +173,12 @@ service cloud.firestore {
     match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
     match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }
     match /consumibles_por_modulo/{moduloId}      { allow read, write: if esStaff(); }
-    match /fichasPropiedad/{fichaId}              { allow read, write: if esStaff(); }
+    // Fichas de propiedad del cliente (equipos en el bench de AGS). Un CLIENTE lee las
+    // suyas (por clienteId, campo requerido); write sigue siendo solo de staff.
+    match /fichasPropiedad/{fichaId} {
+      allow read: if esStaff() || miCliente(resource.data.clienteId);
+      allow write: if esStaff();
+    }
     match /loaners/{loanerId}                     { allow read, write: if esStaff(); }
     match /posiciones_arancelarias/{posicionId}   { allow read, write: if esStaff(); }
     match /requerimientos_compra/{requerimientoId}{ allow read, write: if esStaff(); }

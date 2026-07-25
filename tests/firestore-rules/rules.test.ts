@@ -133,14 +133,25 @@ describe('Superficies públicas', () => {
 describe('Aislamiento de cliente (multi-tenant)', () => {
   // Cliente C1 autenticado con custom claims role:'client' + clienteId:'C1'.
   const clienteC1 = () =>
-    testEnv.authenticatedContext('client-1', { role: 'client', clienteId: 'C1' }).firestore();
+    testEnv
+      .authenticatedContext('client-1', { role: 'client', clienteId: 'C1', establecimientoIds: ['E1'] })
+      .firestore();
 
   beforeEach(async () => {
     await seed(async (db) => {
       await setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'HPLC C1', clienteId: 'C1' });
       await setDoc(doc(db, 'sistemas', 'S2'), { nombre: 'GC C2', clienteId: 'C2' });
+      // Equipos legacy: clienteId null, vínculo solo por establecimientoId.
+      await setDoc(doc(db, 'sistemas', 'S3'), { nombre: 'UV legacy', clienteId: null, establecimientoId: 'E1' });
+      await setDoc(doc(db, 'sistemas', 'S4'), { nombre: 'otro estab', clienteId: null, establecimientoId: 'E2' });
       await setDoc(doc(db, 'ordenes_trabajo', 'OT1'), { otNumber: '111', clienteId: 'C1' });
       await setDoc(doc(db, 'ordenes_trabajo', 'OT2'), { otNumber: '222', clienteId: 'C2' });
+      await setDoc(doc(db, 'fichasPropiedad', 'F1'), { numero: 'FPC-1', clienteId: 'C1' });
+      await setDoc(doc(db, 'fichasPropiedad', 'F2'), { numero: 'FPC-2', clienteId: 'C2' });
+      await setDoc(doc(db, 'establecimientos', 'E1'), { nombre: 'Planta 1', clienteCuit: 'C1' });
+      await setDoc(doc(db, 'establecimientos', 'E2'), { nombre: 'Planta X', clienteCuit: 'C2' });
+      await setDoc(doc(db, 'clientes', 'C1'), { razonSocial: 'Cliente 1' });
+      await setDoc(doc(db, 'clientes', 'C2'), { razonSocial: 'Cliente 2' });
     });
   });
 
@@ -160,11 +171,37 @@ describe('Aislamiento de cliente (multi-tenant)', () => {
     await assertFails(setDoc(doc(clienteC1(), 'sistemas', 'S1'), { nombre: 'editado' }, { merge: true }));
   });
 
-  it('el cliente NO puede tocar colecciones internas (clientes, presupuestos, leads)', async () => {
+  it('el cliente NO puede tocar colecciones internas (presupuestos, leads, usuarios)', async () => {
     const db = clienteC1();
-    await assertFails(getDoc(doc(db, 'clientes', 'C1')));
     await assertFails(getDoc(doc(db, 'presupuestos', 'P1')));
     await assertFails(getDocs(collection(db, 'leads')));
+    await assertFails(getDoc(doc(db, 'usuarios', 'uid-x')));
+  });
+
+  it('el cliente lee equipos legacy (clienteId null) por su establecimiento; no los de otro estab', async () => {
+    const db = clienteC1();
+    await assertSucceeds(getDoc(doc(db, 'sistemas', 'S3'))); // establecimientoId E1 ∈ claim
+    await assertFails(getDoc(doc(db, 'sistemas', 'S4')));    // establecimientoId E2 ∉ claim
+  });
+
+  it('el cliente lee sus fichas de propiedad (bench), NO las de otro cliente', async () => {
+    const db = clienteC1();
+    await assertSucceeds(getDoc(doc(db, 'fichasPropiedad', 'F1')));
+    await assertFails(getDoc(doc(db, 'fichasPropiedad', 'F2')));
+  });
+
+  it('el cliente lee su establecimiento y su propio doc de cliente, no los ajenos', async () => {
+    const db = clienteC1();
+    await assertSucceeds(getDoc(doc(db, 'establecimientos', 'E1')));
+    await assertFails(getDoc(doc(db, 'establecimientos', 'E2')));
+    await assertSucceeds(getDoc(doc(db, 'clientes', 'C1')));
+    await assertFails(getDoc(doc(db, 'clientes', 'C2')));
+  });
+
+  it('el cliente NO puede escribir fichas ni establecimientos (solo lectura)', async () => {
+    const db = clienteC1();
+    await assertFails(setDoc(doc(db, 'fichasPropiedad', 'F1'), { numero: 'x' }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'establecimientos', 'E1'), { nombre: 'x' }, { merge: true }));
   });
 });
 
