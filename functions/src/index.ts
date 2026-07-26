@@ -30,6 +30,7 @@ export { onOTCerrada } from './onOTCerrada';
 export { getEquipoPublico } from './getEquipoPublico';   // A.1
 export { submitSoporte } from './submitSoporte';         // A.2
 export { setClientClaims } from './setClientClaims';     // B
+export { setProviderClaims } from './setProviderClaims'; // B (portal proveedores)
 
 // Backup — dump diario de Firestore (plan .claude/plans/backup-implementacion.md)
 export { backupDiarioFirestore } from './backupDiarioFirestore';

@@ -205,6 +205,54 @@ describe('Aislamiento de cliente (multi-tenant)', () => {
   });
 });
 
+describe('Aislamiento de proveedor (multi-tenant)', () => {
+  // Proveedor P1 autenticado con custom claims role:'provider' + proveedorId:'P1'.
+  const provP1 = () =>
+    testEnv.authenticatedContext('prov-1', { role: 'provider', proveedorId: 'P1' }).firestore();
+
+  beforeEach(async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'ordenes_compra', 'OC-P1'), { numero: 'OC-0912', proveedorId: 'P1' });
+      await setDoc(doc(db, 'ordenes_compra', 'OC-P2'), { numero: 'OC-0999', proveedorId: 'P2' });
+      await setDoc(doc(db, 'proveedores', 'P1'), { nombre: 'Repuestos Científicos' });
+      await setDoc(doc(db, 'proveedores', 'P2'), { nombre: 'Otro Proveedor' });
+      await setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'HPLC', clienteId: 'C1', establecimientoId: 'E1' });
+      await setDoc(doc(db, 'fichasPropiedad', 'F1'), { numero: 'FPC-1', clienteId: 'C1' });
+    });
+  });
+
+  it('el proveedor lee sus OCs, NO las de otro proveedor', async () => {
+    const db = provP1();
+    await assertSucceeds(getDoc(doc(db, 'ordenes_compra', 'OC-P1')));
+    await assertFails(getDoc(doc(db, 'ordenes_compra', 'OC-P2')));
+  });
+
+  it('el proveedor lee su propio doc, NO el de otro proveedor', async () => {
+    const db = provP1();
+    await assertSucceeds(getDoc(doc(db, 'proveedores', 'P1')));
+    await assertFails(getDoc(doc(db, 'proveedores', 'P2')));
+  });
+
+  it('el proveedor NO puede escribir sus OCs (los writes van por Cloud Function)', async () => {
+    await assertFails(
+      setDoc(doc(provP1(), 'ordenes_compra', 'OC-P1'), { fechaEntregaProveedor: '2026-08-01' }, { merge: true }),
+    );
+  });
+
+  it('el proveedor NO puede tocar colecciones internas (requerimientos_compra, clientes, presupuestos)', async () => {
+    const db = provP1();
+    await assertFails(getDoc(doc(db, 'requerimientos_compra', 'R1')));
+    await assertFails(getDoc(doc(db, 'clientes', 'C1')));
+    await assertFails(getDoc(doc(db, 'presupuestos', 'P1')));
+  });
+
+  it('el proveedor NO puede leer equipos ni fichas de clientes', async () => {
+    const db = provP1();
+    await assertFails(getDoc(doc(db, 'sistemas', 'S1')));
+    await assertFails(getDoc(doc(db, 'fichasPropiedad', 'F1')));
+  });
+});
+
 describe('Firma remota (reportes) — escritura anónima acotada', () => {
   beforeEach(async () => {
     await seed((db) => setDoc(doc(db, 'reportes', 'OT-1'), {

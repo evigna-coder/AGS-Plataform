@@ -42,6 +42,18 @@ service cloud.firestore {
       return esCliente() && estId in request.auth.token.get('establecimientoIds', []);
     }
 
+    // ── Identidad de PROVEEDOR (custom claims) ──
+    // role == 'provider' + proveedorId, asignado por la Cloud Function setProviderClaims
+    // (solo staff). El proveedor LEE sus órdenes de compra y su propio doc; todas sus
+    // ESCRITURAS (cotización, informar entrega) van por Cloud Functions con admin SDK que
+    // re-derivan el proveedorId del token — las reglas quedan read-only para el proveedor.
+    function esProveedor() {
+      return signedIn() && request.auth.token.get('role', '') == 'provider';
+    }
+    function miProveedor(pid) {
+      return esProveedor() && request.auth.token.get('proveedorId', '') == pid;
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // SUPERFICIES PÚBLICAS (sin login, por diseño). Acotadas al mínimo necesario.
     // ──────────────────────────────────────────────────────────────────────────
@@ -128,7 +140,13 @@ service cloud.firestore {
     match /plantillas_texto_presupuesto/{plantillaId} { allow read, write: if esStaff(); }
     match /condiciones_pago/{condicionId}         { allow read, write: if esStaff(); }
     match /tipos_servicio/{tipoId}                { allow read, write: if esStaff(); }
-    match /ordenes_compra/{ocId}                  { allow read, write: if esStaff(); }
+    // Órdenes de compra. Un PROVEEDOR lee las suyas (por proveedorId, requerido y
+    // denormalizado al guardar); todo write sigue staff (las mutaciones del proveedor
+    // van por Cloud Function).
+    match /ordenes_compra/{ocId} {
+      allow read: if esStaff() || miProveedor(resource.data.proveedorId);
+      allow write: if esStaff();
+    }
 
     // Catálogo de Protocolos legacy (mantenido por compatibilidad)
     match /protocolCatalog/{catalogId}            { allow read, write: if esStaff(); }
@@ -160,7 +178,11 @@ service cloud.firestore {
 
     // ── Stock Module ──
     match /ingenieros/{ingenieroId}               { allow read, write: if esStaff(); }
-    match /proveedores/{proveedorId}              { allow read, write: if esStaff(); }
+    // Proveedores. Un PROVEEDOR lee SOLO su propio doc; write sigue staff.
+    match /proveedores/{proveedorId} {
+      allow read: if esStaff() || miProveedor(proveedorId);
+      allow write: if esStaff();
+    }
     match /posicionesStock/{posicionId}           { allow read, write: if esStaff(); }
     match /articulos/{articuloId}                 { allow read, write: if esStaff(); }
     match /unidades/{unidadId}                    { allow read, write: if esStaff(); }
@@ -181,6 +203,10 @@ service cloud.firestore {
     }
     match /loaners/{loanerId}                     { allow read, write: if esStaff(); }
     match /posiciones_arancelarias/{posicionId}   { allow read, write: if esStaff(); }
+    // Requerimientos de compra: solo staff. NO se scopea al proveedor todavía porque
+    // el modelo solo tiene `proveedorSugeridoId` (opcional/advisory), no una asignación
+    // firme. Antes de exponerlo al portal proveedores hay que denormalizar un
+    // `proveedorId` firme (o un mirror derivaciones_proveedor). Ver plan de seguridad.
     match /requerimientos_compra/{requerimientoId}{ allow read, write: if esStaff(); }
     match /importaciones/{importacionId}          { allow read, write: if esStaff(); }
     match /agentesCarga/{agenteId}                { allow read, write: if esStaff(); }
