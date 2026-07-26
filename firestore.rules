@@ -203,11 +203,14 @@ service cloud.firestore {
     }
     match /loaners/{loanerId}                     { allow read, write: if esStaff(); }
     match /posiciones_arancelarias/{posicionId}   { allow read, write: if esStaff(); }
-    // Requerimientos de compra: solo staff. NO se scopea al proveedor todavía porque
-    // el modelo solo tiene `proveedorSugeridoId` (opcional/advisory), no una asignación
-    // firme. Antes de exponerlo al portal proveedores hay que denormalizar un
-    // `proveedorId` firme (o un mirror derivaciones_proveedor). Ver plan de seguridad.
-    match /requerimientos_compra/{requerimientoId}{ allow read, write: if esStaff(); }
+    // Requerimientos de compra. Un PROVEEDOR lee los que tiene ASIGNADOS en firme
+    // (campo `proveedorId`, distinto del sugerido). Se usa .get() porque el campo es
+    // sparse hasta que exista la acción de staff "Asignar a proveedor" — un requerimiento
+    // sin `proveedorId` no lo ve ningún proveedor (fail-closed). Write sigue staff.
+    match /requerimientos_compra/{requerimientoId} {
+      allow read: if esStaff() || miProveedor(resource.data.get('proveedorId', ''));
+      allow write: if esStaff();
+    }
     match /importaciones/{importacionId}          { allow read, write: if esStaff(); }
     match /agentesCarga/{agenteId}                { allow read, write: if esStaff(); }
     match /asignaciones/{asignacionId}            { allow read, write: if esStaff(); }

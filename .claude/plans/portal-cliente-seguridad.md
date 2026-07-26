@@ -70,10 +70,18 @@ Espejo del modelo cliente, adaptado a que el proveedor scopea solo por `proveedo
   - `ordenes_compra`.read += `miProveedor(resource.data.proveedorId)` — campo **requerido y confiable**
     (enforced en `useOrdenCompraForm.ts:121`, sin backfill).
   - `proveedores/{id}`.read += `miProveedor(proveedorId)` (propio doc). Write = staff en ambas.
-- **`requerimientos_compra` NO scopeado** (queda staff-only): el modelo solo tiene
-  `proveedorSugeridoId?` (opcional/advisory), no una asignación firme. **Pendiente: denormalizar un
-  `proveedorId` firme** (o un mirror top-level `derivaciones_proveedor/{id}` desde `FichaPropiedad.
-  items[].derivaciones[].proveedorId`) antes de exponer requerimientos al portal.
+- **`requerimientos_compra` — F1 fundación HECHA (2026-07-26, deployada)**: se agregó campo firme
+  `proveedorId`/`proveedorNombre` a `RequerimientoCompra` (`@ags/shared`, distinto del
+  `proveedorSugeridoId` advisory — NO se pisó ese, la generación de OC depende de él); la regla
+  scopea por `resource.data.get('proveedorId','')` (sparse → fail-closed). Test agregado (30/30).
+  **Fase 2 — acción de asignación HECHA (2026-07-26, sin commitear/releasear)**: "Asignar a
+  proveedor" en el `VerRequerimientoModal` (SearchableSelect de proveedores → `requerimientosService.
+  update({proveedorId, proveedorNombre})`; se le pasa `proveedores` + `key` desde `RequerimientosList`).
+  type-check + build:modular verdes. **Es runtime → requiere release** (se batchea con el commit).
+  **Pendiente**: backfill (opcional — snippet conservador desde OC.proveedorId, NO desde
+  proveedorSugeridoId que es solo un hint; la asignación es forward-looking así que el backfill es
+  de valor marginal) + **índice compuesto** para la query del portal + wirear el portal a data real.
+  El trigger `updateResumenStockOnRequerimiento` solo lee `articuloId` → el campo nuevo no lo afecta.
 - **Writes del proveedor = read-only en reglas**: cotización e "informar entrega" van por **Cloud
   Functions** (admin SDK, re-derivan `proveedorId` del token, patrón `submitSoporte`). **Pendientes de
   implementar**: `submitCotizacion`, `informarEntrega` (+ campo nuevo en `OrdenCompra`, ej.

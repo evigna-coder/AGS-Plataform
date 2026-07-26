@@ -218,6 +218,9 @@ describe('Aislamiento de proveedor (multi-tenant)', () => {
       await setDoc(doc(db, 'proveedores', 'P2'), { nombre: 'Otro Proveedor' });
       await setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'HPLC', clienteId: 'C1', establecimientoId: 'E1' });
       await setDoc(doc(db, 'fichasPropiedad', 'F1'), { numero: 'FPC-1', clienteId: 'C1' });
+      await setDoc(doc(db, 'requerimientos_compra', 'RQ-P1'), { numero: 'REQ-1', proveedorId: 'P1' });
+      await setDoc(doc(db, 'requerimientos_compra', 'RQ-P2'), { numero: 'REQ-2', proveedorId: 'P2' });
+      await setDoc(doc(db, 'requerimientos_compra', 'RQ-NONE'), { numero: 'REQ-3' }); // sin asignar
     });
   });
 
@@ -239,11 +242,18 @@ describe('Aislamiento de proveedor (multi-tenant)', () => {
     );
   });
 
-  it('el proveedor NO puede tocar colecciones internas (requerimientos_compra, clientes, presupuestos)', async () => {
+  it('el proveedor lee los requerimientos que tiene ASIGNADOS, no los ajenos ni los sin asignar', async () => {
     const db = provP1();
-    await assertFails(getDoc(doc(db, 'requerimientos_compra', 'R1')));
+    await assertSucceeds(getDoc(doc(db, 'requerimientos_compra', 'RQ-P1')));
+    await assertFails(getDoc(doc(db, 'requerimientos_compra', 'RQ-P2')));
+    await assertFails(getDoc(doc(db, 'requerimientos_compra', 'RQ-NONE')));
+  });
+
+  it('el proveedor NO puede tocar colecciones internas (clientes, presupuestos, usuarios)', async () => {
+    const db = provP1();
     await assertFails(getDoc(doc(db, 'clientes', 'C1')));
     await assertFails(getDoc(doc(db, 'presupuestos', 'P1')));
+    await assertFails(getDoc(doc(db, 'usuarios', 'uid-x')));
   });
 
   it('el proveedor NO puede leer equipos ni fichas de clientes', async () => {

@@ -298,7 +298,7 @@ export const RequerimientosList = () => {
         prefillArticuloId={prefillArticuloId}
       />
 
-      {verReq && <VerRequerimientoModal req={verReq} onClose={() => setVerReq(null)} />}
+      {verReq && <VerRequerimientoModal key={verReq.id} req={verReq} proveedores={proveedores} onClose={() => setVerReq(null)} />}
 
       <OrdenCompraModal
         open={ocModalOpen}

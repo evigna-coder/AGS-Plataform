@@ -2,16 +2,25 @@
  * Detalle de un requerimiento de compra (UAT 2026-07-16: el "Ver" de la lista
  * no hacía nada — no existe página de detalle). Muestra todos los campos y
  * linkea al presupuesto y a la OC vinculados.
+ *
+ * Además permite ASIGNAR el requerimiento a un proveedor en firme (campo
+ * `proveedorId`, distinto del sugerido). La asignación habilita que el proveedor
+ * vea el requerimiento en su portal (las reglas Firestore scopean por ese campo).
  */
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { RequerimientoCompra, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_COLORS, ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { requerimientosService } from '../../services/firebaseService';
 import { URGENCIA_COLORS, URGENCIA_LABELS } from '../../pages/stock/RequerimientoRow';
 
 interface Props {
   req: RequerimientoCompra | null;
+  /** Proveedores activos para el selector de asignación (id + nombre). */
+  proveedores?: Array<{ id: string; nombre: string }>;
   onClose: () => void;
 }
 
@@ -27,7 +36,28 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 const fmtFecha = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-export const VerRequerimientoModal: React.FC<Props> = ({ req, onClose }) => {
+export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], onClose }) => {
+  const [asignadoId, setAsignadoId] = useState<string>(req?.proveedorId ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const handleAssign = async (provId: string) => {
+    if (!req) return;
+    const nombre = proveedores.find((p) => p.id === provId)?.nombre ?? null;
+    setAsignadoId(provId);
+    setSaving(true);
+    try {
+      await requerimientosService.update(req.id, {
+        proveedorId: provId || null,
+        proveedorNombre: provId ? nombre : null,
+      });
+    } catch (err) {
+      console.error('[VerRequerimientoModal] asignar proveedor:', err);
+      alert('No se pudo asignar el proveedor.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!req) return null;
   return (
     <Modal open onClose={onClose} title={req.numero} maxWidth="md"
@@ -55,6 +85,27 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, onClose }) => {
           <Field label="Solicitado por">{req.solicitadoPor}</Field>
           <Field label="Fecha solicitud">{fmtFecha(req.fechaSolicitud)}</Field>
           <Field label="Fecha aprobación">{fmtFecha(req.fechaAprobacion)}</Field>
+        </div>
+
+        {/* Asignación firme a proveedor (habilita el portal proveedores). */}
+        <div className="border-t border-slate-100 pt-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <p className={lbl}>Asignar a proveedor</p>
+            {saving && <span className="text-[10px] text-slate-400">Guardando…</span>}
+          </div>
+          <div className="max-w-xs">
+            <SearchableSelect
+              value={asignadoId}
+              onChange={handleAssign}
+              disabled={saving}
+              size="sm"
+              placeholder="Elegí un proveedor…"
+              options={[{ value: '', label: 'Sin asignar' }, ...proveedores.map((p) => ({ value: p.id, label: p.nombre }))]}
+            />
+          </div>
+          <p className="text-[10px] text-slate-400">
+            El proveedor asignado ve este requerimiento en su portal para anticiparse y cotizar.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">

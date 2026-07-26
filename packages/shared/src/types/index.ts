@@ -3942,6 +3942,14 @@ export interface RequerimientoCompra {
   estado: EstadoRequerimiento;
   proveedorSugeridoId?: string | null;
   proveedorSugeridoNombre?: string | null;
+  /**
+   * Proveedor al que el requerimiento fue ASIGNADO en firme (distinto del sugerido, que
+   * es solo un hint de planificación). Lo setea el staff con la acción "Asignar a
+   * proveedor"; habilita que el proveedor lo vea en su portal (reglas Firestore scopean
+   * por este campo). Sparse hasta que exista esa UI. FK opaco a `proveedores/{id}`.
+   */
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
   ordenCompraId?: string | null;
   ordenCompraNumero?: string | null;
   solicitadoPor: string;
