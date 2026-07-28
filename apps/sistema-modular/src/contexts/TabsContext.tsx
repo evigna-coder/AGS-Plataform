@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
+import { useLandingPath } from '../components/layout/navigation';
 
 export interface Tab {
   id: string;       // unique id e.g. "tab_1", "tab_2"
@@ -107,9 +108,14 @@ function computeSublabel(path: string): string | undefined {
 }
 
 export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Landing según permisos: arrancar en '/clientes' fijo dejaba a los usuarios
+  // sin ese módulo entrando directo a "Acceso denegado".
+  const landingPath = useLandingPath();
   // Use window.location for initial path (read once on mount)
   const [tabs, setTabs] = useState<Tab[]>(() => {
-    const initPath = window.location.pathname + window.location.search || '/clientes';
+    const fromUrl = window.location.pathname + window.location.search;
+    // '/' = arranque sin deep-link → primera pantalla disponible del usuario.
+    const initPath = !fromUrl || fromUrl === '/' ? landingPath : fromUrl;
     const meta = getNavMeta(initPath);
     const id = generateTabId();
     return [{ id, path: initPath, label: meta.label, icon: meta.icon, sublabel: computeSublabel(initPath) }];

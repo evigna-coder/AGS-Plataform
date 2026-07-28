@@ -26,6 +26,7 @@
     "test:venta-loaner": "tsx scripts/test-venta-loaner.ts",
     "test:entregas": "tsx scripts/test-entregas.ts",
     "test:analitica": "tsx src/utils/analitica/__tests__/presupuestosMetrics.test.ts",
+    "test:landing": "tsx src/components/layout/__tests__/landingPath.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"

@@ -1,6 +1,7 @@
 import type { ModuloId } from '@ags/shared';
 import { useFeatureFlags } from '../../contexts/FeatureFlagsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveLandingPath } from './landingPath';
 
 /**
  * Tipo recursivo. Soporta árboles de cualquier profundidad.
@@ -221,6 +222,15 @@ export function useNavigation(): NavItem[] {
   };
 
   return navigation.map(n => filterNode(n, undefined)).filter((c): c is NavItem => c !== null);
+}
+
+/**
+ * Ruta de arranque del usuario: `/clientes` si la tiene, si no la primera pantalla
+ * visible en SU sidebar. Sin esto, quien no tenga el módulo `clientes` entra a
+ * "Acceso denegado" aunque pueda navegar el resto.
+ */
+export function useLandingPath(): string {
+  return resolveLandingPath(useNavigation());
 }
 
 export interface ModuleEntry {

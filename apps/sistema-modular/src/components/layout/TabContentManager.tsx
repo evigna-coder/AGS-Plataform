@@ -4,6 +4,7 @@ import { useTabs } from '../../contexts/TabsContext';
 import { TabOverlayScope } from '../../contexts/TabOverlayContext';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
+import { useLandingPath } from './navigation';
 
 // ── Page imports ──
 import { NotFoundPage } from '../../pages/auth';
@@ -74,9 +75,12 @@ function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean
 
 // ── All app routes (shared across every tab's MemoryRouter) ──
 function AppRoutes() {
+  // Landing según permisos del usuario (no hardcodeado a /clientes): también es
+  // el destino del botón "Volver al inicio" de AccessDeniedPage.
+  const landing = useLandingPath();
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/clientes" replace />} />
+      <Route path="/" element={<Navigate to={landing} replace />} />
       {/* Dashboard */}
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'admin_ing_soporte']}><DashboardPage /></ProtectedRoute>} />
       {/* Clientes */}
