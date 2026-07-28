@@ -1,5 +1,6 @@
 import type { Part, StockSelection, UnidadStock, CondicionUnidad } from '@ags/shared';
 import { useCierreStockUnits, type StockPosicion, type PartStockInfo, type PatronLoteOrigen } from '../../hooks/useCierreStockUnits';
+import { SearchableSelect } from '../ui/SearchableSelect';
 
 interface Props {
   articulos: Part[];
@@ -150,6 +151,15 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
               const options = buildOptions(stock);
               const stockGroup = options.filter(o => o.kind !== 'patron');
               const patronGroup = options.filter(o => o.kind === 'patron');
+              // Opciones aplanadas para el SearchableSelect (no soporta optgroups): el grupo
+              // Patrón/Stock queda en subLabel. "Quitar origen" (value '') solo si ya hay
+              // selección — replica el <option value=""> del select nativo sin mostrarlo cuando
+              // el campo está vacío (ahí manda el placeholder).
+              const searchOptions = [
+                ...(sel ? [{ value: '', label: '— Quitar origen —' }] : []),
+                ...patronGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Patrón (activo)' })),
+                ...stockGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Stock' })),
+              ];
               return (
                 <tr key={part.id} className="bg-white/40 align-top">
                   <td className="px-2 py-1.5">
@@ -167,27 +177,13 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                     ) : options.length === 0 ? (
                       <span className="text-[11px] text-amber-600">Sin stock disponible</span>
                     ) : (
-                      <select
+                      <SearchableSelect
                         value={currentValue(sel)}
-                        onChange={e => onSelectOrigen(part, stock, e.target.value)}
-                        className="w-full border border-slate-200 rounded px-1.5 py-0.5 text-[11px]"
-                      >
-                        <option value="">Elegir origen…</option>
-                        {patronGroup.length > 0 && (
-                          <optgroup label="Patrón (activo)">
-                            {patronGroup.map(o => (
-                              <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {stockGroup.length > 0 && (
-                          <optgroup label="Stock">
-                            {stockGroup.map(o => (
-                              <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
+                        onChange={v => onSelectOrigen(part, stock, v)}
+                        options={searchOptions}
+                        placeholder="Buscar origen…"
+                        size="sm"
+                      />
                     )}
                   </td>
                 </tr>
