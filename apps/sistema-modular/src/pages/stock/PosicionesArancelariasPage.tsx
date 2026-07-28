@@ -180,8 +180,8 @@ export const PosicionesArancelariasPage = () => {
         )}
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        <div className="flex justify-end">
+      <div className="flex-1 min-h-0 flex flex-col px-5 pb-4">
+        <div className="flex justify-end py-2 shrink-0">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
@@ -193,9 +193,9 @@ export const PosicionesArancelariasPage = () => {
         ) : items.length === 0 ? (
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay posiciones arancelarias registradas.</p></div></Card>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-xl border border-slate-200 shadow-sm">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100">
                   <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3" />
                   <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3" />
