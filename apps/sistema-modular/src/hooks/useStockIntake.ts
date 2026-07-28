@@ -72,13 +72,45 @@ export function useStockIntake(
 
   useEffect(() => {
     if (!open) return;
+    // Artículos EN VIVO (subscribe, no getAll): si se edita el catálogo con el modal
+    // abierto — ej. marcar "requiere n° de serie" a mitad de una carga larga — la
+    // lista se actualiza sola, incluso desde otra pestaña. Antes había que cancelar
+    // todo el ingreso y arrancar de cero (UAT 2026-07-27).
+    const unsub = articulosService.subscribe(
+      { activoOnly: true },
+      setArticulos,
+      (err: Error) => console.error('[useStockIntake] articulos subscribe error:', err),
+    );
     Promise.all([
-      proveedoresService.getAll(), articulosService.getAll({ activoOnly: true }),
-      posicionesStockService.getAll(), minikitsService.getAll(), ingenierosService.getAll(),
-    ]).then(([prov, arts, pos, mk, ing]) => {
-      setProveedores(prov); setArticulos(arts); setPosiciones(pos); setMinikits(mk); setIngenieros(ing);
+      proveedoresService.getAll(), posicionesStockService.getAll(), minikitsService.getAll(), ingenierosService.getAll(),
+    ]).then(([prov, pos, mk, ing]) => {
+      setProveedores(prov); setPosiciones(pos); setMinikits(mk); setIngenieros(ing);
     });
+    return () => unsub();
   }, [open]);
+
+  // El wizard y los renglones cargados guardan una COPIA del artículo (con sus flags
+  // de serie/lote de ese momento). Cuando llega una versión nueva del catálogo, se
+  // refresca esa copia por id: el paso de serie/lote se evalúa al avanzar, así que un
+  // cambio de "requiere n° de serie" a mitad del wizard se toma sin recargar nada.
+  useEffect(() => {
+    if (articulos.length === 0) return;
+    const byId = new Map(articulos.map(a => [a.id, a]));
+    setDraft(prev => {
+      if (!prev) return prev;
+      const fresh = byId.get(prev.articulo.id);
+      return fresh ? { ...prev, articulo: fresh } : prev;
+    });
+    setItems(prev => {
+      let changed = false;
+      const next = prev.map(it => {
+        const fresh = byId.get(it.articulo.id);
+        if (fresh && fresh !== it.articulo) { changed = true; return { ...it, articulo: fresh }; }
+        return it;
+      });
+      return changed ? next : prev;
+    });
+  }, [articulos]);
 
   useEffect(() => {
     if (open) return;
@@ -211,6 +243,18 @@ export function useStockIntake(
 
   const confirmFinalize = async () => {
     if (items.length === 0) { setError('Agregá al menos un artículo'); return; }
+    // Guard: si el catálogo cambió DURANTE la carga (el artículo ahora exige serie/lote
+    // y el renglón se cargó sin), pedir recargar SOLO ese renglón. Sin este chequeo,
+    // un item con requiereNumeroSerie y series vacías crearía 0 unidades en silencio.
+    const desactualizados = items.filter(it =>
+      (it.articulo.requiereNumeroSerie && it.series.length === 0) ||
+      (it.articulo.requiereNumeroLote && !it.lote.trim()));
+    if (desactualizados.length > 0) {
+      setError(
+        `El catálogo cambió durante la carga: ${desactualizados.map(i => i.articulo.codigo).join(', ')} ` +
+        'ahora exige N° de serie/lote. Quitá ese renglón (✕) y volvé a agregarlo — el resto de la carga se conserva.');
+      return;
+    }
     setSaving(true); setError('');
     try {
       const prov = proveedores.find(p => p.id === proveedorId);

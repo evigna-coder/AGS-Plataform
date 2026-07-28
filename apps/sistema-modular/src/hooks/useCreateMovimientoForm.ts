@@ -115,15 +115,23 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [movimientosArticulo, setMovimientosArticulo] = useState<MovimientoStock[]>([]);
 
-  // Cargar catálogos cuando se abre
+  // Cargar catálogos cuando se abre. Artículos EN VIVO (subscribe): si se edita el
+  // catálogo con el modal abierto (ej. "requiere n° de serie"), se toma al instante —
+  // requiereSerie/requiereLote ya se derivan de esta lista, no hay copia congelada.
   useEffect(() => {
     if (!open) return;
+    const unsub = articulosService.subscribe(
+      undefined,
+      setArticulos,
+      (err: Error) => console.error('[useCreateMovimientoForm] articulos subscribe error:', err),
+    );
     Promise.all([
-      articulosService.getAll(), posicionesStockService.getAll(),
+      posicionesStockService.getAll(),
       minikitsService.getAll(), ingenierosService.getAll(), proveedoresService.getAll(),
-    ]).then(([a, p, mk, ing, prov]) => {
-      setArticulos(a); setPosiciones(p); setMinikits(mk); setIngenieros(ing); setProveedores(prov);
+    ]).then(([p, mk, ing, prov]) => {
+      setPosiciones(p); setMinikits(mk); setIngenieros(ing); setProveedores(prov);
     });
+    return () => unsub();
   }, [open]);
 
   // Reset form cuando se abre (respetando locks)

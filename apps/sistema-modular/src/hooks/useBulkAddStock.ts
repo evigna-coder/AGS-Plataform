@@ -42,11 +42,18 @@ export function useBulkAddStock(
   const requiereSerie = !!articulo?.requiereNumeroSerie;
   const requiereLote = !!articulo?.requiereNumeroLote;
 
-  // Cargar catálogo de artículos (solo si no viene preseteado)
+  // Catálogo de artículos EN VIVO (subscribe, también con preset): si se edita el
+  // catálogo con el modal abierto (ej. "requiere n° de serie"), el resolver de abajo
+  // toma la versión fresca y la validación de series/lote se ajusta sola.
   useEffect(() => {
-    if (!open || presetArticulo) return;
-    articulosService.getAll({ activoOnly: true }).then(setArticulos);
-  }, [open, presetArticulo]);
+    if (!open) return;
+    const unsub = articulosService.subscribe(
+      { activoOnly: true },
+      setArticulos,
+      (err: Error) => console.error('[useBulkAddStock] articulos subscribe error:', err),
+    );
+    return () => unsub();
+  }, [open]);
 
   // Cargar proveedores (origen del ingreso)
   useEffect(() => {
@@ -69,9 +76,13 @@ export function useBulkAddStock(
     setUbicacionRefNombre('');
   }, [open, presetArticulo]);
 
-  // Resolver artículo seleccionado desde el selector
+  // Resolver artículo seleccionado — prefiere la versión VIVA del catálogo (con
+  // preset, el objeto congelado del caller es solo fallback hasta que llega el snapshot).
   useEffect(() => {
-    if (presetArticulo) return;
+    if (presetArticulo) {
+      setArticulo(articulos.find(a => a.id === presetArticulo.id) ?? presetArticulo);
+      return;
+    }
     if (!articuloId) { setArticulo(null); return; }
     setArticulo(articulos.find(a => a.id === articuloId) ?? null);
   }, [articuloId, articulos, presetArticulo]);

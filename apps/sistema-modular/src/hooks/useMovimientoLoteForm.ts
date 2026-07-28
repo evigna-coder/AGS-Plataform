@@ -82,10 +82,19 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
   useEffect(() => {
     if (!open) return;
     reset();
+    // Artículos EN VIVO (subscribe): un cambio de catálogo con el modal abierto
+    // (ej. "requiere n° de serie") se toma en el draft sin cerrar nada — el flag
+    // del draft se deriva de esta lista (draftArticulo useMemo).
+    const unsub = articulosService.subscribe(
+      undefined,
+      setArticulos,
+      (err: Error) => console.error('[useMovimientoLoteForm] articulos subscribe error:', err),
+    );
     Promise.all([
-      articulosService.getAll(), posicionesStockService.getAll(),
+      posicionesStockService.getAll(),
       minikitsService.getAll(), ingenierosService.getAll(),
-    ]).then(([a, p, mk, ing]) => { setArticulos(a); setPosiciones(p); setMinikits(mk); setIngenieros(ing); });
+    ]).then(([p, mk, ing]) => { setPosiciones(p); setMinikits(mk); setIngenieros(ing); });
+    return () => unsub();
   }, [open, reset]);
 
   // Cambiar el tipo cambia el destino → limpiar líneas y draft.
@@ -195,6 +204,18 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
       if (!txt) { alert(`Completá ${destinoCfg.label.toLowerCase()}`); return; }
       destino = { tipo: destinoCfg.tipo, id: '', nombre: txt };
       if (tipo === 'consumo') otNumber = txt;
+    }
+
+    // Guard: si el catálogo cambió DURANTE la carga y una línea agregada por FIFO
+    // (sin unidades elegidas) ahora corresponde a un artículo serializado, pedir
+    // recargar ESA línea con las unidades específicas (regla de trazabilidad).
+    const desactualizadas = lineas.filter(l => {
+      const fresh = articulos.find(a => a.id === l.articuloId);
+      return !!fresh?.requiereNumeroSerie && l.unidadIds.length === 0;
+    });
+    if (desactualizadas.length > 0) {
+      alert(`El catálogo cambió durante la carga: ${desactualizadas.map(l => l.articuloCodigo).join(', ')} ahora requiere n° de serie. Quitá esa línea y volvé a agregarla seleccionando las unidades — el resto se conserva.`);
+      return;
     }
 
     const motivo = observaciones.trim() || null;
