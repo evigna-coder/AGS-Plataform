@@ -24,6 +24,11 @@ try {
     saveTempAndOpen: (buffer, filename) => {
       return ipcRenderer.invoke('file:save-temp-and-open', buffer, filename);
     },
+    // API para imprimir un PDF EN SILENCIO a la impresora predeterminada.
+    // Devuelve { success, failureReason }.
+    printPdfSilent: (buffer) => {
+      return ipcRenderer.invoke('print:pdf-silent', buffer);
+    },
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);

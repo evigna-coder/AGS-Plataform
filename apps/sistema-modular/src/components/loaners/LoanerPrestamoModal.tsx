@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { clientesService, establecimientosService, remitosService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Loaner } from '@ags/shared';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { clientesService, establecimientosService, remitosService, ordenesTrabajoService } from '../../services/firebaseService';
+import type { Cliente, Establecimiento, Loaner, WorkOrder } from '@ags/shared';
 import { establecimientoUnicoId } from '@ags/shared';
+import { RemitoOverlayPDF } from '../remitos/pdf/RemitoOverlayPDF';
+import { printRemitoSilentOrOpen } from '../../utils/remitoPdfActions';
 
 interface Props {
   open: boolean;
@@ -15,7 +18,7 @@ interface Props {
     clienteNombre: string;
     establecimientoId: string | null;
     establecimientoNombre: string | null;
-    motivo: string;
+    otNumber: string | null;
     fechaRetornoPrevista: string | null;
     remitoSalidaId: string | null;
     remitoSalidaNumero: string | null;
@@ -24,12 +27,21 @@ interface Props {
   }) => Promise<void>;
 }
 
+/** Fecha local (no UTC) a `YYYY-MM-DD` para el input date. */
+function toDateInput(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
+  const [ots, setOts] = useState<WorkOrder[]>([]);
   const [clienteId, setClienteId] = useState('');
   const [establecimientoId, setEstablecimientoId] = useState('');
-  const [motivo, setMotivo] = useState('');
+  const [otNumber, setOtNumber] = useState('');
   const [fechaRetorno, setFechaRetorno] = useState('');
   const [generarRemito, setGenerarRemito] = useState(true);
   const [fotos, setFotos] = useState<File[]>([]);
@@ -37,28 +49,48 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) clientesService.getAll().then(c => setClientes(c.filter(x => x.activo)));
+    if (!open) return;
+    clientesService.getAll().then(c => setClientes(c.filter(x => x.activo)));
+    // Fecha de retorno probable por defecto: hoy + 20 días (editable).
+    const d = new Date();
+    d.setDate(d.getDate() + 20);
+    setFechaRetorno(toDateInput(d));
   }, [open]);
 
   useEffect(() => {
-    if (!clienteId) { setEstablecimientos([]); return; }
+    if (!clienteId) { setEstablecimientos([]); setOts([]); return; }
     establecimientosService.getByCliente(clienteId).then(ests => {
       setEstablecimientos(ests);
       // Regla del proyecto: cliente con un único establecimiento (activo) → autoseleccionarlo.
       const unico = establecimientoUnicoId(ests.filter(e => e.activo));
       if (unico) setEstablecimientoId(unico);
     });
+    // OTs del cliente para el selector (reemplaza el "motivo" libre).
+    ordenesTrabajoService.getAll({ clienteId }).then(setOts).catch(() => setOts([]));
   }, [clienteId]);
 
   const selectedCliente = clientes.find(c => c.id === clienteId);
   const selectedEstab = establecimientos.find(e => e.id === establecimientoId);
 
+  const clienteOptions = useMemo(
+    () => clientes.map(c => ({ value: c.id, label: c.razonSocial })),
+    [clientes],
+  );
+  const establecimientoOptions = useMemo(
+    () => establecimientos.filter(e => e.activo).map(e => ({ value: e.id, label: e.nombre })),
+    [establecimientos],
+  );
+  const otOptions = useMemo(
+    () => ots.map(ot => ({ value: ot.otNumber, label: ot.sistema ? `${ot.otNumber} · ${ot.sistema}` : ot.otNumber })),
+    [ots],
+  );
+
   const handleConfirm = async () => {
-    if (!clienteId || !motivo.trim()) return;
+    if (!clienteId) return;
     setSaving(true);
     try {
       let remitoId: string | null = null;
-      let remitoNumero: string | null = null;
+      const remitoNumero: string | null = null;
 
       if (generarRemito) {
         remitoId = await remitosService.create({
@@ -71,8 +103,27 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
           loanerId: loaner.id,
           loanerCodigo: loaner.codigo,
           items: [],
-          observaciones: `Loaner ${loaner.codigo}: ${motivo}`,
+          observaciones: `Loaner ${loaner.codigo}${otNumber ? ` · OT ${otNumber}` : ''}`,
         });
+
+        // Imprimir el remito EN SILENCIO (triplicado sobre papel preimpreso) a la
+        // impresora predeterminada. RemitoOverlayPDF ya genera las 3 copias como páginas.
+        // Best-effort: si la impresión falla, el helper abre el PDF para Ctrl+P; no
+        // bloquea el registro del préstamo.
+        const now = new Date();
+        const fechaFmt = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+        const destinatario = {
+          razonSocial: selectedCliente?.razonSocial ?? '',
+          domicilio: selectedCliente?.direccionFiscal ?? selectedCliente?.direccion ?? '',
+          localidad: selectedCliente?.localidadFiscal ?? selectedCliente?.localidad ?? '',
+          provincia: selectedCliente?.provinciaFiscal ?? selectedCliente?.provincia ?? '',
+          iva: selectedCliente?.condicionIva ?? '',
+          cuit: selectedCliente?.cuit ?? '',
+        };
+        const items = [{ numero: 1, cantidad: 1, producto: loaner.codigo, descripcion: loaner.descripcion }];
+        await printRemitoSilentOrOpen(
+          <RemitoOverlayPDF fecha={fechaFmt} destinatario={destinatario} items={items} />,
+        ).catch(err => console.warn('[LoanerPrestamoModal] impresión de remito falló:', err));
       }
 
       await onConfirm({
@@ -80,7 +131,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
         clienteNombre: selectedCliente?.razonSocial || '',
         establecimientoId: establecimientoId || null,
         establecimientoNombre: selectedEstab?.nombre || null,
-        motivo: motivo.trim(),
+        otNumber: otNumber || null,
         fechaRetornoPrevista: fechaRetorno ? new Date(fechaRetorno).toISOString() : null,
         remitoSalidaId: remitoId,
         remitoSalidaNumero: remitoNumero,
@@ -97,7 +148,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   const resetForm = () => {
     setClienteId('');
     setEstablecimientoId('');
-    setMotivo('');
+    setOtNumber('');
     setFechaRetorno('');
     setGenerarRemito(true);
     setFotos([]);
@@ -108,7 +159,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     <Modal open={open} onClose={onClose} title="Registrar prestamo" maxWidth="md" footer={
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!clienteId || !motivo.trim() || saving}>
+        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!clienteId || saving}>
           {saving ? 'Registrando...' : 'Confirmar prestamo'}
         </Button>
       </div>
@@ -116,21 +167,17 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Cliente *</label>
-          <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value={clienteId} onChange={e => { setClienteId(e.target.value); setEstablecimientoId(''); }}>
-            <option value="">Seleccionar cliente</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-          </select>
+          <SearchableSelect value={clienteId} onChange={v => { setClienteId(v); setEstablecimientoId(''); setOtNumber(''); }} options={clienteOptions} placeholder="Seleccionar cliente" size="sm" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Establecimiento</label>
-          <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value={establecimientoId} onChange={e => setEstablecimientoId(e.target.value)} disabled={!clienteId}>
-            <option value="">Seleccionar</option>
-            {establecimientos.filter(e => e.activo).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </select>
+          <SearchableSelect value={establecimientoId} onChange={v => setEstablecimientoId(v)} options={establecimientoOptions} placeholder="Seleccionar" size="sm" disabled={!clienteId} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Motivo del prestamo *</label>
-          <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[60px]" value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Por que se presta este equipo" />
+          <label className="block text-sm font-medium text-slate-700 mb-1">Orden de Trabajo <span className="text-slate-400 font-normal">(opcional)</span></label>
+          <SearchableSelect value={otNumber} onChange={v => setOtNumber(v)} options={otOptions}
+            placeholder={!clienteId ? 'Seleccioná primero el cliente' : otOptions.length === 0 ? 'El cliente no tiene OTs' : 'Buscar OT...'}
+            size="sm" disabled={!clienteId} />
         </div>
         <Input label="Fecha de retorno prevista" type="date" value={fechaRetorno} onChange={e => setFechaRetorno(e.target.value)} />
         <label className="flex items-center gap-2 text-sm text-slate-600">

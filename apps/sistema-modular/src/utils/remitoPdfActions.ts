@@ -46,6 +46,35 @@ export async function downloadPdf(doc: ReactElement, filename: string): Promise<
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/**
+ * Genera el PDF e intenta IMPRIMIRLO EN SILENCIO a la impresora predeterminada
+ * (vía Electron `electronAPI.printPdfSilent` → main process, ventana oculta + print).
+ * Sin abrir nada. Fallbacks: si no estamos en Electron, o si la impresión falla,
+ * cae al patrón de abrir el PDF en pestaña para Ctrl+P. El PDF ya trae las N copias
+ * como páginas (RemitoOverlayPDF copies=3), así que sale el triplicado en una operación.
+ *
+ * Devuelve `true` si imprimió en silencio; `false` si cayó al fallback de abrir.
+ */
+export async function printRemitoSilentOrOpen(doc: ReactElement): Promise<boolean> {
+  const api = typeof window !== 'undefined'
+    ? (window as unknown as { electronAPI?: { printPdfSilent?: (buf: Uint8Array) => Promise<{ success: boolean; failureReason?: string | null }> } }).electronAPI
+    : undefined;
+  if (api?.printPdfSilent) {
+    try {
+      const blob = await pdf(doc).toBlob();
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      const res = await api.printPdfSilent(buf);
+      if (res?.success) return true;
+      console.warn('[printRemitoSilent] la impresión falló, abro el PDF:', res?.failureReason);
+    } catch (err) {
+      console.warn('[printRemitoSilent] IPC falló, abro el PDF:', err);
+    }
+  }
+  // No Electron (browser) o falló la impresión → abrir para Ctrl+P.
+  await openRemitoPdfInNewTab(doc);
+  return false;
+}
+
 /** dd-mm-yyyy de la fecha actual, para usar como sufijo en filenames. */
 export function todayForFilename(): string {
   const d = new Date();

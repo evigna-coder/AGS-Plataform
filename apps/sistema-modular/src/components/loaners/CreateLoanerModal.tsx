@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from './LoanerCategoriaModuloPicker';
 import { loanersService } from '../../services/firebaseService';
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
@@ -30,6 +31,8 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
   const [serie, setSerie] = useState('');
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
+
+  const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
 
   // Al elegir un modelo, auto-llenar la descripción si está vacía (no destructivo).
   const handleModuloChange = (sel: ModuloSelection) => {
@@ -107,10 +110,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
             <Input inputSize="sm" label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria de equipo</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={categoriaEquipo} onChange={e => setCategoriaEquipo(e.target.value)}>
-                <option value="">Seleccionar</option>
-                {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <SearchableSelect size="sm" value={categoriaEquipo} onChange={setCategoriaEquipo} options={catOptions} placeholder="Seleccionar" />
             </div>
             <Input inputSize="sm" label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
           </div>

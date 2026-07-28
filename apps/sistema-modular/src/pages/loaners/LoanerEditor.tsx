@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from '../../components/loaners/LoanerCategoriaModuloPicker';
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -30,6 +31,8 @@ export function LoanerEditor() {
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
 
   useEffect(() => {
     if (!id) return;
@@ -135,10 +138,7 @@ export function LoanerEditor() {
               <Input label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Categoria de equipo</label>
-                <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value={categoriaEquipo} onChange={e => setCategoriaEquipo(e.target.value)}>
-                  <option value="">Seleccionar</option>
-                  {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <SearchableSelect value={categoriaEquipo} onChange={setCategoriaEquipo} options={catOptions} placeholder="Seleccionar" />
               </div>
               <Input label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
             </div>

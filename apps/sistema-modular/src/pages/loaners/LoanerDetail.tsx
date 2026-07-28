@@ -70,7 +70,7 @@ export function LoanerDetail() {
   const handlePrestamo = async (data: {
     clienteId: string; clienteNombre: string;
     establecimientoId: string | null; establecimientoNombre: string | null;
-    motivo: string; fechaRetornoPrevista: string | null;
+    otNumber: string | null; fechaRetornoPrevista: string | null;
     remitoSalidaId: string | null; remitoSalidaNumero: string | null;
     fotos: File[];
   }) => {

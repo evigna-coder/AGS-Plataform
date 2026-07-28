@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { join, extname } = require('path');
-const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } = require('fs');
 const crypto = require('crypto');
 const http = require('http');
 const os = require('os');
@@ -499,6 +499,47 @@ function registerIpcHandlers() {
     const error = await shell.openPath(filePath);
     if (error) throw new Error(error);
     return filePath;
+  });
+
+  // Print: imprimir un PDF EN SILENCIO a la impresora predeterminada del sistema.
+  // Ventana oculta que carga el PDF y dispara print({silent:true}) — no se abre nada.
+  // El PDF ya viene con las N copias como páginas (RemitoOverlayPDF copies=3), así que
+  // print imprime esas páginas 1 vez. Devuelve {success, failureReason} para que el
+  // renderer caiga al patrón "abrir PDF" si la impresión falla.
+  // OJO: no se puede validar sin impresora real — cambio de runtime, va por release.
+  ipcMain.handle('print:pdf-silent', async (_event, buffer) => {
+    const tmpDir = join(os.tmpdir(), 'ags-pdfs');
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
+    const filePath = join(tmpDir, `remito-print-${Date.now()}.pdf`);
+    writeFileSync(filePath, Buffer.from(buffer));
+
+    return await new Promise((resolve) => {
+      const printWin = new BrowserWindow({ show: false, webPreferences: { plugins: true } });
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        try { if (!printWin.isDestroyed()) printWin.close(); } catch (_) { /* noop */ }
+        try { unlinkSync(filePath); } catch (_) { /* noop */ }
+        resolve(result);
+      };
+      printWin.webContents.once('did-finish-load', () => {
+        // Delay para que el visor PDF interno termine de renderizar antes de imprimir.
+        setTimeout(() => {
+          try {
+            printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+              finish({ success, failureReason: failureReason || null });
+            });
+          } catch (err) {
+            finish({ success: false, failureReason: String(err) });
+          }
+        }, 600);
+      });
+      printWin.webContents.on('did-fail-load', (_e, _code, desc) => finish({ success: false, failureReason: desc || 'did-fail-load' }));
+      printWin.loadFile(filePath).catch((err) => finish({ success: false, failureReason: String(err) }));
+      // Safety timeout — nunca dejar la promesa colgada.
+      setTimeout(() => finish({ success: false, failureReason: 'timeout' }), 20000);
+    });
   });
 
   // Abrir módulo en nueva ventana (misma app, con preload completo)

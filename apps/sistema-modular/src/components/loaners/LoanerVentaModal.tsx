@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { LoanerArticuloPicker } from './LoanerArticuloPicker';
 import { clientesService } from '../../services/firebaseService';
 import type { Cliente, Articulo, Loaner, VentaLoaner } from '@ags/shared';
@@ -72,6 +73,11 @@ export function LoanerVentaModal({ open, onClose, loaner, onConfirm }: Props) {
   const selectedCliente = useMemo(
     () => clientes.find(c => c.id === clienteId),
     [clientes, clienteId],
+  );
+
+  const clienteOptions = useMemo(
+    () => clientes.map(c => ({ value: c.id, label: c.razonSocial })),
+    [clientes],
   );
 
   const articuloIdEfectivo = loaner.articuloId || articuloIdSeleccionado || null;
@@ -158,18 +164,13 @@ export function LoanerVentaModal({ open, onClose, loaner, onConfirm }: Props) {
 
         <div>
           <label className={lbl}>Cliente *</label>
-          <select
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          <SearchableSelect
             value={clienteId}
-            onChange={e => setClienteId(e.target.value)}
-          >
-            <option value="">Seleccionar cliente</option>
-            {clientes.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.razonSocial}
-              </option>
-            ))}
-          </select>
+            onChange={v => setClienteId(v)}
+            options={clienteOptions}
+            placeholder="Seleccionar cliente"
+            size="sm"
+          />
         </div>
 
         {/* Precio venta + Moneda venta (revenue, arriba). */}
