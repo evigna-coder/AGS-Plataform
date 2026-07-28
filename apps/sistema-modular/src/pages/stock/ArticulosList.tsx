@@ -17,6 +17,7 @@ import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoMo
 import { ArticulosListFilters } from './ArticulosListFilters';
 import { ArticulosListRow } from './ArticulosListRow';
 import { useEquivalenciaListExpansion } from './hooks/useEquivalenciaListExpansion';
+import { useDepositoFilter } from './hooks/useDepositoFilter';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import type { Articulo, Marca } from '@ags/shared';
 import type { ColAlign } from '../../hooks/useResizableColumns';
@@ -76,6 +77,7 @@ export const ArticulosList = () => {
     categoriaEquipo: { type: 'string' as const, default: '' },
     marcaId: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
+    deposito: { type: 'string' as const, default: '' },
     showInactive: { type: 'boolean' as const, default: false },
     sortField: { type: 'string' as const, default: 'codigo' },
     sortDir:   { type: 'string' as const, default: 'asc' },
@@ -117,6 +119,10 @@ export const ArticulosList = () => {
   // Phase 13 STKE-07 — expansion hook (unconditional, m3 fix)
   const { hasEquivalencia, shouldExpandRow } = useEquivalenciaListExpansion({ articulos, searchTerm: debouncedSearch });
 
+  // Filtro por depósito: al elegir un depósito, la lista se acota a los artículos con
+  // stock ahí y cada fila muestra la cantidad en ese depósito. Carga lazy (solo con depósito).
+  const { depositos, stockPorArticulo } = useDepositoFilter(filters.deposito);
+
   const handleDeactivate = async (art: Articulo) => {
     if (!await confirm(`Desactivar el articulo "${art.codigo} - ${art.descripcion}"?`)) return;
     try { await articulosService.deactivate(art.id); } catch (e) { console.error(e); alert('Error al desactivar el articulo'); }
@@ -131,8 +137,10 @@ export const ArticulosList = () => {
   const filtered = useMemo(() => {
     let list = articulos;
     if (debouncedSearch) { list = list.filter(a => matchesSearch(debouncedSearch, a.codigo, a.descripcion, ...(a.presentaciones ?? []).map(p => p.codigoParte))); }
+    // Depósito: solo los artículos con stock en el depósito elegido.
+    if (filters.deposito) { list = list.filter(a => stockPorArticulo.has(a.id)); }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [articulos, debouncedSearch, filters.sortField, filters.sortDir]);
+  }, [articulos, debouncedSearch, filters.deposito, stockPorArticulo, filters.sortField, filters.sortDir]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -170,6 +178,8 @@ export const ArticulosList = () => {
           tipo={filters.tipo} onTipoChange={v => setFilter('tipo', v)}
           showInactive={filters.showInactive} onShowInactiveChange={v => setFilter('showInactive', v)}
           marcas={marcas}
+          deposito={filters.deposito} onDepositoChange={v => setFilter('deposito', v)}
+          depositos={depositos}
         />
       </PageHeader>
 
@@ -233,6 +243,7 @@ export const ArticulosList = () => {
                     expandDual={shouldExpandRow(art)}
                     onDesagregar={a => setDesagregarTarget(a)}
                     totalCols={9}
+                    stockDeposito={filters.deposito ? (stockPorArticulo.get(art.id) ?? 0) : null}
                   />
                 ))}
               </tbody>

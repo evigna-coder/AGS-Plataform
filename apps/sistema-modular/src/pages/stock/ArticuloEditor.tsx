@@ -8,7 +8,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Articulo, Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
+const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -158,9 +158,11 @@ export const ArticuloEditor = () => {
               {codigoDupWarning && <p className="mt-1 text-xs text-amber-600">{codigoDupWarning}</p>}
             </div>
             <Input label="Descripcion" value={descripcion} onChange={e => setDescripcion(e.target.value)} required />
-            <SelectField label="Categoria equipo" value={categoriaEquipo}
-              onChange={v => setCategoriaEquipo(v as CategoriaEquipoStock)}
-              options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Categoria equipo</label>
+              <SearchableSelect value={categoriaEquipo} onChange={v => setCategoriaEquipo(v as CategoriaEquipoStock)}
+                options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>
               <SearchableSelect value={marcaId} onChange={setMarcaId} options={marcaOptions} placeholder="Seleccionar marca..." />

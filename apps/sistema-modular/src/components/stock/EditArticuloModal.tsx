@@ -14,7 +14,7 @@ interface Props {
   onSaved: () => void;
 }
 
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
+const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -63,9 +63,8 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
         <div className="grid grid-cols-4 gap-2.5">
           <div>
             <label className={lbl}>Categoria</label>
-            <select value={h.form.categoriaEquipo} onChange={e => h.set('categoriaEquipo', e.target.value)} className={selectCls}>
-              {CATEGORIA_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <SearchableSelect value={h.form.categoriaEquipo} onChange={v => h.set('categoriaEquipo', v)}
+              options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
           </div>
           <div>
             <label className={lbl}>Marca</label>

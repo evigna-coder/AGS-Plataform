@@ -20,7 +20,7 @@ interface Props {
   navigateOnCreate?: boolean;
 }
 
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
+const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -167,9 +167,8 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             <Input inputSize="sm" label="Descripcion *" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
             <div>
               <label className={lbl}>Categoria equipo</label>
-              <select value={form.categoriaEquipo} onChange={e => set('categoriaEquipo', e.target.value)} className={selectCls}>
-                {CATEGORIA_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <SearchableSelect value={form.categoriaEquipo} onChange={v => set('categoriaEquipo', v)}
+                options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
             </div>
             <div>
               <label className={lbl}>Marca</label>

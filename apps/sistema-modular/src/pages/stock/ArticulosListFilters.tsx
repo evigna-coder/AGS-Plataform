@@ -1,7 +1,11 @@
+import { useMemo } from 'react';
 import type { CategoriaEquipoStock, Marca, TipoArticulo } from '@ags/shared';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import type { DepositoOption } from './hooks/useDepositoFilter';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
-  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro', GENERAL: 'General',
+  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro',
+  HEADSPACE: 'Headspace', DENSIMETRO: 'Densimetro', GENERAL: 'General',
 };
 const TIPO_LABELS: Record<TipoArticulo, string> = {
   repuesto: 'Repuesto', consumible: 'Consumible', equipo: 'Equipo', columna: 'Columna',
@@ -20,6 +24,9 @@ interface Props {
   showInactive: boolean;
   onShowInactiveChange: (val: boolean) => void;
   marcas: Marca[];
+  deposito: string;
+  onDepositoChange: (val: string) => void;
+  depositos: DepositoOption[];
 }
 
 /**
@@ -38,7 +45,14 @@ export function ArticulosListFilters({
   showInactive,
   onShowInactiveChange,
   marcas,
+  deposito,
+  onDepositoChange,
+  depositos,
 }: Props) {
+  const depositoOptions = useMemo(
+    () => [{ value: '', label: 'Todos los depositos' }, ...depositos],
+    [depositos],
+  );
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <input
@@ -78,6 +92,9 @@ export function ArticulosListFilters({
           <option key={k} value={k}>{TIPO_LABELS[k]}</option>
         ))}
       </select>
+      <div className="w-52">
+        <SearchableSelect value={deposito} onChange={onDepositoChange} options={depositoOptions} placeholder="Deposito" size="sm" />
+      </div>
       <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
         <input
           type="checkbox"

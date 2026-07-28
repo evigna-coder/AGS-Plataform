@@ -3,7 +3,8 @@ import { EquivalenciaBadge } from '../../components/stock/EquivalenciaBadge';
 import { PresentacionesBadge } from '../../components/stock/PresentacionesBadge';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
-  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro', GENERAL: 'General',
+  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro',
+  HEADSPACE: 'Headspace', DENSIMETRO: 'Densimetro', GENERAL: 'General',
 };
 const TIPO_LABELS: Record<TipoArticulo, string> = {
   repuesto: 'Repuesto', consumible: 'Consumible', equipo: 'Equipo', columna: 'Columna',
@@ -34,6 +35,8 @@ interface Props {
   onDesagregar?: (art: Articulo) => void;
   /** Phase 13 STKE-07 — total columns for colSpan in expansion row. */
   totalCols?: number;
+  /** Cantidad en stock del artículo en el depósito filtrado. null = sin filtro de depósito. */
+  stockDeposito?: number | null;
 }
 
 /**
@@ -58,11 +61,12 @@ export function ArticulosListRow({
   expandDual = false,
   onDesagregar,
   totalCols = 9,
+  stockDeposito = null,
 }: Props) {
   return (
     <>
-      <tr className={`hover:bg-slate-50 ${!art.activo ? 'opacity-50' : ''} ${isSelected ? 'bg-teal-50/50' : ''}`}>
-        <td className="px-3 py-2 w-8">
+      <tr onClick={() => onView(art.id)} className={`hover:bg-slate-50 cursor-pointer ${!art.activo ? 'opacity-50' : ''} ${isSelected ? 'bg-teal-50/50' : ''}`}>
+        <td className="px-3 py-2 w-8" onClick={e => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -83,6 +87,14 @@ export function ArticulosListRow({
               />
             )}
             <PresentacionesBadge presentaciones={art.presentaciones ?? []} />
+            {stockDeposito != null && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums ${stockDeposito > 0 ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-400'}`}
+                title="Stock en el depósito filtrado"
+              >
+                {stockDeposito} en dep.
+              </span>
+            )}
           </span>
         </td>
         <td className={`px-4 py-2 text-xs text-slate-900 max-w-md truncate ${getAlignClass(2)}`}>
@@ -107,7 +119,7 @@ export function ArticulosListRow({
             ? `${art.monedaPrecio === 'USD' ? 'US$' : '$'} ${art.precioReferencia.toLocaleString('es-AR')}`
             : '-'}
         </td>
-        <td className="px-4 py-2">
+        <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
           <div className="flex justify-end gap-1">
             <button onClick={() => onView(art.id)}
               className="px-2 py-1 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 rounded transition-colors">

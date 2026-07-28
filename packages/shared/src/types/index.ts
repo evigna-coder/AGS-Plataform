@@ -2896,7 +2896,7 @@ export interface PosicionStock {
 
 export type TipoArticulo = 'repuesto' | 'consumible' | 'equipo' | 'columna' | 'accesorio' | 'muestra' | 'otro';
 
-export type CategoriaEquipoStock = 'HPLC' | 'GC' | 'MSD' | 'UV' | 'OSMOMETRO' | 'GENERAL';
+export type CategoriaEquipoStock = 'HPLC' | 'GC' | 'MSD' | 'UV' | 'OSMOMETRO' | 'HEADSPACE' | 'DENSIMETRO' | 'GENERAL';
 
 export interface TratamientoArancelario {
   derechoImportacion?: number | null;
@@ -3780,7 +3780,10 @@ export interface PrestamoLoaner {
   clienteNombre: string;
   establecimientoId?: string | null;
   establecimientoNombre?: string | null;
-  motivo: string;
+  /** Opcional: el préstamo desde el back-office se vincula a una OT (reemplaza el
+   *  "motivo" libre). Los préstamos por reparación de ficha aún usan `motivo`. */
+  otNumber?: string | null;
+  motivo?: string | null;
   /** FK → fichasPropiedad (si el préstamo es por reparación) */
   fichaId?: string | null;
   fichaNumero?: string | null;
