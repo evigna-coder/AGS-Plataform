@@ -21,11 +21,13 @@ export function VoiceTextarea({ value, onChange, rows = 3, placeholder, classNam
     },
   });
 
+  // Auto-alto SOLO-CRECE: agranda cuando el contenido no entra, pero nunca achica.
+  // Así convive con el resize manual (grip del borde inferior): si el usuario
+  // arrastró el alto a mano, tipear no se lo pisa. Achicar = arrastrar el grip.
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    if (el.scrollHeight > el.clientHeight) el.style.height = `${el.scrollHeight}px`;
   }, []);
 
   useEffect(() => { autoResize(); }, [value, autoResize]);
@@ -36,7 +38,7 @@ export function VoiceTextarea({ value, onChange, rows = 3, placeholder, classNam
     }
   }, [isListening, value]);
 
-  const defaultClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none';
+  const defaultClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y';
 
   return (
     <div className="relative">
@@ -47,7 +49,7 @@ export function VoiceTextarea({ value, onChange, rows = 3, placeholder, classNam
         rows={rows}
         placeholder={placeholder}
         className={`${className || defaultClass} ${isListening ? 'ring-2 ring-red-400 border-red-300' : ''}`}
-        style={{ paddingRight: isSupported ? '2.75rem' : undefined, overflow: 'hidden' }}
+        style={{ paddingRight: isSupported ? '2.75rem' : undefined, overflowY: 'auto' }}
         autoFocus={autoFocus}
       />
       {isSupported && (

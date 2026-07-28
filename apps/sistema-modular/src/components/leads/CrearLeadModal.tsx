@@ -163,8 +163,9 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
         {/* Bloque 5: Descripción */}
         <div>
           <label className={labelClass}>Descripción</label>
+          {/* resize-y: agrandable desde el borde inferior — para revisar textos largos pegados. */}
           <textarea value={h.descripcion} onChange={e => h.setDescripcion(e.target.value)} rows={2}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y"
             placeholder="Detalle de la consulta o solicitud..." />
         </div>
 
