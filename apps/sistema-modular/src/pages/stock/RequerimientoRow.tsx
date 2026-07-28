@@ -61,7 +61,11 @@ export const RequerimientoRow = ({
       <td className={`px-3 py-2 ${getAlignClass(1)}`}>
         <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
       </td>
-      <td className={`px-3 py-2 text-xs text-slate-900 truncate ${getAlignClass(2)}`} title={r.articuloDescripcion}>{r.articuloDescripcion}</td>
+      <td className={`px-3 py-2 text-xs text-slate-900 overflow-hidden ${getAlignClass(2)}`} title={r.articuloDescripcion}>
+        {/* N° de parte (articuloCodigo) visible — pedido 2026-07-25. */}
+        {r.articuloCodigo && <span className="block font-mono font-semibold text-teal-800 truncate">{r.articuloCodigo}</span>}
+        <span className={`block truncate ${r.articuloCodigo ? 'text-[10px] text-slate-400' : ''}`}>{r.articuloDescripcion}</span>
+      </td>
       <td className={`px-2 py-2 text-xs whitespace-nowrap ${getAlignClass(3)}`} onClick={() => isPendiente && startEdit(r, 'cantidad')}>
         {isEditingCantidad ? (
           <input type="number" min={1} value={editValue} onChange={e => setEditValue(e.target.value)}

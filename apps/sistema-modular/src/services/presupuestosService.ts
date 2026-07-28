@@ -251,22 +251,27 @@ export const presupuestosService = {
 
     console.log('✅ Presupuesto creado exitosamente con ID:', presRef.id);
 
-    // Auto-generate requerimientos for items linked to stock articles
-    const itemsConStock = (presupuestoData.items || []).filter(i => i.stockArticuloId);
-    if (itemsConStock.length > 0) {
-      this._generarRequerimientosAutomaticos(presRef.id, numero, itemsConStock).catch(err =>
-        console.error('[presupuestosService] Error auto-generando requerimientos:', err)
-      );
-    }
+    // Cambio de lógica 2026-07-25: crear un presupuesto (borrador) YA NO genera
+    // requerimientos automáticos. Las partes de presupuestos borrador/enviado se ven
+    // en la pestaña "Partes de presupuestos" de Requerimientos, donde el vendedor
+    // puede generarlos a mano si la venta es certera (generarRequerimientosParaItems).
+    // Los requerimientos firmes se crean recién al ACEPTAR (aceptarConRequerimientos).
+    // Esto también corta el amplificador de createRevision (cada revisión regeneraba todo).
 
     return { id: presRef.id, numero };
   },
 
-  async _generarRequerimientosAutomaticos(
+  /**
+   * Genera requerimientos para items de presupuesto vinculados a stock, evaluando el
+   * ATP (computeStockAmplio): solo crea si el stock proyectado no cubre el mínimo o la
+   * cantidad pedida. Devuelve cuántos creó. Ya NO se llama al crear el presupuesto —
+   * lo invoca la pestaña "Partes de presupuestos" (venta certera sin OC todavía).
+   */
+  async generarRequerimientosParaItems(
     presupuestoId: string,
     presupuestoNumero: string,
     items: Array<{ id?: string | null; stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
-  ) {
+  ): Promise<number> {
     // Phase 9 (STKP-05 fix): replaced buggy inline formula (qtyDisponible - qtyReservado + qtyEnTransito)
     // with computeStockAmplio() which correctly sums the 4 buckets without double-counting.
     // The old formula counted OC pending items from a separate preloaded map, missing units.en_transito
@@ -315,7 +320,8 @@ export const presupuestosService = {
         count++;
       }
     }
-    if (count > 0) console.log(`✅ ${count} requerimiento(s) generados automáticamente para ${presupuestoNumero}`);
+    if (count > 0) console.log(`✅ ${count} requerimiento(s) generados para ${presupuestoNumero}`);
+    return count;
   },
 
   // Actualizar presupuesto

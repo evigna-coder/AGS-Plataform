@@ -258,6 +258,19 @@ export const requerimientosService = {
     return snap.docs.map(d => ({ id: d.id, ...d.data() })) as RequerimientoCompra[];
   },
 
+  /**
+   * Requerimientos por estado, SIN orderBy → una sola igualdad no requiere índice
+   * compuesto (getAll({estado}) sí, porque suma orderBy('createdAt')). Usar cuando
+   * solo importa el conjunto, no el orden (ej. dedup de Alertas de Stock).
+   */
+  async getByEstado(estado: string): Promise<RequerimientoCompra[]> {
+    const snap = await getDocs(query(
+      collection(db, 'requerimientos_compra'),
+      where('estado', '==', estado),
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })) as RequerimientoCompra[];
+  },
+
   async getById(id: string): Promise<RequerimientoCompra | null> {
     const snap = await getDoc(doc(db, 'requerimientos_compra', id));
     if (!snap.exists()) return null;

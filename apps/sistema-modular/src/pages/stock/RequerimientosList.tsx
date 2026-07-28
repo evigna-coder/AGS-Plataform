@@ -14,6 +14,8 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useGenerarOC } from '../../hooks/useGenerarOC';
 import { RequerimientoRow, URGENCIA_LABELS } from './RequerimientoRow';
+import { RequerimientosPartesTab } from './RequerimientosPartesTab';
+import { sweepStockMinimoRequerimientos } from '../../utils/stockMinimoRequerimientos';
 import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -23,6 +25,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 const ESTADOS_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
 
 const FILTER_SCHEMA = {
+  // Pestaña activa: 'requerimientos' (firmes: stock/aceptados/manual) | 'partes'
+  // (items de presupuestos borrador/enviado, aún sin requerimiento).
+  tab:         { type: 'string' as const, default: 'requerimientos' },
   // 'abiertos' (default) = todo lo que requiere acción; 'todos' = sin filtro; o un estado puntual.
   estado:      { type: 'string' as const, default: 'abiertos' },
   origen:      { type: 'string' as const, default: '' },
@@ -99,6 +104,14 @@ export const RequerimientosList = () => {
     else setSelectedIds(new Set(sorted.map(r => r.id)));
   };
 
+  // Sweep automático de stock mínimo (cambio 2026-07-25): al abrir Requerimientos se
+  // generan solos los reqs de artículos bajo mínimo sin pedido abierto (throttled).
+  // La suscripción de abajo levanta los nuevos docs en vivo, sin refresh manual.
+  useEffect(() => {
+    sweepStockMinimoRequerimientos().catch(err =>
+      console.error('[RequerimientosList] sweep stock mínimo falló:', err));
+  }, []);
+
   const unsubRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     unsubRef.current?.();
@@ -165,6 +178,7 @@ export const RequerimientosList = () => {
         subtitle="Requisiciones de compra"
         count={isInitialLoad ? undefined : sorted.length}
         actions={
+          filters.tab === 'partes' ? undefined :
           <>
             {selectedIds.size > 0 && (
               <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>
@@ -180,6 +194,18 @@ export const RequerimientosList = () => {
           </>
         }
       >
+        {/* Pestañas: requerimientos firmes vs partes de presupuestos sin confirmar (no se mezclan) */}
+        <div className="flex items-center gap-1 mb-2">
+          {([['requerimientos', 'Requerimientos'], ['partes', 'Partes de presupuestos']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setFilter('tab', key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                filters.tab === key ? 'bg-teal-700 text-white' : 'text-slate-500 hover:bg-slate-100'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {filters.tab !== 'partes' && (
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
@@ -210,10 +236,13 @@ export const RequerimientosList = () => {
             <option value="false">Solo firmes</option>
           </select>
         </div>
+        )}
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {isInitialLoad ? (
+        {filters.tab === 'partes' ? (
+          <RequerimientosPartesTab />
+        ) : isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando requerimientos...</p></div>
         ) : sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron requerimientos</p></div></Card>
