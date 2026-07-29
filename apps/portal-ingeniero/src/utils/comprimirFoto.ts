@@ -10,6 +10,14 @@ const CALIDAD = 0.8;
  * bloquea la captura.
  */
 export async function comprimirFotoParaSubida(original: Blob): Promise<Blob> {
+  // Guardia dura: si el pipeline de canvas se cuelga (decodificador raro, HEIC,
+  // Safari viejo), a los 10s se encola la ORIGINAL — agregar una foto nunca
+  // puede quedar "cargando" para siempre.
+  const timeout = new Promise<Blob>(res => setTimeout(() => res(original), 10_000));
+  return Promise.race([timeout, comprimir(original)]);
+}
+
+async function comprimir(original: Blob): Promise<Blob> {
   try {
     const fuente = await crearFuente(original);
     const ancho = 'width' in fuente ? fuente.width : 0;
