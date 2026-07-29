@@ -145,6 +145,12 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
   return blob;
 }
 
+/** Nombre de archivo del PDF: "P1-005001-01 - Razón Social.pdf" (pedido 2026-07-29). */
+export function presupuestoPdfFilename(numero: string, razonSocial?: string | null): string {
+  const razon = (razonSocial || '').trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 80);
+  return razon ? `${numero} - ${razon}.pdf` : `${numero}.pdf`;
+}
+
 /**
  * Genera y descarga el PDF directamente.
  */
@@ -153,7 +159,7 @@ export async function downloadPresupuestoPDF(params: GeneratePDFParams): Promise
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${params.presupuesto.numero}.pdf`;
+  a.download = presupuestoPdfFilename(params.presupuesto.numero, params.cliente?.razonSocial);
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

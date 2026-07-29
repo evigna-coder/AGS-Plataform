@@ -35,6 +35,7 @@ import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpi
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeOCAdeudada, OC_ADEUDADA_ESTADOS } from '../../utils/analitica/presupuestosMetrics';
 import { hoyLocalISODate } from '../../utils/formatFecha';
+import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion'];
@@ -58,6 +59,7 @@ export const PresupuestosList = () => {
   const [otsCerradas, setOtsCerradas] = useState<WorkOrder[]>([]);
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
+  const [descargandoPdfId, setDescargandoPdfId] = useState<string | null>(null);
   // Target presupuesto para el nuevo modal de FLOW-02 "Cargar OC" (se activa solo en estado aceptado).
   const [cargarOCTarget, setCargarOCTarget] = useState<Presupuesto | null>(null);
   // OCs previas del cliente del cargarOCTarget — resuelto async al abrir.
@@ -83,6 +85,18 @@ export const PresupuestosList = () => {
     } catch (err) {
       console.error('Error generando aviso a facturación:', err);
       alert(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
+    }
+  };
+
+  const handleDescargarPdf = async (p: Presupuesto) => {
+    setDescargandoPdfId(p.id);
+    try {
+      await descargarPresupuestoPdfDirecto(p);
+    } catch (err) {
+      console.error('Error descargando PDF del presupuesto:', err);
+      alert('Error al generar el PDF');
+    } finally {
+      setDescargandoPdfId(null);
     }
   };
 
@@ -654,6 +668,17 @@ export const PresupuestosList = () => {
                               </button>
                             </>
                           )}
+                          <button onClick={() => handleDescargarPdf(p)} disabled={descargandoPdfId === p.id}
+                            title="Descargar PDF"
+                            className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100 disabled:opacity-40">
+                            {descargandoPdfId === p.id ? (
+                              <span className="inline-block w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                            )}
+                          </button>
                           <button onClick={() => floatingPres.open(p.id, loadData)}
                             className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
                             Ver
