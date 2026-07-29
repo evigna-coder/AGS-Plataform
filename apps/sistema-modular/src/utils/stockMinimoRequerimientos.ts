@@ -39,16 +39,19 @@ export function pendienteOCPorArticulo(ocs: OrdenCompra[]): Map<string, number> 
 }
 
 /**
- * Sweep automático de stock mínimo → requerimientos (cambio de lógica 2026-07-25:
- * ya no hace falta el botón "Generar"). Para cada artículo activo con stockMinimo>0
- * cuyo stock efectivo (disponible + pendiente en OC) quedó bajo el mínimo y que no
- * tiene un requerimiento abierto, crea uno con origen 'stock_minimo' por el déficit.
- * Corre al montar Alertas de Stock / Requerimientos (throttled por sesión).
- * Devuelve cuántos creó (0 si el guard lo salteó).
+ * Sweep automático de stock mínimo → requerimientos, EN AMBOS SENTIDOS:
+ *  - CREA (origen 'stock_minimo') cuando el stock efectivo (disponible + pendiente
+ *    en OC) quedó bajo el mínimo y el artículo no tiene requerimiento abierto.
+ *  - RE-CONTRASTA (2026-07-28, caso BK82220820): cancela los requerimientos
+ *    automáticos aún 'pendiente' y sin OC vinculada cuando la falta ya se cubrió
+ *    (ingreso manual sin reconciliación de OC, o mínimo bajado). Solo toca los de
+ *    origen 'stock_minimo' — manuales y de presupuesto son decisión humana.
+ * Corre al montar Alertas/Requerimientos (throttled) y con force tras confirmar
+ * ingresos/movimientos de stock. Devuelve cuántos creó/canceló.
  */
-export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean }): Promise<number> {
+export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean }): Promise<{ creados: number; cancelados: number }> {
   const now = Date.now();
-  if (!opts?.force && now - lastSweep < SWEEP_INTERVAL_MS) return 0;
+  if (!opts?.force && now - lastSweep < SWEEP_INTERVAL_MS) return { creados: 0, cancelados: 0 };
   lastSweep = now;
 
   const [articulos, unidades, ocs, reqs] = await Promise.all([
@@ -60,15 +63,18 @@ export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean })
 
   const dispo = disponiblePorArticulo(unidades);
   const enOC = pendienteOCPorArticulo(ocs);
+  const artById = new Map((articulos as Articulo[]).map(a => [a.id, a]));
+  const efectivoDe = (articuloId: string) => (dispo.get(articuloId) ?? 0) + (enOC.get(articuloId) ?? 0);
   const conReqAbierto = new Set(
     reqs.filter(r => !REQ_CERRADOS.has(r.estado) && r.articuloId).map(r => r.articuloId as string),
   );
 
+  // ── Crear: bajo mínimo sin requerimiento abierto ──
   let creados = 0;
   for (const art of articulos as Articulo[]) {
     if (art.stockMinimo <= 0) continue;
     if (conReqAbierto.has(art.id)) continue;
-    const efectivo = (dispo.get(art.id) ?? 0) + (enOC.get(art.id) ?? 0);
+    const efectivo = efectivoDe(art.id);
     if (efectivo >= art.stockMinimo) continue;
     try {
       await requerimientosService.create({
@@ -91,6 +97,31 @@ export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean })
       console.error(`[sweepStockMinimo] error creando req para ${art.codigo}:`, err);
     }
   }
-  if (creados > 0) console.log(`[sweepStockMinimo] ${creados} requerimiento(s) generados automáticamente`);
-  return creados;
+
+  // ── Re-contrastar: cancelar automáticos cuya falta ya se cubrió ──
+  // Guardas: solo origen stock_minimo, solo 'pendiente' (aprobado/en_compra ya es
+  // decisión de compra en curso), sin OC vinculada (esos los cierra la
+  // reconciliación de la OC como 'comprado'), y artículo activo conocido.
+  let cancelados = 0;
+  const candidatos = reqs.filter(r =>
+    r.origen === 'stock_minimo' && r.estado === 'pendiente' && !r.ordenCompraId && r.articuloId);
+  for (const r of candidatos) {
+    const art = artById.get(r.articuloId as string);
+    if (!art) continue;
+    const cubierto = art.stockMinimo <= 0 || efectivoDe(art.id) >= art.stockMinimo;
+    if (!cubierto) continue;
+    try {
+      await requerimientosService.update(r.id, {
+        estado: 'cancelado',
+        canceladoPor: 'stock_repuesto',
+        notas: `Cancelado automáticamente: stock repuesto sobre el mínimo (disp: ${dispo.get(art.id) ?? 0}, en OC: ${enOC.get(art.id) ?? 0}, mín: ${art.stockMinimo})`,
+      });
+      cancelados++;
+    } catch (err) {
+      console.error(`[sweepStockMinimo] error cancelando req ${r.numero}:`, err);
+    }
+  }
+
+  if (creados > 0 || cancelados > 0) console.log(`[sweepStockMinimo] ${creados} creado(s), ${cancelados} cancelado(s) por stock repuesto`);
+  return { creados, cancelados };
 }

@@ -4,6 +4,7 @@ import {
   posicionesStockService, minikitsService, ingenierosService, proveedoresService,
 } from '../services/firebaseService';
 import { movimientosAplicarService, type PuntoMovimiento } from '../services/movimientosAplicar';
+import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type {
   Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, Proveedor,
   TipoMovimiento, TipoOrigenDestino, MovimientoStock,
@@ -430,6 +431,10 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
           });
           break;
       }
+      // Re-contrastar requerimientos por mínimo: un ingreso puede cubrir una falta
+      // (cancela el req automático) y un egreso/consumo puede crearla. Best-effort.
+      void sweepStockMinimoRequerimientos({ force: true }).catch(e =>
+        console.warn('[useCreateMovimientoForm] re-contraste de requerimientos falló:', e));
       handleClose();
       onCreated();
     } catch (err) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { articulosService, unidadesService, posicionesStockService, minikitsService, ingenierosService, proveedoresService, movimientosService } from '../services/firebaseService';
 import type { Articulo, CondicionUnidad, TipoUbicacionStock, TipoOrigenDestino, Proveedor, UnidadStock } from '@ags/shared';
+import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 
 export interface BulkRow {
   key: string;
@@ -193,6 +194,10 @@ export function useBulkAddStock(
       } catch (movErr) {
         console.warn('[useBulkAddStock] unidades creadas pero falló el registro de movimientos:', movErr);
       }
+
+      // Re-contrastar requerimientos por mínimo con el stock recién cargado. Best-effort.
+      void sweepStockMinimoRequerimientos({ force: true }).catch(err =>
+        console.warn('[useBulkAddStock] re-contraste de requerimientos falló:', err));
 
       onCreated();
       onClose();

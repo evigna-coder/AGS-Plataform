@@ -3,6 +3,7 @@ import {
   articulosService, unidadesService, posicionesStockService, minikitsService, ingenierosService,
 } from '../services/firebaseService';
 import { movimientosAplicarService, type PuntoMovimiento } from '../services/movimientosAplicar';
+import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type { Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, TipoOrigenDestino } from '@ags/shared';
 
 /**
@@ -248,6 +249,9 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
           }
         }
       }
+      // Re-contrastar requerimientos por mínimo tras mover/egresar stock. Best-effort.
+      void sweepStockMinimoRequerimientos({ force: true }).catch(e =>
+        console.warn('[useMovimientoLoteForm] re-contraste de requerimientos falló:', e));
       handleClose();
       onCreated();
     } catch (err) {

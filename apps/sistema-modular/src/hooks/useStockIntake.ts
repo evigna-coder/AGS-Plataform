@@ -5,6 +5,7 @@ import {
   ordenesCompraService, requerimientosService,
 } from '../services/firebaseService';
 import { reservasService } from '../services/stockService';
+import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type {
   Articulo, CondicionUnidad, Proveedor, PosicionStock, Minikit, Ingeniero,
   TipoOrigenDestino, UnidadStock, MovimientoStock,
@@ -367,6 +368,11 @@ export function useStockIntake(
       } catch (resErr) {
         console.warn('[useStockIntake] ingreso OK, falló la auto-reserva post-ingreso:', resErr);
       }
+
+      // Re-contrastar requerimientos por mínimo con el stock recién ingresado
+      // (cancela los automáticos cuya falta quedó cubierta). Best-effort.
+      void sweepStockMinimoRequerimientos({ force: true }).catch(err =>
+        console.warn('[useStockIntake] re-contraste de requerimientos falló:', err));
 
       onCreated();
       onClose();
