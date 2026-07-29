@@ -19,6 +19,7 @@ import { fotoStorageService } from './fotoStorageService';
 import { fichasPropiedadService } from './fichasPropiedadService';
 import { loanersPortalService } from './loanersPortalService';
 import { getCurrentUser } from './currentUser';
+import { comprimirFotoParaSubida } from '../utils/comprimirFoto';
 import type { FotoFicha, FotoLoaner, MomentoFotoFicha } from '@ags/shared';
 
 type Listener = (state: ManagerState) => void;
@@ -88,8 +89,11 @@ class UploadQueueManager {
     filename: string;
     momento: MomentoFotoFicha;
   }): Promise<void> {
+    // Comprimir ANTES de encolar: la foto cruda de cámara (varios MB) agotaba
+    // los reintentos de Storage con señal débil; además achica IndexedDB.
+    const blob = await comprimirFotoParaSubida(input.blob);
     const item: PendingFotoFicha = {
-      ...this.baseItem(input.blob, input.filename),
+      ...this.baseItem(blob, input.filename),
       tipo: 'ficha',
       fichaId: input.fichaId,
       fichaNumero: input.fichaNumero,
@@ -106,8 +110,9 @@ class UploadQueueManager {
     contexto: FotoLoaner['contexto'];
     prestamoId: string | null;
   }): Promise<void> {
+    const blob = await comprimirFotoParaSubida(input.blob);
     const item: PendingFotoLoaner = {
-      ...this.baseItem(input.blob, input.filename),
+      ...this.baseItem(blob, input.filename),
       tipo: 'loaner',
       loanerId: input.loanerId,
       loanerCodigo: input.loanerCodigo,
