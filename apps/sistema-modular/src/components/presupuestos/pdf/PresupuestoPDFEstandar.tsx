@@ -224,7 +224,7 @@ export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
       <View style={{ width: '44%', alignItems: 'flex-end' }}>
         <Text style={{ fontSize: 23, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>Presupuesto</Text>
         <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 7 }}>Documento no válido como factura</Text>
-        <Text style={{ fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 7 }}>{presupuesto.numero}</Text>
+        <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.text, marginBottom: 7 }}>{presupuesto.numero}</Text>
         <View style={{ width: 180 }}>
           {metaRows.map(([k, v]) => (
             <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 2.5 }}>
@@ -233,7 +233,7 @@ export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
             </View>
           ))}
         </View>
-        <Image src={data.isoLogoSrc} style={{ width: 46, height: 'auto', marginTop: 8 }} />
+        <Image src={data.isoLogoSrc} style={{ width: 64, height: 'auto', marginTop: 8 }} />
       </View>
     </View>
   );
@@ -410,7 +410,9 @@ export function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
   const visible = (presupuesto.seccionesVisibles || {}).notasTecnicas !== false;
   if (!visible || !presupuesto.notasTecnicas) return null;
   return (
-    <View style={[S.condicionSection, { marginTop: 10 }]} wrap={false}>
+    // Sin wrap={false}: una nota larga debe CONTINUAR en la página siguiente, no
+    // quedar cortada al fondo de la hoja 1 (UAT 2026-07-29, "lo pone incompleto").
+    <View style={[S.condicionSection, { marginTop: 10 }]}>
       <Text style={S.condicionTitle}>NOTAS TÉCNICAS:</Text>
       <PDFRichText html={presupuesto.notasTecnicas} fallbackStyle={S.condicionText} />
     </View>

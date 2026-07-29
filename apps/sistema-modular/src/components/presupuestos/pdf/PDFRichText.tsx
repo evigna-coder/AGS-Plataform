@@ -40,20 +40,44 @@ const stylesheet = {
   ul: { marginLeft: 10, marginBottom: 3 },
   ol: { marginLeft: 10, marginBottom: 3 },
   li: { fontSize: 7, lineHeight: 1.5, marginBottom: 1, textAlign: 'left' as const },
+  // Tags de tamaño relativo que puede traer contenido pegado (guardado antes del
+  // sanitizador): forzarlos al baseline para que nada salga más chico/grande que
+  // el estándar salvo por el <font size> del editor.
+  small: { fontSize: 7, lineHeight: 1.5 },
+  big: { fontSize: 7, lineHeight: 1.5 },
+  h1: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h2: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h3: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h4: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h5: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h6: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
 };
 
 /**
- * Neutraliza SOLO el `font-size` inline (px/pt/keywords) del HTML pegado desde Word/web:
- * react-pdf-html lo aplica literal (p.ej. 20pt vs 7pt base) → texto GIGANTE, y al ser inline
- * le gana al `<font size>` del editor. Al quitarlo, el tamaño queda gobernado por el
- * `<font size>` del editor (que mapFontTagsToPt convierte a un pt controlado) o por la base.
+ * Neutraliza el estilado inline del HTML pegado desde Word/web/PDF: `font-size`
+ * (react-pdf-html lo aplica literal, p.ej. 20pt vs 7pt base → texto GIGANTE y le gana
+ * al `<font size>` del editor), y también `font-family` / `color` / `background`
+ * (UAT 2026-07-29: notas administrativas pegadas salían con color y letra del origen,
+ * y el tamaño elegido en la toolbar no tenía efecto porque el inline pisaba todo).
+ * Al quitarlos, el formato queda gobernado por el editor (negrita/cursiva/listas y el
+ * `<font size>` que mapFontTagsToPt convierte a un pt controlado) o por la base.
+ * Esto limpia también el contenido VIEJO ya guardado con estilos pegados, sin re-pegar.
  *
  * OJO: NO tocar el atributo `size` de `<font>` — ese ES el control de tamaño del editor;
  * lo convierte mapFontTagsToPt (que corre después). Si se stripeara acá, el tamaño del
  * editor dejaría de tener efecto.
  */
 function stripFontSizing(html: string): string {
-  return html.replace(/font-size\s*:\s*[^;"']+;?/gi, '');
+  return html
+    .replace(/font-size\s*:\s*[^;"']+;?/gi, '')
+    .replace(/font-family\s*:\s*[^;"']+;?/gi, '')
+    .replace(/(?:^|;|\s)color\s*:\s*[^;"']+;?/gi, '')
+    .replace(/background(?:-color)?\s*:\s*[^;"']+;?/gi, '')
+    // <font color="..."> / <font face="..."> del contenido viejo: fuera los atributos
+    // de color/tipografía, conservando `size` (lo procesa mapFontTagsToPt). Dos pasadas:
+    // una sola no alcanza si el mismo tag trae color Y face (el scan sigue tras el reemplazo).
+    .replace(/(<font\b[^>]*?)\s(?:color|face)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/gi, '$1')
+    .replace(/(<font\b[^>]*?)\s(?:color|face)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/gi, '$1');
 }
 
 /**
@@ -107,7 +131,11 @@ export function PDFRichText({ html, fallbackStyle }: PDFRichTextProps) {
 
   // 1) stripFontSizing: borra el font-size inline pegado (giant). 2) mapFontTagsToPt:
   // convierte el <font size> del editor a un pt controlado (determinista). 3) preserveLineBreaks.
-  const safeHtml = preserveLineBreaks(mapFontTagsToPt(stripFontSizing(html)));
+  // 4) Wrapper <div> raíz: los text nodes SUELTOS (sin <p>/<div>) no matchean ningún
+  //    selector del stylesheet y react-pdf les aplica su default (18pt) → texto gigante
+  //    (UAT 2026-07-29, notas técnicas pegadas). Adentro de un div heredan los 7pt base;
+  //    los <span style="font-size">, del editor, le siguen ganando al div.
+  const safeHtml = `<div>${preserveLineBreaks(mapFontTagsToPt(stripFontSizing(html)))}</div>`;
 
   // Compute the plain-text fallback once — used by BOTH the parse-time try/catch path
   // and the commit-time ErrorBoundary path so degradation is deterministic.
