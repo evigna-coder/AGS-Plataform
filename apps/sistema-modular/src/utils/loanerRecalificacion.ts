@@ -52,7 +52,12 @@ async function resolverClienteAGS() {
 
 async function resolverTipoServicioRecalificacion(): Promise<string> {
   const tipos = await tiposServicioService.getAll();
-  const match = tipos.find(t => /recalif/i.test(t.nombre));
+  // Exacto primero: con la ampliación 2026-07-29 existe 'Recalificación de operación'
+  // (tipo de apertura de OT, NO el de las OTs internas de loaner) y el fuzzy solo,
+  // sobre la lista alfabética, pasaría a elegirlo. Se excluye del fallback.
+  const exacto = tipos.find(t => t.nombre.trim().toLowerCase() === TIPO_SERVICIO_RECALIFICACION.toLowerCase());
+  if (exacto) return exacto.nombre;
+  const match = tipos.find(t => /recalif/i.test(t.nombre) && !/operaci/i.test(t.nombre));
   if (match) return match.nombre;
   // No existe en el catálogo → crearlo (queda disponible para futuras OTs).
   await tiposServicioService.create({

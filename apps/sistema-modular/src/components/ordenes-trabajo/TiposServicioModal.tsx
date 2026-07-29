@@ -5,6 +5,9 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { TIPOS_SERVICIO_ESTANDAR } from '../../utils/tiposServicioEstandar';
+
+const normalizar = (s: string) => s.trim().toLowerCase();
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -16,6 +19,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const [form, setForm] = useState({ nombre: '', activo: true, requiresProtocol: false, generaRecurrenciaAnual: false });
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => { if (open) loadData(); }, [open]);
 
@@ -56,13 +60,38 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
     await tiposServicioService.delete(id); await loadData();
   };
 
+  // Mismo seed idempotente que la página /tipos-servicio: crea SOLO los tipos
+  // estándar faltantes (match por nombre normalizado), no pisa ni duplica.
+  const handleSeedDefaults = async () => {
+    const existentes = new Set(tipos.map(t => normalizar(t.nombre)));
+    const faltantes = TIPOS_SERVICIO_ESTANDAR.filter(n => !existentes.has(normalizar(n)));
+    if (faltantes.length === 0) { alert('Ya están cargados todos los tipos estándar.'); return; }
+    if (!await confirm(`Se crearán ${faltantes.length} tipo(s) de servicio faltante(s):\n\n${faltantes.join('\n')}`)) return;
+    try {
+      setSeeding(true);
+      for (const nombre of faltantes) {
+        await tiposServicioService.create({ nombre, activo: true, requiresProtocol: false, generaRecurrenciaAnual: false });
+      }
+      await loadData();
+    } catch (error) {
+      console.error('Error cargando tipos estándar:', error);
+      alert('Error al cargar los tipos estándar');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide";
 
   return (
     <Modal open={open} onClose={() => { resetForm(); onClose(); }} title="Tipos de servicio" subtitle={`${tipos.length} tipos`}>
       <div className="space-y-3">
         {!showForm && (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handleSeedDefaults} disabled={seeding}
+              title="Crea los tipos estándar que falten (los del reporte técnico + apertura de OT). No duplica ni pisa los existentes.">
+              {seeding ? 'Cargando…' : 'Cargar tipos estándar'}
+            </Button>
             <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo tipo</Button>
           </div>
         )}

@@ -24,4 +24,14 @@ export const TIPOS_SERVICIO_ESTANDAR = [
   'Aznarez',
   'ELS',
   'Entrega de insumos',
+  // Ampliación 2026-07-29 (apertura de OT). OJO: estos tipos NO existen en el
+  // <select> congelado del reporte técnico (reportes-ot) — si el técnico abre
+  // esa OT, ve el desplegable en blanco. Son para OTs administrativas /
+  // proveedor externo / entregas, que el técnico normalmente no completa.
+  'Proveedor externo ELS',
+  'Proveedor externo AZN',
+  'Alquiler',
+  'Venta concretada',
+  'Recalificación de operación',
+  'Entrega de lámpara',
 ];
