@@ -259,6 +259,10 @@ export const misOTService = {
    * sistema-modular (presupuestosService.getNextPresupuestoNumber): transacción
    * sobre `_counters/presupuestoNumber` con bootstrap scan-and-max la primera vez.
    * No cambiar el esquema acá sin cambiarlo allá — duplicaría numeración.
+   *
+   * Formato nuevo (2026-07-29): `P{n}-NNNNNN-01`, serie ÚNICA global entre
+   * categorías que arranca en 005001 (Math.max(current, 5000) da el salto desde
+   * la serie legada PRE-XXXX). El portal solo solicita partes para servicio → P2.
    */
   async getNextPresupuestoNumber(): Promise<string> {
     const counterRef = doc(db, '_counters', 'presupuestoNumber');
@@ -271,17 +275,17 @@ export const misOTService = {
         const querySnapshot = await getDocs(collection(db, 'presupuestos'));
         let maxBase = 0;
         querySnapshot.docs.forEach(d => {
-          const match = (d.data().numero as string | undefined)?.match(/PRE-(\d+)/);
+          const match = (d.data().numero as string | undefined)?.match(/(?:PRE|P\d)-(\d+)/);
           const base = match ? parseInt(match[1], 10) : 0;
           if (base > maxBase) maxBase = base;
         });
         current = maxBase;
       }
-      const next = current + 1;
+      const next = Math.max(current, 5000) + 1;
       tx.set(counterRef, { value: next, updatedAt: Timestamp.now() });
       return next;
     });
-    return `PRE-${String(nextBase).padStart(4, '0')}.01`;
+    return `P2-${String(nextBase).padStart(6, '0')}-01`;
   },
 
   /**
@@ -316,10 +320,12 @@ export const misOTService = {
       sistemaNombre: sistema?.nombre || ot.sistema || null,
     }));
 
-    // El IST siempre solicita partes — el presupuesto nace tipo 'partes'.
+    // El IST siempre solicita partes para un servicio — el presupuesto nace
+    // tipo 'partes' con categoría P2 (partes en servicio).
     const payload = deepCleanForFirestore({
       numero,
       tipo: 'partes',
+      categoria: 'P2',
       moneda: 'USD',
       clienteId: ot.clienteId ?? null,
       establecimientoId: ot.establecimientoId ?? sistema?.establecimientoId ?? null,

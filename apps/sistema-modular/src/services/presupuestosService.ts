@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
-import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
-import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
+import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
 const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
@@ -52,20 +52,28 @@ function migrateEstado(estado: string): PresupuestoEstado {
 
 // Servicio para Presupuestos
 export const presupuestosService = {
-  // Extraer parte base de un número: PRE-0001.02 → 1, PRE-0001 (legacy) → 1
+  // Extraer parte base de un número. Acepta ambos formatos:
+  //   nuevo  P1-005001-02 → 5001   ·   legado PRE-0001.02 / PRE-0001 → 1
+  // Las bases nuevas arrancan en 5001 y las legadas quedaron muy por debajo,
+  // así que el entero base no colisiona entre formatos.
   _extractBase(numero: string): number {
-    const match = numero.match(/PRE-(\d+)/);
+    const match = numero.match(/(?:PRE|P\d)-(\d+)/);
     return match ? parseInt(match[1]) : 0;
   },
 
-  // Extraer sufijo de revisión: PRE-0001.02 → 2, PRE-0001 (legacy) → null
+  // Extraer sufijo de revisión: P1-005001-02 → 2, PRE-0001.02 → 2, PRE-0001 (legacy) → null
   _extractRevision(numero: string): number | null {
-    const match = numero.match(/PRE-\d+\.(\d+)/);
+    const match = numero.match(/^P\d-\d+-(\d+)$/) || numero.match(/PRE-\d+\.(\d+)/);
     return match ? parseInt(match[1]) : null;
   },
 
-  // Generar siguiente número de presupuesto (PRE-XXXX.01) — atómico vía counter doc.
-  async getNextPresupuestoNumber(): Promise<string> {
+  // Generar siguiente número de presupuesto — atómico vía counter doc, COMPARTIDO
+  // con portal-ingeniero (misOTService.getNextPresupuestoNumber): no cambiar el
+  // esquema acá sin cambiarlo allá.
+  // Formato nuevo (2026-07-29): `P{n}-NNNNNN-01` con serie ÚNICA global entre
+  // categorías que arranca en 005001 (continúa la serie del sistema viejo) — de
+  // ahí el salto Math.max(current, 5000).
+  async getNextPresupuestoNumber(categoria: PresupuestoCategoria = 'P1'): Promise<string> {
     const counterRef = doc(db, '_counters', 'presupuestoNumber');
     const nextBase = await runTransaction(db, async (tx) => {
       const counterSnap = await tx.get(counterRef);
@@ -82,11 +90,11 @@ export const presupuestosService = {
         });
         current = maxBase;
       }
-      const next = current + 1;
+      const next = Math.max(current, 5000) + 1;
       tx.set(counterRef, { value: next, updatedAt: Timestamp.now() });
       return next;
     });
-    return `PRE-${String(nextBase).padStart(4, '0')}.01`;
+    return formatPresupuestoNumero(categoria, nextBase, 1);
   },
 
   // Obtener todos los presupuestos
@@ -223,14 +231,20 @@ export const presupuestosService = {
   async create(presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
     console.log('📝 Creando presupuesto...');
 
-    // Generar número si no se proporciona
-    const numero = presupuestoData.numero || await this.getNextPresupuestoNumber();
+    // Categoría P1–P5: derivada del tipo salvo que venga explícita (el modal la
+    // fija para tipo 'partes', donde P2/P3 depende del destino).
+    const categoria = presupuestoData.categoria
+      ?? categoriaFromTipoPresupuesto(presupuestoData.tipo || 'servicio');
+
+    // Generar número si no se proporciona (createRevision pasa el suyo)
+    const numero = presupuestoData.numero || await this.getNextPresupuestoNumber(categoria);
 
     // Convert date strings to Firestore Timestamps, then deep-clean
     const raw = {
       ...presupuestoData,
       ...getCreateTrace(),
       numero,
+      categoria,
       tipo: presupuestoData.tipo || 'servicio',
       moneda: presupuestoData.moneda || 'USD',
       items: presupuestoData.items || [],
@@ -2279,9 +2293,11 @@ export const presupuestosService = {
     const original = await this.getById(id);
     if (!original) throw new Error('Presupuesto no encontrado');
 
-    // Extraer base y calcular siguiente revisión
+    // Extraer base y calcular siguiente revisión. La revisión CONSERVA el formato
+    // de su familia: P1-005001-01 → P1-005001-02; PRE-0118.01 → PRE-0118.02.
     const base = this._extractBase(original.numero);
-    const baseStr = `PRE-${String(base).padStart(4, '0')}`;
+    const newFmt = original.numero.match(/^(P\d)-(\d+)-\d+$/);
+    const baseStr = newFmt ? `${newFmt[1]}-${newFmt[2]}` : `PRE-${String(base).padStart(4, '0')}`;
 
     // Buscar todas las revisiones de la misma familia
     const allSnap = await getDocs(collection(db, 'presupuestos'));
@@ -2297,7 +2313,7 @@ export const presupuestosService = {
     });
 
     const nextRev = maxRev + 1;
-    const newNumero = `${baseStr}.${String(nextRev).padStart(2, '0')}`;
+    const newNumero = `${baseStr}${newFmt ? '-' : '.'}${String(nextRev).padStart(2, '0')}`;
     const newVersion = nextRev;
 
     // Crear nuevo presupuesto (revisión)

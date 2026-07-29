@@ -4,7 +4,7 @@ import { establecimientosService, contactosEstablecimientoService } from '../ser
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, PlantillaTextoPresupuesto } from '@ags/shared';
-import { establecimientoUnicoId, computePresupuestoItemSubtotal } from '@ags/shared';
+import { establecimientoUnicoId, computePresupuestoItemSubtotal, categoriaFromTipoPresupuesto } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
@@ -13,6 +13,8 @@ export interface PresupuestoFormState {
   sistemaId: string;
   contactoId: string;
   tipo: TipoPresupuesto;
+  /** Solo relevante con tipo 'partes': define P2 (servicio) vs P3 (venta) en el número. */
+  destinoPartes: 'servicio' | 'venta';
   moneda: MonedaPresupuesto;
   origenTipo: OrigenPresupuesto | '';
   origenId: string;
@@ -31,7 +33,7 @@ export interface PresupuestoFormState {
 
 export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   clienteId: '', establecimientoId: '', sistemaId: '', contactoId: '',
-  tipo: 'servicio', moneda: 'USD',
+  tipo: 'servicio', destinoPartes: 'servicio', moneda: 'USD',
   origenTipo: '', origenId: '', origenRef: '',
   validezDias: 15, condicionPagoId: '', tipoCambio: '',
   notasTecnicas: '', notasAdministrativas: '', garantia: '',
@@ -335,6 +337,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       const subtotal = finalItems.reduce((s, i) => s + (i.subtotal || 0), 0);
       const data: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> = {
         numero: '', tipo: form.tipo, moneda: form.moneda,
+        categoria: categoriaFromTipoPresupuesto(form.tipo, form.destinoPartes),
         responsableId: usuario?.id || null,
         responsableNombre: usuario?.displayName || null,
         clienteId: form.clienteId,

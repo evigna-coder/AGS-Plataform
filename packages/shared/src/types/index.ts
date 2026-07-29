@@ -969,6 +969,49 @@ export const TIPO_PRESUPUESTO_COLORS: Record<TipoPresupuesto, string> = {
 /** Tipos ofrecidos al crear/editar. 'mixto' excluido — solo se muestra en pptos legados. */
 export const TIPOS_PRESUPUESTO_ACTIVOS: TipoPresupuesto[] = ['servicio', 'ventas', 'contrato', 'consumibles', 'partes'];
 
+/**
+ * Categorización P1–P5 (2026-07-29). El número nuevo es `P{n}-NNNNNN-RR`:
+ * prefijo de categoría + 6 dígitos (serie ÚNICA global, arranca en 005001,
+ * continúa la serie del sistema viejo) + revisión de 2 dígitos.
+ * Los PRE-XXXX.NN existentes conviven como legado (numero es join key en OTs/
+ * requerimientos/facturación/entregas — NO renumerar).
+ */
+// OJO: `CategoriaPresupuesto` (interface) ya existe y es OTRA cosa — el catálogo
+// de categorías de ITEMS. Este tipo se llama PresupuestoCategoria a propósito.
+export type PresupuestoCategoria = 'P1' | 'P2' | 'P3' | 'P4' | 'P5';
+
+export const PRESUPUESTO_CATEGORIA_LABELS: Record<PresupuestoCategoria, string> = {
+  P1: 'Servicios',
+  P2: 'Partes en servicio',
+  P3: 'Venta de insumos',
+  P4: 'Equipos',
+  P5: 'Contratos',
+};
+
+/**
+ * Deriva la categoría desde el tipo existente (decisión 2026-07-29: sin selector
+ * P1–P5 aparte). `partes` es el único ambiguo: P2 si las partes son para un
+ * servicio (lo que piden las ingenieras vía portal), P3 si son venta de insumos.
+ */
+export function categoriaFromTipoPresupuesto(
+  tipo: TipoPresupuesto,
+  destinoPartes?: 'servicio' | 'venta',
+): PresupuestoCategoria {
+  switch (tipo) {
+    case 'servicio': return 'P1';
+    case 'partes': return destinoPartes === 'venta' ? 'P3' : 'P2';
+    case 'consumibles': return 'P3';
+    case 'ventas': return 'P4';
+    case 'contrato': return 'P5';
+    case 'mixto': return 'P1'; // legado, no creable desde la UI
+  }
+}
+
+/** `P2-005001-01` — base SIEMPRE a 6 dígitos, revisión a 2. */
+export function formatPresupuestoNumero(categoria: PresupuestoCategoria, base: number, revision = 1): string {
+  return `${categoria}-${String(base).padStart(6, '0')}-${String(revision).padStart(2, '0')}`;
+}
+
 export const MONEDA_PRESUPUESTO_LABELS: Record<MonedaPresupuesto, string> = {
   USD: 'Dólares (USD)',
   ARS: 'Pesos (ARS)',
@@ -1524,8 +1567,10 @@ export interface VentasMetadata {
 // --- Presupuestos ---
 export interface Presupuesto {
   id: string;
-  numero: string; // PRE-0000 (generado automáticamente)
+  numero: string; // Nuevo: P{n}-NNNNNN-RR (desde 005001); legado: PRE-XXXX.NN
   tipo: TipoPresupuesto;
+  /** Categoría P1–P5 derivada del tipo al crear (2026-07-29). Legados (PRE-) no la tienen. */
+  categoria?: PresupuestoCategoria | null;
   moneda: MonedaPresupuesto;
   clienteId: string; // CUIT o LEGACY-xxx
   establecimientoId?: string | null;
