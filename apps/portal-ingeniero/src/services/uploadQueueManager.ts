@@ -43,6 +43,7 @@ class UploadQueueManager {
   private listeners = new Set<Listener>();
   private state: ManagerState = { pending: [], online: navigator.onLine, draining: false };
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeat: ReturnType<typeof setInterval> | null = null;
   private started = false;
 
   start(): void {
@@ -50,6 +51,17 @@ class UploadQueueManager {
     this.started = true;
     window.addEventListener('online', this.handleOnline);
     window.addEventListener('offline', this.handleOffline);
+    // Latido de rescate: navigator.onLine puede quedar en false ESPURIO (cambio
+    // wifi↔datos, PWA en background) sin que el evento 'online' llegue nunca —
+    // la cola quedaba congelada "esperando red" con conexión real (UAT 2026-07-29:
+    // subió la primera foto y el resto quedó eterno). Mientras haya pendientes,
+    // cada 25s re-lee onLine e intenta drenar IGUAL: si de verdad no hay red,
+    // el intento falla rápido y entra al backoff normal.
+    this.heartbeat = setInterval(() => {
+      if (this.state.pending.length === 0 || this.state.draining) return;
+      this.setState({ online: navigator.onLine });
+      void this.tick(true);
+    }, 25_000);
     void this.refresh();
     void this.tick();
   }
@@ -60,6 +72,7 @@ class UploadQueueManager {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
     if (this.timer) clearTimeout(this.timer);
+    if (this.heartbeat) { clearInterval(this.heartbeat); this.heartbeat = null; }
   }
 
   subscribe(listener: Listener): () => void {
@@ -221,9 +234,11 @@ class UploadQueueManager {
     await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
   }
 
-  /** Toma una foto en estado 'queued' y la sube. Reagenda si quedan más. */
-  private async tick(): Promise<void> {
-    if (!this.state.online || this.state.draining) return;
+  /** Toma una foto en estado 'queued' y la sube. Reagenda si quedan más.
+   *  `force`: intenta aunque navigator.onLine diga false (latido de rescate). */
+  private async tick(force = false): Promise<void> {
+    if (this.state.draining) return;
+    if (!this.state.online && !force) return;
     const next = (await uploadQueueDB.getQueued())[0];
     if (!next) return;
 
@@ -235,6 +250,9 @@ class UploadQueueManager {
       await this.uploadOne(next);
       await uploadQueueDB.remove(next.id);
       success = true;
+      // Un upload exitoso PRUEBA que hay red — corrige un onLine=false espurio
+      // para que el banner y los ticks encadenados no queden en "esperando red".
+      this.setState({ online: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const intentos = next.intentos + 1;
