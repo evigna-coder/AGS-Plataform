@@ -3,6 +3,7 @@ import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoSer
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { RichTextEditor } from '../ui/RichTextEditor';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
@@ -162,18 +163,18 @@ export const PresupuestoItemsTable = ({
         )}
       </Card>
 
+      {/* RichTextEditor (no textarea): el contenido es HTML del editor — un textarea
+          mostraba los tags crudos y no daba herramientas de formato (UAT 2026-07-29). */}
       <Card compact>
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Notas tecnicas</h3>
-        <textarea value={notasTecnicas} onChange={(e) => onNotasTecnicasChange(e.target.value)}
-          rows={3} placeholder="Notas tecnicas, observaciones..."
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500" />
+        <RichTextEditor value={notasTecnicas} onChange={onNotasTecnicasChange}
+          placeholder="Notas tecnicas, observaciones..." minHeight={100} />
       </Card>
 
       <Card compact>
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Condiciones comerciales</h3>
-        <textarea value={condicionesComerciales} onChange={(e) => onCondicionesChange(e.target.value)}
-          rows={3} placeholder="Condiciones comerciales, forma de pago, etc..."
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500" />
+        <RichTextEditor value={condicionesComerciales} onChange={onCondicionesChange}
+          placeholder="Condiciones comerciales, forma de pago, etc..." minHeight={100} />
       </Card>
 
       {showWizard && (
