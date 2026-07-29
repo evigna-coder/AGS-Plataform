@@ -13,7 +13,8 @@ import {
   getUserTicketAreas,
   canViewAllTickets,
 } from '@ags/shared';
-import { leadsService, usuariosService } from '../../services/firebaseService';
+import { leadsService, usuariosService, sistemasService } from '../../services/firebaseService';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -49,6 +50,8 @@ export const LeadsList = () => {
   const [finalizarLead, setFinalizarLead] = useState<Lead | null>(null);
   const [quickNoteLead, setQuickNoteLead] = useState<Lead | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
+  const [sistemas, setSistemas] = useState<Array<{ id: string; establecimientoId?: string | null }>>([]);
+  const sufijoEstab = useEstablecimientoSuffix();
 
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
@@ -81,7 +84,14 @@ export const LeadsList = () => {
 
   useEffect(() => {
     usuariosService.getAll().then(setUsuarios);
+    // Cacheado (serviceCache) — para derivar el establecimiento del ticket vía sistemaId.
+    sistemasService.getAll().then(setSistemas).catch(err => console.error('Error cargando sistemas:', err));
   }, []);
+
+  const estabPorSistema = useMemo(
+    () => new Map(sistemas.map(s => [s.id, s.establecimientoId ?? null])),
+    [sistemas],
+  );
 
   // Build Firestore query filters (stable ref via JSON key)
   const queryFilters = useMemo(() => {
@@ -388,7 +398,7 @@ export const LeadsList = () => {
                               <span className="block text-[9px] font-mono text-slate-400 leading-tight truncate">{lead.numero}</span>
                             )}
                             <span className="block text-xs font-semibold text-teal-600 hover:text-teal-800 truncate">
-                              {lead.razonSocial}
+                              {lead.razonSocial}{sufijoEstab(lead.clienteId, lead.sistemaId ? estabPorSistema.get(lead.sistemaId) : null)}
                             </span>
                           </Link>
                         </td>

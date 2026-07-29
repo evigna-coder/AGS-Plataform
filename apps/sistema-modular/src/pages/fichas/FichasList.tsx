@@ -13,6 +13,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
 /**
  * Resumen del problema reportado en la ficha — toma el descripcionProblema del
@@ -49,6 +50,7 @@ const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tr
 export function FichasList() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const sufijoEstab = useEstablecimientoSuffix();
   // v2: agregamos columnas Modelo y Serie — bump invalida el cache localStorage
   // que guardaba widths/aligns para 7 columnas (ahora son 9).
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('fichas-list-v2');
@@ -213,7 +215,7 @@ export function FichasList() {
                     <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                       <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>
-                    <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={f.clienteNombre}>{f.clienteNombre}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={`${f.clienteNombre}${sufijoEstab(f.clienteId, f.establecimientoId)}`}>{f.clienteNombre}{sufijoEstab(f.clienteId, f.establecimientoId)}</td>
                     <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={summarizeItems(f)}>
                       {summarizeItems(f) || <span className="text-slate-300">—</span>}
                     </td>

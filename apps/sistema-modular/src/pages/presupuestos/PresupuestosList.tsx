@@ -4,6 +4,7 @@ import { ordenesCompraClienteService } from '../../services/ordenesCompraCliente
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import type { Presupuesto, PresupuestoEstado, Cliente, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente, WorkOrder } from '@ags/shared';
@@ -65,6 +66,7 @@ export const PresupuestosList = () => {
   const floatingPres = useFloatingPresupuesto();
   const { navigateInActiveTab } = useTabs();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('presupuestos-list');
+  const sufijoEstab = useEstablecimientoSuffix();
 
   // Aviso a facturación 1-click desde la fila (UAT 2026-07-17): agrupa TODAS las
   // OTs cerradas pendientes del ppto en una solicitud, sin pasar por la OT.
@@ -532,8 +534,8 @@ export const PresupuestosList = () => {
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                         <span className="font-semibold text-teal-600 text-[10px]">{p.numero}</span>
                       </td>
-                      <td className={`px-3 py-2 text-[10px] text-slate-700 truncate max-w-[140px] ${getAlignClass(1)}`} title={getClienteNombre(p.clienteId)}>
-                        {getClienteNombre(p.clienteId)}
+                      <td className={`px-3 py-2 text-[10px] text-slate-700 truncate max-w-[140px] ${getAlignClass(1)}`} title={`${getClienteNombre(p.clienteId)}${sufijoEstab(p.clienteId, p.establecimientoId)}`}>
+                        {getClienteNombre(p.clienteId)}{sufijoEstab(p.clienteId, p.establecimientoId)}
                       </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(2)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_PRESUPUESTO_COLORS[p.tipo || 'servicio']}`}>

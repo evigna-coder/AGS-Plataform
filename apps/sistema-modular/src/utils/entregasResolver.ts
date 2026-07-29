@@ -40,6 +40,7 @@ export interface EntregaRow {
   itemId: string;
   clienteId: string;
   clienteNombre: string;
+  establecimientoId: string | null;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
@@ -72,7 +73,7 @@ export interface EntregaRow {
 }
 
 export interface BuildEntregaRowsInput {
-  presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'estado' | 'items' | 'fechaAceptacion'>>;
+  presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'establecimientoId' | 'estado' | 'items' | 'fechaAceptacion'>>;
   requerimientos: RequerimientoCompra[];
   ordenesCompra: Array<{ id: string; numero: string; estado?: string | null; items: Array<{ id: string; requerimientoId?: string | null }> }>;
   importaciones: Array<Pick<Importacion, 'id' | 'numero' | 'estado' | 'items'>>;
@@ -202,6 +203,7 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         itemId: item.id ?? `${ppto.id}::${rows.length}`,
         clienteId: ppto.clienteId,
         clienteNombre,
+        establecimientoId: ppto.establecimientoId ?? null,
         descripcion: item.descripcion,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,

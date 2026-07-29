@@ -6,6 +6,7 @@ import type { ColAlign } from '../../hooks/useResizableColumns';
 import { OTStatusBadge } from './OTStatusBadge';
 import { OTReporteButton } from './OTReporteButton';
 import type { GroupedOT } from '../../hooks/useOTListData';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { fechaLocalYMD, formatFechaAR } from '../../utils/formatFecha';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -18,7 +19,12 @@ const formatDate = (value: unknown): string => {
   return ymd ? formatFechaAR(ymd) : '—';
 };
 
-interface CellCtx { isItem: boolean; sistemaNombre: string; }
+interface CellCtx {
+  isItem: boolean;
+  sistemaNombre: string;
+  /** " (Establecimiento)" si el cliente tiene >1 activo — ver useEstablecimientoSuffix. */
+  sufijoEstab?: (clienteId?: string | null, establecimientoId?: string | null) => string;
+}
 
 interface DataColumn {
   /** Índice lógico estable (para ocultar/mostrar). 1-based; 0 = checkbox. */
@@ -38,7 +44,7 @@ export const OT_DATA_COLUMNS: DataColumn[] = [
       ? <span className="text-xs text-teal-500 pl-2"><span className="text-slate-300 mr-1">└</span>{ot.otNumber}</span>
       : <span className="font-semibold text-teal-600 text-xs">{ot.otNumber}</span> },
   { idx: 2, label: 'Cliente', field: 'razonSocial', width: 150,
-    render: (ot, { isItem }) => <span className="text-xs text-slate-700">{isItem ? '' : ot.razonSocial}</span> },
+    render: (ot, { isItem, sufijoEstab }) => <span className="text-xs text-slate-700">{isItem ? '' : <>{ot.razonSocial}{sufijoEstab?.(ot.clienteId, ot.establecimientoId) ?? ''}</>}</span> },
   { idx: 3, label: 'Sistema', field: 'sistema', width: 120,
     render: (ot, { isItem, sistemaNombre }) => <span className="text-xs text-slate-600">{isItem ? '' : (sistemaNombre || ot.sistema || '—')}</span> },
   { idx: 4, label: 'Id Equipo', field: 'codigoInternoCliente', width: 110,
@@ -100,6 +106,7 @@ export const OTListTable: React.FC<Props> = ({
   tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden,
   toggleCol, showAllCols,
 }) => {
+  const sufijoEstab = useEstablecimientoSuffix();
   // Columnas de datos visibles (las ocultas se filtran por idx lógico).
   const visibleCols = OT_DATA_COLUMNS.filter(c => !isHidden(c.idx));
   const hasHidden = OT_DATA_COLUMNS.some(c => isHidden(c.idx));
@@ -175,7 +182,7 @@ export const OTListTable: React.FC<Props> = ({
             const sistema = sistemas.find(s => s.id === ot.sistemaId);
             const isParent = !ot.otNumber.includes('.');
             const parentWithItems = isParent && hasItems;
-            const ctx: CellCtx = { isItem, sistemaNombre: sistema?.nombre || '' };
+            const ctx: CellCtx = { isItem, sistemaNombre: sistema?.nombre || '', sufijoEstab };
             return (
               <tr key={ot.otNumber}
                 className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'}`}

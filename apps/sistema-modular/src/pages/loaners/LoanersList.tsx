@@ -14,6 +14,7 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
 const FILTER_SCHEMA = {
   estado: { type: 'string' as const, default: '' },
@@ -30,6 +31,7 @@ function diasPrestamo(fechaSalida: string): number {
 export function LoanersList() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const sufijoEstab = useEstablecimientoSuffix();
   // 'v2': al agregar la columna "Modelo modulo" (8 cols), los anchos persistidos de la
   // versión de 7 columnas empujaban "Acciones" fuera de la tabla. La key nueva descarta
   // esos anchos viejos (mismo patrón que importaciones-list-v2).
@@ -213,7 +215,7 @@ export function LoanersList() {
                         )}
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(6)}`}>
-                        {prestamo ? prestamo.clienteNombre : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
+                        {prestamo ? `${prestamo.clienteNombre}${sufijoEstab(prestamo.clienteId, prestamo.establecimientoId)}` : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useConsumos, ORIGEN_CONSUMO_LABELS, ORIGEN_CONSUMO_COLORS } from '../../hooks/useConsumos';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { matchesSearch } from '../../utils/searchTerms';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -26,6 +27,7 @@ export const ConsumosPage = () => {
   const { rows, clientes, sistemas, loading } = useConsumos();
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [busq, setBusq] = useDebouncedUrlText(filters.busqueda, v => setFilter('busqueda', v));
+  const sufijoEstab = useEstablecimientoSuffix();
 
   const filtered = useMemo(() => {
     const q = filters.busqueda.trim();
@@ -142,7 +144,7 @@ export const ConsumosPage = () => {
                         </Link>
                       ) : <span className="text-[10px] text-slate-300">—</span>}
                     </td>
-                    <td className={`${td} text-slate-600 truncate max-w-[160px]`}>{r.clienteNombre || <span className="text-[10px] text-slate-300">—</span>}</td>
+                    <td className={`${td} text-slate-600 truncate max-w-[160px]`}>{r.clienteNombre ? <>{r.clienteNombre}{sufijoEstab(r.clienteId, r.establecimientoId)}</> : <span className="text-[10px] text-slate-300">—</span>}</td>
                     <td className={`${td} text-slate-600 max-w-[160px]`}>
                       <span className="block truncate">{r.sistemaNombre || <span className="text-[10px] text-slate-300">—</span>}</span>
                       {r.sistemaCodigoInterno && <span className="block text-[10px] font-mono text-slate-400 truncate">ID: {r.sistemaCodigoInterno}</span>}

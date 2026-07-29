@@ -8,6 +8,7 @@ import type { EntregaItemPatch } from '../../hooks/useEntregas';
 import { ordenesCompraService } from '../../services/firebaseService';
 import { proveedoresService } from '../../services/personalService';
 import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenCompraPDF';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
 interface Props {
   row: Row;
@@ -35,6 +36,7 @@ const formatMoney = (n: number, m: 'USD' | 'ARS' | 'EUR' | null): string => {
 };
 
 export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) => {
+  const sufijoEstab = useEstablecimientoSuffix();
   const [otDraft, setOtDraft] = useState(row.otNumeroVinculada ?? '');
   const [fechaDraft, setFechaDraft] = useState((row.fechaComprometida ?? '').slice(0, 10));
   const [saving, setSaving] = useState(false);
@@ -83,8 +85,8 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
 
   return (
     <tr className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${nested ? 'bg-slate-50/60' : ''}`}>
-      <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]">
-        {row.clienteNombre}
+      <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]" title={`${row.clienteNombre}${sufijoEstab(row.clienteId, row.establecimientoId)}`}>
+        {row.clienteNombre}{sufijoEstab(row.clienteId, row.establecimientoId)}
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[220px]" title={row.descripcion}>
         {row.descripcion}
