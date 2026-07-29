@@ -39,7 +39,8 @@ export function itemDescripcion(it: ItemFicha, motivo: string, parentSubId?: str
     parentSubId ? `(de ${parentSubId})` : null,
   ].filter(Boolean) as string[];
   const equipo = partes.join(' · ') || it.subId;
-  return `${equipo} · ${motivo}`;
+  const qty = (it.cantidad ?? 1) > 1 ? `${it.cantidad} × ` : '';
+  return `${qty}${equipo} · ${motivo}`;
 }
 
 interface Args {

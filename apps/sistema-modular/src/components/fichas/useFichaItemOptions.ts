@@ -28,6 +28,8 @@ export interface ItemFichaDraft {
   moduloId: string;
   descripcionLibre: string;
   serie: string;
+  /** Como string para permitir el input vacío mientras se tipea; se materializa ≥1. */
+  cantidad: string;
   descripcionProblema: string;
 }
 
@@ -42,6 +44,7 @@ export const newItemDraft = (): ItemFichaDraft => ({
   moduloId: '',
   descripcionLibre: '',
   serie: '',
+  cantidad: '1',
   descripcionProblema: '',
 });
 
@@ -58,6 +61,7 @@ export const draftFromItem = (it: ItemFicha): ItemFichaDraft => ({
   moduloId: it.moduloId ?? '',
   descripcionLibre: it.descripcionLibre ?? '',
   serie: it.serie ?? '',
+  cantidad: String(it.cantidad ?? 1),
   descripcionProblema: it.descripcionProblema ?? '',
 });
 
@@ -68,6 +72,7 @@ export const draftIdentityFields = (d: ItemFichaDraft) => ({
   articuloDescripcion: d.articuloDescripcion.trim() || null,
   descripcionLibre: d.descripcionLibre.trim() || null,
   serie: d.serie.trim() || null,
+  cantidad: Math.max(1, Math.floor(Number(d.cantidad)) || 1),
   sistemaId: d.sistemaId || null,
   moduloId: d.moduloId || null,
 });

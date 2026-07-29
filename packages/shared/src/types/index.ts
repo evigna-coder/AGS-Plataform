@@ -3703,6 +3703,8 @@ export interface ItemFicha {
   articuloDescripcion?: string | null;
   descripcionLibre?: string | null;
   serie?: string | null;
+  /** Unidades recibidas de este item (ej. 3 trampas de purga). Ausente/null = 1. */
+  cantidad?: number | null;
   // --- Vínculo al equipo del cliente (si el item es un módulo ya cargado en un sistema) ---
   sistemaId?: string | null;
   moduloId?: string | null;

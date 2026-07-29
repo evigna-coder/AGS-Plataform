@@ -68,7 +68,7 @@ export function FichaItemDraftFields({
             <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Código: {draft.articuloCodigo}</p>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_80px] gap-2">
           <Input
             label="Descripción libre (si no está en catálogo)"
             value={draft.descripcionLibre}
@@ -79,6 +79,14 @@ export function FichaItemDraftFields({
             label="N° de serie"
             value={draft.serie}
             onChange={e => onField(idx, 'serie', e.target.value)}
+          />
+          <Input
+            label="Cantidad"
+            type="number"
+            min={1}
+            value={draft.cantidad}
+            onChange={e => onField(idx, 'cantidad', e.target.value)}
+            onFocus={e => e.currentTarget.select()}
           />
         </div>
         {errorId && <p className="text-[10px] text-red-500">{errorId}</p>}

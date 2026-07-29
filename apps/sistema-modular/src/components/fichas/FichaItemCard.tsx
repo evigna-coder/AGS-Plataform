@@ -71,6 +71,7 @@ export function FichaItemCard({ ficha, item, canDelete, defaultExpanded = false,
           </div>
           <p className="text-sm text-slate-800 mt-0.5 truncate">
             {titulo}
+            {(item.cantidad ?? 1) > 1 && <span className="font-semibold text-teal-700"> × {item.cantidad}</span>}
             {codigo && <span className="text-slate-500 font-mono"> · {codigo}</span>}
             {serie && <span className="text-slate-400 font-mono"> · S/N {serie}</span>}
           </p>
