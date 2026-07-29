@@ -58,7 +58,11 @@ async function getNextFichaNumber(): Promise<string> {
       if (v > max) max = v;
     }
   });
-  return `FPC-${String(max + 1).padStart(4, '0')}`;
+  // 7 dígitos: continúa la numeración del sistema viejo (FPC-0002133, …) —
+  // MISMO criterio que fichasService de sistema-modular (decisión 2026-07-20).
+  // Estaba en 4 y las fichas creadas desde el portal salían "FPC-2134" sin los
+  // ceros (drift detectado 2026-07-29).
+  return `FPC-${String(max + 1).padStart(7, '0')}`;
 }
 
 export interface CreateFichaInput {
