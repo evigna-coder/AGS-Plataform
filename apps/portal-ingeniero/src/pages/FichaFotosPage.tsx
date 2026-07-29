@@ -31,17 +31,19 @@ function ListaFichas() {
   const navigate = useNavigate();
   const [fichas, setFichas] = useState<FichaPropiedad[] | null>(null);
   const [demorado, setDemorado] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
   const [reintento, setReintento] = useState(0);
 
   useEffect(() => {
     setDemorado(false);
-    // Si en 8s no llegó ni el snapshot de caché, Firestore está trabado
-    // (lock de IndexedDB por doble instancia PWA+Safari en iOS, o sin red):
-    // mostrar salida en vez de spinner mudo (UAT 2026-07-29).
+    setErrorDetalle(null);
+    // Si en 8s no llegó ni el snapshot de caché, Firestore está trabado:
+    // mostrar salida en vez de spinner mudo. Si la suscripción ERRA, mostrar
+    // el detalle técnico en pantalla (diagnóstico sin F12 — UAT 2026-07-29).
     const timer = setTimeout(() => setDemorado(true), 8_000);
     const unsub = fichasPropiedadService.subscribeActivas(
       items => { clearTimeout(timer); setDemorado(false); setFichas(items); },
-      () => { clearTimeout(timer); setDemorado(true); },
+      err => { clearTimeout(timer); setDemorado(true); setErrorDetalle(err?.message || String(err)); },
     );
     return () => { clearTimeout(timer); unsub(); };
   }, [reintento]);
@@ -53,9 +55,15 @@ function ListaFichas() {
         {demorado && (
           <>
             <p className="text-xs text-slate-500">
-              La carga está tardando demasiado. Si tenés el portal abierto en la app Y en Safari
-              a la vez, cerrá una de las dos — en iPhone se bloquean entre sí.
+              {errorDetalle
+                ? 'La carga falló con este error:'
+                : 'La carga está tardando demasiado (sin respuesta de la base). Puede ser la red, o el portal abierto en la app y en Safari a la vez.'}
             </p>
+            {errorDetalle && (
+              <p className="text-[11px] font-mono text-red-600 break-words max-w-full bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {errorDetalle}
+              </p>
+            )}
             <Button variant="outline" onClick={() => setReintento(n => n + 1)}>Reintentar</Button>
           </>
         )}
@@ -115,14 +123,16 @@ function CapturaFichaFotos({ fichaId }: { fichaId: string }) {
   const [ficha, setFicha] = useState<FichaPropiedad | null | undefined>(undefined);
   const [momento, setMomento] = useState<MomentoFotoFicha>('ingreso');
   const [demorado, setDemorado] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
   const [reintento, setReintento] = useState(0);
 
   useEffect(() => {
     setDemorado(false);
+    setErrorDetalle(null);
     const timer = setTimeout(() => setDemorado(true), 8_000);
     fichasPropiedadService.getById(fichaId)
       .then(f => { clearTimeout(timer); setFicha(f); })
-      .catch(() => { clearTimeout(timer); setDemorado(true); });
+      .catch(err => { clearTimeout(timer); setDemorado(true); setErrorDetalle(err?.message || String(err)); });
     return () => clearTimeout(timer);
   }, [fichaId, reintento]);
 
@@ -133,9 +143,15 @@ function CapturaFichaFotos({ fichaId }: { fichaId: string }) {
         {demorado && (
           <>
             <p className="text-xs text-slate-500">
-              La carga está tardando demasiado. Si tenés el portal abierto en la app Y en Safari
-              a la vez, cerrá una de las dos — en iPhone se bloquean entre sí.
+              {errorDetalle
+                ? 'La carga falló con este error:'
+                : 'La carga está tardando demasiado (sin respuesta de la base). Puede ser la red, o el portal abierto en la app y en Safari a la vez.'}
             </p>
+            {errorDetalle && (
+              <p className="text-[11px] font-mono text-red-600 break-words max-w-full bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {errorDetalle}
+              </p>
+            )}
             <Button variant="outline" onClick={() => setReintento(n => n + 1)}>Reintentar</Button>
           </>
         )}
