@@ -268,7 +268,10 @@ export function useSearchableSelect({
 
   const handleSearchChange = useCallback((val: string) => {
     setSearchTerm(val);
-    setHighlightedIndex(-1);
+    // Al tipear, auto-resaltar la PRIMERA coincidencia (UAT 2026-07-28: "tipeo el
+    // código y Enter no selecciona nada — hay que bajar con la flecha"). Con el
+    // término vacío no se resalta nada, como antes.
+    setHighlightedIndex(val.trim() ? 0 : -1);
   }, []);
 
   const open = useCallback(() => {
