@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Articulo, Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 
 const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
@@ -65,6 +66,20 @@ export const ArticuloEditor = () => {
   const [proveedorIds, setProveedorIds] = useState<string[]>([]);
   const [posicionArancelaria, setPosicionArancelaria] = useState('');
   const [tratamiento, setTratamiento] = useState<TratamientoArancelario>({});
+  const pa = usePosicionArancelariaPicker(true);
+  // Elegir del catálogo copia código + tributos (editables); texto libre solo el código.
+  const handlePosicionArancelaria = (v: string) => {
+    const match = pa.findByCodigo(v);
+    if (match) {
+      setPosicionArancelaria(match.codigo);
+      setTratamiento({ ...match.tratamiento });
+      setArancelOpen(true);
+    } else {
+      const formatted = formatPosicionArancelaria(v);
+      setPosicionArancelaria(formatted);
+      if (formatted) setArancelOpen(true);
+    }
+  };
   const [notas, setNotas] = useState('');
   const [arancelOpen, setArancelOpen] = useState(false);
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -208,18 +223,9 @@ export const ArticuloEditor = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Posicion arancelaria</label>
-              <input
-                type="text"
-                value={posicionArancelaria}
-                onChange={e => {
-                  const formatted = formatPosicionArancelaria(e.target.value);
-                  setPosicionArancelaria(formatted);
-                  if (formatted) setArancelOpen(true);
-                }}
-                placeholder="9027.90.90.900A"
-                maxLength={17}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono tracking-wider"
-              />
+              <SearchableSelect value={posicionArancelaria} onChange={handlePosicionArancelaria}
+                options={pa.options} placeholder="Buscar en el catálogo..."
+                creatable createLabel="Usar código" />
             </div>
           </div>
           {posicionArancelaria.trim() && (

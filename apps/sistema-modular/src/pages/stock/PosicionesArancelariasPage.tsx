@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { posicionesArancelariasService } from '../../services/firebaseService';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
+import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -27,6 +30,12 @@ const emptyForm: FormState = {
 
 const parseNum = (v: string): number | null => (v.trim() === '' ? null : Number(v));
 const fmtNum = (v: number | null | undefined): string => (v != null ? String(v) : '');
+/** Display de la tabla: valor con símbolo % (los inputs de edición siguen sin símbolo). */
+const fmtPct = (v: number | null | undefined): string => (v != null ? `${v}%` : '');
+
+const FILTER_SCHEMA = {
+  q: { type: 'string' as const, default: '' },
+};
 
 /** Auto-format SIM tariff code: 9027.90.99.999A → NNNN.NN.NN.NNNA */
 const formatCodigoSIM = (raw: string): string => {
@@ -84,7 +93,15 @@ export const PosicionesArancelariasPage = () => {
     const s = toggleSort(f, sortField, sortDir);
     setSortField(s.field); setSortDir(s.dir);
   };
-  const sorted = useMemo(() => sortByField(items, sortField, sortDir), [items, sortField, sortDir]);
+  // Buscador por código/descripción/notas — input responsivo, filtro debounced vía URL.
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const [busq, setBusq] = useDebouncedUrlText(filters.q, v => setFilter('q', v));
+  const sorted = useMemo(() => {
+    const q = filters.q.trim();
+    // El código sin puntos también entra al haystack: "90279090" corrido matchea.
+    const list = q ? items.filter(p => matchesSearch(q, p.codigo, p.codigo.replace(/\./g, ''), p.descripcion, p.notas)) : items;
+    return sortByField(list, sortField, sortDir);
+  }, [items, filters.q, sortField, sortDir]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -152,7 +169,7 @@ export const PosicionesArancelariasPage = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Posiciones Arancelarias" subtitle="Catalogo de posiciones y tratamientos arancelarios" count={items.length}
+      <PageHeader title="Posiciones Arancelarias" subtitle="Catalogo de posiciones y tratamientos arancelarios" count={sorted.length}
         actions={<Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>}>
         {showCreate && (
           <Card>
@@ -181,7 +198,13 @@ export const PosicionesArancelariasPage = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 flex flex-col px-5 pb-4">
-        <div className="flex justify-end py-2 shrink-0">
+        <div className="flex items-center justify-between py-2 shrink-0">
+          <input
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
+            placeholder="Buscar por código o descripción..."
+            className="w-72 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
@@ -190,8 +213,10 @@ export const PosicionesArancelariasPage = () => {
 
         {loading ? (
           <div className="flex justify-center py-12"><p className="text-xs text-slate-400">Cargando...</p></div>
-        ) : items.length === 0 ? (
-          <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay posiciones arancelarias registradas.</p></div></Card>
+        ) : sorted.length === 0 ? (
+          <Card><div className="text-center py-8"><p className="text-xs text-slate-400">
+            {filters.q ? 'Sin resultados para la búsqueda.' : 'No hay posiciones arancelarias registradas.'}
+          </p></div></Card>
         ) : (
           <div className="flex-1 min-h-0 overflow-auto bg-white rounded-xl border border-slate-200 shadow-sm">
             <table className="w-full">
@@ -236,12 +261,12 @@ const ViewRow: React.FC<{
   <>
     <td className="text-xs py-2 px-3 font-medium text-slate-900 font-mono">{p.codigo}</td>
     <td className="text-xs py-2 px-3 text-slate-700 max-w-[200px] truncate">{p.descripcion}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.derechoImportacion)}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.estadistica)}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.iva)}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ivaAdicional)}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ganancias)}</td>
-    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ingresosBrutos)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.derechoImportacion)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.estadistica)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.iva)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.ivaAdicional)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.ganancias)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtPct(p.tratamiento?.ingresosBrutos)}</td>
     <td className="text-xs py-2 px-3 text-center">
       <div className="flex justify-end gap-2">
         <button onClick={onEdit} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>

@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import { articulosService, marcasService, proveedoresService } from '../../services/firebaseService';
+import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
 interface Props {
@@ -85,6 +86,14 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
   }, [form.codigo]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const pa = usePosicionArancelariaPicker(open);
+  // Elegir del catálogo copia código + tributos (editables); texto libre solo el código.
+  const handlePosicionArancelaria = (v: string) => {
+    const match = pa.findByCodigo(v);
+    if (match) setForm(prev => ({ ...prev, posicionArancelaria: match.codigo, tratamiento: { ...match.tratamiento } }));
+    else set('posicionArancelaria', formatPosicionArancelaria(v));
+  };
   const toggleProveedor = (pid: string) =>
     setForm(prev => ({
       ...prev,
@@ -255,10 +264,9 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             <div className="mt-3 space-y-3">
               <div className="max-w-xs">
                 <label className={lbl}>Posicion arancelaria</label>
-                <input type="text" value={form.posicionArancelaria}
-                  onChange={e => set('posicionArancelaria', formatPosicionArancelaria(e.target.value))}
-                  placeholder="9027.90.90.900A" maxLength={17}
-                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <SearchableSelect value={form.posicionArancelaria} onChange={handlePosicionArancelaria}
+                  options={pa.options} placeholder="Buscar en el catálogo..." size="sm"
+                  creatable createLabel="Usar código" />
               </div>
               {form.posicionArancelaria.trim() && (
                 <div className="grid grid-cols-3 gap-3">

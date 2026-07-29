@@ -2,6 +2,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useEditArticuloForm, formatPA } from '../../hooks/useEditArticuloForm';
+import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 import { EquivalenciaSection } from './EquivalenciaSection';
 import { PresentacionesSection } from './PresentacionesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
@@ -33,6 +34,19 @@ const section = "text-[9px] font-mono font-semibold text-teal-700/70 uppercase t
 
 export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, onSaved }) => {
   const h = useEditArticuloForm(open, articuloId, onClose, onSaved);
+  const pa = usePosicionArancelariaPicker(open);
+
+  // Elegir del catálogo copia el código Y los tributos (editables después);
+  // texto libre (creatable) solo setea el código formateado, sin tocar tributos.
+  const handlePosicionArancelaria = (v: string) => {
+    const match = pa.findByCodigo(v);
+    if (match) {
+      h.set('posicionArancelaria', match.codigo);
+      h.set('tratamiento', { ...match.tratamiento });
+    } else {
+      h.set('posicionArancelaria', formatPA(v));
+    }
+  };
 
   if (h.loading) return <Modal open={open} onClose={h.handleClose} title="Editar articulo"><p className="text-slate-400 text-xs py-8 text-center">Cargando...</p></Modal>;
 
@@ -152,12 +166,11 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
         </button>
         {h.comexOpen && (
           <div className="space-y-2.5 pl-4">
-            <div className="max-w-[200px]">
+            <div className="max-w-[280px]">
               <label className={lbl}>Pos. arancelaria</label>
-              <input type="text" value={h.form.posicionArancelaria}
-                onChange={e => h.set('posicionArancelaria', formatPA(e.target.value))}
-                placeholder="9027.90.90.900A" maxLength={17}
-                className={`${inputCls} font-mono tracking-wider`} />
+              <SearchableSelect value={h.form.posicionArancelaria} onChange={handlePosicionArancelaria}
+                options={pa.options} placeholder="Buscar en el catálogo..." size="sm"
+                creatable createLabel="Usar código" />
             </div>
             {h.form.posicionArancelaria.trim() && (
               <div className="grid grid-cols-3 gap-2">
