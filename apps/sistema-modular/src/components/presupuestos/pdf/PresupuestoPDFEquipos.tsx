@@ -4,9 +4,8 @@ import './pdfFonts';
 import {
   PDFHeader,
   PDFClienteInfo,
-  PDFNotasTecnicas,
   PDFCondiciones,
-  PDFFirma,
+  PDFConformidad,
   PDFFooter,
   VentasMetadataBlock,
 } from './PresupuestoPDFEstandar';
@@ -86,11 +85,11 @@ export function PresupuestoPDFEquipos({ data }: { data: PresupuestoPDFData }) {
         </Page>
       )}
 
-      {/* Última página: bloques de texto templados + firma */}
+      {/* Última página: bloques de texto templados + conformidad/firma.
+          Las notas técnicas salen adentro de PDFCondiciones (primera sección). */}
       <Page size="A4" style={S.page}>
-        <PDFNotasTecnicas data={data} />
         <PDFCondiciones data={data} />
-        <PDFFirma />
+        <PDFConformidad />
         <PDFFooter />
       </Page>
     </Document>

@@ -403,29 +403,17 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-/** Notas técnicas en la PRIMERA hoja (pedido del user: el contexto técnico del trabajo
- *  debe verse junto a los items, no enterrado en la página de condiciones). */
-export function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
-  const { presupuesto } = data;
-  const visible = (presupuesto.seccionesVisibles || {}).notasTecnicas !== false;
-  if (!visible || !presupuesto.notasTecnicas) return null;
-  return (
-    // Sin wrap={false}: una nota larga debe CONTINUAR en la página siguiente, no
-    // quedar cortada al fondo de la hoja 1 (UAT 2026-07-29, "lo pone incompleto").
-    <View style={[S.condicionSection, { marginTop: 10 }]}>
-      <Text style={S.condicionTitle}>NOTAS TÉCNICAS:</Text>
-      <PDFRichText html={presupuesto.notasTecnicas} fallbackStyle={S.condicionText} />
-    </View>
-  );
-}
-
 export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
 
-  const sections: { key: string; title: string; content: string | null | undefined }[] = [
-    // notasTecnicas NO va acá: sale en la PRIMERA hoja (PDFNotasTecnicas), junto a los items.
-    { key: 'notasAdministrativas', title: 'NOTAS ADMINISTRATIVAS:', content: presupuesto.notasAdministrativas },
+  // largo: las secciones de texto extenso pueden CONTINUAR en la página siguiente
+  // (wrap) en vez de quedar recortadas al fondo; las cortas van enteras (wrap=false).
+  const sections: { key: string; title: string; content: string | null | undefined; largo?: boolean }[] = [
+    // Pedido 2026-07-29: notas técnicas juntas con el resto, todas en la hoja de
+    // condiciones — el presupuesto (items) queda separado de los textos.
+    { key: 'notasTecnicas', title: 'NOTAS TÉCNICAS:', content: presupuesto.notasTecnicas, largo: true },
+    { key: 'notasAdministrativas', title: 'NOTAS ADMINISTRATIVAS:', content: presupuesto.notasAdministrativas, largo: true },
     { key: 'garantia', title: 'GARANTÍA:', content: presupuesto.garantia },
     { key: 'variacionTipoCambio', title: 'VARIACIÓN DEL TIPO DE CAMBIO:', content: presupuesto.variacionTipoCambio },
     { key: 'condicionesComerciales', title: 'CONDICIONES COMERCIALES:', content: presupuesto.condicionesComerciales },
@@ -442,7 +430,7 @@ export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   return (
     <View>
       {visibleSections.map((section) => (
-        <View key={section.key} style={S.condicionSection} wrap={false}>
+        <View key={section.key} style={S.condicionSection} wrap={!!section.largo}>
           <Text style={S.condicionTitle}>{section.title}</Text>
           <PDFRichText html={section.content} fallbackStyle={S.condicionText} />
         </View>
@@ -451,17 +439,58 @@ export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-export function PDFFirma() {
+/** Bloque de conformidad + firma al final de las condiciones (antes era la hoja 3;
+ *  el campo firma/fecha simple de la hoja de condiciones se eliminó — pedido
+ *  2026-07-29, junto con "Lugar de recepción de la Factura"). */
+export function PDFConformidad() {
   return (
-    <View style={S.firmaSection} wrap={false}>
-      <View style={S.firmaBlock}>
-        <Text style={S.firmaLabel}>Fecha</Text>
-        <View style={S.firmaLine} />
+    <View wrap={false} style={{ marginTop: 16 }}>
+      <View style={{
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        padding: 12,
+        borderRadius: 4,
+        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: COLORS.primaryLight,
+          marginRight: 8,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Text style={{ color: COLORS.white, fontSize: 10, fontWeight: 'bold' }}>✓</Text>
+        </View>
+        <Text style={{ fontSize: 7, color: COLORS.text, flex: 1 }}>
+          Para que la orden de compra sea aceptada, las condiciones de pago deberán ser las
+          mismas que las que se definen en el presente presupuesto.
+        </Text>
       </View>
-      <View style={S.firmaBlock}>
-        <Text style={S.firmaLabel}>Firma</Text>
-        <View style={S.firmaLine} />
-        <Text style={S.firmaSubLabel}>Aclaración</Text>
+
+      <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.text, marginBottom: 16 }}>
+        Doy conformidad para efectuar el servicio descripto en el presente presupuesto.
+      </Text>
+
+      {/* Fecha */}
+      <View style={{ flexDirection: 'row', marginBottom: 16, alignItems: 'center' }}>
+        <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, width: 60 }}>Fecha</Text>
+        <View style={{ flex: 0.4, borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 20 }} />
+      </View>
+
+      {/* Firma + Aclaración */}
+      <View style={{ flexDirection: 'row', gap: 30 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, marginBottom: 4 }}>Firma</Text>
+          <View style={{ borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 40 }} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, marginBottom: 4 }}>Aclaración</Text>
+          <View style={{ borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 40 }} />
+        </View>
       </View>
     </View>
   );
@@ -509,75 +538,14 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
         )}
 
         <PDFTotals data={data} />
-        <PDFNotasTecnicas data={data} />
         <PDFFooter />
       </Page>
 
-      {/* Página 2: Condiciones */}
+      {/* Página 2: Notas + Condiciones + Conformidad/Firma — SIEMPRE separada de los
+          items (arranca en página nueva aunque los items ocupen 1 o 2 hojas). */}
       <Page size="A4" style={S.page}>
         <PDFCondiciones data={data} />
-        <PDFFirma />
-        <PDFFooter />
-      </Page>
-
-      {/* Página 3: Conformidad + Firma detallada */}
-      <Page size="A4" style={S.page}>
-        <View style={{
-          borderWidth: 1,
-          borderColor: COLORS.primary,
-          padding: 12,
-          borderRadius: 4,
-          marginBottom: 20,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}>
-          <View style={{
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            backgroundColor: COLORS.primaryLight,
-            marginRight: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <Text style={{ color: COLORS.white, fontSize: 10, fontWeight: 'bold' }}>✓</Text>
-          </View>
-          <Text style={{ fontSize: 7, color: COLORS.text, flex: 1 }}>
-            Para que la orden de compra sea aceptada, las condiciones de pago deberán ser las
-            mismas que las que se definen en el presente presupuesto.
-          </Text>
-        </View>
-
-        <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.text, marginBottom: 20 }}>
-          Doy conformidad para efectuar el servicio descripto en el presente presupuesto.
-        </Text>
-
-        {/* Fecha */}
-        <View style={{ flexDirection: 'row', marginBottom: 20, alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, width: 60 }}>Fecha</Text>
-          <View style={{ flex: 0.4, borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 20 }} />
-        </View>
-
-        {/* Firma + Aclaración */}
-        <View style={{ flexDirection: 'row', marginBottom: 20, gap: 30 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, marginBottom: 4 }}>Firma</Text>
-            <View style={{ borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 40 }} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, marginBottom: 4 }}>Aclaración</Text>
-            <View style={{ borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 40 }} />
-          </View>
-        </View>
-
-        {/* Lugar de recepción */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, width: 160 }}>
-            Lugar de recepción de la Factura
-          </Text>
-          <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: COLORS.text, height: 20 }} />
-        </View>
-
+        <PDFConformidad />
         <PDFFooter />
       </Page>
     </Document>
