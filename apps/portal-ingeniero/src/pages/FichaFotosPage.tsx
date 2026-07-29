@@ -30,13 +30,37 @@ function itemTitulo(it: ItemFicha): string {
 function ListaFichas() {
   const navigate = useNavigate();
   const [fichas, setFichas] = useState<FichaPropiedad[] | null>(null);
+  const [demorado, setDemorado] = useState(false);
+  const [reintento, setReintento] = useState(0);
 
   useEffect(() => {
-    return fichasPropiedadService.subscribeActivas(setFichas);
-  }, []);
+    setDemorado(false);
+    // Si en 8s no llegó ni el snapshot de caché, Firestore está trabado
+    // (lock de IndexedDB por doble instancia PWA+Safari en iOS, o sin red):
+    // mostrar salida en vez de spinner mudo (UAT 2026-07-29).
+    const timer = setTimeout(() => setDemorado(true), 8_000);
+    const unsub = fichasPropiedadService.subscribeActivas(
+      items => { clearTimeout(timer); setDemorado(false); setFichas(items); },
+      () => { clearTimeout(timer); setDemorado(true); },
+    );
+    return () => { clearTimeout(timer); unsub(); };
+  }, [reintento]);
 
   if (fichas === null) {
-    return <div className="min-h-[40vh] flex items-center justify-center"><Spinner /></div>;
+    return (
+      <div className="min-h-[40vh] flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <Spinner />
+        {demorado && (
+          <>
+            <p className="text-xs text-slate-500">
+              La carga está tardando demasiado. Si tenés el portal abierto en la app Y en Safari
+              a la vez, cerrá una de las dos — en iPhone se bloquean entre sí.
+            </p>
+            <Button variant="outline" onClick={() => setReintento(n => n + 1)}>Reintentar</Button>
+          </>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -90,13 +114,33 @@ function CapturaFichaFotos({ fichaId }: { fichaId: string }) {
   const navigate = useNavigate();
   const [ficha, setFicha] = useState<FichaPropiedad | null | undefined>(undefined);
   const [momento, setMomento] = useState<MomentoFotoFicha>('ingreso');
+  const [demorado, setDemorado] = useState(false);
+  const [reintento, setReintento] = useState(0);
 
   useEffect(() => {
-    void fichasPropiedadService.getById(fichaId).then(setFicha);
-  }, [fichaId]);
+    setDemorado(false);
+    const timer = setTimeout(() => setDemorado(true), 8_000);
+    fichasPropiedadService.getById(fichaId)
+      .then(f => { clearTimeout(timer); setFicha(f); })
+      .catch(() => { clearTimeout(timer); setDemorado(true); });
+    return () => clearTimeout(timer);
+  }, [fichaId, reintento]);
 
   if (ficha === undefined) {
-    return <div className="min-h-[40vh] flex items-center justify-center"><Spinner /></div>;
+    return (
+      <div className="min-h-[40vh] flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <Spinner />
+        {demorado && (
+          <>
+            <p className="text-xs text-slate-500">
+              La carga está tardando demasiado. Si tenés el portal abierto en la app Y en Safari
+              a la vez, cerrá una de las dos — en iPhone se bloquean entre sí.
+            </p>
+            <Button variant="outline" onClick={() => setReintento(n => n + 1)}>Reintentar</Button>
+          </>
+        )}
+      </div>
+    );
   }
   if (ficha === null) {
     return (
