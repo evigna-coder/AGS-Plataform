@@ -3,6 +3,7 @@ import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPre
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
+import { PresupuestoAddItemCompleto } from './PresupuestoAddItemCompleto';
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ interface Props {
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow }: Props) => {
   const [showWizard, setShowWizard] = useState(false);
+  const [showCompleto, setShowCompleto] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +81,11 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Items</span>
-        <Button ref={addBtnRef} size="sm" onClick={() => setShowWizard(true)}>+ Agregar artículo</Button>
+        <div className="flex items-center gap-2">
+          {/* Ambos enfoques conviven (pedido 2026-07-29): wizard rápido + form completo. */}
+          <Button variant="outline" size="sm" onClick={() => setShowCompleto(true)}>Carga completa</Button>
+          <Button ref={addBtnRef} size="sm" onClick={() => setShowWizard(true)}>+ Agregar artículo</Button>
+        </div>
       </div>
       {showWizard && (
         <PresupuestoAddItemWizard
@@ -88,6 +94,15 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
+        />
+      )}
+      {showCompleto && (
+        <PresupuestoAddItemCompleto
+          conceptosServicio={conceptosServicio}
+          categoriasPresupuesto={categoriasPresupuesto}
+          moneda={moneda}
+          onAdd={addFromWizard}
+          onClose={() => setShowCompleto(false)}
         />
       )}
 

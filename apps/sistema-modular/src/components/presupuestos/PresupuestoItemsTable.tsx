@@ -5,6 +5,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { RichTextEditor } from '../ui/RichTextEditor';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
+import { PresupuestoAddItemCompleto } from './PresupuestoAddItemCompleto';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import { GroupRows, TotalsFooter } from './PresupuestoItemsTableParts';
@@ -61,6 +62,7 @@ export const PresupuestoItemsTable = ({
   itemsByGrupo, getGrupo, renderSubRow,
 }: PresupuestoItemsTableProps) => {
   const [showWizard, setShowWizard] = useState(false);
+  const [showCompleto, setShowCompleto] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -133,6 +135,8 @@ export const PresupuestoItemsTable = ({
                 if (etaDiasEstimados !== null) onUpdateItem(it.id, 'etaDiasEstimados', etaDiasEstimados);
               });
             }} />
+            {/* Ambos enfoques conviven (pedido 2026-07-29): wizard rápido + form completo. */}
+            <Button variant="outline" size="sm" onClick={() => setShowCompleto(true)}>Carga completa</Button>
             <Button ref={addBtnRef} onClick={openAdd} size="sm">+ Agregar artículo</Button>
           </div>
         </div>
@@ -184,6 +188,15 @@ export const PresupuestoItemsTable = ({
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
+        />
+      )}
+      {showCompleto && (
+        <PresupuestoAddItemCompleto
+          conceptosServicio={conceptosServicio}
+          categoriasPresupuesto={categoriasPresupuesto}
+          moneda={moneda}
+          onAdd={addFromWizard}
+          onClose={() => setShowCompleto(false)}
         />
       )}
     </div>
