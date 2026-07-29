@@ -43,6 +43,12 @@ try {
 
 export { db };
 export const storage = getStorage(app);
+// Fail-fast en uploads: el default del SDK reintenta hasta 10 min ante errores
+// transitorios → la cola de fotos quedaba "Sincronizando…" eterna sin reportar
+// el error real (UAT 2026-07-29). Con 30s, el intento falla, la cola muestra
+// lastError en el banner y reintenta con su propio backoff.
+storage.maxUploadRetryTime = 30_000;
+storage.maxOperationRetryTime = 15_000;
 
 // Cloud Functions (callable). Misma región que functions/src (southamerica-east1).
 export const functions = getFunctions(app, 'southamerica-east1');
