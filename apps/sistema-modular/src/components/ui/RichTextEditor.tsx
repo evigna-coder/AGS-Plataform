@@ -19,6 +19,46 @@ const FONT_SIZES = [
 type BtnId = 'bold' | 'italic' | 'underline' | 'insertUnorderedList' | 'insertOrderedList'
   | 'justifyLeft' | 'justifyCenter' | 'justifyRight';
 
+// ── Sanitizado del pegado ─────────────────────────────────────────────────────
+// Pegar desde Word/mail/web traía font-size, font-family y colores del origen y
+// las notas quedaban gigantes en el presupuesto (UAT 2026-07-27). Se conserva SOLO
+// estructura editable (negrita/cursiva/subrayado, listas, saltos de línea); todo
+// tamaño/fuente/color se descarta → el texto pegado queda en el tamaño estándar
+// de las notas, y después se puede reformatear con la toolbar.
+const PASTE_KEEP_TAGS: Record<string, string> = {
+  B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', UL: 'ul', OL: 'ol', LI: 'li', BR: 'br',
+};
+const PASTE_BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TR', 'TABLE', 'TBODY', 'THEAD', 'SECTION', 'ARTICLE', 'BLOCKQUOTE', 'PRE']);
+const PASTE_DROP_TAGS = new Set(['STYLE', 'SCRIPT', 'HEAD', 'META', 'TITLE', 'IMG']);
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function serializePastedNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent ?? '');
+  if (node.nodeType !== Node.ELEMENT_NODE) return '';
+  const el = node as Element;
+  if (PASTE_DROP_TAGS.has(el.tagName)) return '';
+  const inner = Array.from(el.childNodes).map(serializePastedNode).join('');
+  const keep = PASTE_KEEP_TAGS[el.tagName];
+  if (keep) return keep === 'br' ? '<br>' : `<${keep}>${inner}</${keep}>`;
+  // Bloques (párrafos, títulos, filas de tabla) → div pelado: conserva el corte de
+  // línea pero pierde el estilo. También cuentan como bloque los elementos inline
+  // que el origen separa SOLO por CSS (spans con display:block o position:absolute,
+  // típico de copiar desde un visor de PDF) — si se desenvolvieran, las líneas
+  // quedarían pegadas sin espacio (UAT 2026-07-29, notas técnicas "6890Servicios…").
+  const style = el.getAttribute('style') || '';
+  const esBloquePorCss = /display\s*:\s*(block|flex|grid)|position\s*:\s*(absolute|fixed)/i.test(style);
+  if (PASTE_BLOCK_TAGS.has(el.tagName) || esBloquePorCss) return inner ? `<div>${inner}</div>` : '';
+  // Celdas de tabla: inline, pero separadas por un espacio para no pegar contenidos.
+  if (el.tagName === 'TD' || el.tagName === 'TH') return inner ? `${inner} ` : '';
+  return inner;
+}
+
+function sanitizePastedHtml(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return serializePastedNode(doc.body);
+}
+
 const TOOLBAR_BUTTONS: { id: BtnId; label: string; title: string; className?: string }[] = [
   { id: 'bold', label: 'B', title: 'Negrita (Ctrl+B)', className: 'font-bold' },
   { id: 'italic', label: 'I', title: 'Cursiva (Ctrl+I)', className: 'italic' },
@@ -107,6 +147,18 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
     updateActiveFormats();
   }, [emitChange, updateActiveFormats]);
 
+  // Pegar SIEMPRE normalizado al formato estándar (ver sanitizePastedHtml arriba).
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const html = e.clipboardData.getData('text/html');
+    if (html) {
+      document.execCommand('insertHTML', false, sanitizePastedHtml(html));
+    } else {
+      document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+    }
+    emitChange();
+  }, [emitChange]);
+
   const handleKeyUp = useCallback(() => {
     saveSelection();
     updateActiveFormats();
@@ -186,6 +238,7 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
+          onPaste={handlePaste}
           onKeyUp={handleKeyUp}
           onMouseUp={handleMouseUp}
           onBlur={saveSelection}
