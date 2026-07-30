@@ -81,48 +81,47 @@ export default function LoanersPage() {
       {filtered.length === 0 ? (
         <p className="text-center text-sm text-slate-400 py-12">
           {loaners.length === 0
-            ? 'No hay loaners en cliente ni en recalificación'
+            ? 'No hay loaners cargados'
             : 'Sin resultados para la búsqueda'}
         </p>
       ) : (
         <ul className="space-y-2">
           {filtered.map(l => {
             const enCliente = l.estado === 'en_cliente';
+            const enRecalificacion = l.estado === 'en_recalificacion';
             const prestamo = enCliente ? prestamoActivo(l) : ultimoPrestamoDevuelto(l);
-            const body = (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-mono text-sm font-semibold text-teal-700">{l.codigo}</p>
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
-                    {ESTADO_LOANER_LABELS[l.estado]}
-                  </span>
-                </div>
-                <p className="text-sm text-slate-800 mt-1 truncate">{moduloResumen(l)}</p>
-                <p className="text-xs text-slate-500 truncate">
-                  {l.serie ? `SN ${l.serie}` : 'Sin serie'}
-                  {prestamo ? ` · ${prestamo.clienteNombre}` : ''}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  {enCliente
-                    ? `Salida ${formatDate(prestamo?.fechaSalida)}`
-                    : `Devuelto ${formatDate(prestamo?.fechaRetornoReal)} · pendiente de RQ`}
-                </p>
-              </>
-            );
+            const fotosIniciales = (l.fotos ?? []).filter(f => f.contexto === 'general').length;
             return (
               <li key={l.id}>
-                {enCliente ? (
-                  <button
-                    onClick={() => navigate(`/loaners/${l.id}`)}
-                    className="w-full text-left bg-white border border-slate-200 rounded-xl px-3 py-3 hover:border-teal-400 active:bg-slate-50"
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <div className="w-full bg-white border border-purple-100 rounded-xl px-3 py-3 opacity-80">
-                    {body}
+                {/* Toda tarjeta navega al detalle (antes solo en_cliente y el resto
+                    quedaba muerto — no se podían cargar las fotos iniciales). */}
+                <button
+                  onClick={() => navigate(`/loaners/${l.id}`)}
+                  className={`w-full text-left bg-white border rounded-xl px-3 py-3 hover:border-teal-400 active:bg-slate-50 ${
+                    enRecalificacion ? 'border-purple-100' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-sm font-semibold text-teal-700">{l.codigo}</p>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
+                      {ESTADO_LOANER_LABELS[l.estado]}
+                    </span>
                   </div>
-                )}
+                  <p className="text-sm text-slate-800 mt-1 truncate">{moduloResumen(l)}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {l.serie ? `SN ${l.serie}` : 'Sin serie'}
+                    {prestamo ? ` · ${prestamo.clienteNombre}` : ''}
+                  </p>
+                  <p className={`text-[10px] mt-1 ${fotosIniciales === 0 && !enCliente && !enRecalificacion ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                    {enCliente
+                      ? `Salida ${formatDate(prestamo?.fechaSalida)}`
+                      : enRecalificacion
+                        ? `Devuelto ${formatDate(prestamo?.fechaRetornoReal)} · pendiente de RQ`
+                        : fotosIniciales === 0
+                          ? 'Sin fotos iniciales — tocá para cargarlas'
+                          : `${fotosIniciales} foto${fotosIniciales === 1 ? '' : 's'} iniciales`}
+                  </p>
+                </button>
               </li>
             );
           })}
