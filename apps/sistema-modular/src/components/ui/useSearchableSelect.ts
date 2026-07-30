@@ -243,8 +243,13 @@ export function useSearchableSelect({
         // antes (UAT: "tengo que poder escribir con solo pararme en el buscador").
         if (!isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
           setIsOpen(true);
-          setSearchTerm(e.key);
-          if (inputRef.current) inputRef.current.value = e.key;
+          // Si el foco YA está en el input (loop de teclado de la carga completa
+          // enfoca el buscador programáticamente), la inserción nativa escribe el
+          // caracter sola — sembrarlo acá lo DUPLICABA ("v" → "vv", UAT 2026-07-30).
+          if (e.target !== inputRef.current) {
+            setSearchTerm(e.key);
+            if (inputRef.current) inputRef.current.value = e.key;
+          }
         }
         break;
     }
