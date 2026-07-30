@@ -4,7 +4,7 @@ import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import type { SelectedCell } from '../../utils/agendaDateUtils';
 
-const ESTADO_ORDER: EstadoAgenda[] = ['pendiente', 'tentativo', 'confirmado', 'en_progreso', 'completado', 'cancelado'];
+const ESTADO_ORDER: EstadoAgenda[] = ['pendiente', 'tentativo', 'tentativo_interior', 'confirmado', 'confirmado_interior', 'en_progreso', 'completado', 'cancelado'];
 
 interface AgendaInfoBarProps {
   selectedCell: SelectedCell | null;
