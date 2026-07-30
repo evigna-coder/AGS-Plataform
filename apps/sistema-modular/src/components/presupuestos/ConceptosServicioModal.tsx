@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { conceptosServicioService, categoriasPresupuestoService } from '../../services/firebaseService';
 import type { ConceptoServicio, CategoriaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ConceptoServicioForm, type ConceptoServicioFormData } from './ConceptoServicioForm';
+import { matchesSearch } from '../../utils/searchTerms';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -21,6 +22,13 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   // form re-renderizaba la tabla completa del catálogo → cada letra demoraba).
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ConceptoServicio | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+  // "Editar" desde una fila baja en la lista: llevar la vista al formulario
+  // (el form se renderiza arriba de la tabla — pedido 2026-07-30).
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [showForm, editing]);
 
   // Factor global
   const [showFactor, setShowFactor] = useState(false);
@@ -63,34 +71,54 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   // Map precalculado — antes era un .find() POR FILA (O(n×m) en cada render).
   const catNombreById = useMemo(() => new Map(categorias.map(c => [c.id, c.nombre])), [categorias]);
   const getCatNombre = (id?: string | null) => (id && catNombreById.get(id)) || '—';
+
+  const conceptosFiltrados = useMemo(() => {
+    const q = busqueda.trim();
+    if (!q) return conceptos;
+    return conceptos.filter(c => matchesSearch(q, c.codigo, c.descripcion, getCatNombre(c.categoriaPresupuestoId)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceptos, busqueda, catNombreById]);
   const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide";
 
   return (
     <>
-      <Modal open={open} onClose={() => { resetForm(); onClose(); }} title="Conceptos de servicio" subtitle={`${conceptos.length} conceptos`} maxWidth="2xl">
+      <Modal open={open} onClose={() => { resetForm(); onClose(); }} title="Conceptos de servicio"
+        subtitle={busqueda.trim() ? `${conceptosFiltrados.length} de ${conceptos.length} conceptos` : `${conceptos.length} conceptos`} maxWidth="2xl">
         <div className="space-y-3">
-          {!showForm && (
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setShowFactor(true)}>Actualizar factor</Button>
-              <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo concepto</Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por código, descripción o categoría…"
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            {!showForm && (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setShowFactor(true)}>Actualizar factor</Button>
+                <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo concepto</Button>
+              </>
+            )}
+          </div>
 
           {showForm && (
-            <ConceptoServicioForm
-              key={editing?.id ?? 'nuevo'}
-              initial={editing}
-              categorias={categorias}
-              saving={saving}
-              onSave={handleSave}
-              onCancel={resetForm}
-            />
+            <div ref={formRef}>
+              <ConceptoServicioForm
+                key={editing?.id ?? 'nuevo'}
+                initial={editing}
+                categorias={categorias}
+                saving={saving}
+                onSave={handleSave}
+                onCancel={resetForm}
+              />
+            </div>
           )}
 
           {loading ? (
             <p className="text-center text-slate-400 text-xs py-6">Cargando...</p>
-          ) : conceptos.length === 0 ? (
-            <p className="text-center text-slate-400 text-xs py-6">No hay conceptos de servicio</p>
+          ) : conceptosFiltrados.length === 0 ? (
+            <p className="text-center text-slate-400 text-xs py-6">
+              {conceptos.length === 0 ? 'No hay conceptos de servicio' : 'Sin resultados para la búsqueda'}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -107,7 +135,7 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {conceptos.map(c => {
+                  {conceptosFiltrados.map(c => {
                     const precio = c.valorBase * c.factorActualizacion;
                     return (
                       <tr key={c.id} className="hover:bg-slate-50">
