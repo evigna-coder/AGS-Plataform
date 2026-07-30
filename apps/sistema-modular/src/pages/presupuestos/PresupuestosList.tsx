@@ -27,6 +27,10 @@ import { SolicitarFacturaModal } from '../../components/presupuestos/SolicitarFa
 import { AdjuntarOCModal } from '../../components/presupuestos/AdjuntarOCModal';
 import { CargarOCModal } from '../../components/presupuestos/CargarOCModal';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
+import { CreateContratoModal } from '../../components/contratos/CreateContratoModal';
+import { contratosService } from '../../services/contratosService';
+import type { Contrato } from '@ags/shared';
+import { Link } from 'react-router-dom';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -60,6 +64,9 @@ export const PresupuestosList = () => {
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
   const [descargandoPdfId, setDescargandoPdfId] = useState<string | null>(null);
+  // Pestaña Contratos: puente P5→Contrato (2026-07-30)
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [contratoTarget, setContratoTarget] = useState<Presupuesto | null>(null);
   // Target presupuesto para el nuevo modal de FLOW-02 "Cargar OC" (se activa solo en estado aceptado).
   const [cargarOCTarget, setCargarOCTarget] = useState<Presupuesto | null>(null);
   // OCs previas del cliente del cargarOCTarget — resuelto async al abrir.
@@ -108,6 +115,9 @@ export const PresupuestosList = () => {
   };
 
   const FILTER_SCHEMA = useMemo(() => ({
+    // Pestaña (2026-07-30): '' = presupuestos comerciales (SIN los de contrato,
+    // para que no se mezclen) | 'contratos' = solo tipo contrato (P5).
+    vista:       { type: 'string' as const,  default: '' },
     search:      { type: 'string' as const,  default: '' },
     cliente:     { type: 'string' as const,  default: '' },
     estado:      { type: 'string' as const,  default: '' },
@@ -134,6 +144,21 @@ export const PresupuestosList = () => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
+
+  // Contratos existentes → saber qué P5 ya tienen contrato creado (pestaña Contratos).
+  const loadContratos = () => {
+    contratosService.getAll()
+      .then(setContratos)
+      .catch(err => console.error('Error cargando contratos:', err));
+  };
+  useEffect(() => {
+    if (filters.vista === 'contratos') loadContratos();
+  }, [filters.vista]);
+  const contratoPorPpto = useMemo(
+    () => new Map(contratos.filter(c => c.presupuestoId).map(c => [c.presupuestoId as string, c])),
+    [contratos],
+  );
+  const CONTRATO_CREABLE = new Set(['aceptado', 'en_ejecucion', 'pendiente_facturacion', 'finalizado']);
 
   const unsubRef = useRef<(() => void) | null>(null);
   const unsubSolRef = useRef<(() => void) | null>(null);
@@ -233,8 +258,16 @@ export const PresupuestosList = () => {
     // requieren acción comercial — finalizados y los enviados a facturación (aviso
     // generado, en manos de Administración). Se ven eligiendo el estado en el
     // filtro o clickeando los KPIs (UAT 2026-07-18).
-    const vistaBasica = !filters.estado && !filters.kpi && !filters.ocPendiente && !filters.ocTrabajoRealizado;
+    const enVistaContratos = filters.vista === 'contratos';
+    const vistaBasica = !enVistaContratos && !filters.estado && !filters.kpi && !filters.ocPendiente && !filters.ocTrabajoRealizado;
     let result = presupuestos.filter(p => {
+      // Pestaña Contratos: solo P5. Pestaña principal: sin P5 (no se mezclan),
+      // salvo que el usuario pida tipo=contrato explícito en el dropdown.
+      if (enVistaContratos) {
+        if (p.tipo !== 'contrato') return false;
+      } else if (p.tipo === 'contrato' && filters.tipo !== 'contrato') {
+        return false;
+      }
       if (vistaBasica) {
         if (p.estado === 'finalizado') return false;
         if (p.estado === 'pendiente_facturacion' && solicitudSets.activas.has(p.id)) return false;
@@ -403,6 +436,18 @@ export const PresupuestosList = () => {
           </div>
         }>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Pestañas (2026-07-30): los P5 (contratos) se trabajan aparte, no se
+              mezclan con el flujo comercial. */}
+          <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+            <button type="button" onClick={() => setFilter('vista', '')}
+              className={`px-3 py-1.5 text-xs font-medium ${!filters.vista ? 'bg-teal-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+              Comerciales
+            </button>
+            <button type="button" onClick={() => setFilter('vista', 'contratos')}
+              className={`px-3 py-1.5 text-xs font-medium border-l border-slate-200 ${filters.vista === 'contratos' ? 'bg-teal-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+              Contratos
+            </button>
+          </div>
           <input type="text" placeholder="Buscar por número, cliente..." value={localSearch} onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="min-w-[120px]">
@@ -668,6 +713,29 @@ export const PresupuestosList = () => {
                               </button>
                             </>
                           )}
+                          {/* Pestaña Contratos: puente P5→Contrato — link al contrato
+                              existente, o crear uno precargado desde el presupuesto. */}
+                          {filters.vista === 'contratos' && (() => {
+                            const contrato = contratoPorPpto.get(p.id);
+                            if (contrato) {
+                              return (
+                                <Link to={`/contratos/${contrato.id}`}
+                                  title="Ver contrato"
+                                  className="text-[10px] font-mono font-medium text-purple-600 hover:text-purple-800 px-1.5 py-0.5 rounded hover:bg-purple-50 border border-purple-100">
+                                  {contrato.numero}
+                                </Link>
+                              );
+                            }
+                            if (!isAnulado(p) && CONTRATO_CREABLE.has(p.estado)) {
+                              return (
+                                <button onClick={() => setContratoTarget(p)} title="Crear el contrato a partir de este presupuesto aceptado"
+                                  className="text-[10px] font-medium text-purple-600 hover:text-purple-800 px-1.5 py-0.5 rounded hover:bg-purple-50 border border-purple-100">
+                                  Crear contrato
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           <button onClick={() => handleDescargarPdf(p)} disabled={descargandoPdfId === p.id}
                             title="Descargar PDF"
                             className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100 disabled:opacity-40">
@@ -723,6 +791,14 @@ export const PresupuestosList = () => {
             presupuestoNumero: otTarget.numero,
             ordenCompra: (otTarget as any).ordenCompraNumero || undefined,
           }}
+        />
+      )}
+      {contratoTarget && (
+        <CreateContratoModal
+          open={!!contratoTarget}
+          onClose={() => setContratoTarget(null)}
+          onCreated={() => { setContratoTarget(null); loadContratos(); }}
+          prefill={{ presupuestoId: contratoTarget.id }}
         />
       )}
       {ocTarget && (

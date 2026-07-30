@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { useCreateContratoForm } from '../../hooks/useCreateContratoForm';
+import { useCreateContratoForm, type ContratoPrefill } from '../../hooks/useCreateContratoForm';
 import { TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import type { TipoLimiteContrato } from '@ags/shared';
 
@@ -13,10 +13,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated?: () => void;
+  /** Puente P5→Contrato: precarga cliente/vigencia/equipos desde el presupuesto. */
+  prefill?: ContratoPrefill | null;
 }
 
-export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
-  const h = useCreateContratoForm(open, onClose, onCreated);
+export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated, prefill }) => {
+  const h = useCreateContratoForm(open, onClose, onCreated, prefill);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => h.clientes.map(c => ({ value: c.id, label: c.razonSocial })), [h.clientes]);

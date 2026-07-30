@@ -18,12 +18,22 @@ export interface ContratoFormState {
 const INITIAL_FORM: ContratoFormState = {
   clienteId: '', presupuestoId: '',
   fechaInicio: '', fechaFin: '',
-  tipoLimite: 'visitas', maxVisitas: '10',
+  // Default 'ilimitado' (decisión 2026-07-30: la gran mayoría de los contratos
+  // son ilimitados; los de N visitas se ajustan a mano).
+  tipoLimite: 'ilimitado', maxVisitas: '10',
   serviciosIncluidos: [], sistemaIds: [], notas: '',
 };
 
-export function useCreateContratoForm(open: boolean, onClose: () => void, onCreated?: () => void) {
+/** Prefill del puente P5→Contrato: al aceptar un presupuesto tipo contrato se
+ *  abre este modal PRE-CARGADO desde el presupuesto (cliente, vigencia, equipos
+ *  detallados en los items). Servicios incluidos y límite los confirma el usuario. */
+export interface ContratoPrefill {
+  presupuestoId: string;
+}
+
+export function useCreateContratoForm(open: boolean, onClose: () => void, onCreated?: () => void, prefill?: ContratoPrefill | null) {
   const [saving, setSaving] = useState(false);
+  const [prefillAplicado, setPrefillAplicado] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
@@ -43,6 +53,27 @@ export function useCreateContratoForm(open: boolean, onClose: () => void, onCrea
       setTiposServicio(ts.filter(t => t.activo));
     });
   }, [open]);
+
+  // Puente P5→Contrato: precargar desde el presupuesto aceptado.
+  useEffect(() => {
+    if (!open) { setPrefillAplicado(false); return; }
+    if (!prefill?.presupuestoId || prefillAplicado) return;
+    setPrefillAplicado(true);
+    presupuestosService.getById(prefill.presupuestoId).then(p => {
+      if (!p) return;
+      const sistemaIds = Array.from(new Set(
+        (p.items ?? []).map(i => i.sistemaId).filter((x): x is string => !!x),
+      ));
+      setForm(prev => ({
+        ...prev,
+        clienteId: p.clienteId,
+        presupuestoId: p.id,
+        fechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : prev.fechaInicio,
+        fechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : prev.fechaFin,
+        sistemaIds,
+      }));
+    }).catch(err => console.error('[useCreateContratoForm] prefill desde presupuesto falló:', err));
+  }, [open, prefill?.presupuestoId, prefillAplicado]);
 
   // Filter sistemas and presupuestos by client
   useEffect(() => {
