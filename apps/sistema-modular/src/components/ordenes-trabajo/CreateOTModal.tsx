@@ -68,22 +68,6 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
           )}
         </div>
 
-        {/* Tipo de Servicio */}
-        <div>
-          <label className={lbl}>Tipo de servicio *</label>
-          <SearchableSelect value={h.form.tipoServicioId}
-            onChange={v => h.set('tipoServicioId', v)}
-            options={[
-              ...h.tiposServicio.map(t => ({ value: t.id, label: t.nombre })),
-              // Default de OT entrega cuando el catálogo no tiene un tipo "entrega":
-              // opción sintética para que el select muestre el label del sentinel.
-              ...(h.form.tipoServicioId === TIPO_SERVICIO_ENTREGA_SENTINEL
-                ? [{ value: TIPO_SERVICIO_ENTREGA_SENTINEL, label: TIPO_SERVICIO_ENTREGA_DEFAULT }]
-                : []),
-            ]}
-            placeholder="Seleccionar tipo..." />
-        </div>
-
         {/* Cliente */}
         <div>
           <label className={lbl}>Cliente *</label>
@@ -182,6 +166,23 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
           </div>
         </div>
         )}
+
+        {/* Tipo de Servicio — DESPUÉS de cliente/establecimiento/equipo (pedido
+            2026-07-30: primero se identifica sobre qué se trabaja, después el tipo). */}
+        <div>
+          <label className={lbl}>Tipo de servicio *</label>
+          <SearchableSelect value={h.form.tipoServicioId}
+            onChange={v => h.set('tipoServicioId', v)}
+            options={[
+              ...h.tiposServicio.map(t => ({ value: t.id, label: t.nombre })),
+              // Default de OT entrega cuando el catálogo no tiene un tipo "entrega":
+              // opción sintética para que el select muestre el label del sentinel.
+              ...(h.form.tipoServicioId === TIPO_SERVICIO_ENTREGA_SENTINEL
+                ? [{ value: TIPO_SERVICIO_ENTREGA_SENTINEL, label: TIPO_SERVICIO_ENTREGA_DEFAULT }]
+                : []),
+            ]}
+            placeholder="Seleccionar tipo..." />
+        </div>
 
         {/* Pendientes activas del cliente */}
         <PendientesActivosBanner
