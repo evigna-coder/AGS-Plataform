@@ -181,10 +181,16 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
   for (const ppto of input.presupuestos) {
     const clienteNombre = input.clienteNombreById.get(ppto.clienteId) ?? '—';
     for (const item of (ppto.items ?? [])) {
+      const stockArticuloId = (item as { stockArticuloId?: string | null }).stockArticuloId ?? null;
       const req = (item.id ? reqByItemId.get(item.id) : null)
-        ?? ((item as { stockArticuloId?: string | null }).stockArticuloId
-          ? reqByPptoArticulo.get(`${ppto.id}:${(item as { stockArticuloId?: string | null }).stockArticuloId}`) ?? null
-          : null);
+        ?? (stockArticuloId ? reqByPptoArticulo.get(`${ppto.id}:${stockArticuloId}`) ?? null : null);
+
+      // Entregas = cumplimiento de PARTES físicas (pedido 2026-07-30): los
+      // servicios (items de contratos P5, conceptos de servicio) se coordinan
+      // en la AGENDA, no acá. Solo entran items ligados a un artículo de stock
+      // o con cadena de compra (requerimiento) — el resto se saltea.
+      if (!stockArticuloId && !req) continue;
+
       const oc = req ? ocByReqId.get(req.id) ?? null : null;
       const imp = req ? impByReqId.get(req.id) ?? null : null;
 

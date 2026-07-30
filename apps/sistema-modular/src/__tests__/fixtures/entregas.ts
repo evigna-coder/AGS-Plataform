@@ -50,6 +50,9 @@ export function makeItem(overrides: Partial<PresupuestoItem> = {}): PresupuestoI
     moneda: 'USD',
     disponibilidad: 'a_importar',
     etaDiasEstimados: 30,
+    // Regla 2026-07-30: entregas solo muestra PARTES físicas (stockArticuloId
+    // o cadena de requerimiento) — el fixture representa una parte de stock.
+    stockArticuloId: 'ART-1',
     ...overrides,
   } as PresupuestoItem;
 }
