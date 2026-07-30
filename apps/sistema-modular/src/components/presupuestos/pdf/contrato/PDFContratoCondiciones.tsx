@@ -1,6 +1,7 @@
 import { View, Text } from '@react-pdf/renderer';
 import { cs, T } from './pdfContratoStyles';
 import { fmtDateISO, fmtNum } from './pdfContratoHelpers';
+import { PDFRichText } from '../PDFRichText';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCuotas({ data }: { data: PresupuestoPDFData }) {
@@ -55,7 +56,9 @@ export function PDFContratoCondicionesText({ data }: { data: PresupuestoPDFData 
       {blocks.map(b => (
         <View key={b.key} style={cs.condicionBlock} wrap={false}>
           <Text style={cs.condicionTitle}>{b.title}</Text>
-          <Text style={cs.condicionText}>{b.content}</Text>
+          {/* PDFRichText: el contenido viene del RichTextEditor (HTML) — un <Text>
+              plano imprimía los tags literales (UAT 2026-07-30). */}
+          <PDFRichText html={b.content} fallbackStyle={cs.condicionText} />
         </View>
       ))}
     </View>
