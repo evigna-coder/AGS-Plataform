@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
+import { buildOTCopyPrefill } from '../../hooks/useCreateOTForm';
 import { EditOTModal } from '../../components/ordenes-trabajo/EditOTModal';
 import { TiposServicioModal } from '../../components/ordenes-trabajo/TiposServicioModal';
 import { NewItemOTModal } from '../../components/ordenes-trabajo/NewItemOTModal';
@@ -84,6 +85,8 @@ export const OTList = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [editOtNumber, setEditOtNumber] = useState<string | null>(null);
   const [newItemParent, setNewItemParent] = useState<WorkOrder | null>(null);
+  /** "Copiar OT" (2026-07-30): abre la creación con todos los datos de la OT origen. */
+  const [copySource, setCopySource] = useState<WorkOrder | null>(null);
   const [showTiposServicio, setShowTiposServicio] = useState(false);
 
   // Selección múltiple + acciones masivas (borrar / cambiar estado).
@@ -191,6 +194,7 @@ export const OTList = () => {
             onSort={handleSort}
             onRowClick={handleRowClick}
             onNewItem={setNewItemParent}
+            onCopy={setCopySource}
             onDelete={handleDelete}
             tableRef={tableRef}
             colWidths={colWidths}
@@ -207,6 +211,16 @@ export const OTList = () => {
       </div>
 
       <CreateOTModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={reloadReferenceData} />
+      {/* Copiar OT: instancia aparte montada fresca por copia (el prefill se aplica
+          una sola vez por montaje). */}
+      {copySource && (
+        <CreateOTModal
+          open
+          onClose={() => setCopySource(null)}
+          onCreated={() => { setCopySource(null); reloadReferenceData(); }}
+          prefill={buildOTCopyPrefill(copySource)}
+        />
+      )}
       {editOtNumber && (
         <EditOTModal
           open={!!editOtNumber}

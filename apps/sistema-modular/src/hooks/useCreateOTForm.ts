@@ -65,6 +65,36 @@ export interface OTPrefill {
   ingenieroId?: string;
   /** Precarga de la fecha de servicio ('YYYY-MM-DD'). */
   fechaServicioAprox?: string;
+  // --- Copiar OT (2026-07-30): la OT guarda el NOMBRE del tipo, no el id ---
+  /** Se resuelve contra el catálogo por nombre (case-insensitive) al cargar. */
+  tipoServicioNombre?: string;
+  tipoOT?: TipoOT;
+  contratoId?: string;
+  motivoFacturacion?: '' | 'pendiente' | 'sin_cargo' | 'garantia';
+  problemaFallaInicial?: string;
+  comentarioFacturacion?: string;
+  materialesParaServicio?: string;
+}
+
+/** Arma el prefill de "Copiar OT" desde una OT existente (pedido 2026-07-30):
+ *  se arrastra todo lo re-editable; número, fecha de servicio y ticket NO se copian. */
+export function buildOTCopyPrefill(ot: WorkOrder): OTPrefill {
+  return {
+    tipoOT: ot.tipoOT ?? 'servicio',
+    clienteId: ot.clienteId || undefined,
+    establecimientoId: ot.establecimientoId || undefined,
+    sistemaId: ot.sistemaId || undefined,
+    moduloId: ot.moduloId || undefined,
+    tipoServicioNombre: ot.tipoServicio || undefined,
+    ingenieroId: ot.ingenieroAsignadoId || undefined,
+    presupuestoNumero: ot.budgets?.[0] || undefined,
+    ordenCompra: ot.ordenCompra || undefined,
+    contratoId: ot.contratoId || undefined,
+    motivoFacturacion: ot.esSinCargo ? 'sin_cargo' : ot.esGarantia ? 'garantia' : (ot.presupuestoPendiente ? 'pendiente' : undefined),
+    problemaFallaInicial: ot.problemaFallaInicial || undefined,
+    comentarioFacturacion: ot.comentarioFacturacion || undefined,
+    materialesParaServicio: ot.materialesParaServicio || undefined,
+  };
 }
 
 /** `onCreated` recibe el número de la OT creada (los callers que no lo necesitan lo ignoran). */
@@ -155,8 +185,21 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     if (prefill.tipoServicioId) updates.tipoServicioId = prefill.tipoServicioId;
     if (prefill.ingenieroId) updates.ingenieroId = prefill.ingenieroId;
     if (prefill.fechaServicioAprox) updates.fechaServicioAprox = prefill.fechaServicioAprox;
+    // Copiar OT: campos extra + resolución del tipo por NOMBRE (la OT guarda el
+    // string literal; el select del modal trabaja con ids del catálogo).
+    if (prefill.tipoOT) updates.tipoOT = prefill.tipoOT;
+    if (prefill.contratoId) updates.contratoId = prefill.contratoId;
+    if (prefill.motivoFacturacion) updates.motivoFacturacion = prefill.motivoFacturacion;
+    if (prefill.problemaFallaInicial) updates.problemaFallaInicial = prefill.problemaFallaInicial;
+    if (prefill.comentarioFacturacion) updates.comentarioFacturacion = prefill.comentarioFacturacion;
+    if (prefill.materialesParaServicio) updates.materialesParaServicio = prefill.materialesParaServicio;
+    if (prefill.tipoServicioNombre && !prefill.tipoServicioId) {
+      const norm = prefill.tipoServicioNombre.trim().toLowerCase();
+      const match = tiposServicio.find(t => t.nombre.trim().toLowerCase() === norm);
+      if (match) updates.tipoServicioId = match.id;
+    }
     setForm(prev => ({ ...prev, ...updates }));
-  }, [open, prefill, prefilled, clientes]);
+  }, [open, prefill, prefilled, clientes, tiposServicio]);
 
   // OT de entrega → precargar tipo de servicio "Entrega de insumos" (UAT 2026-07-17).
   // Guarda el valor que autopusimos NOSOTROS para poder limpiarlo al volver a
