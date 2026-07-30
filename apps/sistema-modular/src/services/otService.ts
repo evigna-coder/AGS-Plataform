@@ -124,6 +124,11 @@ export const ordenesTrabajoService = {
   /** Obtener solo OTs activas/pendientes (para agenda sidebar). Mucho más rápido que getAll(). */
   async getPending(): Promise<WorkOrder[]> {
     const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
+    // Corte de go-live de la agenda (pedido 2026-07-30): la cola "para coordinar"
+    // solo considera OTs CREADAS desde esta fecha (arranque de numeración 29779).
+    // Las OTs anteriores (legado del sistema viejo, borradores de campo) quedan
+    // intactas en el resto del sistema — solo dejan de aparecer en coordinación.
+    const AGENDA_PENDING_DESDE = '2026-07-30';
     const [byEstado, byBorrador] = await Promise.all([
       getDocs(query(collection(db, 'reportes'), where('estadoAdmin', 'in', PENDING_ESTADOS))),
       getDocs(query(collection(db, 'reportes'), where('status', '==', 'BORRADOR'))),
@@ -132,10 +137,14 @@ export const ordenesTrabajoService = {
     const results: WorkOrder[] = [];
     for (const snap of [byEstado, byBorrador]) {
       for (const d of snap.docs) {
-        if (!seen.has(d.id)) {
-          seen.add(d.id);
-          results.push({ otNumber: d.id, ...d.data(), updatedAt: d.data().updatedAt || new Date().toISOString() } as WorkOrder);
-        }
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        const data = d.data();
+        const createdIso: string = typeof data.createdAt === 'string'
+          ? data.createdAt
+          : data.createdAt?.toDate?.()?.toISOString?.() ?? '';
+        if (createdIso.slice(0, 10) < AGENDA_PENDING_DESDE) continue;
+        results.push({ otNumber: d.id, ...data, updatedAt: data.updatedAt || new Date().toISOString() } as WorkOrder);
       }
     }
     return results;
