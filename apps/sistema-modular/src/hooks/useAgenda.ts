@@ -59,8 +59,28 @@ export function useAgenda(): UseAgendaReturn {
   // Load engineers (once)
   useEffect(() => {
     ingenierosService.getAll().then(list => {
-      setIngenieros(list.filter(i => i.activo));
+      // Orden de filas pedido por coordinación (2026-07-30) — por apellido;
+      // ingenieros no listados van al final en orden alfabético.
+      const ORDEN_AGENDA = ['failenbogen', 'genovese', 'estevez', 'di marco', 'blain', 'aguirre', 'galarza'];
+      const pos = (nombre: string) => {
+        const n = nombre.toLowerCase();
+        const idx = ORDEN_AGENDA.findIndex(ap => n.includes(ap));
+        return idx === -1 ? ORDEN_AGENDA.length : idx;
+      };
+      setIngenieros(list.filter(i => i.activo).sort((a, b) => {
+        const pa = pos(a.nombre);
+        const pb = pos(b.nombre);
+        return pa !== pb ? pa - pb : a.nombre.localeCompare(b.nombre);
+      }));
     });
+  }, []);
+
+  // OTs con entrada de agenda vigente (SIN rango): la cola "a programar" no
+  // puede descontar con `entries` (solo trae el rango visible) — una OT
+  // agendada meses adelante reaparecía como pendiente (bug UAT 2026-07-30).
+  const [otsAgendadas, setOtsAgendadas] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    return agendaService.subscribeOtNumbersAsignados(setOtsAgendadas);
   }, []);
 
   // Real-time entries subscription — only flash loading on first load
@@ -112,9 +132,9 @@ export function useAgenda(): UseAgendaReturn {
   // child pendiente en la misma lista — el coordinador solo asigna las OTs
   // "hijas" (X.NN), la parent es un contenedor no-accionable.
   const pendingOTs = useMemo(() => {
-    const assignedOTNumbers = new Set(
-      entries.filter(e => e.estadoAgenda !== 'cancelado').map(e => e.otNumber)
-    );
+    // `otsAgendadas` viene de la suscripción GLOBAL (sin rango) — no usar
+    // `entries` acá: solo trae el rango visible y una OT agendada en otra
+    // semana reaparecía como pendiente (bug UAT 2026-07-30).
     const parentsWithChildren = new Set<string>();
     for (const ot of allCandidateOTs) {
       if (ot.otNumber.includes('.')) {
@@ -123,10 +143,10 @@ export function useAgenda(): UseAgendaReturn {
       }
     }
     return allCandidateOTs.filter(ot =>
-      !assignedOTNumbers.has(ot.otNumber) &&
+      !otsAgendadas.has(ot.otNumber) &&
       !parentsWithChildren.has(ot.otNumber),
     );
-  }, [allCandidateOTs, entries]);
+  }, [allCandidateOTs, otsAgendadas]);
 
   // Navigation
   const goToPrev = useCallback(() => setAnchor(prev => navigatePrev(prev, zoomLevel)), [zoomLevel]);

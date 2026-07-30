@@ -99,6 +99,23 @@ export const agendaService = {
     return snap.docs.map(d => parseAgendaEntry(d));
   },
 
+  /**
+   * Set de otNumbers con entrada de agenda VIGENTE (no cancelada), SIN filtro de
+   * rango. La cola "a programar" no puede descontar usando las entries del rango
+   * visible: una OT agendada meses adelante reaparecía como "sin asignar" al
+   * salir de esa semana (bug UAT 2026-07-30).
+   */
+  subscribeOtNumbersAsignados(callback: (otNumbers: Set<string>) => void): () => void {
+    return onSnapshot(collection(db, 'agendaEntries'), snap => {
+      const s = new Set<string>();
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.otNumber && data.estadoAgenda !== 'cancelado') s.add(data.otNumber);
+      }
+      callback(s);
+    }, err => console.error('agenda otNumbers subscription error:', err));
+  },
+
   async create(data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>): Promise<string> {
     const payload = deepCleanForFirestore({
       ...data,
