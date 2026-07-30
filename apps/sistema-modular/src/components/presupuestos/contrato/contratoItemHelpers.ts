@@ -22,6 +22,94 @@ export function findPlantillaForSistema(
 }
 
 /**
+ * Materializa el Partial que emite la "Carga completa" (PresupuestoAddItemCompleto)
+ * como ítem suelto del contrato: grupo propio, bloque "Otros / Capacitaciones"
+ * (mismo destino que "+ Ítem suelto"). Pedido 2026-07-30: la carga completa debe
+ * estar visible en TODOS los tipos de presupuesto, incluido contrato.
+ */
+export function buildItemSueltoDesdeCargaCompleta(
+  items: PresupuestoItem[],
+  p: Partial<PresupuestoItem>,
+): PresupuestoItem {
+  const grupo = nextGrupoNumber(items);
+  const cantidad = p.cantidad || 1;
+  const precioUnitario = p.precioUnitario || 0;
+  const descuento = p.descuento || 0;
+  const base = cantidad * precioUnitario;
+  return {
+    id: crypto.randomUUID(),
+    codigoProducto: p.codigoProducto ?? '',
+    descripcion: p.descripcion || '',
+    cantidad,
+    unidad: p.unidad || 'servicio',
+    precioUnitario,
+    descuento,
+    factor: p.factor ?? null,
+    categoriaPresupuestoId: p.categoriaPresupuestoId,
+    conceptoServicioId: p.conceptoServicioId ?? null,
+    stockArticuloId: p.stockArticuloId ?? null,
+    itemRequiereImportacion: p.itemRequiereImportacion ?? false,
+    disponibilidad: p.disponibilidad ?? null,
+    etaDiasEstimados: p.etaDiasEstimados ?? null,
+    subtotal: descuento ? base * (1 - descuento / 100) : base,
+    grupo,
+    subItem: `${grupo}.1`,
+    sistemaNombre: 'Otros / Capacitaciones',
+    sectorNombre: '',
+  };
+}
+
+/** Unidad sentinela del ítem de visitas del contrato — el puente P5→Contrato
+ *  la usa para pre-cargar tipoLimite='visitas' + maxVisitas = cantidad. */
+export const UNIDAD_VISITAS_CONTRATO = 'visitas';
+
+/**
+ * Ítem independiente de "visitas del contrato" (pedido 2026-07-30): el cliente
+ * contrata N visitas para TODOS los equipos (en vez de ilimitadas). Va como
+ * bloque propio; la cantidad (editable inline) ES el número de visitas.
+ */
+export function buildItemVisitasContrato(items: PresupuestoItem[]): PresupuestoItem {
+  const grupo = nextGrupoNumber(items);
+  return {
+    id: crypto.randomUUID(),
+    codigoProducto: '',
+    descripcion: 'Visitas incluidas para todos los equipos del contrato',
+    cantidad: 20,
+    unidad: UNIDAD_VISITAS_CONTRATO,
+    precioUnitario: 0,
+    subtotal: 0,
+    grupo,
+    subItem: `${grupo}.1`,
+    sistemaNombre: 'Visitas del contrato',
+    sectorNombre: '',
+  };
+}
+
+/**
+ * Re-compacta los números de grupo a 1..n correlativos (pedido 2026-07-30:
+ * al sacar equipos quedaba "1, 7, 8"). Conserva el orden relativo y reescribe
+ * también el prefijo de los subItems ("7.3" → "2.3"). Los items SIN grupo
+ * (cargados en el alta, antes del editor de contrato) forman el bloque 0 —
+ * también se pliegan a la numeración para que arranque en 1, no en 0.
+ */
+export function renumerarGrupos(items: PresupuestoItem[]): PresupuestoItem[] {
+  const tieneCero = items.some(i => !(i.grupo || 0));
+  const positivos = Array.from(new Set(items.map(i => i.grupo || 0).filter(g => g > 0))).sort((a, b) => a - b);
+  const mapa = new Map<number, number>();
+  let n = 0;
+  if (tieneCero) mapa.set(0, ++n);
+  for (const g of positivos) mapa.set(g, ++n);
+  if (Array.from(mapa).every(([g, nuevo]) => g === nuevo)) return items; // ya correlativos
+  return items.map(i => {
+    const g = i.grupo || 0;
+    const nuevo = mapa.get(g);
+    if (!nuevo || nuevo === g) return i;
+    const subItem = i.subItem ? i.subItem.replace(new RegExp(`^${g}\\.`), `${nuevo}.`) : i.subItem;
+    return { ...i, grupo: nuevo, subItem };
+  });
+}
+
+/**
  * Calcula el siguiente `grupo` disponible para un nuevo sistema en el
  * presupuesto. Grupo 1 = primer sistema agregado, 2 = segundo, etc.
  */

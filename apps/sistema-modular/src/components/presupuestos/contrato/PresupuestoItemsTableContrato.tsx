@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '../../ui/Button';
-import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto, ConceptoServicio, CategoriaPresupuesto } from '@ags/shared';
 import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
-import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem } from './contratoItemHelpers';
+import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
+import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem, buildItemSueltoDesdeCargaCompleta, buildItemVisitasContrato } from './contratoItemHelpers';
 import { articulosService } from '../../../services/firebaseService';
 import { itemRequiresImportacion } from '../../../services/atpHelpers';
 import type { ArticuloMini } from './ArticuloInlineAutocomplete';
@@ -17,6 +18,9 @@ interface Props {
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onRemoveItem: (itemId: string) => void;
   onRemoveSistema: (sistemaId: string | null, grupo: number) => void;
+  /** Para la "Carga completa" (visible en todos los tipos — pedido 2026-07-30). */
+  conceptosServicio?: ConceptoServicio[];
+  categoriasPresupuesto?: CategoriaPresupuesto[];
 }
 
 /**
@@ -28,6 +32,7 @@ interface Props {
 export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   items, moneda, sistemas, loadModulos,
   onAddItems, onUpdateItem, onRemoveItem, onRemoveSistema,
+  conceptosServicio = [], categoriasPresupuesto = [],
 }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloMini[]>([]);
@@ -155,11 +160,25 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
           <p className="text-[11px] text-slate-400">Agrupados por sector y sistema. Los componentes S/L no suman al total.</p>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => onAddItems([buildItemVisitasContrato(items)])}
+            title="N visitas para TODOS los equipos del contrato (en vez de ilimitadas). La cantidad del ítem es el número de visitas y pre-carga el límite al crear el contrato.">
+            + Visitas
+          </Button>
           <Button size="sm" variant="outline" onClick={handleAddItemSuelto}>+ Ítem suelto</Button>
           <Button size="sm" variant="outline" onClick={handleAddBonificacion}>+ Bonificación</Button>
           <Button size="sm" onClick={() => setShowAdd(true)}>+ Agregar sistema</Button>
         </div>
       </div>
+
+      {/* Carga completa SIEMPRE desplegada (decisión 2026-07-30) — el ítem cae como
+          bloque propio "Otros / Capacitaciones". */}
+      <PresupuestoAddItemCompleto
+        inline
+        conceptosServicio={conceptosServicio}
+        categoriasPresupuesto={categoriasPresupuesto}
+        moneda={moneda}
+        onAdd={p => onAddItems([buildItemSueltoDesdeCargaCompleta(items, p)])}
+      />
 
       {/* Empty state */}
       {grouped.length === 0 ? (

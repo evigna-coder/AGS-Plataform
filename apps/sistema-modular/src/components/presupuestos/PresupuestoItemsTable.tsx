@@ -62,7 +62,6 @@ export const PresupuestoItemsTable = ({
   itemsByGrupo, getGrupo, renderSubRow,
 }: PresupuestoItemsTableProps) => {
   const [showWizard, setShowWizard] = useState(false);
-  const [showCompleto, setShowCompleto] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -135,10 +134,20 @@ export const PresupuestoItemsTable = ({
                 if (etaDiasEstimados !== null) onUpdateItem(it.id, 'etaDiasEstimados', etaDiasEstimados);
               });
             }} />
-            {/* Ambos enfoques conviven (pedido 2026-07-29): wizard rápido + form completo. */}
-            <Button variant="outline" size="sm" onClick={() => setShowCompleto(true)}>Carga completa</Button>
-            <Button ref={addBtnRef} onClick={openAdd} size="sm">+ Agregar artículo</Button>
+            <Button ref={addBtnRef} onClick={openAdd} size="sm" variant="outline">⚡ Carga rápida</Button>
           </div>
+        </div>
+
+        {/* Carga completa SIEMPRE desplegada (decisión 2026-07-30): el form con todos
+            los campos es el modo por defecto; el wizard queda como carga rápida. */}
+        <div className="mb-3">
+          <PresupuestoAddItemCompleto
+            inline
+            conceptosServicio={conceptosServicio}
+            categoriasPresupuesto={categoriasPresupuesto}
+            moneda={moneda}
+            onAdd={addFromWizard}
+          />
         </div>
 
         {items.length === 0 ? (
@@ -188,15 +197,6 @@ export const PresupuestoItemsTable = ({
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
-        />
-      )}
-      {showCompleto && (
-        <PresupuestoAddItemCompleto
-          conceptosServicio={conceptosServicio}
-          categoriasPresupuesto={categoriasPresupuesto}
-          moneda={moneda}
-          onAdd={addFromWizard}
-          onClose={() => setShowCompleto(false)}
         />
       )}
     </div>

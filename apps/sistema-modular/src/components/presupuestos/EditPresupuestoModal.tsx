@@ -286,6 +286,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}
             onRemoveSistema={(_sistemaId, grupo) => removeItemsByGrupo(grupo)}
+            conceptosServicio={conceptosServicio}
+            categoriasPresupuesto={categoriasPresupuesto}
           />
         ) : (
           <PresupuestoItemsTable

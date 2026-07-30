@@ -21,7 +21,6 @@ interface Props {
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow }: Props) => {
   const [showWizard, setShowWizard] = useState(false);
-  const [showCompleto, setShowCompleto] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -81,12 +80,17 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Items</span>
-        <div className="flex items-center gap-2">
-          {/* Ambos enfoques conviven (pedido 2026-07-29): wizard rápido + form completo. */}
-          <Button variant="outline" size="sm" onClick={() => setShowCompleto(true)}>Carga completa</Button>
-          <Button ref={addBtnRef} size="sm" onClick={() => setShowWizard(true)}>+ Agregar artículo</Button>
-        </div>
+        <Button ref={addBtnRef} size="sm" variant="outline" onClick={() => setShowWizard(true)}>⚡ Carga rápida</Button>
       </div>
+      {/* Carga completa SIEMPRE desplegada (decisión 2026-07-30): el form con todos
+          los campos es el modo por defecto; el wizard queda como carga rápida. */}
+      <PresupuestoAddItemCompleto
+        inline
+        conceptosServicio={conceptosServicio}
+        categoriasPresupuesto={categoriasPresupuesto}
+        moneda={moneda}
+        onAdd={addFromWizard}
+      />
       {showWizard && (
         <PresupuestoAddItemWizard
           conceptosServicio={conceptosServicio}
@@ -94,15 +98,6 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
-        />
-      )}
-      {showCompleto && (
-        <PresupuestoAddItemCompleto
-          conceptosServicio={conceptosServicio}
-          categoriasPresupuesto={categoriasPresupuesto}
-          moneda={moneda}
-          onAdd={addFromWizard}
-          onClose={() => setShowCompleto(false)}
         />
       )}
 

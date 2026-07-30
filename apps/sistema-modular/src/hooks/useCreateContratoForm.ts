@@ -64,6 +64,9 @@ export function useCreateContratoForm(open: boolean, onClose: () => void, onCrea
       const sistemaIds = Array.from(new Set(
         (p.items ?? []).map(i => i.sistemaId).filter((x): x is string => !!x),
       ));
+      // Ítem de visitas del contrato (unidad 'visitas'): su cantidad ES el
+      // límite de visitas → pre-cargar tipoLimite/maxVisitas. Sin él: ilimitado.
+      const itemVisitas = (p.items ?? []).find(i => (i.unidad || '').trim().toLowerCase() === 'visitas');
       setForm(prev => ({
         ...prev,
         clienteId: p.clienteId,
@@ -71,6 +74,9 @@ export function useCreateContratoForm(open: boolean, onClose: () => void, onCrea
         fechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : prev.fechaInicio,
         fechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : prev.fechaFin,
         sistemaIds,
+        ...(itemVisitas && itemVisitas.cantidad > 0
+          ? { tipoLimite: 'visitas' as const, maxVisitas: String(itemVisitas.cantidad) }
+          : {}),
       }));
     }).catch(err => console.error('[useCreateContratoForm] prefill desde presupuesto falló:', err));
   }, [open, prefill?.presupuestoId, prefillAplicado]);

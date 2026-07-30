@@ -4,6 +4,7 @@ import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
+import { renumerarGrupos } from '../components/presupuestos/contrato/contratoItemHelpers';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
@@ -401,7 +402,12 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   /** Remove all items of a given sistema grupo (used to unlink a sistema from contrato). */
   const removeItemsByGrupo = useCallback((grupo: number) => {
     dirty.current = true;
-    setFormState(prev => ({ ...prev, items: prev.items.filter(i => (i.grupo || 0) !== grupo) }));
+    // renumerarGrupos: al sacar un equipo, los grupos quedan correlativos 1..n
+    // (antes quedaba "1, 7, 8" — pedido 2026-07-30).
+    setFormState(prev => ({
+      ...prev,
+      items: renumerarGrupos(prev.items.filter(i => (i.grupo || 0) !== grupo)),
+    }));
   }, []);
 
   const removeItem = useCallback((itemId: string) => {
