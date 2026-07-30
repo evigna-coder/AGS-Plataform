@@ -13,6 +13,8 @@ interface AgendaGridRowProps {
   selectedCellKey: string | null;
   selectionRange: SelectionRange | null;
   feriados?: Set<string>;
+  /** Comentarios del ingeniero por celda ('YYYY-MM-DD:quarter' → texto), estilo Excel. */
+  notasByFecha?: Map<string, string>;
   rowHeight: string;
   onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => void;
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
@@ -28,6 +30,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
   selectedCellKey,
   selectionRange,
   feriados,
+  notasByFecha,
   rowHeight,
   onCellClick,
   onEntryClick,
@@ -92,6 +95,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
             entryCount={occs.length}
             isToday={col.isToday}
             isFeriado={feriados?.has(col.dateKey)}
+            notaTexto={notasByFecha?.get(`${col.dateKey}:${col.quarter}`) ?? null}
             showText={showText}
             compact={compact}
             isSelected={selectedCellKey === cellKey}

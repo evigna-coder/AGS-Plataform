@@ -20,8 +20,9 @@ export const AgendaPage: FC = () => {
   const {
     anchor, zoomLevel, visibleDays,
     goToPrev, goToNext, goToToday, goToDate,
-    ingenieros, entries, pendingOTs, equipoIdBySistema, feriados, loading,
-    createEntry, updateEntry, deleteEntry, toggleFeriado,
+    ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
+    createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
+    primerFeriadoEnRango,
   } = useAgenda();
 
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
@@ -32,6 +33,9 @@ export const AgendaPage: FC = () => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4 } | null>(null);
   const [manualTaskInput, setManualTaskInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue?: string } | null>(null);
   const manualTaskInputRef = useRef<HTMLInputElement>(null);
+  /** Comentario de celda (estilo Excel) — pedido 2026-07-30. */
+  const [notaInput, setNotaInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue: string; notaId: string | null } | null>(null);
+  const [notaTexto, setNotaTexto] = useState('');
 
   // Clear selection on navigation/zoom change
   useEffect(() => { setSelectedCell(null); setSelectionRange(null); }, [anchor, zoomLevel]);
@@ -74,6 +78,14 @@ export const AgendaPage: FC = () => {
     const fechaFin = nr ? nr.endFecha : cell.fecha;
     const quarterStart = nr ? nr.startQuarter : cell.quarter;
     const quarterEnd = nr ? nr.endQuarter : cell.quarter;
+
+    // Bloqueo duro de feriados — ANTES de cualquier efecto (el sync de la OT
+    // corre en paralelo al alta de la entrada).
+    const feriadoPaste = primerFeriadoEnRango(fechaInicio, fechaFin);
+    if (feriadoPaste) {
+      alert(`El ${feriadoPaste} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return;
+    }
 
     if (cb.type === 'entry' && cb.entry) {
       const existing = cb.entry.otNumber
@@ -196,6 +208,7 @@ export const AgendaPage: FC = () => {
   } = useAgendaDnd({
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
+    primerFeriadoEnRango,
   });
 
   const handleCellClick = useCallback((ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => {
@@ -255,6 +268,59 @@ export const AgendaPage: FC = () => {
     const ing = ingenieros.find(i => i.id === ingenieroId);
     setContextMenu({ x: e.clientX, y: e.clientY, ingenieroId, ingenieroNombre: ing?.nombre || '', fecha, quarter });
   }, [ingenieros]);
+
+  // Comentario de la CELDA exacta del context menu (fecha + quarter; legacy sin
+  // quarter se ancla a la celda 4 del día).
+  const notaDeContextMenu = useMemo(() => {
+    if (!contextMenu) return null;
+    return notas.find(n =>
+      n.ingenieroId === contextMenu.ingenieroId &&
+      n.fecha === contextMenu.fecha &&
+      (n.quarter ?? 4) === contextMenu.quarter,
+    ) ?? null;
+  }, [contextMenu, notas]);
+
+  const handleOpenNotaInput = useCallback(() => {
+    if (!contextMenu) return;
+    setNotaTexto(notaDeContextMenu?.texto ?? '');
+    setNotaInput({
+      ingenieroId: contextMenu.ingenieroId,
+      ingenieroNombre: contextMenu.ingenieroNombre,
+      fecha: contextMenu.fecha,
+      quarter: contextMenu.quarter,
+      x: contextMenu.x,
+      y: contextMenu.y,
+      initialValue: notaDeContextMenu?.texto ?? '',
+      notaId: notaDeContextMenu?.id ?? null,
+    });
+    setContextMenu(null);
+  }, [contextMenu, notaDeContextMenu]);
+
+  const handleGuardarNota = useCallback(async () => {
+    if (!notaInput) return;
+    const texto = notaTexto.trim();
+    try {
+      if (texto) {
+        await upsertNota({ fecha: notaInput.fecha, ingenieroId: notaInput.ingenieroId, ingenieroNombre: notaInput.ingenieroNombre, quarter: notaInput.quarter, texto });
+      } else if (notaInput.notaId) {
+        await deleteNota(notaInput.notaId);
+      }
+    } catch (err) {
+      console.error('Error guardando comentario de agenda:', err);
+      alert('Error al guardar el comentario');
+    }
+    setNotaInput(null);
+  }, [notaInput, notaTexto, upsertNota, deleteNota]);
+
+  const handleEliminarNota = useCallback(async () => {
+    if (!notaInput?.notaId) { setNotaInput(null); return; }
+    try {
+      await deleteNota(notaInput.notaId);
+    } catch (err) {
+      console.error('Error eliminando comentario de agenda:', err);
+    }
+    setNotaInput(null);
+  }, [notaInput, deleteNota]);
 
   const handleOpenManualTaskInput = useCallback(() => {
     if (!contextMenu) return;
@@ -342,15 +408,21 @@ export const AgendaPage: FC = () => {
         allEntries: selectedCell.allEntries.map(e => e.id === entryId ? { ...e, estadoAgenda: estado } : e),
       });
     }
-    // Propagar al OT si el entry está linkeado. Solo avanzar (no regresar) en el
-    // lifecycle de estadoAdmin. Best-effort — no bloquea el cambio de agenda.
+    // Propagar al OT si el entry está linkeado. Avanza siempre; REGRESA solo
+    // dentro de la banda que maneja la agenda (ASIGNADA↔COORDINADA): confirmado
+    // →tentativo debe volver la OT a ASIGNADA (UAT 2026-07-30). Estados de
+    // trabajo (EN_CURSO+) nunca se regresan desde acá. Best-effort.
     const entry = entries.find(e => e.id === entryId);
     const targetOT = AGENDA_TO_OT_ESTADO[estado];
     if (entry?.otNumber && targetOT) {
       ordenesTrabajoService.getByOtNumber(entry.otNumber).then(ot => {
         if (!ot) return;
         const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
-        if (OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current]) {
+        const BANDA_AGENDA: OTEstadoAdmin[] = ['ASIGNADA', 'COORDINADA'];
+        const avanza = OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current];
+        const regresa = OT_ESTADO_ORDER[targetOT] < OT_ESTADO_ORDER[current]
+          && BANDA_AGENDA.includes(current) && BANDA_AGENDA.includes(targetOT);
+        if (avanza || regresa) {
           return ordenesTrabajoService.update(entry.otNumber!, {
             estadoAdmin: targetOT,
             estadoAdminFecha: new Date().toISOString(),
@@ -467,6 +539,7 @@ export const AgendaPage: FC = () => {
                 onCellContextMenu={handleContextMenu}
                 feriados={feriados}
                 onToggleFeriado={toggleFeriado}
+                notas={notas}
               />
             )}
           </div>
@@ -492,20 +565,70 @@ export const AgendaPage: FC = () => {
         </div>
 
         {/* Context menu */}
+        {/* Menú contextual COMPACTO y desplegado hacia ARRIBA (anclado por bottom):
+            el visor resumen de servicios se abre hacia abajo y se pisaban (2026-07-30). */}
         {contextMenu && (
           <div
-            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px]"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-0.5 min-w-[150px]"
+            style={{ left: contextMenu.x, bottom: Math.max(8, window.innerHeight - contextMenu.y) }}
           >
             <button
               onClick={handleOpenManualTaskInput}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center gap-2"
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center gap-1.5"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               Agregar tarea manual
             </button>
+            <button
+              onClick={handleOpenNotaInput}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+              </svg>
+              {notaDeContextMenu ? 'Editar comentario' : 'Agregar comentario'}
+            </button>
+          </div>
+        )}
+
+        {/* Comentario de celda (estilo Excel) */}
+        {notaInput && (
+          <div
+            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[260px]"
+            style={{ left: notaInput.x, bottom: Math.max(8, window.innerHeight - notaInput.y) }}
+            onClick={e => e.stopPropagation()}
+          >
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">
+              Comentario — {notaInput.ingenieroNombre} · {notaInput.fecha}
+            </label>
+            <textarea
+              autoFocus
+              value={notaTexto}
+              onChange={e => setNotaTexto(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setNotaInput(null);
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void handleGuardarNota();
+              }}
+              rows={3}
+              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Escribí el comentario…"
+            />
+            <div className="flex justify-between items-center mt-2">
+              {notaInput.notaId ? (
+                <button onClick={() => void handleEliminarNota()} className="text-[11px] text-red-500 hover:underline">
+                  Eliminar
+                </button>
+              ) : <span />}
+              <div className="flex gap-2">
+                <button onClick={() => setNotaInput(null)} className="text-[11px] text-slate-500 hover:underline">Cancelar</button>
+                <button onClick={() => void handleGuardarNota()}
+                  className="text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded px-2.5 py-1">
+                  Guardar
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

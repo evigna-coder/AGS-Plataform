@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef } from 'react';
-import type { Ingeniero, AgendaEntry, ZoomLevel } from '@ags/shared';
+import type { Ingeniero, AgendaEntry, AgendaNota, ZoomLevel } from '@ags/shared';
 import { AgendaGridRow } from './AgendaGridRow';
 import type { SelectionRange } from '../../utils/agendaDateUtils';
 import {
@@ -25,6 +25,8 @@ interface AgendaWeekBlockProps {
   onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
   feriados?: Set<string>;
   onToggleFeriado?: (fecha: string) => void;
+  /** Comentarios de agenda (estilo Excel), por ingeniero+fecha. */
+  notas?: AgendaNota[];
 }
 
 const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> = {
@@ -37,7 +39,7 @@ const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> 
 
 export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
   weekStart, weekDays, ingenieros, entries, zoom, borderless, selectedCellKey, selectionRange,
-  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado,
+  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas,
 }) => {
   const columns = useMemo(() => buildWeekdayColumns(weekDays), [weekDays]);
   const sizes = ZOOM_SIZES[zoom];
@@ -83,6 +85,19 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
 
   const weekNum = getISOWeek(weekStart);
 
+  // Comentarios por ingeniero → Map "fecha:quarter"→texto (celda exacta donde
+  // se agregó — pedido 2026-07-30). Legacy sin quarter → celda 4 del día.
+  const notasPorIngeniero = useMemo(() => {
+    const m = new Map<string, Map<string, string>>();
+    for (const n of notas ?? []) {
+      if (!n.texto?.trim()) continue;
+      let inner = m.get(n.ingenieroId);
+      if (!inner) { inner = new Map(); m.set(n.ingenieroId, inner); }
+      inner.set(`${n.fecha}:${n.quarter ?? 4}`, n.texto);
+    }
+    return m;
+  }, [notas]);
+
   const engineerRows = useMemo(() => ingenieros.map(ing => (
     <AgendaGridRow
       key={ing.id}
@@ -95,12 +110,13 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
       selectionRange={selectionRange}
       rowHeight={sizes.row}
       feriados={feriados}
+      notasByFecha={notasPorIngeniero.get(ing.id)}
       onCellClick={onCellClick}
       onEntryClick={onEntryClick}
       onCellContextMenu={onCellContextMenu}
     />
   )), [ingenieros, columns, entriesByEngineer, showText, compact, selectedCellKey, selectionRange,
-      sizes.row, feriados, onCellClick, onEntryClick, onCellContextMenu]);
+      sizes.row, feriados, notasPorIngeniero, onCellClick, onEntryClick, onCellContextMenu]);
 
   // ── BORDERLESS: inside month containers (views 2M, Año) ──
   if (borderless) {

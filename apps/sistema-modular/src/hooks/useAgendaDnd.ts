@@ -30,6 +30,10 @@ interface UseAgendaDndArgs {
   setSelectedCell: (c: SelectedCell | null) => void;
   createEntry: (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => void;
   updateEntry: (id: string, data: Partial<AgendaEntry>) => void;
+  /** Bloqueo DURO de feriados (2026-07-30): devuelve la fecha del feriado tocado
+   *  o null. El guard corre ANTES del drop porque el sync de la OT (ingeniero +
+   *  ASIGNADA) es paralelo al alta de la entrada. */
+  primerFeriadoEnRango?: (inicio: string, fin: string) => string | null;
 }
 
 /**
@@ -45,6 +49,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
   const {
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
+    primerFeriadoEnRango,
   } = args;
 
   const [activeDragOT, setActiveDragOT] = useState<WorkOrder | null>(null);
@@ -115,6 +120,13 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
     const targetQuarter = parseInt(parts[3]) as 1 | 2 | 3 | 4;
     const targetIngeniero = ingenieros.find(i => i.id === targetIngenieroId);
     if (!targetIngeniero) return;
+
+    // Bloqueo duro de feriados: nada se puede soltar sobre un día feriado.
+    const feriadoTarget = primerFeriadoEnRango?.(targetFecha, targetFecha);
+    if (feriadoTarget) {
+      alert(`El ${feriadoTarget} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return;
+    }
 
     // ── Resize handle → extend fechaFin/quarterEnd ──
     if (activeId.startsWith('resize:')) {
@@ -216,7 +228,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         allEntries: [movedEntry],
       });
     }
-  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell]);
+  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango]);
 
   return {
     sensors,

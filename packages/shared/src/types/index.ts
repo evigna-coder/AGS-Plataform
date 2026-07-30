@@ -4790,12 +4790,20 @@ export interface AuditLogEntry {
 
 // --- Agenda ---
 
-export type EstadoAgenda = 'pendiente' | 'tentativo' | 'confirmado' | 'en_progreso' | 'completado' | 'cancelado';
+/**
+ * Estados "interior" (2026-07-30): clientes a más de 200 km de Capital Federal
+ * se diferencian por color en la agenda. No hay dato de distancia en Cliente
+ * (ni clienteId en la entrada de agenda) → la coordinadora elige el estado
+ * interior a mano. Tentativo pasó al GRIS (mismo que pendiente, pedido user).
+ */
+export type EstadoAgenda = 'pendiente' | 'tentativo' | 'tentativo_interior' | 'confirmado' | 'confirmado_interior' | 'en_progreso' | 'completado' | 'cancelado';
 
 export const ESTADO_AGENDA_LABELS: Record<EstadoAgenda, string> = {
   pendiente: 'Pendiente',
   tentativo: 'Tentativo',
+  tentativo_interior: 'Tentativo (interior)',
   confirmado: 'Confirmado',
+  confirmado_interior: 'Confirmado (interior)',
   en_progreso: 'En progreso',
   completado: 'Completado',
   cancelado: 'Cancelado',
@@ -4803,8 +4811,10 @@ export const ESTADO_AGENDA_LABELS: Record<EstadoAgenda, string> = {
 
 export const ESTADO_AGENDA_COLORS: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-200 text-slate-700',
-  tentativo: 'bg-amber-200 text-amber-800',
+  tentativo: 'bg-slate-200 text-slate-700',
+  tentativo_interior: 'bg-[#e6e3c2] text-[#68641f]',
   confirmado: 'bg-blue-200 text-blue-800',
+  confirmado_interior: 'bg-[#cfd8e3] text-[#41546b]',
   en_progreso: 'bg-teal-200 text-teal-800',
   completado: 'bg-emerald-200 text-emerald-800',
   cancelado: 'bg-red-100 text-red-600',
@@ -4841,6 +4851,8 @@ export interface AgendaNota {
   fecha: string;           // 'YYYY-MM-DD'
   ingenieroId: string;
   ingenieroNombre: string;
+  /** Cuarto del día donde se ancló el comentario (celda exacta). Ausente = legacy (día entero). */
+  quarter?: 1 | 2 | 3 | 4;
   texto: string;
   createdAt: string;
   updatedAt: string;

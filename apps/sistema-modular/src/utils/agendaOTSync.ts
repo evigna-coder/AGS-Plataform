@@ -5,13 +5,16 @@ import { sistemasService } from '../services/firebaseService';
 /**
  * Mapping EstadoAgenda → OT estadoAdmin target.
  * - `cancelado` no tiene mapping (admin decide qué hacer con la OT).
- * - El update solo se aplica si la OT actual está en un estado anterior al
- *   target — nunca hace regresión.
+ * - El update avanza siempre; regresa SOLO dentro de la banda de coordinación
+ *   (ASIGNADA↔COORDINADA, ej. confirmado→tentativo — UAT 2026-07-30). Estados
+ *   de trabajo (EN_CURSO+) nunca se regresan desde la agenda.
  */
 export const AGENDA_TO_OT_ESTADO: Partial<Record<EstadoAgenda, OTEstadoAdmin>> = {
   pendiente: 'ASIGNADA',
   tentativo: 'ASIGNADA',
+  tentativo_interior: 'ASIGNADA',
   confirmado: 'COORDINADA',
+  confirmado_interior: 'COORDINADA',
   en_progreso: 'EN_CURSO',
   completado: 'CIERRE_TECNICO',
 };

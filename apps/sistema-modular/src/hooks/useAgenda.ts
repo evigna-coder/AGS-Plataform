@@ -33,9 +33,11 @@ export interface UseAgendaReturn {
   createEntry: (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => Promise<string>;
   updateEntry: (id: string, data: Partial<AgendaEntry>) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
-  upsertNota: (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }) => Promise<void>;
+  upsertNota: (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; quarter: 1 | 2 | 3 | 4; texto: string }) => Promise<void>;
   deleteNota: (id: string) => Promise<void>;
   toggleFeriado: (fecha: string) => Promise<void>;
+  /** Bloqueo duro de feriados: primer feriado tocado por el rango, o null. */
+  primerFeriadoEnRango: (inicio: string, fin: string) => string | null;
 }
 
 export function useAgenda(): UseAgendaReturn {
@@ -132,8 +134,29 @@ export function useAgenda(): UseAgendaReturn {
   const goToToday = useCallback(() => setAnchor(getMonday(new Date())), []);
   const goToDate = useCallback((date: Date) => setAnchor(getMonday(date)), []);
 
+  // ── Bloqueo DURO de feriados (decisión 2026-07-30): no se puede agendar nada
+  // que toque un día feriado. Guardia en el cuello de botella (create/update)
+  // para cubrir TODOS los caminos: drop desde pendientes, mover, estirar, crear
+  // con click, tarea manual y pegar con teclado.
+  const primerFeriadoEnRango = useCallback((inicio: string, fin: string): string | null => {
+    if (!inicio || !fin) return null;
+    const d = new Date(`${inicio}T12:00:00`);
+    const end = new Date(`${fin}T12:00:00`);
+    for (let guard = 0; d <= end && guard < 120; guard++) {
+      const key = d.toISOString().split('T')[0];
+      if (feriados.has(key)) return key;
+      d.setDate(d.getDate() + 1);
+    }
+    return null;
+  }, [feriados]);
+
   // CRUD with optimistic updates
   const createEntry = useCallback(async (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => {
+    const feriado = primerFeriadoEnRango(data.fechaInicio, data.fechaFin);
+    if (feriado) {
+      alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return '';
+    }
     const tempId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
     const optimistic: AgendaEntry = { ...data, id: tempId, createdAt: now, updatedAt: now, createdBy: null, createdByName: null, updatedBy: null, updatedByName: null };
@@ -142,14 +165,26 @@ export function useAgenda(): UseAgendaReturn {
     // Replace temp entry with real ID (snapshot will arrive shortly but this avoids flicker)
     setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
     return realId;
-  }, []);
+  }, [primerFeriadoEnRango]);
 
   const updateEntry = useCallback(async (id: string, data: Partial<AgendaEntry>) => {
+    // Bloqueo de feriados: solo cuando el cambio MUEVE fechas (mover/estirar);
+    // cambios de estado/notas sobre una entrada existente pasan siempre.
+    if (data.fechaInicio || data.fechaFin) {
+      const current = entries.find(e => e.id === id);
+      const inicio = data.fechaInicio ?? current?.fechaInicio ?? '';
+      const fin = data.fechaFin ?? current?.fechaFin ?? '';
+      const feriado = primerFeriadoEnRango(inicio, fin);
+      if (feriado) {
+        alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+        return;
+      }
+    }
     // Optimistic: apply changes immediately
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e));
     // Fire to Firestore (don't block UI)
     agendaService.update(id, data).catch(err => console.error('Error updating entry:', err));
-  }, []);
+  }, [entries, primerFeriadoEnRango]);
 
   const deleteEntry = useCallback(async (id: string) => {
     // Captura info de la entry antes de removerla para revertir la OT después.
@@ -177,7 +212,7 @@ export function useAgenda(): UseAgendaReturn {
     }
   }, [entries]);
 
-  const upsertNota = useCallback(async (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }) => {
+  const upsertNota = useCallback(async (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; quarter: 1 | 2 | 3 | 4; texto: string }) => {
     await agendaNotasService.upsert(data);
   }, []);
 
@@ -206,5 +241,6 @@ export function useAgenda(): UseAgendaReturn {
     setZoomLevel, goToPrev, goToNext, goToToday, goToDate,
     ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
     createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
+    primerFeriadoEnRango,
   };
 }

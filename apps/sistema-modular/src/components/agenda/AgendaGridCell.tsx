@@ -4,10 +4,15 @@ import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { AgendaCellPopover } from './AgendaCellPopover';
 
+// Colores 2026-07-30: tentativo pasó al GRIS (igual a pendiente, pedido user);
+// los estados "interior" (clientes a +200 km de CABA) se diferencian con
+// marrón verdoso (tentativo) y azul grisáceo (confirmado).
 const CELL_BG: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-300',
-  tentativo: 'bg-amber-300',
+  tentativo: 'bg-slate-300',
+  tentativo_interior: 'bg-[#a09a4e]',
   confirmado: 'bg-blue-300',
+  confirmado_interior: 'bg-[#7d90a8]',
   en_progreso: 'bg-teal-300',
   completado: 'bg-emerald-300',
   cancelado: 'bg-red-200',
@@ -15,8 +20,10 @@ const CELL_BG: Record<EstadoAgenda, string> = {
 
 const CELL_TEXT: Record<EstadoAgenda, string> = {
   pendiente: 'text-slate-800',
-  tentativo: 'text-amber-900',
+  tentativo: 'text-slate-800',
+  tentativo_interior: 'text-[#26240c]',
   confirmado: 'text-blue-900',
+  confirmado_interior: 'text-white',
   en_progreso: 'text-teal-900',
   completado: 'text-emerald-900',
   cancelado: 'text-red-700',
@@ -48,6 +55,9 @@ interface AgendaGridCellProps {
   entryRef?: AgendaEntry;
   // All entries in this cell — used for hover popover, not compared in memo
   allEntriesRef?: AgendaEntry[];
+  /** Comentario del día (estilo Excel): triangulito rojo + tooltip. Solo lo recibe
+   *  la última celda del día (quarter 4) para que quede en la esquina del día. */
+  notaTexto?: string | null;
   onClick?: (e?: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }
@@ -58,7 +68,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   entryId, entryOtNumber, entryTitulo, entryEstado,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, showText, compact, isSelected, inSelectionRange, rowHeight,
-  entryRef, allEntriesRef, onClick, onContextMenu,
+  entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
 }) => {
   const hasEntry = !!entryId;
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
@@ -90,6 +100,9 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
 
   // Hover popover for multi-entry cells
   const [showPopover, setShowPopover] = useState(false);
+  // Globito del comentario (estilo Excel): flota hacia ARRIBA para no pisarse
+  // con el popover de servicios, que se despliega hacia abajo (2026-07-30).
+  const [showNota, setShowNota] = useState(false);
   const cellElementRef = useRef<HTMLElement | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }, []);
@@ -130,11 +143,12 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
             if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
             setShowPopover(true);
           }
+          if (notaTexto) setShowNota(true);
         }}
         onMouseLeave={() => {
           if (showPopover) hideTimerRef.current = setTimeout(() => setShowPopover(false), 150);
+          setShowNota(false);
         }}
-        title={undefined}
       >
         {isStart && hasEntry && showText && (
           <span
@@ -149,6 +163,10 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         )}
         {hasMultiple && !compact && (
           <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
+        )}
+        {/* Comentario del día (estilo Excel): triangulito rojo en la esquina */}
+        {notaTexto && (
+          <span className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-t-red-500 border-l-[6px] border-l-transparent pointer-events-none z-10" />
         )}
         {/* Resize handle — right edge of the last cell of an entry */}
         {hasEntry && isEnd && !compact && (
@@ -165,6 +183,20 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
           </div>
         )}
       </div>
+      {showNota && notaTexto && cellElementRef.current && createPortal(
+        (() => {
+          const rect = cellElementRef.current!.getBoundingClientRect();
+          return (
+            <div
+              className="fixed z-50 max-w-[260px] bg-amber-50 border border-amber-300 rounded-lg shadow-lg px-2.5 py-1.5 pointer-events-none"
+              style={{ left: Math.min(rect.left, window.innerWidth - 280), bottom: window.innerHeight - rect.top + 4 }}
+            >
+              <p className="text-[11px] text-amber-900 whitespace-pre-wrap break-words">{notaTexto}</p>
+            </div>
+          );
+        })(),
+        document.body,
+      )}
       {showPopover && allEntriesRef && allEntriesRef.length > 0 && cellElementRef.current && createPortal(
         <AgendaCellPopover
           entries={allEntriesRef}
@@ -192,6 +224,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.inSelectionRange === next.inSelectionRange &&
     prev.compact === next.compact &&
     prev.showText === next.showText &&
-    prev.rowHeight === next.rowHeight
+    prev.rowHeight === next.rowHeight &&
+    prev.notaTexto === next.notaTexto
   );
 });

@@ -261,6 +261,7 @@ export const agendaNotasService = {
           fecha: data.fecha,
           ingenieroId: data.ingenieroId,
           ingenieroNombre: data.ingenieroNombre,
+          quarter: data.quarter ?? undefined,
           texto: data.texto,
           createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
@@ -270,9 +271,10 @@ export const agendaNotasService = {
     });
   },
 
-  async upsert(data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }): Promise<string> {
-    // Deterministic ID = ingenieroId_fecha → single setDoc (no read required)
-    const docId = `${data.ingenieroId}_${data.fecha}`;
+  async upsert(data: { fecha: string; ingenieroId: string; ingenieroNombre: string; quarter: 1 | 2 | 3 | 4; texto: string }): Promise<string> {
+    // Deterministic ID = ingenieroId_fecha_qN → un comentario por CELDA (cuarto
+    // de día), como en Excel. Single setDoc, sin read previo.
+    const docId = `${data.ingenieroId}_${data.fecha}_q${data.quarter}`;
     const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
