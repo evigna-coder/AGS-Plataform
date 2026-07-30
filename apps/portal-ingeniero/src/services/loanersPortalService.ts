@@ -70,15 +70,18 @@ export const loanersPortalService = {
     callback: (items: Loaner[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
-    const q = query(
-      collection(db, COLLECTION),
-      where('estado', 'in', ['en_cliente', 'en_recalificacion']),
-    );
+    // Catálogo COMPLETO de loaners activos (pedido 2026-07-29): antes solo
+    // en_cliente/en_recalificacion y los módulos en base eran invisibles —
+    // el ingeniero no podía asignarles las fotos iniciales.
+    const q = query(collection(db, COLLECTION), where('activo', '==', true));
+    const ORDEN: Record<string, number> = { en_cliente: 0, en_recalificacion: 1 };
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => parseLoaner(d.id, d.data() as Record<string, unknown>));
       items.sort((a, b) => {
-        // En cliente primero (accionables), después por código.
-        if (a.estado !== b.estado) return a.estado === 'en_cliente' ? -1 : 1;
+        // Accionables primero (en cliente, después recalificación), resto por código.
+        const oa = ORDEN[a.estado] ?? 2;
+        const ob = ORDEN[b.estado] ?? 2;
+        if (oa !== ob) return oa - ob;
         return (a.codigo || '').localeCompare(b.codigo || '');
       });
       callback(items);

@@ -25,6 +25,7 @@ import PagosVEPPage from './pages/PagosVEPPage';
 import LoanersPage from './pages/LoanersPage';
 import LoanerDetallePage from './pages/LoanerDetallePage';
 import LoanerFotosSalidaPage from './pages/LoanerFotosSalidaPage';
+import LoanerFotosInicialesPage from './pages/LoanerFotosInicialesPage';
 import LoanerRetornoPage from './pages/LoanerRetornoPage';
 import { canAccessModulo } from '@ags/shared';
 import { UploadQueueIndicator } from './components/recepcion/UploadQueueIndicator';
@@ -145,6 +146,7 @@ function PrivateApp() {
           <Route path="loaners" element={<LoanersPage />} />
           <Route path="loaners/:loanerId" element={<LoanerDetallePage />} />
           <Route path="loaners/:loanerId/fotos" element={<LoanerFotosSalidaPage />} />
+          <Route path="loaners/:loanerId/fotos-iniciales" element={<LoanerFotosInicialesPage />} />
           <Route path="loaners/:loanerId/retorno" element={<LoanerRetornoPage />} />
           <Route path="qf-documentos" element={<QFDocumentosPage />} />
           {canRecepcion && (

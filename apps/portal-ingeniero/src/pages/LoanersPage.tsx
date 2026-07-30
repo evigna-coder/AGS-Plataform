@@ -63,9 +63,10 @@ export default function LoanersPage() {
     <div className="max-w-md mx-auto px-4 py-4 space-y-3">
       <header>
         <p className="text-xs uppercase tracking-wide text-slate-500 font-mono">Loaners</p>
-        <h1 className="text-lg font-semibold text-slate-800">Módulos en préstamo</h1>
+        <h1 className="text-lg font-semibold text-slate-800">Catálogo de módulos</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Tocá un loaner en cliente para agregar fotos de salida o registrar la devolución.
+          Tocá un módulo para cargar sus fotos iniciales; si está en cliente, también
+          fotos de salida o registrar la devolución.
         </p>
       </header>
 

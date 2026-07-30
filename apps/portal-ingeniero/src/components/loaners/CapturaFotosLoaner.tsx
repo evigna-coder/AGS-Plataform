@@ -8,7 +8,8 @@ interface Props {
   /** LNR-XXXX — se muestra en la cola/indicador global. */
   loanerCodigo: string;
   contexto: FotoLoaner['contexto'];
-  prestamoId: string;
+  /** null para fotos sin préstamo (iniciales, contexto 'general'). */
+  prestamoId: string | null;
   /** Fotos ya confirmadas en Firestore (mismo contexto + préstamo). */
   fotosConfirmadas?: FotoLoaner[];
   titulo: string;

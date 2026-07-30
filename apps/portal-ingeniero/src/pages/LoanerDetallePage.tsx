@@ -57,6 +57,7 @@ export default function LoanerDetallePage() {
   const fotosSalida = (loaner.fotos ?? []).filter(
     f => f.contexto === 'prestamo' && f.prestamoId === prestamo?.id,
   ).length;
+  const fotosIniciales = (loaner.fotos ?? []).filter(f => f.contexto === 'general').length;
 
   return (
     <div className="max-w-md mx-auto px-4 py-4 space-y-3">
@@ -94,6 +95,20 @@ export default function LoanerDetallePage() {
           </p>
         </div>
       )}
+
+      {/* Fotos iniciales (estado base del módulo) — disponibles en CUALQUIER estado.
+          Pedido 2026-07-29: todos los módulos deben tenerlas; las de movimientos
+          (salida/retorno) son opcionales. */}
+      <Button
+        size="lg"
+        variant={fotosIniciales === 0 ? 'primary' : 'outline'}
+        className="w-full"
+        onClick={() => navigate(`/loaners/${loaner.id}/fotos-iniciales`)}
+      >
+        {fotosIniciales === 0
+          ? 'Cargar fotos iniciales'
+          : `Fotos iniciales (${fotosIniciales})`}
+      </Button>
 
       {loaner.estado === 'en_cliente' && prestamo && (
         <div className="space-y-2">
