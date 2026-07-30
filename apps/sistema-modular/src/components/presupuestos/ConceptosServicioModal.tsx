@@ -1,15 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { conceptosServicioService, categoriasPresupuestoService } from '../../services/firebaseService';
-import type { ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
+import type { ConceptoServicio, CategoriaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { ConceptoServicioForm, type ConceptoServicioFormData } from './ConceptoServicioForm';
 
 interface Props { open: boolean; onClose: () => void; }
-
-const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
 export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
@@ -18,16 +17,10 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
 
-  // Edit/Create form
+  // Form en componente APARTE con estado propio (UAT 2026-07-30: tipear en el
+  // form re-renderizaba la tabla completa del catálogo → cada letra demoraba).
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [codigo, setCodigo] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [valorBase, setValorBase] = useState(0);
-  const [moneda, setMoneda] = useState<MonedaPresupuesto>('USD');
-  const [factor, setFactor] = useState(1);
-  const [catId, setCatId] = useState('');
-  const [activo, setActivo] = useState(true);
+  const [editing, setEditing] = useState<ConceptoServicio | null>(null);
 
   // Factor global
   const [showFactor, setShowFactor] = useState(false);
@@ -41,23 +34,12 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
     setConceptos(c); setCategorias(cats); setLoading(false);
   };
 
-  const resetForm = () => {
-    setCodigo(''); setDescripcion(''); setValorBase(0); setMoneda('USD'); setFactor(1); setCatId(''); setActivo(true);
-    setEditingId(null); setShowForm(false);
-  };
+  const resetForm = () => { setEditing(null); setShowForm(false); };
 
-  const openEdit = (c: ConceptoServicio) => {
-    setEditingId(c.id); setCodigo(c.codigo || ''); setDescripcion(c.descripcion);
-    setValorBase(c.valorBase); setMoneda(c.moneda); setFactor(c.factorActualizacion);
-    setCatId(c.categoriaPresupuestoId || ''); setActivo(c.activo); setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    if (!descripcion.trim()) return;
+  const handleSave = async (data: ConceptoServicioFormData) => {
     setSaving(true);
     try {
-      const data = { codigo: codigo.trim() || null, descripcion: descripcion.trim(), valorBase, moneda, factorActualizacion: factor, categoriaPresupuestoId: catId || null, activo };
-      if (editingId) await conceptosServicioService.update(editingId, data);
+      if (editing) await conceptosServicioService.update(editing.id, data);
       else await conceptosServicioService.create(data);
       resetForm(); await loadData();
     } finally { setSaving(false); }
@@ -78,7 +60,9 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
     } finally { setSaving(false); }
   };
 
-  const getCatNombre = (id?: string | null) => categorias.find(c => c.id === id)?.nombre || '—';
+  // Map precalculado — antes era un .find() POR FILA (O(n×m) en cada render).
+  const catNombreById = useMemo(() => new Map(categorias.map(c => [c.id, c.nombre])), [categorias]);
+  const getCatNombre = (id?: string | null) => (id && catNombreById.get(id)) || '—';
   const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide";
 
   return (
@@ -93,57 +77,14 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
           )}
 
           {showForm && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-              <p className="text-xs font-semibold text-slate-700">{editingId ? 'Editar concepto' : 'Nuevo concepto'}</p>
-              <div className="grid grid-cols-[auto_1fr] gap-3">
-                <div>
-                  <label className={lbl}>Código</label>
-                  <Input inputSize="sm" value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="MP1_CN_60" />
-                </div>
-                <div>
-                  <label className={lbl}>Descripción *</label>
-                  <Input inputSize="sm" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Servicio de calibración..." />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={lbl}>Valor base *</label>
-                  <Input inputSize="sm" type="number" min={0} step={0.01} value={String(valorBase)} onChange={e => setValorBase(Number(e.target.value) || 0)} />
-                </div>
-                <div>
-                  <label className={lbl}>Moneda</label>
-                  <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
-                    value={moneda} onChange={e => setMoneda(e.target.value as MonedaPresupuesto)}>
-                    {MONEDAS.map(m => <option key={m} value={m}>{m} ({MONEDA_SIMBOLO[m]})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Factor</label>
-                  <Input inputSize="sm" type="number" min={0} step={0.01} value={String(factor)} onChange={e => setFactor(Number(e.target.value) || 1)} />
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Precio efectivo: <span className="font-semibold text-teal-700">{MONEDA_SIMBOLO[moneda]} {(valorBase * factor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-              </p>
-              <div>
-                <label className={lbl}>Categoría impositiva</label>
-                <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  value={catId} onChange={e => setCatId(e.target.value)}>
-                  <option value="">Sin categoría</option>
-                  {categorias.filter(c => c.activo).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-              </div>
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} className="rounded border-slate-300" />
-                Activo
-              </label>
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button variant="secondary" size="sm" onClick={resetForm}>Cancelar</Button>
-                <Button size="sm" onClick={handleSave} disabled={saving || !descripcion.trim()}>
-                  {saving ? 'Guardando...' : editingId ? 'Guardar' : 'Crear'}
-                </Button>
-              </div>
-            </div>
+            <ConceptoServicioForm
+              key={editing?.id ?? 'nuevo'}
+              initial={editing}
+              categorias={categorias}
+              saving={saving}
+              onSave={handleSave}
+              onCancel={resetForm}
+            />
           )}
 
           {loading ? (
@@ -182,7 +123,7 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-center space-x-2">
-                          <button className="text-teal-600 hover:underline" onClick={() => openEdit(c)}>Editar</button>
+                          <button className="text-teal-600 hover:underline" onClick={() => { setEditing(c); setShowForm(true); }}>Editar</button>
                           <button className="text-red-500 hover:underline" onClick={() => handleDelete(c.id)}>Eliminar</button>
                         </td>
                       </tr>
