@@ -53,6 +53,12 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // PDFs del control de facturas a pagar (CargarFacturaModal → facturasService.crearConTicket).
+    // Quedó fuera del whitelist al crearse el módulo (v1.21.0) y el upload daba storage/unauthorized.
+    match /facturas/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // Bloquear acceso a otras rutas
     match /{allPaths=**} {
       allow read, write: if false;
