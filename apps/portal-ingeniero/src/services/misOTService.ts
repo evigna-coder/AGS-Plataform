@@ -346,10 +346,15 @@ export const misOTService = {
       otVinculadaNumber: ot.otNumber,
       otsVinculadasNumbers: [ot.otNumber],
       ...getCreateTrace(),
+    });
+    // Timestamps FUERA del deepClean: el JSON round-trip los aplasta a mapas
+    // {seconds, nanoseconds} — los presupuestos del portal quedaban con fechas
+    // corruptas (mismo bug que las fichas, UAT 2026-07-29).
+    const presRef = await addDoc(collection(db, 'presupuestos'), {
+      ...payload,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    const presRef = await addDoc(collection(db, 'presupuestos'), payload);
 
     // budgets[] vive en reportes/{otNumber} (colección canónica de OTs).
     await setDoc(doc(db, 'reportes', ot.otNumber), {

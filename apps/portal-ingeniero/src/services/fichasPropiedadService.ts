@@ -31,18 +31,33 @@ import { getCreateTrace, getUpdateTrace, getCurrentUser } from './currentUser';
 
 const COLLECTION = 'fichasPropiedad';
 
+// OJO: es un JSON round-trip — APLASTA los Timestamp a {seconds, nanoseconds}.
+// Los Timestamp SIEMPRE van por fuera: `{ ...deepCleanForFirestore(payload),
+// updatedAt: Timestamp.now() }`. Pasarlos por adentro corrompió createdAt de
+// las fichas creadas desde el portal y rompió "Sumar fotos" (UAT 2026-07-29).
 function deepCleanForFirestore<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
+}
+
+/** Timestamp | string | Timestamp aplastado ({seconds}) | number → ISO, o null. */
+function tsToIso(v: unknown): string | null {
+  if (typeof v === 'string') return v;
+  if (v && typeof (v as { toDate?: unknown }).toDate === 'function') {
+    try { return (v as { toDate: () => Date }).toDate().toISOString(); } catch { return null; }
+  }
+  // Timestamp aplastado por el JSON round-trip (docs escritos antes del fix 2026-07-29)
+  const seconds = (v as { seconds?: unknown } | null)?.seconds;
+  if (typeof seconds === 'number') return new Date(seconds * 1000).toISOString();
+  if (typeof v === 'number') return new Date(v).toISOString();
+  return null;
 }
 
 function parseFicha(id: string, data: Record<string, unknown>): FichaPropiedad {
   return {
     id,
     ...data,
-    createdAt: (data['createdAt'] as { toDate?: () => Date })?.toDate?.()?.toISOString?.()
-      ?? (data['createdAt'] as string) ?? new Date().toISOString(),
-    updatedAt: (data['updatedAt'] as { toDate?: () => Date })?.toDate?.()?.toISOString?.()
-      ?? (data['updatedAt'] as string) ?? new Date().toISOString(),
+    createdAt: tsToIso(data['createdAt']) ?? new Date().toISOString(),
+    updatedAt: tsToIso(data['updatedAt']) ?? new Date().toISOString(),
   } as FichaPropiedad;
 }
 
@@ -158,14 +173,12 @@ export const fichasPropiedadService = {
       ...getCreateTrace(),
     };
 
-    await setDoc(
-      doc(db, COLLECTION, id),
-      deepCleanForFirestore({
-        ...payload,
-        createdAt: Timestamp.fromDate(new Date(now)),
-        updatedAt: Timestamp.now(),
-      }),
-    );
+    // Timestamps FUERA del deepClean (JSON round-trip los aplasta a mapas).
+    await setDoc(doc(db, COLLECTION, id), {
+      ...deepCleanForFirestore(payload),
+      createdAt: Timestamp.fromDate(new Date(now)),
+      updatedAt: Timestamp.now(),
+    });
     return { id, numero, itemId };
   },
 
@@ -209,11 +222,10 @@ export const fichasPropiedadService = {
     if (!snap.exists()) throw new Error('Ficha no encontrada');
     const ficha = parseFicha(snap.id, snap.data() as Record<string, unknown>);
     const newFotos = [...(ficha.fotos ?? []), foto];
-    await updateDoc(ref, deepCleanForFirestore({
-      fotos: newFotos,
-      ...getUpdateTrace(),
+    await updateDoc(ref, {
+      ...deepCleanForFirestore({ fotos: newFotos, ...getUpdateTrace() }),
       updatedAt: Timestamp.now(),
-    }));
+    });
   },
 
   async linkOT(fichaId: string, otNumber: string): Promise<void> {
@@ -222,11 +234,10 @@ export const fichasPropiedadService = {
     if (!snap.exists()) return;
     const ficha = parseFicha(snap.id, snap.data() as Record<string, unknown>);
     const otIds = Array.from(new Set([...(ficha.otIds ?? []), otNumber]));
-    await updateDoc(ref, deepCleanForFirestore({
-      otIds,
-      ...getUpdateTrace(),
+    await updateDoc(ref, {
+      ...deepCleanForFirestore({ otIds, ...getUpdateTrace() }),
       updatedAt: Timestamp.now(),
-    }));
+    });
   },
 };
 
