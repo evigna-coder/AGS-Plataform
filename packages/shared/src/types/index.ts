@@ -556,6 +556,14 @@ export interface Sistema {
   agsVisibleId?: string | null;
   /** Si el sistema está cubierto por un contrato de servicio */
   enContrato?: boolean;
+  /**
+   * Backlink al contrato que lo cubre (2026-07-30). Lo sincroniza contratosService
+   * al crear/suspender/reactivar contratos — permite desmarcar `enContrato` sin
+   * pisar OTRO contrato vigente del mismo cliente (un cliente puede tener varios
+   * contratos cubriendo equipos distintos). El checkbox manual del equipo sigue
+   * existiendo para casos sin contrato cargado.
+   */
+  contratoId?: string | null;
 }
 
 // --- Motivo del llamado (Tickets) ---

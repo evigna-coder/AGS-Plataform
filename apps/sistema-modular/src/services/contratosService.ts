@@ -91,6 +91,13 @@ export const contratosService = {
     });
     batch.set(ref, cleaned);
     await batch.commit();
+    // F2 (2026-07-30): marcar los equipos cubiertos como "en contrato" con
+    // backlink. Best-effort: un sistemaId inválido no debe voltear el alta.
+    try {
+      await this._syncEquipos(ref.id, data.sistemaIds ?? [], true);
+    } catch (err) {
+      console.error('[contratosService.create] sync de equipos falló (no bloquea):', err);
+    }
     return { id: ref.id, numero };
   },
 
@@ -104,6 +111,48 @@ export const contratosService = {
       ...getUpdateTrace(),
     });
     batch.update(ref, cleaned);
+    await batch.commit();
+    // F2: al cambiar el estado del contrato, sincronizar el flag de sus equipos
+    // (activo → marcar; suspendido/cancelado/vencido → desmarcar salvo que otro
+    // contrato vigente los cubra). Best-effort.
+    if (data.estado) {
+      try {
+        const c = await this.getById(id);
+        if (c) await this._syncEquipos(id, c.sistemaIds ?? [], data.estado === 'activo');
+      } catch (err) {
+        console.error('[contratosService.update] sync de equipos falló (no bloquea):', err);
+      }
+    }
+  },
+
+  /**
+   * Sincroniza `enContrato` + `contratoId` de los sistemas cubiertos por un
+   * contrato. Al DESMARCAR, si otro contrato vigente del cliente cubre el mismo
+   * equipo (un cliente puede tener varios contratos, equipos distintos), el flag
+   * queda encendido apuntando a ese otro contrato en vez de apagarse.
+   */
+  async _syncEquipos(contratoId: string, sistemaIds: string[], activar: boolean): Promise<void> {
+    if (sistemaIds.length === 0) return;
+    const batch = createBatch();
+    if (activar) {
+      for (const sid of sistemaIds) {
+        batch.update(docRef('sistemas', sid), {
+          enContrato: true,
+          contratoId,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      const activos = (await this.getAll({ estado: 'activo' }))
+        .filter(c => c.id !== contratoId && c.fechaFin >= today);
+      for (const sid of sistemaIds) {
+        const otro = activos.find(c => (c.sistemaIds ?? []).includes(sid));
+        batch.update(docRef('sistemas', sid), otro
+          ? { enContrato: true, contratoId: otro.id, updatedAt: Timestamp.now() }
+          : { enContrato: false, contratoId: null, updatedAt: Timestamp.now() });
+      }
+    }
     await batch.commit();
   },
 
