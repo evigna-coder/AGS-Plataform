@@ -1088,6 +1088,14 @@ export const ordenesTrabajoService = {
       presupuestosPorNumero.flatMap(p => (p?.ordenesCompraIds || [])),
     ));
 
+    // ── OT bajo contrato (decisión 2026-07-30): factura por cuotas mensuales del
+    // contrato, NO por presupuesto → si no tiene presupuestos vinculados, se
+    // SUPRIME el aviso a facturación (antes salía un mail "sin presupuesto
+    // vinculado — revisar manualmente" en cada cierre, ruido puro). Si la OT
+    // tiene ADICIONALES en budgets, el aviso sale normal y los cubre.
+    const otBajoContrato = !!(ot.contratoId || ot.tieneContrato);
+    const suprimirAviso = otBajoContrato && presupuestoNumeros.length === 0;
+
     // ── Gate documental de facturación (circuito B): si el cliente exige remito
     // firmado o certificación, la OT cierra normalmente pero NO entra a
     // otsListasParaFacturar; queda retenida hasta `liberarParaFacturacion`. Fail-safe:
@@ -1220,7 +1228,11 @@ export const ordenesTrabajoService = {
         telefono: '',
         motivoLlamado: 'administracion',
         motivoContacto: `Cierre OT ${otNumber}`,
-        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Revisar cierre/entrega.`,
+        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length
+          ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.`
+          : suprimirAviso
+            ? 'Cubierta por contrato — factura por cuotas; sin aviso a facturación.'
+            : 'Sin presupuesto vinculado.'} Revisar cierre/entrega.`,
         sistemaId: ot.sistemaId ?? null,
         moduloId: ot.moduloId ?? null,
         estado: 'nuevo' as TicketEstado,
@@ -1243,8 +1255,9 @@ export const ordenesTrabajoService = {
       };
       tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
 
-      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending')
-      tx.set(newMailQueueRef, deepCleanForFirestore({
+      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending').
+      // OT de contrato sin presupuestos: sin aviso (ver suprimirAviso arriba).
+      if (!suprimirAviso) tx.set(newMailQueueRef, deepCleanForFirestore({
         type: 'cierre_admin_ot',
         status: 'pending',
         data: {
@@ -1288,7 +1301,7 @@ export const ordenesTrabajoService = {
         }
       }
 
-      return { adminTicketId: newAdminTicketRef.id, mailQueueId: newMailQueueRef.id };
+      return { adminTicketId: newAdminTicketRef.id, mailQueueId: suprimirAviso ? '' : newMailQueueRef.id };
     });
 
     // ── Post-commit side-effects (best-effort, NO bloquea) ────────
