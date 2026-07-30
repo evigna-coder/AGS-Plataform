@@ -43,8 +43,16 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
   const [disponibilidadTouched, setDisponibilidadTouched] = useState(false);
   const [atpHint, setAtpHint] = useState<{ atp: number } | null>(null);
   const prevArticuloId = useRef<string | null | undefined>(undefined);
+  // Loop de teclado del modo inline (paridad con el wizard — pedido 2026-07-30):
+  // buscar → cantidad → Enter agrega → el foco VUELVE al buscador.
+  const searchRef = useRef<HTMLDivElement>(null);
+  const cantidadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
+
+  const focusBuscador = () => {
+    searchRef.current?.querySelector('input')?.focus();
+  };
 
   const reset = () => {
     setItem(ITEM_INICIAL);
@@ -89,6 +97,10 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
 
   const applySeleccion = (v: string) => {
     setSeleccion(v);
+    // Al elegir del buscador, saltar a Cantidad (encadenado tipo wizard).
+    if (inline && (v.startsWith('con:') || v.startsWith('art:'))) {
+      requestAnimationFrame(() => { cantidadRef.current?.focus(); cantidadRef.current?.select(); });
+    }
     if (v.startsWith('con:')) {
       const c = conceptosServicio.find(x => x.id === v.slice(4));
       if (!c) return;
@@ -122,13 +134,31 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
   const handleAgregar = () => {
     if (!puedeAgregar) return;
     onAdd(item);
-    if (inline) reset();
-    else onClose?.();
+    if (inline) {
+      reset();
+      // rAF: esperar el re-render del reset antes de devolver el foco al buscador.
+      requestAnimationFrame(focusBuscador);
+    } else {
+      onClose?.();
+    }
+  };
+
+  // Enter agrega desde CUALQUIER campo (paridad con el wizard). En la
+  // descripción (textarea) Enter hace salto de línea; ahí agrega Ctrl+Enter.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    const enTextarea = e.target instanceof HTMLTextAreaElement;
+    if (enTextarea && !(e.ctrlKey || e.metaKey)) return;
+    // No robar el Enter del buscador con el dropdown abierto (selecciona opción).
+    const enBuscador = searchRef.current?.contains(e.target as Node);
+    if (enBuscador) return;
+    e.preventDefault();
+    handleAgregar();
   };
 
   const campos = (
     <div className="space-y-3">
-      <div>
+      <div ref={searchRef}>
         <label className={lbl}>Vincular servicio o artículo (opcional, precarga los campos)</label>
         <SearchableSelect value={seleccion} onChange={applySeleccion} options={searchOptions}
           placeholder="Buscar servicio o artículo…" />
@@ -136,8 +166,9 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       <div className={inline ? 'grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3' : 'space-y-3'}>
         <div>
           <label className={lbl}>Código artículo</label>
+          {/* Gris + mono como en el wizard: es un dato de referencia, no el foco de la carga. */}
           <input value={item.codigoProducto || ''} onChange={e => setItem(prev => ({ ...prev, codigoProducto: e.target.value }))}
-            className={inp} placeholder="Ej: G1312-60067" />
+            className={`${inp} font-mono text-slate-500`} placeholder="Ej: G1312-60067" />
         </div>
         <div>
           <label className={lbl}>Descripcion *</label>
@@ -148,7 +179,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       <div className="grid grid-cols-4 gap-3">
         <div>
           <label className={lbl}>Cantidad *</label>
-          <input type="number" min="0" step="0.01" value={item.cantidad || ''} onFocus={e => e.currentTarget.select()}
+          <input ref={cantidadRef} type="number" min="0" step="0.01" value={item.cantidad || ''} onFocus={e => e.currentTarget.select()}
             onChange={e => setItem(prev => ({ ...prev, cantidad: Number(e.target.value) || 0 }))} className={inp} />
         </div>
         <div>
@@ -204,8 +235,10 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
 
   if (inline) {
     return (
-      <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/60">
-        <p className="text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wide mb-2">Agregar item</p>
+      <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/60" onKeyDown={handleKeyDown}>
+        <p className="text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wide mb-2">
+          Agregar item <span className="normal-case font-sans text-slate-400">· Enter agrega y vuelve al buscador</span>
+        </p>
         {campos}
         <div className="flex justify-end gap-2 mt-3">
           <Button variant="outline" size="sm" onClick={reset}>Limpiar</Button>
