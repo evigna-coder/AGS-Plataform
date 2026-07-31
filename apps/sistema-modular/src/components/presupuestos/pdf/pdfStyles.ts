@@ -263,6 +263,17 @@ export const baseStyles = StyleSheet.create({
     borderLeftColor: COLORS.sectionBorder,
     paddingLeft: 8,
   },
+  // Notas técnicas destacadas (pedido 2026-07-31): recuadro completo con fondo
+  // suave para diferenciarlas del resto de las notas (que llevan solo el filete
+  // izquierdo).
+  condicionSectionDestacada: {
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 4,
+    backgroundColor: COLORS.primaryTint,
+    padding: 8,
+  },
   condicionTitle: {
     fontSize: 8,
     fontWeight: 'bold',

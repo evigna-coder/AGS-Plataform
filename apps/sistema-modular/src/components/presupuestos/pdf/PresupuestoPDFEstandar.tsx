@@ -430,7 +430,11 @@ export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   return (
     <View>
       {visibleSections.map((section) => (
-        <View key={section.key} style={S.condicionSection} wrap={!!section.largo}>
+        <View key={section.key}
+          // Notas técnicas en recuadro destacado (pedido 2026-07-31) — el resto
+          // conserva el filete izquierdo.
+          style={section.key === 'notasTecnicas' ? S.condicionSectionDestacada : S.condicionSection}
+          wrap={!!section.largo}>
           <Text style={S.condicionTitle}>{section.title}</Text>
           <PDFRichText html={section.content} fallbackStyle={S.condicionText} />
         </View>
