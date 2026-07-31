@@ -134,6 +134,7 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
             unidades={h.unidades}
             maxCantidad={h.maxCantidad}
             onAdd={h.addUnidad}
+            onAddManual={h.addManual}
             onUpdate={h.updateItem}
             onRemove={h.removeItem}
           />

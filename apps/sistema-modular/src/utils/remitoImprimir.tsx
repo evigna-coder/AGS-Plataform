@@ -1,4 +1,6 @@
 import type { Remito } from '@ags/shared';
+import { movimientosAplicarService, remitoMueveStock } from '../services/movimientosAplicar';
+import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 
 // Calibración contra el papel preimpreso real (2026-07-31, 2 rondas de fitting).
 // Offsets en pt (1 mm = 2,835 pt); negativo = arriba / izquierda. Globales
@@ -16,8 +18,8 @@ const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
   provincia:   { y: -8 * MM },       // 8 mm arriba
   cuit:        { y: -15 * MM },      // 1,5 cm arriba
   fecha:       { x: -3 * MM, y: 28 * MM }, // 2,8 cm abajo · 3 mm izquierda
-  tablaY: -45 * MM,                  // toda la línea de items 4,5 cm arriba
-  colItemX: 5 * MM,                  // n° de item 5 mm derecha
+  tablaY: -27 * MM,                  // toda la línea de items 2,7 cm arriba (corregido de -45)
+  colItemX: 7 * MM,                  // n° de item 7 mm derecha (5 + 2 de la ronda 3)
   colProductoX: -15 * MM,            // artículo 1,5 cm izquierda
   colDescripcionX: -45 * MM,         // descripción 4,5 cm izquierda
 };
@@ -33,6 +35,19 @@ import { printRemitoSilentOrOpen } from './remitoPdfActions';
  * (Rework remitos 2026-07-31.)
  */
 export async function imprimirRemitoStock(remito: Remito): Promise<void> {
+  // Imprimir = EMITIR (pedido 2026-07-31: "el remito genera movimientos de
+  // stock"): la primera impresión de un borrador aplica la salida real —
+  // unidades descontadas/entregadas + MovimientoStock, misma transacción que
+  // el botón Confirmar del detalle. Reimprimir (ya confirmado) no re-aplica.
+  // Items manuales (sin unidadId) no mueven stock — remito documental.
+  if (remito.estado === 'borrador') {
+    if (remitoMueveStock(remito)) {
+      await movimientosAplicarService.aplicarSalidaRemito({ remito, creadoPor: nombreUsuarioActual() });
+    } else {
+      await remitosService.update(remito.id, { estado: 'confirmado' });
+    }
+  }
+
   const [cliente, establecimiento] = await Promise.all([
     remito.clienteId ? clientesService.getById(remito.clienteId).catch(() => null) : Promise.resolve(null),
     remito.establecimientoId ? establecimientosService.getById(remito.establecimientoId).catch(() => null) : Promise.resolve(null),

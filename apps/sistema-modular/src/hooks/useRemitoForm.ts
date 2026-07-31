@@ -131,6 +131,21 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     setMaxCantidad(prev => ({ ...prev, [id]: u.cantidad ?? 1 }));
   }, [unidades, form.tipo]);
 
+  /** Ítem manual (sin unidad de stock): no genera movimiento — para bienes que
+   *  no están cargados en stock. Código/descripción editables en la tabla. */
+  const addManual = useCallback(() => {
+    setItems(prev => [...prev, {
+      id: crypto.randomUUID(),
+      articuloCodigo: '',
+      articuloDescripcion: '',
+      cantidad: 1,
+      tipoItem: (form.tipo === 'entrega_cliente' || form.tipo === 'devolucion') ? 'entrega' : 'sale_y_vuelve',
+      devuelto: false,
+      serie: null,
+      observaciones: null,
+    }]);
+  }, [form.tipo]);
+
   const updateItem = useCallback((id: string, patch: Partial<RemitoItem>) => {
     setItems(prev => prev.map(it => (it.id === id ? { ...it, ...patch } : it)));
   }, []);
@@ -142,6 +157,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     if (form.tipo === 'entrega_cliente' && !form.clienteId) return 'Seleccioná un cliente para la entrega';
     if (items.length === 0) return 'Agregá al menos un artículo';
     if (items.some(it => (it.cantidad || 0) <= 0)) return 'Hay items con cantidad 0';
+    if (items.some(it => !it.unidadId && !(it.articuloDescripcion || '').trim())) return 'Hay ítems manuales sin descripción';
     return null;
   }, [form, items]);
 
@@ -187,6 +203,6 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   return {
     form, set, selectCliente, items, maxCantidad, saving,
     ingenieros, clientes, establecimientosFiltrados, unidades, otsCliente,
-    addOt, removeOt, addUnidad, updateItem, removeItem, guardar,
+    addOt, removeOt, addUnidad, addManual, updateItem, removeItem, guardar,
   };
 }
