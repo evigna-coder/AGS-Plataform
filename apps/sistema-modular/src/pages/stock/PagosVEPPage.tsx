@@ -32,7 +32,7 @@ function MesCard({ mes, onOpen }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => v
           ))}
         </div>
       </div>
-      <table className="w-full text-xs">
+      <table className="tabla-compacta w-full text-xs">
         <tbody className="divide-y divide-slate-50">
           {mes.eventos.map(e => {
             const d = new Date(e.fecha + 'T00:00:00');

@@ -201,7 +201,7 @@ export const TiposEquipoList = () => {
               </p>
             </div>
           ) : (
-            <table ref={tableRef} className="w-full text-sm table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full text-sm table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (

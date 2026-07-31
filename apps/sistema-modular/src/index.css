@@ -13,6 +13,23 @@ body {
   min-height: 100vh;
 }
 
+/* ── Listados compactos (pedido 2026-07-31) ─────────────────────────────────
+   Baja ~2px la letra de las tablas de listado sin tocar cada celda: dentro de
+   una <table class="tabla-compacta">, text-sm (14px) pasa a 12px y text-xs
+   (12px) a 10px. Los tamaños ya chicos (text-[10px]/[11px] de labels y badges)
+   quedan como están. Para ajustar TODOS los listados, tocar solo acá. */
+.tabla-compacta {
+  font-size: 10px;
+}
+.tabla-compacta.text-sm,
+.tabla-compacta .text-sm {
+  font-size: 12px;
+}
+.tabla-compacta.text-xs,
+.tabla-compacta .text-xs {
+  font-size: 10px;
+}
+
 /* Google Places Autocomplete dropdown — mostrar dirección completa */
 .pac-container {
   min-width: 360px !important;

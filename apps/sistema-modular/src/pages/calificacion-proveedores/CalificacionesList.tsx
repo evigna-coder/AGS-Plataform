@@ -139,7 +139,7 @@ export function CalificacionesList() {
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-          <table ref={tableRef} className="w-full text-sm table-fixed">
+          <table ref={tableRef} className="tabla-compacta w-full text-sm table-fixed">
             {colWidths ? (
               <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             ) : (

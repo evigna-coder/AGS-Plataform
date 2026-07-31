@@ -353,7 +353,7 @@ export const LeadsList = () => {
                 );
               };
               return (
-            <table ref={tableRef} className="w-full table-fixed min-w-[1200px]">
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed min-w-[1200px]">
               <colgroup>
                 {(colWidths || defaultPct).map((w, i) => (
                   isHidden(i) ? null : <col key={i} style={{ width: w }} />

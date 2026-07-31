@@ -121,7 +121,7 @@ export const OCList = () => {
           </Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-            <table ref={tableRef} className="w-full table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (

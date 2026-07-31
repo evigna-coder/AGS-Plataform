@@ -127,7 +127,7 @@ export const AsignacionesList = () => {
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay asignaciones.</p></div></Card>
         ) : (
           <Card className="overflow-x-auto p-0">
-            <table className="w-full">
+            <table className="tabla-compacta w-full">
               <thead className="border-b border-slate-200">
                 <tr>
                   <th className={th}>Ítem</th>

@@ -131,7 +131,7 @@ export const EntregasList: React.FC = () => {
           ) : sorted.length === 0 ? (
             <div className="text-center py-12 text-xs text-slate-400">No hay items para mostrar</div>
           ) : (
-            <table className="w-full">
+            <table className="tabla-compacta w-full">
               <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                 <tr>
                   <SortableHeader label="Cliente"      field="clienteNombre"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />

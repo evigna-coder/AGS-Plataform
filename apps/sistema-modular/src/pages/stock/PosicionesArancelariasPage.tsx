@@ -219,7 +219,7 @@ export const PosicionesArancelariasPage = () => {
           </p></div></Card>
         ) : (
           <div className="flex-1 min-h-0 overflow-auto bg-white rounded-xl border border-slate-200 shadow-sm">
-            <table className="w-full">
+            <table className="tabla-compacta w-full">
               <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100">
                   <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3" />

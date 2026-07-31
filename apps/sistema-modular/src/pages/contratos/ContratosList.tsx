@@ -97,7 +97,7 @@ export const ContratosList = () => {
           <p className="text-center text-sm text-slate-400 py-8">No hay contratos</p>
         ) : (
           <div className="overflow-x-auto">
-            <table ref={tableRef} className="w-full text-xs table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full text-xs table-fixed">
               {colWidths ? (
                 <colgroup>
                   {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}

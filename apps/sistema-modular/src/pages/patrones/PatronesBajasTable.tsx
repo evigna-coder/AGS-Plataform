@@ -46,7 +46,7 @@ export function PatronesBajasTable({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-      <table className="w-full">
+      <table className="tabla-compacta w-full">
         <thead className="sticky top-0 z-10">
           <tr className="bg-slate-50 border-b border-slate-200">
             <th className={thClass}>Código artículo</th>

@@ -46,7 +46,7 @@ export function MovimientosTable({ items, sortField, sortDir, onSort, onSelect, 
 
   return (
     <div className="bg-white">
-      <table ref={tableRef} className="w-full text-xs border-collapse table-fixed">
+      <table ref={tableRef} className="tabla-compacta w-full text-xs border-collapse table-fixed">
         <colgroup>
           {(colWidths ?? DEFAULT_WIDTHS).map((w, i) => <col key={i} style={{ width: w }} />)}
         </colgroup>

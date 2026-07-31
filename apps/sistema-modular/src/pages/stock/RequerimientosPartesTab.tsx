@@ -113,7 +113,7 @@ export function RequerimientosPartesTab() {
         requerimiento firme ({pendientes} sin generar). Si la venta es certera, generá el requerimiento sin esperar la OC.
       </p>
       <div className="bg-white overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full">
+        <table className="tabla-compacta w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className={th}>Presupuesto</th>

@@ -213,7 +213,7 @@ export const ClientesList = () => {
           </Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto overflow-x-hidden h-full">
-            <table ref={tableRef} className="w-full table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed">
               {colWidths && (
                 <colgroup>
                   {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}

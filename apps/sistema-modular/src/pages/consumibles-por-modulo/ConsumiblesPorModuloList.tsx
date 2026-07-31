@@ -137,7 +137,7 @@ export const ConsumiblesPorModuloList = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="tabla-compacta w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className={thClass}>Código módulo</th>

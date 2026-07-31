@@ -178,7 +178,7 @@ export const UnidadesList = () => {
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
           <div className="bg-white overflow-auto h-full">
-            <table ref={tableRef} className="w-full table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (

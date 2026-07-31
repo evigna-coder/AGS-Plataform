@@ -225,7 +225,7 @@ export const FacturacionList = () => {
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-            <table ref={tableRef} className="w-full text-xs table-fixed">
+            <table ref={tableRef} className="tabla-compacta w-full text-xs table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (

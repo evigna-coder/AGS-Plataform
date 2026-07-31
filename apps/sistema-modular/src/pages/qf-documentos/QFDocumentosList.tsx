@@ -223,7 +223,7 @@ export function QFDocumentosList() {
           </Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-            <table ref={tableRef} className="w-full table-fixed min-w-[920px]">
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed min-w-[920px]">
               <colgroup>
                 {(colWidths || defaultPct).map((w, i) =>
                   isHidden(i) ? null : <col key={i} style={{ width: w }} />
