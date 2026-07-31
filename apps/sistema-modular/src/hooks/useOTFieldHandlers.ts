@@ -64,9 +64,22 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   const handleIngenieroChange = useCallback((uid: string) => {
     const u = ingenieros.find(i => (i.usuarioId || i.id) === uid);
     dirty();
-    setFields({ ingenieroAsignadoId: u?.usuarioId ?? u?.id ?? null, ingenieroAsignadoNombre: u?.nombre ?? null });
+    // Asignar ingeniero con la OT en CREADA → promover a ASIGNADA (UAT 2026-07-31:
+    // solo el drag de agenda promovía; asignar directo dejaba la OT en CREADA).
+    // Quitar el ingeniero NO degrada el estado.
+    const promover = !!u && (form.estadoAdmin === 'CREADA' || !form.estadoAdmin);
+    const ahora = new Date().toISOString();
+    setFields({
+      ingenieroAsignadoId: u?.usuarioId ?? u?.id ?? null,
+      ingenieroAsignadoNombre: u?.nombre ?? null,
+      ...(promover ? {
+        estadoAdmin: 'ASIGNADA' as OTEstadoAdmin,
+        estadoAdminFecha: ahora,
+        estadoHistorial: [...form.estadoHistorial, { estado: 'ASIGNADA' as OTEstadoAdmin, fecha: ahora }],
+      } : {}),
+    });
     markInteracted();
-  }, [ingenieros, setFields, markInteracted]);
+  }, [ingenieros, form.estadoAdmin, form.estadoHistorial, setFields, markInteracted]);
 
   // ── Estado admin ──────────────────────────────────────────────
   const handleEstadoAdminChange = useCallback((nuevoEstado: OTEstadoAdmin) => {

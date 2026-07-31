@@ -323,11 +323,17 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     let estadoAdminFecha = otOriginal?.estadoAdminFecha || '';
     let status: 'BORRADOR' | 'FINALIZADO' = form.status;
 
-    if (form.estadoAdmin !== otOriginal?.estadoAdmin) {
+    // Ingeniero asignado con la OT en CREADA → auto-promover a ASIGNADA (UAT
+    // 2026-07-31: asignar ingeniero/fecha en la edición dejaba la OT en CREADA;
+    // solo el drag de agenda promovía el estado).
+    let estadoAdminFinal = form.estadoAdmin;
+    if (ingeniero && (estadoAdminFinal === 'CREADA' || !estadoAdminFinal)) estadoAdminFinal = 'ASIGNADA';
+
+    if (estadoAdminFinal !== otOriginal?.estadoAdmin) {
       const ahora = new Date().toISOString();
-      estadoHistorial = [...estadoHistorial, { estado: form.estadoAdmin, fecha: ahora }];
+      estadoHistorial = [...estadoHistorial, { estado: estadoAdminFinal, fecha: ahora }];
       estadoAdminFecha = ahora;
-      if (form.estadoAdmin === 'FINALIZADO') status = 'FINALIZADO';
+      if (estadoAdminFinal === 'FINALIZADO') status = 'FINALIZADO';
     }
 
     setSaving(true);
@@ -353,7 +359,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         ordenCompra: form.ordenesCompra.find(o => o.trim() !== '')?.trim() || null,
         fechaServicioAprox: form.fechaServicioAprox || null,
         problemaFallaInicial: form.problemaFallaInicial || '',
-        estadoAdmin: form.estadoAdmin,
+        estadoAdmin: estadoAdminFinal,
         estadoAdminFecha: estadoAdminFecha || null,
         estadoHistorial,
         esFacturable: form.esFacturable,
