@@ -56,13 +56,22 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
   const COLS = isMixta ? COLS_MIXTA : COLS_SINGLE;
   const subtotals = totalsByCurrency(group.items);
 
-  // NOTE: do NOT wrap={false} on the outer card — con 21 sistemas y módulos,
-  // el contenido no entra en una sola página y react-pdf estaba saltando las
-  // cards enteras. Permitimos que se dividan entre páginas, pero mantenemos
-  // wrap={false} en el header + módulos + tableHead para que al menos el
-  // encabezado del sistema no quede huérfano al pie de página.
+  // Un equipo NO puede quedar partido entre hojas (pedido 2026-07-31): si la
+  // card estimada entra en una página, wrap={false} → pasa ENTERA a la hoja
+  // siguiente. OJO: no se puede wrap={false} a ciegas — una card más alta que
+  // la hoja hace que react-pdf la saltee entera (bug visto con 21 sistemas),
+  // así que las que superan el umbral siguen partiendo entre filas (cada fila
+  // ya es indivisible, y el header tiene su propio wrap={false}).
+  const notasCount = group.items.filter(i => i.itemNotasAdicionales).length;
+  const descLargas = group.items.filter(i => (i.descripcion || '').length > 70).length;
+  const estHeight = 34 /* header + tableHead */
+    + (modulos && modulos.length > 0 ? 16 + modulos.length * 11 : 0)
+    + group.items.length * 13 + notasCount * 11 + descLargas * 9
+    + 18 /* subtotal */;
+  const cardEntera = estHeight < 460;
+
   return (
-    <View style={cs.sistemaCard}>
+    <View style={cs.sistemaCard} wrap={!cardEntera}>
       <View wrap={false}>
         <View style={cs.sistemaCardHeader}>
           <Text style={cs.sistemaCardNum}>{group.grupo}.</Text>
