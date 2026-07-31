@@ -155,7 +155,10 @@ export function FichaDetail() {
         <div className="flex gap-5 px-5 py-4">
           {/* Sidebar */}
           <div className="w-72 shrink-0">
-            <FichaInfoSidebar ficha={ficha} onUpdate={() => { /* subscription refresh */ }} />
+            {/* Con el drawer de edición abierto, el visor de fotos deja libre su
+                franja (640px) — se puede mirar la foto grande Y editar a la vez. */}
+            <FichaInfoSidebar ficha={ficha} onUpdate={() => { /* subscription refresh */ }}
+              fotosViewerRightPx={editModalOpen ? 640 : 0} />
           </div>
           {/* Main */}
           <div className="flex-1 space-y-4 min-w-0">

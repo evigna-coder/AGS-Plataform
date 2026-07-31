@@ -204,6 +204,41 @@ export const clientesService = {
 };
 
 // =============================================
+// --- Establecimientos — solo lectura ---
+// =============================================
+export interface EstablecimientoMini {
+  id: string;
+  nombre: string;
+  localidad: string;
+  activo: boolean;
+}
+
+export const establecimientosService = {
+  /** Establecimientos del cliente — por clienteCuit y clienteId legacy, dedup
+   *  (mismo query dual que getContactos). Para el paso 2 de recepción móvil. */
+  async getByCliente(clienteId: string): Promise<EstablecimientoMini[]> {
+    const [byCuit, byLegacy] = await Promise.all([
+      getDocs(query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId))),
+      getDocs(query(collection(db, 'establecimientos'), where('clienteId', '==', clienteId))),
+    ]);
+    const seen = new Set<string>();
+    const out: EstablecimientoMini[] = [];
+    for (const d of [...byCuit.docs, ...byLegacy.docs]) {
+      if (seen.has(d.id)) continue;
+      seen.add(d.id);
+      const data = d.data();
+      out.push({
+        id: d.id,
+        nombre: (data.nombre as string) || '',
+        localidad: (data.localidad as string) || '',
+        activo: data.activo !== false,
+      });
+    }
+    return out.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+};
+
+// =============================================
 // --- Ingenieros — solo lectura ---
 // =============================================
 export const ingenierosService = {

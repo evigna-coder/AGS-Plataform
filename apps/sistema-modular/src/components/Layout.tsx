@@ -8,6 +8,7 @@ import { SidebarNav } from './layout/SidebarNav';
 import { BackgroundTasksIndicator } from './layout/BackgroundTasksIndicator';
 import { FloatingPresupuesto } from './layout/FloatingPresupuesto';
 import { TabContentManager } from './layout/TabContentManager';
+import { ContentOverlayScope } from '../contexts/TabOverlayContext';
 import { NotificationButton } from './notifications/NotificationButton';
 
 export const Layout: React.FC = () => {
@@ -54,13 +55,18 @@ export const Layout: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav collapsed={collapsed} onCollapse={setCollapsed} />
-        <main className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
+        {/* relative: ancla del ContentOverlayScope — el presupuesto flotante
+            cubre solo el área de contenido, dejando header/TabBar/sidebar
+            clickeables (UAT 2026-07-31). */}
+        <main className="flex-1 min-h-0 overflow-y-auto bg-slate-50 relative">
           <TabContentManager />
+          <ContentOverlayScope>
+            <FloatingPresupuesto />
+          </ContentOverlayScope>
         </main>
       </div>
 
       <BackgroundTasksIndicator />
-      <FloatingPresupuesto />
       <MinimizedModalsBar />
     </div>
   );

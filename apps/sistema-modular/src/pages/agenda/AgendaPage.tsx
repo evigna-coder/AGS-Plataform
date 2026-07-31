@@ -1,7 +1,7 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import type { AgendaEntry, WorkOrder, EstadoAgenda, OTEstadoAdmin } from '@ags/shared';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import { addDays, parseISO, isWeekend } from 'date-fns';
+import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { ordenesTrabajoService } from '../../services/otService';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
@@ -47,6 +47,33 @@ export const AgendaPage: FC = () => {
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   }, [selectedCell]);
 
+  // El comentario de celda viaja con el servicio al moverlo por DnD o al
+  // cortar/pegar (UAT 2026-07-30/31): describe al servicio agendado, no a la
+  // celda física. Si la celda destino ya tiene comentario, se concatenan.
+  const notasRef = useRef(notas);
+  notasRef.current = notas;
+  const moverNotaConEntry = useCallback((
+    src: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+    tgt: { ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+  ) => {
+    if (src.ingenieroId === tgt.ingenieroId && src.fecha === tgt.fecha && src.quarter === tgt.quarter) return;
+    // Legacy sin quarter → celda 4 del día (mismo default que el render).
+    const srcNota = notasRef.current.find(n =>
+      n.ingenieroId === src.ingenieroId && n.fecha === src.fecha && (n.quarter ?? 4) === src.quarter);
+    if (!srcNota) return;
+    const tgtNota = notasRef.current.find(n =>
+      n.ingenieroId === tgt.ingenieroId && n.fecha === tgt.fecha && (n.quarter ?? 4) === tgt.quarter);
+    const texto = tgtNota?.texto?.trim() ? `${tgtNota.texto}\n${srcNota.texto}` : srcNota.texto;
+    void (async () => {
+      try {
+        await upsertNota({ fecha: tgt.fecha, ingenieroId: tgt.ingenieroId, ingenieroNombre: tgt.ingenieroNombre, quarter: tgt.quarter, texto });
+        await deleteNota(srcNota.id);
+      } catch (err) {
+        console.error('[AgendaPage] mover comentario junto con el servicio falló:', err);
+      }
+    })();
+  }, [upsertNota, deleteNota]);
+
   // ── Clipboard handlers ──
 
   // Use ref to avoid stale closures in the keyboard callback
@@ -62,6 +89,23 @@ export const AgendaPage: FC = () => {
     if (!cell?.entry) return;
     setClipboard({ type: 'entry', entry: cell.entry });
   }, []);
+
+  // ── Cortar (pedido 2026-07-31) ──
+  // Levanta TODOS los servicios de la celda: se borran (las OTs vuelven solas a
+  // "para coordinar" porque la cola es derivada de las entradas) y quedan en el
+  // clipboard hasta pegarse — el pegado los recrea preservando estado/notas.
+  const cutCell = useCallback((ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4) => {
+    const found = findEntriesAtCell(entries, ingenieroId, fecha, quarter);
+    if (found.length === 0) return;
+    setClipboard({ type: 'cut', entries: found, srcCell: { ingenieroId, fecha, quarter } });
+    for (const en of found) deleteEntry(en.id);
+  }, [entries, deleteEntry]);
+
+  const handleCut = useCallback(() => {
+    const cell = selectedCellRef.current;
+    if (!cell) return;
+    cutCell(cell.ingenieroId, cell.fecha, cell.quarter);
+  }, [cutCell]);
 
   const handlePaste = useCallback(() => {
     const cell = selectedCellRef.current;
@@ -84,6 +128,61 @@ export const AgendaPage: FC = () => {
     const feriadoPaste = primerFeriadoEnRango(fechaInicio, fechaFin);
     if (feriadoPaste) {
       alert(`El ${feriadoPaste} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return;
+    }
+
+    // ── Pegar un CORTE: recrear las entradas preservando estado/notas/título ──
+    if (cb.type === 'cut' && cb.entries && cb.entries.length > 0) {
+      // Feriados: validar el rango resultante de CADA entrada antes de crear nada.
+      for (const src of cb.entries) {
+        const span = differenceInCalendarDays(parseISO(src.fechaFin), parseISO(src.fechaInicio));
+        const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
+        const fer = primerFeriadoEnRango(cell.fecha, end);
+        if (fer) {
+          alert(`El ${fer} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+          return;
+        }
+      }
+      for (const src of cb.entries) {
+        const span = differenceInCalendarDays(parseISO(src.fechaFin), parseISO(src.fechaInicio));
+        const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
+        createEntry({
+          fechaInicio: cell.fecha,
+          fechaFin: end,
+          quarterStart: cell.quarter,
+          quarterEnd: src.quarterEnd,
+          ingenieroId: cell.ingenieroId,
+          ingenieroNombre: ingeniero.nombre,
+          otNumber: src.otNumber,
+          clienteNombre: src.clienteNombre,
+          tipoServicio: src.tipoServicio,
+          sistemaNombre: src.sistemaNombre ?? null,
+          establecimientoNombre: src.establecimientoNombre ?? null,
+          equipoModelo: src.equipoModelo ?? null,
+          equipoAgsId: src.equipoAgsId ?? null,
+          // Cortar/pegar es un MOVIMIENTO: el estado se preserva (un confirmado
+          // no vuelve a tentativo por moverlo de celda).
+          estadoAgenda: src.estadoAgenda,
+          notas: src.notas ?? null,
+          titulo: src.titulo ?? null,
+        });
+        // Sync de la OT al nuevo ingeniero/fecha. Best-effort.
+        if (src.otNumber) {
+          ordenesTrabajoService.update(src.otNumber, {
+            ingenieroAsignadoId: cell.ingenieroId,
+            ingenieroAsignadoNombre: ingeniero.nombre,
+            fechaServicioAprox: cell.fecha,
+          }).catch(err => console.error('[AgendaPage] sync OT al pegar corte falló:', err));
+        }
+      }
+      // El comentario de la celda origen viaja con el corte.
+      if (cb.srcCell) {
+        moverNotaConEntry(cb.srcCell, {
+          ingenieroId: cell.ingenieroId, ingenieroNombre: ingeniero.nombre,
+          fecha: cell.fecha, quarter: cell.quarter,
+        });
+      }
+      setClipboard(null); // el corte pega UNA sola vez
       return;
     }
 
@@ -150,7 +249,7 @@ export const AgendaPage: FC = () => {
         }).catch(err => console.error('[AgendaPage] sync OT al dropear pending falló:', err));
       }
     }
-  }, [ingenieros, entries, createEntry, updateEntry]);
+  }, [ingenieros, entries, createEntry, updateEntry, primerFeriadoEnRango, moverNotaConEntry]);
 
   const handleKeyDelete = useCallback(() => {
     const cell = selectedCellRef.current;
@@ -176,12 +275,13 @@ export const AgendaPage: FC = () => {
 
   const keyboardCallbacks = useMemo<AgendaKeyboardCallbacks>(() => ({
     onCopy: handleCopy,
+    onCut: handleCut,
     onPaste: handlePaste,
     onDelete: handleKeyDelete,
     onNavigatePrev: goToPrev,
     onNavigateNext: goToNext,
     onTypeStart: handleTypeStart,
-  }), [handleCopy, handlePaste, handleKeyDelete, goToPrev, goToNext, handleTypeStart]);
+  }), [handleCopy, handleCut, handlePaste, handleKeyDelete, goToPrev, goToNext, handleTypeStart]);
 
   // Keyboard navigation + copy/paste/delete
   useAgendaKeyboard(selectedCell, setSelectedCell, ingenieros, visibleDays, entries, keyboardCallbacks, selectionRange, setSelectionRange);
@@ -200,33 +300,6 @@ export const AgendaPage: FC = () => {
       return next;
     });
   }, []);
-
-  // El comentario de celda viaja con el servicio al moverlo por DnD (UAT
-  // 2026-07-30): describe al servicio agendado, no a la celda física. Si la
-  // celda destino ya tiene comentario, se concatenan (no se pisa ninguno).
-  const notasRef = useRef(notas);
-  notasRef.current = notas;
-  const moverNotaConEntry = useCallback((
-    src: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
-    tgt: { ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
-  ) => {
-    if (src.ingenieroId === tgt.ingenieroId && src.fecha === tgt.fecha && src.quarter === tgt.quarter) return;
-    // Legacy sin quarter → celda 4 del día (mismo default que el render).
-    const srcNota = notasRef.current.find(n =>
-      n.ingenieroId === src.ingenieroId && n.fecha === src.fecha && (n.quarter ?? 4) === src.quarter);
-    if (!srcNota) return;
-    const tgtNota = notasRef.current.find(n =>
-      n.ingenieroId === tgt.ingenieroId && n.fecha === tgt.fecha && (n.quarter ?? 4) === tgt.quarter);
-    const texto = tgtNota?.texto?.trim() ? `${tgtNota.texto}\n${srcNota.texto}` : srcNota.texto;
-    void (async () => {
-      try {
-        await upsertNota({ fecha: tgt.fecha, ingenieroId: tgt.ingenieroId, ingenieroNombre: tgt.ingenieroNombre, quarter: tgt.quarter, texto });
-        await deleteNota(srcNota.id);
-      } catch (err) {
-        console.error('[AgendaPage] mover comentario junto con el servicio falló:', err);
-      }
-    })();
-  }, [upsertNota, deleteNota]);
 
   // DnD: handlers + sensors + activeDrag state encapsulados en el hook.
   const {
@@ -505,11 +578,13 @@ export const AgendaPage: FC = () => {
     : null;
 
   const clipboardLabel = clipboard
-    ? clipboard.type === 'entry' && clipboard.entry
-      ? `OT-${clipboard.entry.otNumber}`
-      : clipboard.type === 'pending' && clipboard.ot
-        ? `OT-${clipboard.ot.otNumber}`
-        : null
+    ? clipboard.type === 'cut' && clipboard.entries?.length
+      ? `✂ ${clipboard.entries.map(e => (e.otNumber ? `OT-${e.otNumber}` : e.titulo || 'tarea')).join(', ')}`
+      : clipboard.type === 'entry' && clipboard.entry
+        ? `OT-${clipboard.entry.otNumber}`
+        : clipboard.type === 'pending' && clipboard.ot
+          ? `OT-${clipboard.ot.otNumber}`
+          : null
     : null;
 
   return (
@@ -617,6 +692,20 @@ export const AgendaPage: FC = () => {
               </svg>
               {notaDeContextMenu ? 'Editar comentario' : 'Agregar comentario'}
             </button>
+            {findEntriesAtCell(entries, contextMenu.ingenieroId, contextMenu.fecha, contextMenu.quarter).length > 0 && (
+              <button
+                onClick={() => {
+                  cutCell(contextMenu.ingenieroId, contextMenu.fecha, contextMenu.quarter);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.848 8.25l1.536.887M7.848 8.25a3 3 0 1 1-5.196-3 3 3 0 0 1 5.196 3Zm1.536.887a2.165 2.165 0 0 1 1.083 1.839c.005.351.054.695.14 1.024M9.384 9.137l2.077 1.199M7.848 15.75l1.536-.887m-1.536.887a3 3 0 1 1-5.196 3 3 3 0 0 1 5.196-3Zm1.536-.887a2.165 2.165 0 0 0 1.083-1.838c.005-.352.054-.695.14-1.025m-1.223 2.863 2.077-1.199m0-3.328a4.323 4.323 0 0 1 2.068-1.379l5.325-1.628a4.5 4.5 0 0 1 2.48-.044l.803.215-7.794 4.5m-2.882-.28a4.33 4.33 0 0 0 .805 1.968m1.077 1.04 4.876 2.815a4.5 4.5 0 0 0 2.48.043l.803-.214-7.475-4.316m-1.761 1.712a4.32 4.32 0 0 1-1.077-1.04" />
+                </svg>
+                Cortar servicio(s) — quedan en "para coordinar" hasta pegar
+              </button>
+            )}
           </div>
         )}
 

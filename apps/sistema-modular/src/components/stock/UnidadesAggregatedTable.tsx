@@ -28,7 +28,7 @@ export interface AggRow {
 
 const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
 
-export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover }: { rows: AggRow[]; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void }) => {
+export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar }: { rows: AggRow[]; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void }) => {
   const [sortField, setSortField] = useState<string>('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -65,7 +65,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover }: { rows: Ag
           {sorted.map(row => {
             const isOpen = expanded.has(row.articuloId);
             return (
-              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} />
+              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} />
             );
           })}
         </tbody>
@@ -74,7 +74,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover }: { rows: Ag
   );
 };
 
-const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void }) => (
+const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void }) => (
   <>
     <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={onToggle}>
       <td className="px-2 text-center text-slate-400">
@@ -122,6 +122,9 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover }: { row: AggRo
                     </td>
                     <td className="px-2 py-1.5 text-center">
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>{ESTADO_LABELS[u.estado]}</span>
+                      {u.estado === 'reservado' && u.reservadoParaPresupuestoNumero && (
+                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">{u.reservadoParaPresupuestoNumero}</div>
+                      )}
                     </td>
                     <td className="px-2 py-1.5 text-slate-600">
                       {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
@@ -130,6 +133,9 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover }: { row: AggRo
                     <td className="px-2 py-1.5 text-center whitespace-nowrap">
                       {onMover && (u.estado === 'disponible') && (
                         <button onClick={() => onMover(u)} className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
+                      )}
+                      {onLiberar && u.estado === 'reservado' && (
+                        <button onClick={() => onLiberar(u)} className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-50">Liberar</button>
                       )}
                       <button onClick={() => onAjustar(u)} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
                     </td>

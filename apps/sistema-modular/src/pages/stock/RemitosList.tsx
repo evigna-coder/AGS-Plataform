@@ -8,7 +8,8 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { CreateRemitoModal } from '../../components/stock/CreateRemitoModal';
+import { RemitoFormModal } from '../../components/remitos/RemitoFormModal';
+import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -35,6 +36,21 @@ export const RemitosList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  // Rework 2026-07-31: mismo modal para editar (solo borrador sin imprimir).
+  const [editRemito, setEditRemito] = useState<Remito | null>(null);
+  const [imprimiendoId, setImprimiendoId] = useState<string | null>(null);
+
+  const handleImprimir = async (r: Remito) => {
+    setImprimiendoId(r.id);
+    try {
+      await imprimirRemitoStock(r);
+    } catch (err) {
+      console.error('Error imprimiendo remito:', err);
+      alert('Error al imprimir el remito');
+    } finally {
+      setImprimiendoId(null);
+    }
+  };
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -213,6 +229,9 @@ export const RemitosList = () => {
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[r.estado]}`}>
                           {ESTADO_LABELS[r.estado]}
                         </span>
+                        {r.impreso && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-600">Impreso</span>
+                        )}
                       </td>
                       <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(3)}`}>{r.ingenieroNombre}</td>
                       <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(4)}`}>{r.items?.length ?? 0}</td>
@@ -223,6 +242,16 @@ export const RemitosList = () => {
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <Link to={`/stock/remitos/${r.id}`} className="text-xs text-teal-600 hover:underline font-medium">Ver</Link>
+                          {/* Editable solo mientras sea borrador SIN imprimir (rework 2026-07-31) */}
+                          {r.estado === 'borrador' && !r.impreso && (
+                            <button onClick={() => setEditRemito(r)} className="text-xs text-slate-600 hover:underline font-medium">Editar</button>
+                          )}
+                          {r.items?.length > 0 && (
+                            <button onClick={() => void handleImprimir(r)} disabled={imprimiendoId === r.id}
+                              className="text-xs text-indigo-600 hover:underline font-medium disabled:opacity-40">
+                              {imprimiendoId === r.id ? 'Imprimiendo…' : r.impreso ? 'Reimprimir' : 'Imprimir'}
+                            </button>
+                          )}
                           {r.estado === 'borrador' && (
                             <button onClick={() => handleDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
                           )}
@@ -236,7 +265,12 @@ export const RemitosList = () => {
         )}
       </div>
 
-      <CreateRemitoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <RemitoFormModal
+        open={showCreate || editRemito !== null}
+        remito={editRemito}
+        onClose={() => { setShowCreate(false); setEditRemito(null); }}
+        onSaved={loadData}
+      />
     </div>
   );
 };

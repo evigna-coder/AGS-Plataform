@@ -55,9 +55,15 @@ export function addWeekdays(date: Date, n: number): Date {
 
 /** What's stored in the agenda internal clipboard. */
 export interface ClipboardData {
-  type: 'entry' | 'pending';
+  type: 'entry' | 'pending' | 'cut';
   /** Copied from an existing entry */
   entry?: AgendaEntry;
   /** Copied from a pending OT */
   ot?: WorkOrder;
+  /** Cortar (2026-07-31): entradas levantadas de una celda — se borran al cortar
+   *  (las OTs vuelven solas a "para coordinar") y se recrean al pegar,
+   *  preservando estado/notas/título. El corte pega UNA sola vez. */
+  entries?: AgendaEntry[];
+  /** Celda origen del corte — el comentario de celda viaja al pegar. */
+  srcCell?: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 };
 }

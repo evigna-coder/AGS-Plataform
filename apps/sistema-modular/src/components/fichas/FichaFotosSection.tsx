@@ -15,6 +15,10 @@ interface Props {
   embedded?: boolean;
   /** Si true, arranca colapsada (solo header). Click expande. Default: false. */
   collapsible?: boolean;
+  /** Corrimiento derecho del visor ampliado, en px (2026-07-31: con el drawer
+   *  "Editar ficha" abierto la foto agrandada lo tapaba y bloqueaba la edición
+   *  — el visor deja libre esa franja y el drawer sigue operable). */
+  viewerRightPx?: number;
 }
 
 /**
@@ -24,7 +28,7 @@ interface Props {
  * `embedded` para uso en sidebar (sin card wrapper).
  * `collapsible` para que arranque cerrada y se expanda con click.
  */
-export function FichaFotosSection({ ficha, readOnly, onUpdate, embedded, collapsible }: Props) {
+export function FichaFotosSection({ ficha, readOnly, onUpdate, embedded, collapsible, viewerRightPx }: Props) {
   const [uploading, setUploading] = useState(false);
   const confirm = useConfirm();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -159,7 +163,10 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate, embedded, collaps
 
   const Lightbox = expanded && (
     <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8"
+      className="fixed inset-y-0 left-0 bg-black/80 z-50 flex items-center justify-center p-8"
+      // Deja libre la franja del drawer de edición (si está abierto) para poder
+      // mirar la foto grande Y seguir editando la ficha a la vez.
+      style={{ right: viewerRightPx || 0 }}
       onClick={() => setExpanded(null)}
     >
       <button

@@ -285,6 +285,10 @@ export const presupuestosService = {
     presupuestoId: string,
     presupuestoNumero: string,
     items: Array<{ id?: string | null; stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
+    /** forzar (2026-07-31): crear el requerimiento AUNQUE el ATP cubra la
+     *  cantidad — el vendedor quiere comprar igual (venta certera, ppto enviado
+     *  sin aceptar). El caller avisa antes que el stock alcanzaba. */
+    opts?: { forzar?: boolean },
   ): Promise<number> {
     // Phase 9 (STKP-05 fix): replaced buggy inline formula (qtyDisponible - qtyReservado + qtyEnTransito)
     // with computeStockAmplio() which correctly sums the 4 buckets without double-counting.
@@ -306,15 +310,21 @@ export const presupuestosService = {
       const stockMinimo = articulo?.stockMinimo ?? 0;
       const qtyResultante = stockProyectado - item.cantidad;
 
-      if (qtyResultante < stockMinimo || stockProyectado < item.cantidad) {
-        const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - stockProyectado, 1);
+      const cubreStock = qtyResultante >= stockMinimo && stockProyectado >= item.cantidad;
+      if (!cubreStock || opts?.forzar) {
+        // Forzado con stock que cubre: se pide la cantidad del ítem (no hay faltante que calcular).
+        const qtyReq = cubreStock
+          ? Math.max(item.cantidad, 1)
+          : Math.max(stockMinimo - qtyResultante, item.cantidad - stockProyectado, 1);
         await requerimientosService.create({
           articuloId: item.stockArticuloId,
           articuloCodigo: articulo?.codigo ?? null,
           articuloDescripcion: articulo?.descripcion ?? item.descripcion,
           cantidad: qtyReq,
           unidadMedida: articulo?.unidadMedida ?? 'unidad',
-          motivo: `Auto — presupuesto ${presupuestoNumero} | disp: ${sa.disponible}, tráns: ${sa.enTransito}, res: ${sa.reservado}, comp: ${sa.comprometido}, necesario: ${item.cantidad}`,
+          motivo: cubreStock
+            ? `Manual (forzado — el stock cubría) — presupuesto ${presupuestoNumero} | disp: ${sa.disponible}, tráns: ${sa.enTransito}, res: ${sa.reservado}, comp: ${sa.comprometido}, necesario: ${item.cantidad}`
+            : `Auto — presupuesto ${presupuestoNumero} | disp: ${sa.disponible}, tráns: ${sa.enTransito}, res: ${sa.reservado}, comp: ${sa.comprometido}, necesario: ${item.cantidad}`,
           origen: 'presupuesto',
           origenRef: presupuestoId,
           estado: 'pendiente',
@@ -523,6 +533,26 @@ export const presupuestosService = {
         }
       } catch (err) {
         console.error('[update anular] getById falló antes del cleanup:', err);
+      }
+    }
+
+    // ── Retroceso de estado: liberar reservas ──
+    // Las reservas de stock nacen al ACEPTAR (aceptarConRequerimientos, Paso 5b).
+    // Si el presupuesto retrocede a enviado/borrador, deja de estar aceptado y
+    // sus reservas deben liberarse (UAT 2026-07-31: se retrotrajo el estado de
+    // un ppto real y las unidades quedaron clavadas en 'reservado' sin salida).
+    // En el flujo normal hacia adelante (borrador→enviado) no hay reservas → no-op.
+    if (data.estado === 'enviado' || data.estado === 'borrador') {
+      try {
+        const pres = await this.getById(id);
+        await this._liberarReservasDePresupuesto(
+          id,
+          `Presupuesto ${pres?.numero ?? id} retrocedido a ${data.estado}`,
+        ).catch(err =>
+          console.error('[update retroceso] _liberarReservasDePresupuesto failed:', err),
+        );
+      } catch (err) {
+        console.error('[update retroceso] getById falló antes de liberar reservas:', err);
       }
     }
 

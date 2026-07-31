@@ -5,6 +5,7 @@ import { formatDateKey, findEntriesAtCell, type SelectedCell, type SelectionRang
 
 export interface AgendaKeyboardCallbacks {
   onCopy?: () => void;
+  onCut?: () => void;
   onPaste?: () => void;
   onDelete?: () => void;
   onNavigatePrev?: () => void;
@@ -32,6 +33,13 @@ export function useAgendaKeyboard(
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault();
         callbacks?.onCopy?.();
+        return;
+      }
+
+      // Ctrl+X → cut (2026-07-31)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+        e.preventDefault();
+        callbacks?.onCut?.();
         return;
       }
 

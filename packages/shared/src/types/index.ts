@@ -3457,6 +3457,11 @@ export interface RemitoItem {
   otNumberOrigen?: string | null;
   presupuestoNumero?: string | null;
   ocNumero?: string | null;
+  /** N° de serie del bien entregado (rework remitos 2026-07-31). Prefilleado
+   *  desde la unidad si es traceable; editable a mano. */
+  serie?: string | null;
+  /** Observaciones libres de la línea (rework remitos 2026-07-31). */
+  observaciones?: string | null;
 }
 
 export interface Remito {
@@ -3474,6 +3479,9 @@ export interface Remito {
   /** FK → clientes (para entregas) */
   clienteId?: string | null;
   clienteNombre?: string | null;
+  /** Establecimiento de entrega (rework remitos 2026-07-31). */
+  establecimientoId?: string | null;
+  establecimientoNombre?: string | null;
   items: RemitoItem[];
   observaciones?: string | null;
   fechaSalida?: string | null;
@@ -3507,6 +3515,10 @@ export interface Remito {
   fechaFirma?: string | null;
   remitoFirmadoUrl?: string | null;
   remitoFirmadoPath?: string | null;
+  /** Impresión (rework remitos 2026-07-31): un remito impreso ya salió en papel —
+   *  no se edita más, solo se reimprime. */
+  impreso?: boolean;
+  fechaImpresion?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;

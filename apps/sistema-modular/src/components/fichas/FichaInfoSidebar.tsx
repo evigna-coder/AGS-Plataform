@@ -6,6 +6,8 @@ import { FichaFotosSection } from './FichaFotosSection';
 interface Props {
   ficha: FichaPropiedad;
   onUpdate: () => void;
+  /** Pass-through al visor de fotos: franja derecha a dejar libre (drawer de edición). */
+  fotosViewerRightPx?: number;
 }
 
 function Row({ label, value, link, navState }: {
@@ -29,7 +31,7 @@ function Row({ label, value, link, navState }: {
  * Sidebar compacta — toda la info de cabecera de la ficha en una sola tarjeta,
  * más las fotos a nivel ficha en una segunda tarjeta colapsable.
  */
-export function FichaInfoSidebar({ ficha, onUpdate }: Props) {
+export function FichaInfoSidebar({ ficha, onUpdate, fotosViewerRightPx }: Props) {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
   const formatDate = (iso: string) => {
@@ -132,6 +134,7 @@ export function FichaInfoSidebar({ ficha, onUpdate }: Props) {
         embedded
         collapsible
         readOnly={ficha.estado === 'entregado'}
+        viewerRightPx={fotosViewerRightPx}
       />
     </div>
   );

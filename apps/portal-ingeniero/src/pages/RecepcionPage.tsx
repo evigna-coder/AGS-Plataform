@@ -43,6 +43,8 @@ export default function RecepcionPage() {
       await createFichaAndAdvance({
         clienteId: selected.clienteId ?? '',
         clienteNombre: selected.razonSocial,
+        establecimientoId: selected.establecimientoId ?? null,
+        establecimientoNombre: null,
       }, selected);
     } else {
       setStep('cliente');
@@ -65,8 +67,10 @@ export default function RecepcionPage() {
       const result = await fichasPropiedadService.create({
         clienteId: form.clienteId,
         clienteNombre: form.clienteNombre,
-        establecimientoId: fromOT?.establecimientoId ?? null,
-        establecimientoNombre: null,
+        // Paso 2 (2026-07-31): el establecimiento viene elegido en el form
+        // (autoselección si el cliente tiene uno solo); con OT, hereda el de la OT.
+        establecimientoId: form.establecimientoId ?? fromOT?.establecimientoId ?? null,
+        establecimientoNombre: form.establecimientoNombre ?? null,
         articuloDescripcionHint: hint,
         serieHint: fromOT?.moduloSerie ?? null,
         // Defaults para campos requeridos del modelo. Se editan luego desde sistema-modular.

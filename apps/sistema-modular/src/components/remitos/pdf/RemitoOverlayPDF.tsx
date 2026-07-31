@@ -95,6 +95,26 @@ export interface RemitoOverlayItem {
   descripcion: string;
 }
 
+/** Ajustes FINOS por campo (en pt; +x = derecha, +y = abajo). Se suman a los
+ *  offsets globales. Opcionales — los flujos que no los pasan quedan igual.
+ *  (Calibración del remito de stock contra papel real, 2026-07-31.) */
+export interface RemitoOverlayFieldOffsets {
+  fecha?: { x?: number; y?: number };
+  razonSocial?: { y?: number };
+  domicilio?: { y?: number };
+  localidad?: { y?: number };
+  provincia?: { y?: number };
+  iva?: { y?: number };
+  cuit?: { y?: number };
+  /** Corrimiento vertical de TODAS las filas de la tabla de items. */
+  tablaY?: number;
+  /** Corrimientos horizontales por columna de la tabla. */
+  colItemX?: number;
+  colCantX?: number;
+  colProductoX?: number;
+  colDescripcionX?: number;
+}
+
 interface RemitoOverlayPDFProps {
   fecha: string;                        // dd/mm/yyyy ya formateada
   destinatario: RemitoOverlayDestinatario;
@@ -103,6 +123,7 @@ interface RemitoOverlayPDFProps {
   /** Offsets globales para calibrar contra impresora específica (en pt). */
   globalOffsetX?: number;
   globalOffsetY?: number;
+  fieldOffsets?: RemitoOverlayFieldOffsets;
   /**
    * Cantidad de copias = cantidad de páginas idénticas en el PDF.
    * El papel preimpreso viene en triplicado (blanco, reciclado, celeste);
@@ -123,22 +144,23 @@ interface PaginaProps {
   items: RemitoOverlayItem[];
   ox: number;
   oy: number;
+  fo: RemitoOverlayFieldOffsets;
 }
 
 /** Una página = una copia del remito. Renderiza idéntico siempre. */
-function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy }: PaginaProps) {
+function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy, fo }: PaginaProps) {
   return (
     <Page size="A4" style={styles.page}>
       {/* Fecha */}
-      <Text style={[styles.field, valuePos(X_FECHA, Y_FECHA, ox, oy)]}>{fecha}</Text>
+      <Text style={[styles.field, valuePos(X_FECHA + (fo.fecha?.x ?? 0), Y_FECHA + (fo.fecha?.y ?? 0), ox, oy)]}>{fecha}</Text>
 
       {/* Columna izquierda — destinatario */}
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_RAZON_SOCIAL, ox, oy)]}>{destinatario.razonSocial}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_DOMICILIO,    ox, oy)]}>{destinatario.domicilio}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_LOCALIDAD,    ox, oy)]}>{destinatario.localidad}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_PROVINCIA,    ox, oy)]}>{destinatario.provincia}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_IVA,          ox, oy)]}>{destinatario.iva}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_CUIT,         ox, oy)]}>{destinatario.cuit}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_RAZON_SOCIAL + (fo.razonSocial?.y ?? 0), ox, oy)]}>{destinatario.razonSocial}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_DOMICILIO + (fo.domicilio?.y ?? 0),    ox, oy)]}>{destinatario.domicilio}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_LOCALIDAD + (fo.localidad?.y ?? 0),    ox, oy)]}>{destinatario.localidad}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_PROVINCIA + (fo.provincia?.y ?? 0),    ox, oy)]}>{destinatario.provincia}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_IVA + (fo.iva?.y ?? 0),          ox, oy)]}>{destinatario.iva}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_CUIT + (fo.cuit?.y ?? 0),         ox, oy)]}>{destinatario.cuit}</Text>
 
       {/* Columna derecha — transportista */}
       {transportista && (
@@ -154,13 +176,13 @@ function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy }: Pag
 
       {/* Filas de items en la tabla */}
       {items.slice(0, TABLE_MAX_ROWS).map((row, i) => {
-        const y = TABLE_TOP + i * TABLE_ROW_H + oy;
+        const y = TABLE_TOP + (fo.tablaY ?? 0) + i * TABLE_ROW_H + oy;
         return (
           <View key={i}>
-            <Text style={[styles.cell, { left: COL_X.item + ox,        top: y }]}>{row.numero}</Text>
-            <Text style={[styles.cell, { left: COL_X.cant + ox,        top: y }]}>{row.cantidad}</Text>
-            <Text style={[styles.cell, { left: COL_X.producto + ox,    top: y }]}>{row.producto}</Text>
-            <Text style={[styles.cell, { left: COL_X.descripcion + ox, top: y, maxWidth: 380 }]}>
+            <Text style={[styles.cell, { left: COL_X.item + (fo.colItemX ?? 0) + ox,        top: y }]}>{row.numero}</Text>
+            <Text style={[styles.cell, { left: COL_X.cant + (fo.colCantX ?? 0) + ox,        top: y }]}>{row.cantidad}</Text>
+            <Text style={[styles.cell, { left: COL_X.producto + (fo.colProductoX ?? 0) + ox,    top: y }]}>{row.producto}</Text>
+            <Text style={[styles.cell, { left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox, top: y, maxWidth: 380 - (fo.colDescripcionX ?? 0) }]}>
               {row.descripcion}
             </Text>
           </View>
@@ -177,6 +199,7 @@ export function RemitoOverlayPDF({
   items,
   globalOffsetX = 0,
   globalOffsetY = 0,
+  fieldOffsets,
   copies = 3,
 }: RemitoOverlayPDFProps) {
   const ox = globalOffsetX;
@@ -194,6 +217,7 @@ export function RemitoOverlayPDF({
           items={items}
           ox={ox}
           oy={oy}
+          fo={fieldOffsets ?? {}}
         />
       ))}
     </Document>

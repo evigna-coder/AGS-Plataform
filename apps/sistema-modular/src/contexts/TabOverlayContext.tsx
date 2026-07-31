@@ -30,6 +30,50 @@ export function useTabOverlay(): TabOverlayContextValue | null {
   return useContext(TabOverlayContext);
 }
 
+/**
+ * Scope de overlay para superficies GLOBALES ancladas al área de contenido
+ * (ej. el presupuesto flotante, que persiste entre pestañas). Siempre activo.
+ * El host se posiciona contra el ancestro `relative` más cercano — el <main>
+ * del Layout — así los overlays (absolute inset-0) cubren SOLO el contenido y
+ * dejan header, TabBar y sidebar clickeables (UAT 2026-07-31: el modal de
+ * edición bloqueaba la barra de módulos).
+ */
+export function ContentOverlayScope({ children }: { children: ReactNode }) {
+  const [overlayRoot, setOverlayRoot] = useState<HTMLElement | null>(null);
+  const [minimized, setMinimized] = useState<MinimizedModalEntry[]>([]);
+  const getIsTabActive = useCallback(() => true, []);
+  const overlayRootRef = useCallback((node: HTMLDivElement | null) => setOverlayRoot(node), []);
+  const registerMinimized = useCallback((entry: MinimizedModalEntry) => {
+    setMinimized(prev => [...prev.filter(m => m.id !== entry.id), entry]);
+  }, []);
+  const unregisterMinimized = useCallback((id: string) => {
+    setMinimized(prev => (prev.some(m => m.id === id) ? prev.filter(m => m.id !== id) : prev));
+  }, []);
+  const value = useMemo<TabOverlayContextValue>(
+    () => ({ overlayRoot, isTabActive: true, getIsTabActive, registerMinimized, unregisterMinimized }),
+    [overlayRoot, getIsTabActive, registerMinimized, unregisterMinimized],
+  );
+  return (
+    <TabOverlayContext.Provider value={value}>
+      {children}
+      <div ref={overlayRootRef} />
+      {minimized.length > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 z-[60] flex gap-2 px-4 py-2 pointer-events-none">
+          {minimized.map(m => (
+            <button
+              key={m.id}
+              onClick={m.restore}
+              className="pointer-events-auto flex items-center gap-2 bg-teal-700 text-white text-xs font-medium px-3 py-2 rounded-t-lg shadow-lg hover:bg-teal-600 transition-colors"
+            >
+              {m.title || 'Ventana'}
+            </button>
+          ))}
+        </div>
+      )}
+    </TabOverlayContext.Provider>
+  );
+}
+
 interface TabOverlayScopeProps {
   isTabActive: boolean;
   children: ReactNode;

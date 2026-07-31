@@ -65,7 +65,9 @@ export function useMisOTList(range: MisOTRange) {
     const ids = [usuario.id, ingenieroDocId].filter((x): x is string => !!x);
     if (!verTodas && ids.length === 0) return;
     const unsub = agendaService.subscribeToRange(
-      todayStr, formatDate(addDays(today, 60)), verTodas ? null : ids, setAgenda);
+      // 366 días: la coordinación agenda los regulatorios anuales con meses de
+      // anticipación — con 60 días las OTs lejanas quedaban sin franja (2026-07-31).
+      todayStr, formatDate(addDays(today, 366)), verTodas ? null : ids, setAgenda);
     return unsub;
   }, [usuario?.id, ingenieroDocId, ingLoaded, todayStr, today, verTodas]);
 

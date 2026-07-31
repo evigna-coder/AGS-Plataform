@@ -70,6 +70,9 @@ export interface OTPrefill {
   // --- Copiar OT (2026-07-30): la OT guarda el NOMBRE del tipo, no el id ---
   /** Se resuelve contra el catálogo por nombre (case-insensitive) al cargar. */
   tipoServicioNombre?: string;
+  /** Ídem contacto: la OT guarda el nombre; se resuelve contra los contactos
+   *  del cliente cuando cargan (2026-07-31: la copia no traía el contacto). */
+  contactoNombre?: string;
   tipoOT?: TipoOT;
   contratoId?: string;
   motivoFacturacion?: '' | 'pendiente' | 'sin_cargo' | 'garantia';
@@ -91,9 +94,13 @@ export function buildOTCopyPrefill(ot: WorkOrder): OTPrefill {
     sistemaId: ot.sistemaId || undefined,
     moduloId: ot.moduloId || undefined,
     tipoServicioNombre: ot.tipoServicio || undefined,
+    contactoNombre: ot.contacto || undefined,
     ingenieroId: ot.ingenieroAsignadoId || undefined,
+    // El select de presupuesto trabaja por ID — solo el número dejaba el campo
+    // vacío en la copia (2026-07-31). presupuestoOrigenId lo guarda la creación.
+    presupuestoId: ot.presupuestoOrigenId || undefined,
     presupuestoNumero: ot.budgets?.[0] || undefined,
-    ordenCompra: ot.ordenCompra || undefined,
+    ordenCompra: ot.ordenCompra || ot.ordenesCompra?.[0] || undefined,
     contratoId: ot.contratoId || undefined,
     motivoFacturacion: ot.esSinCargo ? 'sin_cargo' : ot.esGarantia ? 'garantia' : (ot.presupuestoPendiente ? 'pendiente' : undefined),
     problemaFallaInicial: ot.problemaFallaInicial || undefined,
@@ -228,6 +235,21 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     }
     setForm(prev => ({ ...prev, ...updates }));
   }, [open, prefill, prefilled, clientes, tiposServicio]);
+
+  // Copiar OT: la OT guarda el NOMBRE del contacto — resolverlo contra los
+  // contactos del cliente cuando terminan de cargar (llegan async por el
+  // cascade de clienteId, después del prefill principal). One-shot.
+  const contactoPrefillDone = useRef(false);
+  useEffect(() => {
+    if (!open || !prefill?.contactoNombre || contactoPrefillDone.current) return;
+    if (contactos.length === 0) return;
+    contactoPrefillDone.current = true;
+    if (form.contactoId) return; // no pisar una elección manual
+    const norm = prefill.contactoNombre.trim().toLowerCase();
+    const match = contactos.find(c => c.nombre?.trim().toLowerCase() === norm);
+    if (match) set('contactoId', match.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill, contactos]);
 
   // OT de entrega → precargar tipo de servicio "Entrega de insumos" (UAT 2026-07-17).
   // Guarda el valor que autopusimos NOSOTROS para poder limpiarlo al volver a

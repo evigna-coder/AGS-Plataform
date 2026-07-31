@@ -361,9 +361,28 @@ export const EstablecimientoDetail = () => {
                 <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Sistemas / Equipos</h3>
                 <div className="flex gap-2">
                   {selectedSistemaIds.size > 0 && (
-                    <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
-                      Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
-                    </Button>
+                    <>
+                      <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
+                        Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                      </Button>
+                      {/* Paridad con la ficha de cliente (pedido 2026-07-31: acá solo había "Mover") */}
+                      <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={async () => {
+                        const count = selectedSistemaIds.size;
+                        if (!await confirm(`¿Eliminar ${count} sistema${count > 1 ? 's' : ''} permanentemente?\n\nSe eliminan también sus módulos. Esta acción no se puede deshacer.`)) return;
+                        try {
+                          for (const sId of selectedSistemaIds) {
+                            await sistemasService.delete(sId);
+                          }
+                        } catch (e) {
+                          console.error('Error eliminando sistemas:', e);
+                          alert('Error al eliminar');
+                        }
+                        setSelectedSistemaIds(new Set());
+                        load(true);
+                      }}>
+                        Eliminar {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                      </Button>
+                    </>
                   )}
                   <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
                 </div>

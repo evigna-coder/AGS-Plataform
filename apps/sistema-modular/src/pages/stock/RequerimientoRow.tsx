@@ -41,12 +41,15 @@ export interface RequerimientoRowProps {
   onDelete: (id: string) => void;
   formatDate: (d?: string | null) => string;
   getAlignClass: (index: number) => string;
+  /** Cliente del presupuesto origen (resuelto por el parent) — visible bajo el
+   *  badge de origen (pedido 2026-07-31: el cliente no se mostraba). */
+  clienteNombre?: string;
 }
 
 export const RequerimientoRow = ({
   r, selected, onToggle, editingCell, editValue, setEditValue,
   startEdit, cancelEdit, saveEdit, proveedores, onSelectProveedor,
-  onVer, onAprobar, onDelete, formatDate, getAlignClass,
+  onVer, onAprobar, onDelete, formatDate, getAlignClass, clienteNombre,
 }: RequerimientoRowProps) => {
   const isPendiente = r.estado === 'pendiente';
   const isEditingCantidad = editingCell?.id === r.id && editingCell.field === 'cantidad';
@@ -75,10 +78,13 @@ export const RequerimientoRow = ({
           <span className={isPendiente ? 'cursor-pointer hover:text-teal-700' : ''}>{r.cantidad} {r.unidadMedida}</span>
         )}
       </td>
-      <td className={`px-2 py-2 ${getAlignClass(4)}`}>
+      <td className={`px-2 py-2 overflow-hidden ${getAlignClass(4)}`}>
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ORIGEN_COLORS[r.origen] ?? ''}`}>
           {ORIGEN_REQUERIMIENTO_LABELS[r.origen]}
         </span>
+        {clienteNombre && (
+          <span className="block text-[10px] text-slate-500 truncate mt-0.5" title={clienteNombre}>{clienteNombre}</span>
+        )}
       </td>
       <td className={`px-2 py-2 ${getAlignClass(5)}`}>
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_REQUERIMIENTO_COLORS[r.estado]}`}>

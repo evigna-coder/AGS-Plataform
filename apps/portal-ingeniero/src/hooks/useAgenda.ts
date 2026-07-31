@@ -21,9 +21,12 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
-/** Default: load 4 weeks ahead + 1 week back */
+/** Ventana: 1 semana atrás + 1 AÑO adelante (2026-07-31: la coordinación carga
+ *  los servicios regulatorios anuales con meses de anticipación — con la ventana
+ *  vieja de 4 semanas, una ingeniera con todo agendado a futuro veía la agenda
+ *  VACÍA aunque tuviera 30+ servicios asignados). */
 const WEEKS_BACK = 1;
-const WEEKS_AHEAD = 4;
+const WEEKS_AHEAD = 52;
 
 export function useAgenda() {
   const { usuario, hasRole } = useAuth();

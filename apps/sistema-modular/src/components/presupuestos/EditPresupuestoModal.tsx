@@ -41,11 +41,13 @@ interface Props {
   onClose: () => void;
   onUpdated?: () => void;
   onMinimize?: () => void;
+  /** Reporta el número del presupuesto al cargar (label del pill flotante). */
+  onLabel?: (label: string) => void;
 }
 
 const FACTURACION_STATES = ['aceptado', 'en_ejecucion', 'pendiente_facturacion'];
 
-export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize }) => {
+export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize, onLabel }) => {
   const { firebaseUser, usuario } = useAuth();
   const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
@@ -127,6 +129,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     setField('cuotas', cuotas);
     setField('cantidadCuotas', cuotas.length || null);
   };
+
+  // Label del pill flotante: el número del presupuesto una vez cargado.
+  useEffect(() => {
+    if (form.numero) onLabel?.(form.numero);
+  }, [form.numero, onLabel]);
 
   // Refresh requerimientos section after a save completes. Auto-generation
   // happens asynchronously in presupuestosService.update/create so we poll

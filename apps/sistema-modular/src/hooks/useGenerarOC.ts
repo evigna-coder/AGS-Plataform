@@ -2,10 +2,60 @@ import { useState, useCallback } from 'react';
 import { ordenesCompraService, requerimientosService, presupuestosService, leadsService, proveedoresService } from '../services/firebaseService';
 import type { RequerimientoCompra, ItemOC, Proveedor } from '@ags/shared';
 
+/** Mapea un requerimiento a un ItemOC (mismo shape para OC nueva o existente). */
+function reqToItemOC(r: RequerimientoCompra): ItemOC {
+  return {
+    id: crypto.randomUUID(),
+    articuloId: r.articuloId ?? null,
+    articuloCodigo: r.articuloCodigo ?? null,
+    descripcion: r.articuloDescripcion,
+    cantidad: r.cantidad,
+    cantidadRecibida: 0,
+    unidadMedida: r.unidadMedida,
+    precioUnitario: null,
+    moneda: null,
+    requerimientoId: r.id,
+    notas: r.notas ?? null,
+  };
+}
+
 export function useGenerarOC() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generadas, setGeneradas] = useState(0);
+
+  /**
+   * Suma requerimientos a una OC EXISTENTE (pedido 2026-07-31): agrega los items
+   * al final de la OC y marca los reqs en_compra vinculados a ella (salen de la
+   * vista "Abiertos" del listado). Mismo avance de tickets que generar OC nueva.
+   */
+  const agregarAOCExistente = useCallback(async (ocId: string, selected: RequerimientoCompra[]): Promise<boolean> => {
+    if (selected.length === 0) return false;
+    setLoading(true);
+    setError(null);
+    try {
+      const oc = await ordenesCompraService.getById(ocId);
+      if (!oc) throw new Error('Orden de compra no encontrada');
+      const nuevos = selected.map(reqToItemOC);
+      await ordenesCompraService.update(ocId, { items: [...(oc.items ?? []), ...nuevos] });
+      await Promise.all(selected.map(r =>
+        requerimientosService.update(r.id, {
+          estado: 'en_compra',
+          ordenCompraId: ocId,
+          ordenCompraNumero: oc.numero ?? null,
+        })
+      ));
+      await advanceTicketsToMateriales(selected);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error agregando a la OC';
+      setError(msg);
+      console.error('[useGenerarOC] agregarAOCExistente:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const generarOCs = useCallback(async (selected: RequerimientoCompra[]): Promise<string[]> => {
     if (selected.length === 0) return [];
@@ -39,19 +89,7 @@ export function useGenerarOC() {
         const monedaOC = (prov?.moneda as 'ARS' | 'USD' | 'EUR' | undefined) ?? (esImportacion ? 'USD' : 'ARS');
 
         // Build ItemOC list from requirements
-        const items: ItemOC[] = reqs.map(r => ({
-          id: crypto.randomUUID(),
-          articuloId: r.articuloId ?? null,
-          articuloCodigo: r.articuloCodigo ?? null,
-          descripcion: r.articuloDescripcion,
-          cantidad: r.cantidad,
-          cantidadRecibida: 0,
-          unidadMedida: r.unidadMedida,
-          precioUnitario: null,
-          moneda: null,
-          requerimientoId: r.id,
-          notas: r.notas ?? null,
-        }));
+        const items: ItemOC[] = reqs.map(reqToItemOC);
 
         // Create OC as borrador — user will complete prices from OCDetail
         const ocId = await ordenesCompraService.create({
@@ -100,7 +138,7 @@ export function useGenerarOC() {
     }
   }, []);
 
-  return { generarOCs, loading, error, generadas };
+  return { generarOCs, agregarAOCExistente, loading, error, generadas };
 }
 
 /** Mueve a "Materiales" los tickets de origen de los presupuestos detrás de estos requerimientos. */

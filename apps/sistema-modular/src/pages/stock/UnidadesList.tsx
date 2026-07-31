@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { unidadesService, articulosService } from '../../services/firebaseService';
-import { posicionesStockService } from '../../services/stockService';
+import { posicionesStockService, reservasService } from '../../services/stockService';
+import { useAuth } from '../../contexts/AuthContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -69,6 +71,32 @@ export const UnidadesList = () => {
   }, []);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
+  const [liberandoId, setLiberandoId] = useState<string | null>(null);
+  const { usuario } = useAuth();
+  const confirm = useConfirm();
+
+  // Liberar una reserva a mano (2026-07-31: reservas automáticas al aceptar un
+  // presupuesto de prueba quedaban colgadas — la vía normal es anular el ppto,
+  // que las libera solas, pero faltaba la acción manual por unidad). El servicio
+  // devuelve la unidad a 'disponible' en su ubicación previa y deja movimiento.
+  const handleLiberar = async (u: UnidadStock) => {
+    const ref = u.reservadoParaPresupuestoNumero ? `\n\nReservada para ${u.reservadoParaPresupuestoNumero}${u.reservadoParaClienteNombre ? ` (${u.reservadoParaClienteNombre})` : ''}.` : '';
+    if (!await confirm(`¿Liberar la reserva de ${u.articuloCodigo}?${ref}\n\nLa unidad vuelve a Disponible en su ubicación anterior.`)) return;
+    setLiberandoId(u.id);
+    try {
+      await reservasService.liberar({
+        unidadId: u.id,
+        unidad: u,
+        motivo: 'Liberada manualmente desde Unidades',
+        solicitadoPorNombre: usuario?.displayName || 'Sistema',
+      });
+    } catch (err) {
+      console.error('Error liberando reserva:', err);
+      alert(err instanceof Error ? err.message : 'Error al liberar la reserva');
+    } finally {
+      setLiberandoId(null);
+    }
+  };
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
@@ -173,7 +201,7 @@ export const UnidadesList = () => {
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} />
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
@@ -226,6 +254,13 @@ export const UnidadesList = () => {
                       {u.estado === 'disponible' && (
                         <button onClick={e => { e.stopPropagation(); setMoverUnidad(u); }}
                           className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
+                      )}
+                      {u.estado === 'reservado' && (
+                        <button onClick={e => { e.stopPropagation(); void handleLiberar(u); }}
+                          disabled={liberandoId === u.id}
+                          className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-50 disabled:opacity-40">
+                          {liberandoId === u.id ? 'Liberando…' : 'Liberar'}
+                        </button>
                       )}
                       <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
                         className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>

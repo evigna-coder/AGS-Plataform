@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { requerimientosService, proveedoresService } from '../../services/firebaseService';
+import { requerimientosService, proveedoresService, ordenesCompraService, presupuestosService, clientesService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
+import { matchesSearch } from '../../utils/searchTerms';
+import { Modal } from '../../components/ui/Modal';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { Button } from '../../components/ui/Button';
 import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Card } from '../../components/ui/Card';
@@ -17,12 +21,14 @@ import { RequerimientoRow, URGENCIA_LABELS } from './RequerimientoRow';
 import { RequerimientosPartesTab } from './RequerimientosPartesTab';
 import { sweepStockMinimoRequerimientos } from '../../utils/stockMinimoRequerimientos';
 import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
-import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
+import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS, ESTADO_OC_LABELS, type EstadoOC } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 // Estados que ya no requieren acción: fuera de la vista por defecto (UAT 2026-07-16:
 // un req ya comprado/ingresado no debe seguir figurando). 'completado' = legacy inválido.
-const ESTADOS_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
+// 'en_compra' (2026-07-31): ya está en una OC — no requiere acción acá; se sigue desde
+// la OC o filtrando por estado "En compra" / "Todos".
+const ESTADOS_CERRADOS = new Set(['comprado', 'cancelado', 'completado', 'en_compra']);
 
 const FILTER_SCHEMA = {
   // Pestaña activa: 'requerimientos' (firmes: stock/aceptados/manual) | 'partes'
@@ -65,6 +71,25 @@ export const RequerimientosList = () => {
 
   const { editingCell, editValue, setEditValue, startEdit, cancelEdit, saveEdit, saveProveedorEdit } = useRequerimientoInlineEdit();
 
+  // Buscador (pedido 2026-07-31): cliente / proveedor / artículo / número.
+  const [localSearch, setLocalSearch] = useState('');
+  const busqueda = useDebounce(localSearch, 300);
+
+  // Cliente del presupuesto origen (el req no lo denormaliza) — para mostrarlo
+  // bajo el badge de origen y para el buscador.
+  const [clientePorPresupuesto, setClientePorPresupuesto] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    Promise.all([presupuestosService.getAll(), clientesService.getAll(true)])
+      .then(([ps, cs]) => {
+        const nombre = new Map(cs.map(c => [c.id, c.razonSocial]));
+        setClientePorPresupuesto(new Map(ps.map(p => [p.id, nombre.get(p.clienteId) ?? ''])));
+      })
+      .catch(() => {});
+  }, []);
+  const clienteDeReq = useCallback((r: RequerimientoCompra) =>
+    (r.presupuestoId && clientePorPresupuesto.get(r.presupuestoId)) || '',
+  [clientePorPresupuesto]);
+
   // Proveedores activos para el select inline de "Proveedor sugerido" (UAT 2026-07-16).
   const [proveedores, setProveedores] = useState<Array<{ id: string; nombre: string }>>([]);
   useEffect(() => {
@@ -72,7 +97,50 @@ export const RequerimientosList = () => {
       .then((ps: Array<{ id: string; nombre: string }>) => setProveedores(ps.map(p => ({ id: p.id, nombre: p.nombre }))))
       .catch(() => setProveedores([]));
   }, []);
-  const { generarOCs, loading: generandoOC } = useGenerarOC();
+  const { generarOCs, agregarAOCExistente, loading: generandoOC } = useGenerarOC();
+
+  // ── Agregar reqs a una OC EXISTENTE (pedido 2026-07-31) ──
+  const [showAgregarOC, setShowAgregarOC] = useState(false);
+  const [ocsAbiertas, setOcsAbiertas] = useState<Array<{ id: string; numero: string; proveedorNombre: string; estado: EstadoOC }>>([]);
+  const [ocDestinoId, setOcDestinoId] = useState('');
+  useEffect(() => {
+    if (!showAgregarOC) return;
+    // Solo OCs donde tiene sentido sumar items: borrador o ya enviada al proveedor.
+    ordenesCompraService.getAll()
+      .then(ocs => setOcsAbiertas(
+        ocs.filter(o => o.estado === 'borrador' || o.estado === 'enviada_proveedor')
+          .map(o => ({ id: o.id, numero: o.numero, proveedorNombre: o.proveedorNombre, estado: o.estado }))
+          .sort((a, b) => (b.numero || '').localeCompare(a.numero || '')),
+      ))
+      .catch(() => setOcsAbiertas([]));
+  }, [showAgregarOC]);
+
+  const handleAgregarAOC = async () => {
+    if (!ocDestinoId) { alert('Seleccioná la orden de compra destino'); return; }
+    const sel = sorted.filter(r => selectedIds.has(r.id));
+    const sinOC = sel.filter(r => !r.ordenCompraId);
+    if (sinOC.length === 0) { alert('Los requerimientos seleccionados ya están vinculados a una OC.'); return; }
+    if (sinOC.length < sel.length) {
+      alert(`${sel.length - sinOC.length} requerimiento(s) ya tenían OC y se saltean; se agregan ${sinOC.length}.`);
+    }
+    const ok = await agregarAOCExistente(ocDestinoId, sinOC);
+    if (ok) {
+      setSelectedIds(new Set());
+      setShowAgregarOC(false);
+      // Refrescar la lista (los reqs pasaron a en_compra → salen de "Abiertos").
+      setRequerimientos(prev => prev.map(r =>
+        sinOC.some(s => s.id === r.id)
+          ? { ...r, estado: 'en_compra' as EstadoRequerimiento, ordenCompraId: ocDestinoId, ordenCompraNumero: ocsAbiertas.find(o => o.id === ocDestinoId)?.numero ?? r.ordenCompraNumero }
+          : r,
+      ));
+      // Abrir la OC para revisar los items agregados.
+      setOcModalId(ocDestinoId);
+      setOcModalOpen(true);
+      setOcDestinoId('');
+    } else {
+      alert('Error al agregar los requerimientos a la OC');
+    }
+  };
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, resetWidths } = useResizableColumns('requerimientos-list');
 
   const handleSort = (f: string) => {
@@ -87,9 +155,15 @@ export const RequerimientosList = () => {
       // FLOW-03: filtro por flag condicional
       if (filters.condicional === 'true' && !(r as any).condicional) return false;
       if (filters.condicional === 'false' && (r as any).condicional) return false;
+      // Buscador (2026-07-31): cliente, proveedor (sugerido o asignado), artículo, números.
+      if (busqueda.trim() && !matchesSearch(
+        busqueda, r.numero, r.articuloCodigo, r.articuloDescripcion,
+        clienteDeReq(r), r.proveedorSugeridoNombre, r.proveedorNombre,
+        r.presupuestoNumero, r.ordenCompraNumero,
+      )) return false;
       return true;
     });
-  }, [requerimientos, filters.estado, filters.urgencia, filters.condicional]);
+  }, [requerimientos, filters.estado, filters.urgencia, filters.condicional, busqueda, clienteDeReq]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
   const toggleSelect = (id: string) => {
@@ -181,9 +255,14 @@ export const RequerimientosList = () => {
           filters.tab === 'partes' ? undefined :
           <>
             {selectedIds.size > 0 && (
-              <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>
-                {generandoOC ? 'Generando...' : `Generar OC (${selectedIds.size})`}
-              </Button>
+              <>
+                <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>
+                  {generandoOC ? 'Generando...' : `Generar OC (${selectedIds.size})`}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowAgregarOC(true)} disabled={generandoOC}>
+                  Agregar a OC existente
+                </Button>
+              </>
             )}
             {colWidths && (
               <Button size="sm" variant="outline" onClick={resetWidths} title="Restablecer ancho de columnas a los valores por defecto">
@@ -207,6 +286,13 @@ export const RequerimientosList = () => {
         </div>
         {filters.tab !== 'partes' && (
         <div className="flex items-center gap-3 flex-wrap">
+          <input
+            type="text"
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
+            placeholder="Buscar por cliente, proveedor, artículo o número…"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
+          />
           <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="abiertos">Abiertos</option>
@@ -312,6 +398,7 @@ export const RequerimientosList = () => {
                     onDelete={handleDelete}
                     formatDate={formatDate}
                     getAlignClass={getAlignClass}
+                    clienteNombre={clienteDeReq(r)}
                   />
                 ))}
               </tbody>
@@ -335,6 +422,40 @@ export const RequerimientosList = () => {
         onClose={() => { setOcModalOpen(false); setOcModalId(null); }}
         onSaved={loadData}
       />
+
+      {/* Agregar requerimientos seleccionados a una OC existente (2026-07-31) */}
+      <Modal open={showAgregarOC} onClose={() => { setShowAgregarOC(false); setOcDestinoId(''); }}
+        title="Agregar a OC existente"
+        subtitle={`${selectedIds.size} requerimiento(s) seleccionado(s)`}
+        maxWidth="sm"
+        footer={<>
+          <Button variant="outline" size="sm" onClick={() => { setShowAgregarOC(false); setOcDestinoId(''); }}>Cancelar</Button>
+          <Button size="sm" onClick={() => void handleAgregarAOC()} disabled={generandoOC || !ocDestinoId}>
+            {generandoOC ? 'Agregando...' : 'Agregar a la OC'}
+          </Button>
+        </>}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[11px] font-medium text-slate-500 mb-1">Orden de compra destino *</label>
+            <SearchableSelect
+              value={ocDestinoId}
+              onChange={setOcDestinoId}
+              options={ocsAbiertas.map(o => ({
+                value: o.id,
+                label: `${o.numero} — ${o.proveedorNombre || 'Sin proveedor'} (${ESTADO_OC_LABELS[o.estado]})`,
+              }))}
+              placeholder="Buscar OC por número o proveedor…"
+            />
+            {ocsAbiertas.length === 0 && (
+              <p className="text-[10px] text-amber-600 mt-1">No hay OCs en borrador o enviadas al proveedor.</p>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-400">
+            Los items se agregan al final de la OC (precio a completar en la OC) y los
+            requerimientos pasan a "En compra" — salen de la vista Abiertos.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };
