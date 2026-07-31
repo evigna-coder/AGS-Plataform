@@ -242,14 +242,17 @@ export function useSearchableSelect({
         // el dropdown y siembra la búsqueda — sin tener que clickear o ArrowDown
         // antes (UAT: "tengo que poder escribir con solo pararme en el buscador").
         if (!isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          // preventDefault SIEMPRE: el input se enfoca durante este mismo keydown
+          // (flush sync + layout effect), así que la inserción nativa del default
+          // action caía en el input ADEMÁS de la siembra → primer caracter doble
+          // ("v" → "vv") en todos los buscadores, y de rebote el término quedaba
+          // sucio ("55188") y Enter no encontraba qué seleccionar (UAT 2026-07-31).
+          // Un solo camino: sembrar por código y suprimir la inserción nativa.
+          e.preventDefault();
           setIsOpen(true);
-          // Si el foco YA está en el input (loop de teclado de la carga completa
-          // enfoca el buscador programáticamente), la inserción nativa escribe el
-          // caracter sola — sembrarlo acá lo DUPLICABA ("v" → "vv", UAT 2026-07-30).
-          if (e.target !== inputRef.current) {
-            setSearchTerm(e.key);
-            if (inputRef.current) inputRef.current.value = e.key;
-          }
+          setSearchTerm(e.key);
+          setHighlightedIndex(0);
+          if (inputRef.current) inputRef.current.value = e.key;
         }
         break;
     }
