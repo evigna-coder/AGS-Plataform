@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { contratosService } from '../../services/firebaseService';
+import { contratosService, sistemasService } from '../../services/firebaseService';
 import type { Contrato, EstadoContrato } from '@ags/shared';
 import { ESTADO_CONTRATO_LABELS, ESTADO_CONTRATO_COLORS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { EditContratoModal } from '../../components/contratos/EditContratoModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -17,14 +18,28 @@ export const ContratoDetail = () => {
   const [contrato, setContrato] = useState<Contrato | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  // Nombres de los equipos cubiertos (antes se mostraba el id crudo).
+  const [nombreSistema, setNombreSistema] = useState<Map<string, string>>(new Map());
 
   useDeclareParent('/contratos');
 
+  const load = () => {
+    if (!id) return;
+    contratosService.getById(id).then(data => { setContrato(data); setLoading(false); });
+  };
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    contratosService.getById(id).then(data => { setContrato(data); setLoading(false); });
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    sistemasService.getAll()
+      .then(list => setNombreSistema(new Map(list.map(s => [s.id, `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`]))))
+      .catch(() => {});
+  }, []);
 
   const handleEstadoChange = async (estado: EstadoContrato) => {
     if (!id || !contrato) return;
@@ -60,6 +75,7 @@ export const ContratoDetail = () => {
           <p className="text-sm text-slate-500 mt-0.5">{contrato.clienteNombre}</p>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
           {contrato.estado === 'activo' && (
             <Button variant="outline" size="sm" onClick={() => handleEstadoChange('suspendido')} disabled={saving}>Suspender</Button>
           )}
@@ -117,7 +133,7 @@ export const ContratoDetail = () => {
             {contrato.sistemaIds.map(sid => (
               <Link key={sid} to={`/equipos/${sid}`} state={{ from: pathname }}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-teal-300 transition-colors">
-                {sid}
+                {nombreSistema.get(sid) ?? sid}
               </Link>
             ))}
           </div>
@@ -131,6 +147,13 @@ export const ContratoDetail = () => {
           <p className="text-xs text-slate-600">{contrato.notas}</p>
         </Card>
       )}
+
+      <EditContratoModal
+        open={showEdit}
+        contrato={contrato}
+        onClose={() => setShowEdit(false)}
+        onSaved={load}
+      />
     </div>
   );
 };

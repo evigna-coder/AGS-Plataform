@@ -29,7 +29,8 @@ export const ContratosList = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search:    { type: 'string' as const, default: '' },
     cliente:   { type: 'string' as const, default: '' },
-    estado:    { type: 'string' as const, default: '' },
+    // Default: solo contratos ACTIVOS (pedido 2026-07-31); "Todos" sigue en el filtro.
+    estado:    { type: 'string' as const, default: 'activo' },
     sortField: { type: 'string' as const, default: 'createdAt' },
     sortDir:   { type: 'string' as const, default: 'desc' },
   }), []);
@@ -148,7 +149,14 @@ export const ContratosList = () => {
                           </span>
                         ) : <span className="text-slate-400">—</span>}
                       </td>
-                      <td className={`px-3 py-2 text-[11px] text-slate-500 ${getAlignClass(5)}`}>{c.serviciosIncluidos.map(s => s.tipoServicioNombre).join(', ')}</td>
+                      {/* Vista compacta (pedido 2026-07-31): solo el conteo — el detalle
+                          de servicios se ve entrando a la línea. */}
+                      <td className={`px-3 py-2 text-[11px] text-slate-500 ${getAlignClass(5)}`}
+                        title={c.serviciosIncluidos.map(s => s.tipoServicioNombre).join(', ')}>
+                        {c.serviciosIncluidos.length > 0
+                          ? `${c.serviciosIncluidos.length} servicio${c.serviciosIncluidos.length === 1 ? '' : 's'}`
+                          : '—'}
+                      </td>
                       <td className={`px-3 py-2 ${getAlignClass(6)}`}>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_CONTRATO_COLORS[c.estado]}`}>
                           {ESTADO_CONTRATO_LABELS[c.estado]}

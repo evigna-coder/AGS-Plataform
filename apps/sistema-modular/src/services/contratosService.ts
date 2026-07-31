@@ -102,6 +102,13 @@ export const contratosService = {
   },
 
   async update(id: string, data: Partial<Contrato>): Promise<void> {
+    // Edición de sistemaIds (2026-07-31): leer los ANTERIORES antes de escribir,
+    // para poder desmarcar los equipos removidos (el sync por estado usa la
+    // lista ya persistida y nunca hacía diff — los quitados quedaban marcados).
+    const prevSistemaIds: string[] | null = data.sistemaIds !== undefined
+      ? ((await this.getById(id))?.sistemaIds ?? [])
+      : null;
+
     const ref = docRef('contratos', id);
     const batch = createBatch();
     const { id: _, createdAt: __, ...rest } = data;
@@ -112,6 +119,22 @@ export const contratosService = {
     });
     batch.update(ref, cleaned);
     await batch.commit();
+
+    // Diff de equipos al editar sistemaIds: marcar agregados, desmarcar quitados
+    // (salvo que otro contrato vigente los cubra — lo resuelve _syncEquipos).
+    if (prevSistemaIds !== null && data.sistemaIds !== undefined) {
+      try {
+        const nuevos = new Set(data.sistemaIds);
+        const viejos = new Set(prevSistemaIds);
+        const agregados = [...nuevos].filter(s => !viejos.has(s));
+        const quitados = [...viejos].filter(s => !nuevos.has(s));
+        if (agregados.length > 0) await this._syncEquipos(id, agregados, true);
+        if (quitados.length > 0) await this._syncEquipos(id, quitados, false);
+      } catch (err) {
+        console.error('[contratosService.update] sync diff de equipos falló (no bloquea):', err);
+      }
+    }
+
     // F2: al cambiar el estado del contrato, sincronizar el flag de sus equipos
     // (activo → marcar; suspendido/cancelado/vencido → desmarcar salvo que otro
     // contrato vigente los cubra). Best-effort.
