@@ -7,13 +7,16 @@ interface Props {
   minHeight?: number;
 }
 
+// OJO: el tamaño solo afecta la VISTA del editor. El PDF de presupuesto imprime
+// todo el texto rico a un tamaño único (ver PDFRichText.BASE) — decisión UAT
+// 2026-07-31 tras varias rondas de tamaños mezclados por formato legacy.
 const FONT_SIZES = [
-  { label: '10', value: '1' },
-  { label: '12', value: '2' },
-  { label: '14', value: '3' },
-  { label: '16', value: '4' },
-  { label: '20', value: '5' },
-  { label: '24', value: '6' },
+  { label: '10px', value: '1' },
+  { label: '12px', value: '2' },
+  { label: '14px', value: '3' },
+  { label: '16px', value: '4' },
+  { label: '20px', value: '5' },
+  { label: '24px', value: '6' },
 ];
 
 type BtnId = 'bold' | 'italic' | 'underline' | 'insertUnorderedList' | 'insertOrderedList'
@@ -221,7 +224,7 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
         >
           <option value="" disabled>Tamaño</option>
           {FONT_SIZES.map(s => (
-            <option key={s.value} value={s.value}>{s.label}px</option>
+            <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
       </div>

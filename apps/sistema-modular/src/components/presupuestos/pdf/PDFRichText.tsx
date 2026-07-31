@@ -2,55 +2,44 @@ import { Text } from '@react-pdf/renderer';
 import Html from 'react-pdf-html';
 import { PDFRichTextErrorBoundary } from './PDFRichTextErrorBoundary';
 
-// El editor emite <font size="N"> (N=1..6, labels px 10/12/14/16/20/24). Lo mapeamos a pt
-// (~ px * 0.75) para el PDF. Base del presupuesto ~7pt.
-const FONT_SIZE_MAP: Record<string, number> = {
-  '1': 8,   // 10px
-  '2': 9,   // 12px
-  '3': 11,  // 14px
-  '4': 12,  // 16px
-  '5': 15,  // 20px
-  '6': 18,  // 24px
-};
-
 /**
- * Convierte `<font size="N">` (del editor) a un `<span style="font-size:{pt}pt">` con el pt
- * del mapa. react-pdf-html aplica el font-size inline en pt de forma DETERMINISTA; el
- * renderer custom / el manejo nativo de `<font>` salía inconsistente (algunos gigantes).
- * Ojo: correr DESPUÉS de stripFontSizing (que borra el font-size inline pegado), para que
- * el pt que ponemos acá sea el que mande.
+ * TAMAÑO ÚNICO (UAT 2026-07-31, "todo el texto igual, no puedo seguir perdiendo
+ * tiempo"): el PDF IGNORA todo tamaño marcado en el contenido — <font size> del
+ * editor incluido — y renderiza las condiciones al baseline (7pt). Tres intentos
+ * de honrar tamaños por fragmento (mapa px*0.75, luego anclado px/2) terminaron
+ * siempre en mezcla: execCommand no logra envolver fragmentos con formato legacy
+ * anidado, y cualquier resto queda de otro tamaño. El selector de la toolbar
+ * sigue afectando la VISTA del editor; al PDF sale todo parejo.
  */
 function mapFontTagsToPt(html: string): string {
   return html
-    .replace(/<font\b[^>]*\bsize\s*=\s*["']?([1-6])["']?[^>]*>/gi, (_m, n: string) => `<span style="font-size:${FONT_SIZE_MAP[n] ?? 9}pt">`)
     .replace(/<font\b[^>]*>/gi, '<span>')
     .replace(/<\/font>/gi, '</span>');
 }
 
-// Mirrors PresupuestoPDFEstandar S.condicionText baseline (fontSize 7, lineHeight 1.5,
-// alineado a la IZQUIERDA — justificar a 7pt en columna angosta deja espacios desparejos).
+// TAMAÑO ÚNICO de todo el texto rico del presupuesto (condiciones, contrato).
+// 8pt: 7 quedaba corto ("de hecho peor") y 9 empujaba notas técnicas largas a
+// una tercera hoja (UAT 2026-07-31). Para cambiar el tamaño de TODAS las
+// condiciones, tocar solo esta constante.
+const BASE = 8;
 const stylesheet = {
-  p: { fontSize: 7, lineHeight: 1.5, marginBottom: 3, textAlign: 'left' as const },
-  div: { fontSize: 7, lineHeight: 1.5, textAlign: 'left' as const },
+  p: { fontSize: BASE, lineHeight: 1.5, marginBottom: 3, textAlign: 'left' as const },
+  div: { fontSize: BASE, lineHeight: 1.5, textAlign: 'left' as const },
   strong: { fontWeight: 'bold' as const },
   b: { fontWeight: 'bold' as const },
   i: { fontStyle: 'italic' as const },
   em: { fontStyle: 'italic' as const },
   u: { textDecoration: 'underline' as const },
-  ul: { marginLeft: 10, marginBottom: 3 },
-  ol: { marginLeft: 10, marginBottom: 3 },
-  li: { fontSize: 7, lineHeight: 1.5, marginBottom: 1, textAlign: 'left' as const },
   // Tags de tamaño relativo que puede traer contenido pegado (guardado antes del
-  // sanitizador): forzarlos al baseline para que nada salga más chico/grande que
-  // el estándar salvo por el <font size> del editor.
-  small: { fontSize: 7, lineHeight: 1.5 },
-  big: { fontSize: 7, lineHeight: 1.5 },
-  h1: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
-  h2: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
-  h3: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
-  h4: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
-  h5: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
-  h6: { fontSize: 7, lineHeight: 1.5, fontWeight: 'bold' as const },
+  // sanitizador): forzarlos al tamaño único.
+  small: { fontSize: BASE, lineHeight: 1.5 },
+  big: { fontSize: BASE, lineHeight: 1.5 },
+  h1: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h2: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h3: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h4: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h5: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
+  h6: { fontSize: BASE, lineHeight: 1.5, fontWeight: 'bold' as const },
 };
 
 /**
@@ -73,6 +62,19 @@ function stripFontSizing(html: string): string {
     .replace(/font-family\s*:\s*[^;"']+;?/gi, '')
     .replace(/(?:^|;|\s)color\s*:\s*[^;"']+;?/gi, '')
     .replace(/background(?:-color)?\s*:\s*[^;"']+;?/gi, '')
+    // Sangrías pegadas (UAT 2026-07-31: un párrafo copiado salía "apartado del
+    // borde, como si fuese lista"): fuera margin/padding/text-indent inline.
+    .replace(/(?:margin|padding)(?:-(?:left|right|top|bottom))?\s*:\s*[^;"']+;?/gi, '')
+    .replace(/text-indent\s*:\s*[^;"']+;?/gi, '')
+    // <blockquote> pegado → div plano (era otra fuente de sangría).
+    .replace(/<blockquote\b[^>]*>/gi, '<div>')
+    .replace(/<\/blockquote>/gi, '</div>')
+    // Listas → líneas planas (UAT 2026-07-31: un párrafo pegado venía como
+    // <ul>/<li> y salía sangrado "como si fuese lista", con el marcador pisando
+    // la primera letra). En las condiciones no se usan viñetas; todo texto plano.
+    .replace(/<\/?(?:ul|ol)\b[^>]*>/gi, '')
+    .replace(/<li\b[^>]*>/gi, '<div>')
+    .replace(/<\/li>/gi, '</div>')
     // <font color="..."> / <font face="..."> del contenido viejo: fuera los atributos
     // de color/tipografía, conservando `size` (lo procesa mapFontTagsToPt). Dos pasadas:
     // una sola no alcanza si el mismo tag trae color Y face (el scan sigue tras el reemplazo).

@@ -13,6 +13,18 @@ body {
   min-height: 100vh;
 }
 
+/* ── RichTextEditor: tamaños WYSIWYG (2026-07-31) ───────────────────────────
+   execCommand('fontSize') emite <font size="N">, que el browser renderiza con
+   su escala legacy (2≈13px, 3=16px…), distinta de los px que promete la
+   toolbar. Acá se fuerzan los px de la etiqueta, y el PDF los mapea a pt/2
+   (base 14px = 7pt) — lo que se ve en el editor es lo que sale impreso. */
+[contenteditable] font[size="1"] { font-size: 10px; }
+[contenteditable] font[size="2"] { font-size: 12px; }
+[contenteditable] font[size="3"] { font-size: 14px; }
+[contenteditable] font[size="4"] { font-size: 16px; }
+[contenteditable] font[size="5"] { font-size: 20px; }
+[contenteditable] font[size="6"] { font-size: 24px; }
+
 /* ── Listados compactos (pedido 2026-07-31) ─────────────────────────────────
    Baja ~2px la letra de las tablas de listado sin tocar cada celda: dentro de
    una <table class="tabla-compacta">, text-sm (14px) pasa a 12px y text-xs
