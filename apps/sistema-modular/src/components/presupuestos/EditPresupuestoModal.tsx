@@ -193,7 +193,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
 
   if (loading) {
     return (
-      <Modal open={open} onClose={onClose} title="Cargando..." maxWidth="2xl">
+      <Modal open={open} onClose={onClose} title="Cargando..." maxWidth="2xl" minimizable={false}>
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-400 text-sm">Cargando presupuesto...</p>
         </div>
@@ -203,7 +203,12 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title="" maxWidth="2xl">
+      {/* minimizable={false}: el minimizar va por PresupuestoHeaderBar → contexto
+          flotante (pill "Presupuesto abierto"). El minimize INTERNO del Modal
+          dejaba este editor en un estado zombie: como el flotante monta con
+          open={true} fijo, el reset interno nunca corría y todo click posterior
+          en un presupuesto "no hacía nada" hasta recargar (UAT 2026-07-31). */}
+      <Modal open={open} onClose={onClose} title="" maxWidth="2xl" minimizable={false}>
         <PresupuestoHeaderBar
           presupuestoId={presupuestoId}
           numero={form.numero}

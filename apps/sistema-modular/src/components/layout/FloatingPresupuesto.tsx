@@ -11,6 +11,10 @@ export const FloatingPresupuesto: React.FC = () => {
       {/* Floating presupuesto modal -- persists across route changes */}
       {!floatingPres.minimized && (
         <EditPresupuestoModal
+          // Remount por presupuesto: al cambiar de presupuesto el editor (y el
+          // Modal interno) arrancan con estado fresco — sin arrastrar estado
+          // del presupuesto anterior.
+          key={floatingPres.presupuestoId}
           presupuestoId={floatingPres.presupuestoId}
           open={true}
           onClose={floatingPres.close}
