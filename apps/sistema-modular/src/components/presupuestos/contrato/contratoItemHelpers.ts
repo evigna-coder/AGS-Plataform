@@ -160,7 +160,11 @@ export interface BuildItemsInput {
   sector: string | null;
   sistema: Sistema;
   modulosReales: ModuloSistema[];
-  plantilla: TipoEquipoPlantilla;
+  /** null = sin plantilla (2026-07-31): se genera solo el header del sistema +
+   *  los módulos reales como S/L; los servicios se cargan a mano en el grupo.
+   *  Antes la plantilla era obligatoria y un equipo sin plantilla que matchee
+   *  no se podía agregar (el botón quedaba deshabilitado sin feedback). */
+  plantilla: TipoEquipoPlantilla | null;
   moduloPrincipalSerie?: string | null;
 }
 
@@ -214,7 +218,7 @@ export function buildItemsFromPlantilla(input: BuildItemsInput): PresupuestoItem
         moduloMarca: mod.marca ?? null,
       });
     }
-  } else {
+  } else if (plantilla) {
     // Fallback: componentes de la plantilla (sin serie porque no hay módulo real)
     for (const comp of [...plantilla.componentes].sort((a, b) => a.orden - b.orden)) {
       items.push({
@@ -239,7 +243,7 @@ export function buildItemsFromPlantilla(input: BuildItemsInput): PresupuestoItem
 
   // --- Servicios con precio (desde plantilla) ---
   // El orden de la plantilla define el sub (10, 11, 20, 21...)
-  for (const serv of [...plantilla.servicios].sort((a, b) => a.orden - b.orden)) {
+  for (const serv of [...(plantilla?.servicios ?? [])].sort((a, b) => a.orden - b.orden)) {
     const cantidad = serv.cantidadDefault;
     const esSL = cantidad === 0;
     const precio = serv.precioDefault ?? 0;

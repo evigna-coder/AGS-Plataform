@@ -72,11 +72,13 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sistemaId, plantillas]);
 
-  // Build preview whenever inputs change
+  // Build preview whenever inputs change. La plantilla es OPCIONAL (2026-07-31):
+  // para equipos sin plantilla que matchee, antes el preview quedaba vacío y el
+  // botón Agregar deshabilitado — "click en agregar no agrega nada". Sin
+  // plantilla se genera el header del sistema + módulos reales como S/L.
   useEffect(() => {
-    if (!selectedSistema || !plantillaId) { setPreview([]); return; }
-    const plantilla = plantillas.find(p => p.id === plantillaId);
-    if (!plantilla) { setPreview([]); return; }
+    if (!selectedSistema) { setPreview([]); return; }
+    const plantilla = plantillas.find(p => p.id === plantillaId) ?? null;
     const grupo = nextGrupoNumber(existingItems);
     const items = buildItemsFromPlantilla({
       grupo,
@@ -90,7 +92,7 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
   }, [selectedSistema, plantillaId, sector, modulos, plantillas, existingItems]);
 
   const handleConfirm = () => {
-    if (preview.length === 0) { alert('Seleccione un sistema y una plantilla válida'); return; }
+    if (preview.length === 0) { alert('Seleccione un sistema'); return; }
     onConfirm(preview);
     onClose();
   };
@@ -137,12 +139,14 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
             </datalist>
           </div>
           <div>
-            <label className={labelCls}>Plantilla *</label>
+            <label className={labelCls}>Plantilla <span className="text-slate-300">(opcional)</span></label>
             <SearchableSelect value={plantillaId} onChange={setPlantillaId}
-              options={plantillaOptions}
+              options={[{ value: '', label: 'Sin plantilla' }, ...plantillaOptions]}
               placeholder={loadingPlantillas ? 'Cargando...' : 'Seleccionar...'} />
-            {selectedSistema && !plantillaId && plantillas.length > 0 && (
-              <p className="text-[10px] text-amber-600 mt-0.5">No se encontró plantilla automática para "{selectedSistema.nombre}".</p>
+            {selectedSistema && !plantillaId && (
+              <p className="text-[10px] text-amber-600 mt-0.5">
+                Sin plantilla para "{selectedSistema.nombre}": se agrega el sistema con sus módulos; los servicios se cargan a mano dentro del grupo.
+              </p>
             )}
           </div>
         </div>
@@ -151,7 +155,7 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
           <div className="border border-slate-200 rounded-lg overflow-hidden">
             <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
               <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-                Preview · {preview.length} items ({modulos.length > 0 ? 'módulos reales del cliente' : 'componentes de plantilla'})
+                Preview · {preview.length} items ({modulos.length > 0 ? 'módulos reales del cliente' : plantillaId ? 'componentes de plantilla' : 'solo cabecera del sistema'})
               </span>
             </div>
             <div className="max-h-80 overflow-y-auto">
