@@ -34,6 +34,13 @@ interface UseAgendaDndArgs {
    *  o null. El guard corre ANTES del drop porque el sync de la OT (ingeniero +
    *  ASIGNADA) es paralelo al alta de la entrada. */
   primerFeriadoEnRango?: (inicio: string, fin: string) => string | null;
+  /** El comentario de la celda describe al servicio, no a la celda física
+   *  (UAT 2026-07-30): al mover una entrada por DnD, relocaliza el comentario
+   *  de la celda origen a la celda destino. */
+  moverNotaConEntry?: (
+    src: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+    tgt: { ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+  ) => void;
 }
 
 /**
@@ -49,7 +56,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
   const {
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
-    primerFeriadoEnRango,
+    primerFeriadoEnRango, moverNotaConEntry,
   } = args;
 
   const [activeDragOT, setActiveDragOT] = useState<WorkOrder | null>(null);
@@ -219,6 +226,13 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         ingenieroNombre: targetIngeniero.nombre,
       });
 
+      // El comentario de la celda origen viaja con el servicio (quedaba
+      // "pegado" a la celda al mover la entrada).
+      moverNotaConEntry?.(
+        { ingenieroId: entry.ingenieroId, fecha: entry.fechaInicio, quarter: entry.quarterStart },
+        { ingenieroId: targetIngenieroId, ingenieroNombre: targetIngeniero.nombre, fecha: targetFecha, quarter: targetQuarter },
+      );
+
       setSelectedCell({
         ingenieroId: targetIngenieroId,
         ingenieroNombre: targetIngeniero.nombre,
@@ -228,7 +242,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         allEntries: [movedEntry],
       });
     }
-  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango]);
+  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango, moverNotaConEntry]);
 
   return {
     sensors,

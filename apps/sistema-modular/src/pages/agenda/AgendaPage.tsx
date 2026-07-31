@@ -201,6 +201,33 @@ export const AgendaPage: FC = () => {
     });
   }, []);
 
+  // El comentario de celda viaja con el servicio al moverlo por DnD (UAT
+  // 2026-07-30): describe al servicio agendado, no a la celda física. Si la
+  // celda destino ya tiene comentario, se concatenan (no se pisa ninguno).
+  const notasRef = useRef(notas);
+  notasRef.current = notas;
+  const moverNotaConEntry = useCallback((
+    src: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+    tgt: { ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1 | 2 | 3 | 4 },
+  ) => {
+    if (src.ingenieroId === tgt.ingenieroId && src.fecha === tgt.fecha && src.quarter === tgt.quarter) return;
+    // Legacy sin quarter → celda 4 del día (mismo default que el render).
+    const srcNota = notasRef.current.find(n =>
+      n.ingenieroId === src.ingenieroId && n.fecha === src.fecha && (n.quarter ?? 4) === src.quarter);
+    if (!srcNota) return;
+    const tgtNota = notasRef.current.find(n =>
+      n.ingenieroId === tgt.ingenieroId && n.fecha === tgt.fecha && (n.quarter ?? 4) === tgt.quarter);
+    const texto = tgtNota?.texto?.trim() ? `${tgtNota.texto}\n${srcNota.texto}` : srcNota.texto;
+    void (async () => {
+      try {
+        await upsertNota({ fecha: tgt.fecha, ingenieroId: tgt.ingenieroId, ingenieroNombre: tgt.ingenieroNombre, quarter: tgt.quarter, texto });
+        await deleteNota(srcNota.id);
+      } catch (err) {
+        console.error('[AgendaPage] mover comentario junto con el servicio falló:', err);
+      }
+    })();
+  }, [upsertNota, deleteNota]);
+
   // DnD: handlers + sensors + activeDrag state encapsulados en el hook.
   const {
     sensors, activeDragOT, activeDragEntry,
@@ -208,7 +235,7 @@ export const AgendaPage: FC = () => {
   } = useAgendaDnd({
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
-    primerFeriadoEnRango,
+    primerFeriadoEnRango, moverNotaConEntry,
   });
 
   const handleCellClick = useCallback((ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => {
