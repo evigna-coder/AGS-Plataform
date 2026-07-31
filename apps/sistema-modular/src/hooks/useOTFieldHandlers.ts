@@ -62,7 +62,8 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   }, [modulosFiltrados, setFields, markInteracted]);
 
   const handleIngenieroChange = useCallback((uid: string) => {
-    const u = ingenieros.find(i => (i.usuarioId || i.id) === uid);
+    const u = ingenieros.find(i => (i.usuarioId || i.id) === uid)
+      ?? ingenieros.find(i => i.id === uid);
     dirty();
     // Asignar ingeniero con la OT en CREADA → promover a ASIGNADA (UAT 2026-07-31:
     // solo el drag de agenda promovía; asignar directo dejaba la OT en CREADA).

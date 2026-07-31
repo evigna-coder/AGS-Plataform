@@ -412,7 +412,10 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const tipoServicioNombre = tipoServ?.nombre
       ?? (form.tipoServicioId === TIPO_SERVICIO_ENTREGA_SENTINEL ? TIPO_SERVICIO_ENTREGA_DEFAULT : '');
     const contacto = contactos.find(c => c.id === form.contactoId);
-    const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
+    // Fallback por doc id: prefills de Copiar OT pueden traer el id del catálogo
+    // (OTs asignadas por agenda) mientras el select entrega usuarioId||id.
+    const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId)
+      ?? ingenieros.find(u => u.id === form.ingenieroId);
 
     if (!cliente || !tipoServicioNombre) { alert('Datos incompletos'); return; }
     // OT sobre módulo AGS: requiere loaner elegido en lugar de sistema.

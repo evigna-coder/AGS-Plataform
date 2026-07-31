@@ -146,6 +146,18 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     }).catch(() => { alert('Error al cargar la OT'); onClose(); });
   }, [open, otNumber]);
 
+  // Normalizar ingenieroId legacy (2026-07-31): OTs asignadas por agenda (o
+  // pre-vinculación) guardan el DOC ID del catálogo, pero el select trabaja con
+  // usuarioId||id — sin esto, el select mostraba "Sin asignar" en OTs asignadas.
+  useEffect(() => {
+    if (!open || !form.ingenieroId || ingenieros.length === 0) return;
+    const yaCanonico = ingenieros.some(u => (u.usuarioId || u.id) === form.ingenieroId);
+    if (yaCanonico) return;
+    const porDocId = ingenieros.find(u => u.id === form.ingenieroId);
+    if (porDocId) setForm(prev => ({ ...prev, ingenieroId: porDocId.usuarioId || porDocId.id }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ingenieros, form.ingenieroId]);
+
   // Cascade: client -> sistemas + contactos
   useEffect(() => {
     if (!open || loading) return;
@@ -315,7 +327,12 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId);
     const modulo = modulos.find(m => m.id === form.moduloId);
     const contacto = contactos.find(c => c.id === form.contactoId);
-    const ingeniero = ingenieros.find(u => u.id === form.ingenieroId);
+    // Matching robusto (2026-07-31): el select entrega usuarioId||id, y las OTs
+    // guardadas pueden traer el uid (modal) O el doc id del catálogo (agenda /
+    // pre-vinculación). Comparar solo u.id perdía el ingeniero al guardar
+    // (ingenieroAsignadoId: null) apenas se vincularon los usuarioId.
+    const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId)
+      ?? ingenieros.find(u => u.id === form.ingenieroId);
 
     if (!cliente) { alert('Cliente no encontrado'); return; }
 
