@@ -32,6 +32,8 @@ export interface CreateOTFormState {
   comentarioFacturacion: string;
   materialesParaServicio: string;
   leadId: string;
+  /** Texto libre cuando el equipo no está en el listado del cliente ('' = OT sin equipo). */
+  equipoManualNombre: string;
 }
 
 /** Nombre por defecto del tipo de servicio para OTs de entrega (UAT 2026-07-17). */
@@ -46,7 +48,7 @@ const INITIAL_FORM: CreateOTFormState = {
   tipoServicioId: '', contactoId: '', ingenieroId: '',
   presupuestoId: '', presupuestoNumero: '', motivoFacturacion: '', detallePresupuestoPendiente: '', ordenCompra: '', fechaServicioAprox: '',
   problemaFallaInicial: '', contratoId: '', comentarioFacturacion: '',
-  materialesParaServicio: '', leadId: '',
+  materialesParaServicio: '', leadId: '', equipoManualNombre: '',
 };
 
 export interface OTPrefill {
@@ -74,6 +76,9 @@ export interface OTPrefill {
   problemaFallaInicial?: string;
   comentarioFacturacion?: string;
   materialesParaServicio?: string;
+  /** OT sin equipo del catálogo (capacitación / venta concretada): activa el
+   *  modo "equipo no listado" con este texto libre (puede ser ''). */
+  equipoManualNombre?: string;
 }
 
 /** Arma el prefill de "Copiar OT" desde una OT existente (pedido 2026-07-30):
@@ -94,6 +99,9 @@ export function buildOTCopyPrefill(ot: WorkOrder): OTPrefill {
     problemaFallaInicial: ot.problemaFallaInicial || undefined,
     comentarioFacturacion: ot.comentarioFacturacion || undefined,
     materialesParaServicio: ot.materialesParaServicio || undefined,
+    // OT sin equipo del catálogo (venta concretada: varias OTs sobre un equipo
+    // que aún no se sabe cuál es) → la copia arrastra el texto libre.
+    equipoManualNombre: !ot.sistemaId && !ot.loanerId && ot.sistema ? ot.sistema : undefined,
   };
 }
 
@@ -123,7 +131,23 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [otSobreLoaner, setOtSobreLoanerState] = useState(false);
   const [loanerSeleccionado, setLoanerSeleccionado] = useState<Loaner | null>(null);
 
+  // ── Equipo no listado / OT sin equipo (2026-07-31) ────────────────────────
+  // Capacitaciones (dirigidas a personas) y ventas concretadas (equipo aún sin
+  // definir) no apuntan a un equipo del catálogo: el selector se reemplaza por
+  // texto libre opcional ('' = OT sin equipo).
+  const [equipoNoListado, setEquipoNoListadoState] = useState(false);
+
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const setEquipoNoListado = (v: boolean) => {
+    setEquipoNoListadoState(v);
+    setForm(prev => ({
+      ...prev,
+      sistemaId: v ? '' : prev.sistemaId,
+      moduloId: v ? '' : prev.moduloId,
+      equipoManualNombre: v ? prev.equipoManualNombre : '',
+    }));
+  };
 
   const setOtSobreLoaner = (v: boolean) => {
     setOtSobreLoanerState(v);
@@ -193,6 +217,10 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     if (prefill.problemaFallaInicial) updates.problemaFallaInicial = prefill.problemaFallaInicial;
     if (prefill.comentarioFacturacion) updates.comentarioFacturacion = prefill.comentarioFacturacion;
     if (prefill.materialesParaServicio) updates.materialesParaServicio = prefill.materialesParaServicio;
+    if (prefill.equipoManualNombre !== undefined) {
+      updates.equipoManualNombre = prefill.equipoManualNombre;
+      setEquipoNoListadoState(true);
+    }
     if (prefill.tipoServicioNombre && !prefill.tipoServicioId) {
       const norm = prefill.tipoServicioNombre.trim().toLowerCase();
       const match = tiposServicio.find(t => t.nombre.trim().toLowerCase() === norm);
@@ -328,6 +356,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     setModulos([]); setContactos([]); setPresupuestosCliente([]);
     setContratosCliente([]); setLoadError('');
     setOtSobreLoanerState(false); setLoanerSeleccionado(null);
+    setEquipoNoListadoState(false);
   };
 
   const handleSave = async () => {
@@ -370,9 +399,10 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       return;
     }
     // En OT de entrega el equipo es opcional. En OT sobre loaner el equipo se
-    // reemplaza por el módulo AGS. En OT de servicio sigue siendo obligatorio.
-    if (form.tipoOT !== 'entrega' && !loanerSeleccionado) {
-      if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
+    // reemplaza por el módulo AGS. Con "equipo no listado" el equipo es texto
+    // libre opcional. En OT de servicio común sigue siendo obligatorio.
+    if (form.tipoOT !== 'entrega' && !loanerSeleccionado && !equipoNoListado) {
+      if (!form.sistemaId) { alert('Seleccione un equipo, o marque "El equipo no está en el listado / sin equipo"'); return; }
       if (!sistema) {
         alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
         return;
@@ -409,7 +439,9 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         establecimientoId: form.establecimientoId || undefined,
         // OT sobre loaner: sin sistema del cliente — los datos del módulo AGS
         // viajan en los campos de módulo para que el técnico los vea.
-        sistema: loanerSeleccionado ? `Loaner ${loanerSeleccionado.codigo}` : (sistema?.nombre ?? ''),
+        sistema: loanerSeleccionado
+          ? `Loaner ${loanerSeleccionado.codigo}`
+          : (sistema?.nombre ?? (equipoNoListado ? form.equipoManualNombre.trim() : '')),
         moduloModelo: loanerSeleccionado ? (loanerSeleccionado.moduloCodigo ?? '') : (modulo?.nombre ?? ''),
         moduloDescripcion: loanerSeleccionado
           ? (loanerSeleccionado.moduloDescripcion ?? loanerSeleccionado.descripcion ?? '')
@@ -552,5 +584,6 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     showCrearLead, setShowCrearLead,
     selectedPendienteIds, setSelectedPendienteIds,
     otSobreLoaner, setOtSobreLoaner, loanerSeleccionado, selectLoaner,
+    equipoNoListado, setEquipoNoListado,
   };
 }

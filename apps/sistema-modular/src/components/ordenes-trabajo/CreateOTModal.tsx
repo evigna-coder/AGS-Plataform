@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
-import { OTLoanerPicker } from './OTLoanerPicker';
+import { OTEquipoSection } from './OTEquipoSection';
 import {
   useCreateOTForm, type OTPrefill,
   TIPO_SERVICIO_ENTREGA_DEFAULT, TIPO_SERVICIO_ENTREGA_SENTINEL,
@@ -122,50 +122,8 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
             disabled={!h.form.clienteId} />
         </div>
 
-        {/* OT sobre módulo AGS (loaner): reemplaza el selector de equipo/sistema */}
-        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={h.otSobreLoaner}
-            onChange={e => h.setOtSobreLoaner(e.target.checked)}
-            className="rounded border-slate-300" />
-          OT sobre módulo AGS (loaner)
-        </label>
-
-        {h.otSobreLoaner ? (
-          <OTLoanerPicker
-            loanerId={h.loanerSeleccionado?.id ?? ''}
-            onSelect={h.selectLoaner} />
-        ) : (
-        /* Sistema + Módulo */
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={lbl}>Sistema / Equipo</label>
-            <SearchableSelect value={h.form.sistemaId}
-              onChange={v => h.set('sistemaId', v)}
-              options={[
-                { value: '', label: 'Sin sistema' },
-                ...h.sistemasFiltrados.map(s => ({
-                  value: s.id,
-                  label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`,
-                })),
-              ]}
-              placeholder={h.form.clienteId ? 'Seleccionar...' : 'Seleccione cliente primero'} />
-          </div>
-          <div>
-            <label className={lbl}>Modulo</label>
-            <SearchableSelect value={h.form.moduloId}
-              onChange={v => h.set('moduloId', v)}
-              options={[
-                { value: '', label: h.modulos.length === 0 ? 'Sin modulos' : 'Sistema completo' },
-                ...h.modulos.map(m => ({
-                  value: m.id,
-                  label: `${m.nombre}${m.descripcion ? ` — ${m.descripcion}` : ''}${m.serie ? ` (${m.serie})` : ''}`,
-                })),
-              ]}
-              placeholder={h.form.sistemaId ? 'Seleccionar...' : 'Seleccione sistema primero'}
-              disabled={!h.form.sistemaId || h.modulos.length === 0} />
-          </div>
-        </div>
-        )}
+        {/* Loaner / sistema-módulo / equipo no listado (texto libre) */}
+        <OTEquipoSection h={h} />
 
         {/* Tipo de Servicio — DESPUÉS de cliente/establecimiento/equipo (pedido
             2026-07-30: primero se identifica sobre qué se trabaja, después el tipo). */}
