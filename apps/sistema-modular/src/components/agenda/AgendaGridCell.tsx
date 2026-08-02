@@ -46,6 +46,8 @@ interface AgendaGridCellProps {
   entryCount?: number;
   isToday?: boolean;
   isFeriado?: boolean;
+  /** Día AGS del ingeniero (no laborable individual) — celda turquesa (2026-08-02). */
+  isDiaAgs?: boolean;
   showText?: boolean;
   compact?: boolean;
   isSelected?: boolean;
@@ -67,7 +69,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
   entryId, entryOtNumber, entryTitulo, entryEstado,
   isStart, isEnd, entryCount = 0,
-  isToday, isFeriado, showText, compact, isSelected, inSelectionRange, rowHeight,
+  isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
 }) => {
   const hasEntry = !!entryId;
@@ -124,9 +126,9 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         ref={setNodeRef}
         {...(hasEntry && isStart ? { ...listeners, ...attributes } : {})}
         className={`${borderClass} cursor-pointer transition-colors relative
-          ${hasEntry ? bg : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
+          ${hasEntry ? bg : isDiaAgs ? 'bg-cyan-200/70' : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
           ${rounded}
-          ${isToday && !hasEntry && !isFeriado ? 'bg-teal-50/40' : ''}
+          ${isToday && !hasEntry && !isFeriado && !isDiaAgs ? 'bg-teal-50/40' : ''}
           ${cancelled ? 'opacity-40' : ''}
           ${isSelected ? 'ring-2 ring-inset ring-teal-500 z-10' : ''}
           ${inSelectionRange && !isSelected ? 'bg-teal-100/60 ring-1 ring-inset ring-teal-300' : ''}
@@ -220,6 +222,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryCount === next.entryCount &&
     prev.isToday === next.isToday &&
     prev.isFeriado === next.isFeriado &&
+    prev.isDiaAgs === next.isDiaAgs &&
     prev.isSelected === next.isSelected &&
     prev.inSelectionRange === next.inSelectionRange &&
     prev.compact === next.compact &&

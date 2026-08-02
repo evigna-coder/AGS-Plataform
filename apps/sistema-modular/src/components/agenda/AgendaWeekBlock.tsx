@@ -27,6 +27,8 @@ interface AgendaWeekBlockProps {
   onToggleFeriado?: (fecha: string) => void;
   /** Comentarios de agenda (estilo Excel), por ingeniero+fecha. */
   notas?: AgendaNota[];
+  /** Días AGS (no laborables POR INGENIERO): claves `${ingenieroId}_${fecha}`. */
+  diasAgs?: Set<string>;
 }
 
 const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> = {
@@ -39,7 +41,7 @@ const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> 
 
 export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
   weekStart, weekDays, ingenieros, entries, zoom, borderless, selectedCellKey, selectionRange,
-  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas,
+  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs,
 }) => {
   const columns = useMemo(() => buildWeekdayColumns(weekDays), [weekDays]);
   const sizes = ZOOM_SIZES[zoom];
@@ -111,12 +113,13 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
       rowHeight={sizes.row}
       feriados={feriados}
       notasByFecha={notasPorIngeniero.get(ing.id)}
+      diasAgs={diasAgs}
       onCellClick={onCellClick}
       onEntryClick={onEntryClick}
       onCellContextMenu={onCellContextMenu}
     />
   )), [ingenieros, columns, entriesByEngineer, showText, compact, selectedCellKey, selectionRange,
-      sizes.row, feriados, notasPorIngeniero, onCellClick, onEntryClick, onCellContextMenu]);
+      sizes.row, feriados, notasPorIngeniero, diasAgs, onCellClick, onEntryClick, onCellContextMenu]);
 
   // ── BORDERLESS: inside month containers (views 2M, Año) ──
   if (borderless) {

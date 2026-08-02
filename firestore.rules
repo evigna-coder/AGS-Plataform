@@ -218,6 +218,8 @@ service cloud.firestore {
     // Agenda
     match /agendaEntries/{entryId}                { allow read, write: if esStaff(); }
     match /agendaNotas/{notaId}                   { allow read, write: if esStaff(); }
+    // Días AGS: día no laborable POR INGENIERO (cumpleaños + 2 de empresa/año)
+    match /agendaDiasAgs/{diaId}                  { allow read, write: if esStaff(); }
     // Previsiones = reservas del año siguiente para servicios regulatorios anuales
     // (OTs sin abrir). Mismo perfil de acceso que la agenda.
     match /agendaPrevisiones/{previsionId}        { allow read, write: if esStaff(); }

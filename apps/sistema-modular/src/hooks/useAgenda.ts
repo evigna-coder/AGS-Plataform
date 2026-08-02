@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
-import { ingenierosService, agendaService, agendaNotasService, feriadosService, ordenesTrabajoService, sistemasService } from '../services/firebaseService';
+import { ingenierosService, agendaService, agendaNotasService, feriadosService, diasAgsService, ordenesTrabajoService, sistemasService } from '../services/firebaseService';
 import {
   getMonday,
   getVisibleDays,
@@ -38,6 +38,10 @@ export interface UseAgendaReturn {
   toggleFeriado: (fecha: string) => Promise<void>;
   /** Bloqueo duro de feriados: primer feriado tocado por el rango, o null. */
   primerFeriadoEnRango: (inicio: string, fin: string) => string | null;
+  /** Días AGS (no laborables por ingeniero): claves `${ingenieroId}_${fecha}`. */
+  diasAgs: Set<string>;
+  toggleDiaAgs: (ingenieroId: string, ingenieroNombre: string, fecha: string) => Promise<void>;
+  primerDiaAgsEnRango: (ingenieroId: string, inicio: string, fin: string) => string | null;
 }
 
 export function useAgenda(): UseAgendaReturn {
@@ -106,12 +110,27 @@ export function useAgenda(): UseAgendaReturn {
     return feriadosService.subscribe(setFeriados);
   }, []);
 
-  // Load pending OTs only (filtered query — much faster than getAll)
+  // Días AGS: no laborables POR INGENIERO (claves `${ingId}_${fecha}`).
+  const [diasAgs, setDiasAgs] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    return diasAgsService.subscribe(setDiasAgs);
+  }, []);
+
+  // Load pending OTs only (filtered query — much faster than getAll).
+  // REFRESCO AUTOMÁTICO (2026-07-31): era un fetch único al montar, pero las
+  // pestañas viven horas — las OTs creadas después no entraban a la cola hasta
+  // reabrir la pestaña ("creamos órdenes y no aparecen en agenda"). Ahora se
+  // recarga cada 60s y al volver el foco a la ventana.
   const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
   useEffect(() => {
-    ordenesTrabajoService.getPending()
+    const load = () => ordenesTrabajoService.getPending()
       .then(setAllCandidateOTs)
       .catch(err => console.error('Error loading pending OTs:', err));
+    load();
+    const int = setInterval(load, 60_000);
+    const onVis = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(int); document.removeEventListener('visibilitychange', onVis); };
   }, []);
 
   // Mapa sistemaId → agsVisibleId para las tarjetas del sidebar (UAT 2026-07-17).
@@ -170,11 +189,29 @@ export function useAgenda(): UseAgendaReturn {
     return null;
   }, [feriados]);
 
+  // Ídem feriados pero POR INGENIERO: primer día AGS del rango, o null.
+  const primerDiaAgsEnRango = useCallback((ingenieroId: string, inicio: string, fin: string): string | null => {
+    if (!ingenieroId || !inicio || !fin) return null;
+    const d = new Date(`${inicio}T12:00:00`);
+    const end = new Date(`${fin}T12:00:00`);
+    for (let guard = 0; d <= end && guard < 120; guard++) {
+      const key = d.toISOString().split('T')[0];
+      if (diasAgs.has(`${ingenieroId}_${key}`)) return key;
+      d.setDate(d.getDate() + 1);
+    }
+    return null;
+  }, [diasAgs]);
+
   // CRUD with optimistic updates
   const createEntry = useCallback(async (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => {
     const feriado = primerFeriadoEnRango(data.fechaInicio, data.fechaFin);
     if (feriado) {
       alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return '';
+    }
+    const diaAgs = primerDiaAgsEnRango(data.ingenieroId, data.fechaInicio, data.fechaFin);
+    if (diaAgs) {
+      alert(`El ${diaAgs} es día AGS de ${data.ingenieroNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return '';
     }
     const tempId = `temp-${Date.now()}`;
@@ -185,18 +222,25 @@ export function useAgenda(): UseAgendaReturn {
     // Replace temp entry with real ID (snapshot will arrive shortly but this avoids flicker)
     setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
     return realId;
-  }, [primerFeriadoEnRango]);
+  }, [primerFeriadoEnRango, primerDiaAgsEnRango]);
 
   const updateEntry = useCallback(async (id: string, data: Partial<AgendaEntry>) => {
     // Bloqueo de feriados: solo cuando el cambio MUEVE fechas (mover/estirar);
     // cambios de estado/notas sobre una entrada existente pasan siempre.
-    if (data.fechaInicio || data.fechaFin) {
+    if (data.fechaInicio || data.fechaFin || data.ingenieroId) {
       const current = entries.find(e => e.id === id);
       const inicio = data.fechaInicio ?? current?.fechaInicio ?? '';
       const fin = data.fechaFin ?? current?.fechaFin ?? '';
-      const feriado = primerFeriadoEnRango(inicio, fin);
+      const feriado = (data.fechaInicio || data.fechaFin) ? primerFeriadoEnRango(inicio, fin) : null;
       if (feriado) {
         alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+        return;
+      }
+      const ingId = data.ingenieroId ?? current?.ingenieroId ?? '';
+      const ingNombre = data.ingenieroNombre ?? current?.ingenieroNombre ?? 'ese ingeniero';
+      const diaAgs = primerDiaAgsEnRango(ingId, inicio, fin);
+      if (diaAgs) {
+        alert(`El ${diaAgs} es día AGS de ${ingNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
         return;
       }
     }
@@ -204,7 +248,7 @@ export function useAgenda(): UseAgendaReturn {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e));
     // Fire to Firestore (don't block UI)
     agendaService.update(id, data).catch(err => console.error('Error updating entry:', err));
-  }, [entries, primerFeriadoEnRango]);
+  }, [entries, primerFeriadoEnRango, primerDiaAgsEnRango]);
 
   const deleteEntry = useCallback(async (id: string) => {
     // Captura info de la entry antes de removerla para revertir la OT después.
@@ -240,6 +284,27 @@ export function useAgenda(): UseAgendaReturn {
     await agendaNotasService.delete(id);
   }, []);
 
+  const toggleDiaAgs = useCallback(async (ingenieroId: string, ingenieroNombre: string, fecha: string) => {
+    const key = `${ingenieroId}_${fecha}`;
+    const marcado = diasAgs.has(key);
+    // Optimistic
+    setDiasAgs(prev => {
+      const next = new Set(prev);
+      if (marcado) next.delete(key); else next.add(key);
+      return next;
+    });
+    try {
+      await diasAgsService.toggle(ingenieroId, ingenieroNombre, fecha, marcado);
+    } catch (err) {
+      console.error('Error toggling día AGS:', err);
+      setDiasAgs(prev => {
+        const next = new Set(prev);
+        if (marcado) next.add(key); else next.delete(key);
+        return next;
+      });
+    }
+  }, [diasAgs]);
+
   const toggleFeriado = useCallback(async (fecha: string) => {
     const isCurrentlyFeriado = feriados.has(fecha);
     // Optimistic
@@ -262,5 +327,6 @@ export function useAgenda(): UseAgendaReturn {
     ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
     createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
     primerFeriadoEnRango,
+    diasAgs, toggleDiaAgs, primerDiaAgsEnRango,
   };
 }

@@ -20,12 +20,14 @@ interface AgendaGridProps {
   onToggleFeriado?: (fecha: string) => void;
   /** Comentarios de agenda (estilo Excel), por ingeniero+fecha. */
   notas?: AgendaNota[];
+  /** Días AGS (no laborables POR INGENIERO): claves `${ingenieroId}_${fecha}`. */
+  diasAgs?: Set<string>;
 }
 
 export const AgendaGrid: FC<AgendaGridProps> = ({
   ingenieros, visibleDays, zoom, entries, selectedCellKey, selectionRange,
   onCellClick, onEntryClick, onWeekClick, onCellContextMenu,
-  feriados, onToggleFeriado, notas,
+  feriados, onToggleFeriado, notas, diasAgs,
 }) => {
   // Extract selected fecha from cellKey ("ingId:YYYY-MM-DD:quarter") for per-week filtering
   const selectedFecha = selectedCellKey ? selectedCellKey.split(':')[1] : null;
@@ -76,10 +78,11 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
         feriados={feriados}
         onToggleFeriado={onToggleFeriado}
         notas={notas}
+        diasAgs={diasAgs}
       />
     );
   }, [ingenieros, entriesByWeek, zoom, selectedFecha, selectedCellKey, selectionRange,
-      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas]);
+      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs]);
 
   // ── Views 1 & 2 (1S, 2S): vertical stack ──
   if (zoom === 'week' || zoom === '2weeks') {

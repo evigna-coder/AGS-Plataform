@@ -34,6 +34,9 @@ interface UseAgendaDndArgs {
    *  o null. El guard corre ANTES del drop porque el sync de la OT (ingeniero +
    *  ASIGNADA) es paralelo al alta de la entrada. */
   primerFeriadoEnRango?: (inicio: string, fin: string) => string | null;
+  /** Día AGS (2026-08-02): día no laborable POR INGENIERO — bloquea el drop
+   *  sobre la celda de ese ingeniero, igual que un feriado pero individual. */
+  primerDiaAgsEnRango?: (ingenieroId: string, inicio: string, fin: string) => string | null;
   /** El comentario de la celda describe al servicio, no a la celda física
    *  (UAT 2026-07-30): al mover una entrada por DnD, relocaliza el comentario
    *  de la celda origen a la celda destino. */
@@ -56,7 +59,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
   const {
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
-    primerFeriadoEnRango, moverNotaConEntry,
+    primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry,
   } = args;
 
   const [activeDragOT, setActiveDragOT] = useState<WorkOrder | null>(null);
@@ -132,6 +135,12 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
     const feriadoTarget = primerFeriadoEnRango?.(targetFecha, targetFecha);
     if (feriadoTarget) {
       alert(`El ${feriadoTarget} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return;
+    }
+    // Día AGS del ingeniero destino: no laborable para ÉL — mismo bloqueo.
+    const diaAgsTarget = primerDiaAgsEnRango?.(targetIngenieroId, targetFecha, targetFecha);
+    if (diaAgsTarget) {
+      alert(`El ${diaAgsTarget} es día AGS de ${targetIngeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return;
     }
 
@@ -242,7 +251,7 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         allEntries: [movedEntry],
       });
     }
-  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango, moverNotaConEntry]);
+  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry]);
 
   return {
     sensors,

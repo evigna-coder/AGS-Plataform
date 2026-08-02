@@ -16,6 +16,28 @@ async function _resolveAgsId(sistemaId: string | undefined | null): Promise<stri
   } catch { return null; }
 }
 
+/**
+ * Resuelve un id de ingeniero (uid de usuario O doc id del catálogo) al DOC ID
+ * del catálogo `ingenieros`, que es lo que dibuja las filas de la grilla.
+ * (2026-07-31: al vincular usuarioId, las OTs pasaron a guardar el uid y las
+ * entradas auto-creadas/sincronizadas con ese valor quedaban INVISIBLES.)
+ * Best-effort: si no puede resolver, devuelve el id crudo.
+ */
+async function _resolverIngenieroCatalogo(id: string, nombre: string): Promise<{ id: string; nombre: string }> {
+  try {
+    const snap = await getDocs(collection(db, 'ingenieros'));
+    for (const d of snap.docs) {
+      if (d.id === id) return { id, nombre: nombre || (d.data().nombre ?? '') };
+    }
+    for (const d of snap.docs) {
+      if (d.data().usuarioId === id) return { id: d.id, nombre: d.data().nombre ?? nombre };
+    }
+  } catch (err) {
+    console.error('[agendaService] resolución de ingeniero falló (se usa el id crudo):', err);
+  }
+  return { id, nombre };
+}
+
 // ── Agenda Service ──
 
 function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): AgendaEntry {
@@ -171,13 +193,17 @@ export const agendaService = {
 
     const equipoAgsId = await _resolveAgsId(ot.sistemaId);
 
+    const resuelto = await _resolverIngenieroCatalogo(ot.ingenieroAsignadoId, ot.ingenieroAsignadoNombre || '');
+    const ingenieroId = resuelto.id;
+    const ingenieroNombre = resuelto.nombre;
+
     return this.create({
       fechaInicio: ot.fechaServicioAprox,
       fechaFin: ot.fechaServicioAprox,
       quarterStart: 1,
       quarterEnd: 1,
-      ingenieroId: ot.ingenieroAsignadoId,
-      ingenieroNombre: ot.ingenieroAsignadoNombre || '',
+      ingenieroId,
+      ingenieroNombre,
       otNumber: ot.otNumber,
       clienteNombre: ot.razonSocial,
       tipoServicio: ot.tipoServicio,
@@ -210,8 +236,11 @@ export const agendaService = {
         await this.delete(entry.id);
         return;
       }
-      updates.ingenieroId = changes.ingenieroId;
-      if (changes.ingenieroNombre !== undefined) updates.ingenieroNombre = changes.ingenieroNombre || '';
+      // Resolver UID → doc del catálogo (2026-07-31): la OT guarda el uid desde
+      // la vinculación usuarioId; escribirlo crudo dejaba la entrada invisible.
+      const resuelto = await _resolverIngenieroCatalogo(changes.ingenieroId, changes.ingenieroNombre || '');
+      updates.ingenieroId = resuelto.id;
+      updates.ingenieroNombre = resuelto.nombre;
     }
 
     if (changes.fechaServicioAprox) {
@@ -256,6 +285,38 @@ export const feriadosService = {
 };
 
 // ── Agenda Notas Service ──
+
+// ── Días AGS Service ──
+// Día NO laborable de UN ingeniero (cumpleaños + 2 días que da la empresa por
+// año — pedido 2026-08-02). Distinto de feriados (globales): esto bloquea la
+// agenda SOLO para ese ingeniero y se pinta turquesa. Doc id = `${ingId}_${fecha}`.
+
+export const diasAgsService = {
+  /** Suscripción global. Devuelve claves `${ingenieroId}_${fecha}`. */
+  subscribe(callback: (keys: Set<string>) => void): () => void {
+    return onSnapshot(collection(db, 'agendaDiasAgs'), (snap) => {
+      const keys = new Set<string>();
+      snap.docs.forEach(d => keys.add(d.id));
+      callback(keys);
+    });
+  },
+
+  async toggle(ingenieroId: string, ingenieroNombre: string, fecha: string, marcadoActual: boolean): Promise<void> {
+    const docId = `${ingenieroId}_${fecha}`;
+    if (marcadoActual) {
+      await deleteDoc(doc(db, 'agendaDiasAgs', docId));
+      logAudit({ action: 'delete', collection: 'agendaDiasAgs', documentId: docId });
+    } else {
+      const payload = deepCleanForFirestore({
+        ingenieroId, ingenieroNombre, fecha,
+        ...getCreateTrace(),
+        createdAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, 'agendaDiasAgs', docId), payload);
+      logAudit({ action: 'create', collection: 'agendaDiasAgs', documentId: docId, after: payload });
+    }
+  },
+};
 
 export const agendaNotasService = {
   /** Real-time subscription for notes in a date range. */

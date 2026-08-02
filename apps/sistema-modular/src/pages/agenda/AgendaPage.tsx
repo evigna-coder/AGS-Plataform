@@ -23,6 +23,7 @@ export const AgendaPage: FC = () => {
     ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
     createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
     primerFeriadoEnRango,
+    diasAgs, toggleDiaAgs, primerDiaAgsEnRango,
   } = useAgenda();
 
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
@@ -128,6 +129,12 @@ export const AgendaPage: FC = () => {
     const feriadoPaste = primerFeriadoEnRango(fechaInicio, fechaFin);
     if (feriadoPaste) {
       alert(`El ${feriadoPaste} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      return;
+    }
+    // Día AGS del ingeniero destino (no laborable individual) — mismo bloqueo.
+    const diaAgsPaste = primerDiaAgsEnRango(cell.ingenieroId, fechaInicio, fechaFin);
+    if (diaAgsPaste) {
+      alert(`El ${diaAgsPaste} es día AGS de ${ingeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return;
     }
 
@@ -249,7 +256,7 @@ export const AgendaPage: FC = () => {
         }).catch(err => console.error('[AgendaPage] sync OT al dropear pending falló:', err));
       }
     }
-  }, [ingenieros, entries, createEntry, updateEntry, primerFeriadoEnRango, moverNotaConEntry]);
+  }, [ingenieros, entries, createEntry, updateEntry, primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry]);
 
   const handleKeyDelete = useCallback(() => {
     const cell = selectedCellRef.current;
@@ -308,7 +315,7 @@ export const AgendaPage: FC = () => {
   } = useAgendaDnd({
     entries, pendingOTs, ingenieros, selectedPendingOTs,
     setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
-    primerFeriadoEnRango, moverNotaConEntry,
+    primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry,
   });
 
   const handleCellClick = useCallback((ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => {
@@ -642,6 +649,7 @@ export const AgendaPage: FC = () => {
                 feriados={feriados}
                 onToggleFeriado={toggleFeriado}
                 notas={notas}
+                diasAgs={diasAgs}
               />
             )}
           </div>
@@ -706,6 +714,20 @@ export const AgendaPage: FC = () => {
                 Cortar servicio(s) — quedan en "para coordinar" hasta pegar
               </button>
             )}
+            {/* Día AGS (2026-08-02): no laborable POR INGENIERO (cumpleaños +
+                2 días de empresa al año). Celda turquesa + bloqueo de agendado. */}
+            <button
+              onClick={() => {
+                void toggleDiaAgs(contextMenu.ingenieroId, contextMenu.ingenieroNombre, contextMenu.fecha);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 flex items-center gap-1.5"
+            >
+              <span className="w-3.5 h-3.5 rounded-sm bg-cyan-300 border border-cyan-400 shrink-0" />
+              {diasAgs.has(`${contextMenu.ingenieroId}_${contextMenu.fecha}`)
+                ? 'Quitar día AGS'
+                : 'Marcar día AGS (no laborable)'}
+            </button>
           </div>
         )}
 
