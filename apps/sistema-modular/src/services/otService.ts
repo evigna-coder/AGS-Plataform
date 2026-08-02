@@ -596,13 +596,22 @@ export const ordenesTrabajoService = {
       try {
         const childNumber = await this.getNextItemNumber(otData.otNumber);
         const ahora = new Date().toISOString();
+        // La hija HEREDA el estado inicial del padre (2026-07-31): estaba
+        // hardcodeada a CREADA, así que una OT nacida ASIGNADA (con ingeniero)
+        // mostraba la hija — la fila visible — como CREADA ("no nace asignada").
+        const estadoInicial: OTEstadoAdmin = otData.estadoAdmin === 'ASIGNADA' ? 'ASIGNADA' : 'CREADA';
         const childData = {
           ...otData,
           otNumber: childNumber,
           status: 'BORRADOR' as const,
-          estadoAdmin: 'CREADA' as OTEstadoAdmin,
+          estadoAdmin: estadoInicial,
           estadoAdminFecha: ahora,
-          estadoHistorial: [{ estado: 'CREADA' as OTEstadoAdmin, fecha: ahora }],
+          estadoHistorial: estadoInicial === 'ASIGNADA'
+            ? [
+                { estado: 'CREADA' as OTEstadoAdmin, fecha: ahora },
+                { estado: 'ASIGNADA' as OTEstadoAdmin, fecha: ahora },
+              ]
+            : [{ estado: 'CREADA' as OTEstadoAdmin, fecha: ahora }],
         };
         // Recursive call — el child entra con dot, no se re-auto-creará.
         await this.create(childData as any);
@@ -811,13 +820,67 @@ export const ordenesTrabajoService = {
           ingenieroNombre: data.ingenieroAsignadoNombre as string | null | undefined,
           fechaServicioAprox: data.fechaServicioAprox as string | undefined,
         });
-        // If engineer+date now present but no entry existed, auto-create
-        if (data.ingenieroAsignadoId && data.fechaServicioAprox) {
-          const ot = await this.getByOtNumber(otNumber);
-          if (ot) await agendaService.autoCreateFromOT(ot as any);
+        // Ensure con el doc FRESCO (2026-07-31): antes exigía que ingeniero y
+        // fecha vinieran JUNTOS en el mismo save — asignarlos en pasos
+        // separados dejaba la OT sin entrada de agenda. autoCreateFromOT es
+        // idempotente (si ya hay entrada activa, no duplica).
+        const fresh = await this.getByOtNumber(otNumber);
+        if (fresh?.ingenieroAsignadoId && fresh?.fechaServicioAprox) {
+          await agendaService.autoCreateFromOT(fresh as any);
         }
       } catch (err) {
         console.error('[otService] Error syncing agenda:', err);
+      }
+
+      // ── Propagar asignación del PADRE a sus hijas (2026-07-31) ──
+      // El modal de edición trabaja sobre el padre, pero la unidad agendable y
+      // ejecutable es la hija (.NN): sin esto, asignar ingeniero/fecha en el
+      // padre no llegaba a la hija ni a la agenda ("la puse asignada y no
+      // aparece"). Solo se tocan hijas en estados tempranos (CREADA/ASIGNADA).
+      if (!otNumber.includes('.')) {
+        try {
+          const hijasSnap = await getDocs(query(
+            collection(db, 'reportes'),
+            where('otNumber', '>=', `${otNumber}.`),
+            where('otNumber', '<=', `${otNumber}.`),
+          ));
+          for (const h of hijasSnap.docs) {
+            const hija = h.data();
+            const estadoHija = (hija.estadoAdmin as OTEstadoAdmin) || 'CREADA';
+            if (estadoHija !== 'CREADA' && estadoHija !== 'ASIGNADA') continue;
+            const patch: Record<string, unknown> = {};
+            if (data.ingenieroAsignadoId !== undefined) {
+              patch.ingenieroAsignadoId = data.ingenieroAsignadoId ?? null;
+              patch.ingenieroAsignadoNombre = data.ingenieroAsignadoNombre ?? null;
+            }
+            if (data.fechaServicioAprox !== undefined) patch.fechaServicioAprox = data.fechaServicioAprox ?? '';
+            // Promoción: hija CREADA que recibe ingeniero → ASIGNADA.
+            if (estadoHija === 'CREADA' && data.ingenieroAsignadoId) {
+              patch.estadoAdmin = 'ASIGNADA';
+              patch.estadoAdminFecha = new Date().toISOString();
+              patch.estadoHistorial = [
+                ...(Array.isArray(hija.estadoHistorial) ? hija.estadoHistorial : []),
+                { estado: 'ASIGNADA', fecha: new Date().toISOString(), nota: 'Propagado desde la OT padre' },
+              ];
+            }
+            if (Object.keys(patch).length === 0) continue;
+            await updateDoc(docRef('reportes', h.id), deepCleanForFirestore({
+              ...patch, ...getUpdateTrace(), updatedAt: Timestamp.now(),
+            }) as any);
+            // Agenda de la hija: sync o alta según corresponda (idempotente).
+            const hijaFresh = await this.getByOtNumber(h.id);
+            if (hijaFresh?.ingenieroAsignadoId && hijaFresh?.fechaServicioAprox) {
+              await agendaService.syncFromOT(h.id, {
+                ingenieroId: hijaFresh.ingenieroAsignadoId,
+                ingenieroNombre: hijaFresh.ingenieroAsignadoNombre ?? null,
+                fechaServicioAprox: hijaFresh.fechaServicioAprox,
+              });
+              await agendaService.autoCreateFromOT(hijaFresh as any);
+            }
+          }
+        } catch (err) {
+          console.error('[otService] propagación padre→hijas falló (no bloquea):', err);
+        }
       }
     }
   },
@@ -939,6 +1002,28 @@ export const ordenesTrabajoService = {
     batch.delete(docRef('reportes', otNumber));
     batchAudit(batch, { action: 'delete', collection: 'ordenes_trabajo', documentId: otNumber });
     await batch.commit();
+
+    // 5. Si era una HIJA y el padre quedó sin hijas, eliminar también el padre
+    // (pedido 2026-08-02): el padre es un contenedor — sin items no representa
+    // trabajo real y quedaba huérfano dando vueltas en la lista. La llamada
+    // recursiva corre la misma limpieza (agenda/tickets/presupuestos) sobre él.
+    // Best-effort: si el padre está en un estado no-eliminable, se loguea y queda.
+    if (otNumber.includes('.')) {
+      const padreNumber = otNumber.split('.')[0];
+      try {
+        const hijasSnap = await getDocs(query(
+          collection(db, 'reportes'),
+          where('otNumber', '>=', `${padreNumber}.`),
+          where('otNumber', '<=', `${padreNumber}.`),
+        ));
+        if (hijasSnap.empty) {
+          await this.delete(padreNumber);
+          console.log(`[otService.delete] Padre ${padreNumber} eliminado (quedó sin hijas)`);
+        }
+      } catch (err) {
+        console.error(`[otService.delete] No se pudo eliminar el padre ${padreNumber} (no bloquea):`, err);
+      }
+    }
   },
 
   /**
