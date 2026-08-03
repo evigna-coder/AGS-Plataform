@@ -644,36 +644,45 @@ export const AgendaPage: FC = () => {
   // ── Info bar actions ──
 
   const handleChangeEstado = useCallback((entryId: string, estado: EstadoAgenda) => {
-    updateEntry(entryId, { estadoAgenda: estado });
-    // Update selected cell entry in-place for instant UI feedback
-    if (selectedCell?.entry?.id === entryId) {
+    // El estado es DE LA CELDA (pedido 2026-08-03): con varias OTs en la misma
+    // celda (nunca se mezclan interior con locales), cambiar el estado de una
+    // cambia el de TODAS — antes había que repetirlo servicio por servicio.
+    const targets = selectedCell?.allEntries?.some(e => e.id === entryId)
+      ? selectedCell.allEntries
+      : entries.filter(e => e.id === entryId);
+    for (const en of targets) updateEntry(en.id, { estadoAgenda: estado });
+    // Update selected cell in-place for instant UI feedback
+    if (selectedCell?.entry) {
       setSelectedCell({
         ...selectedCell,
         entry: { ...selectedCell.entry, estadoAgenda: estado },
-        allEntries: selectedCell.allEntries.map(e => e.id === entryId ? { ...e, estadoAgenda: estado } : e),
+        allEntries: selectedCell.allEntries.map(e => ({ ...e, estadoAgenda: estado })),
       });
     }
-    // Propagar al OT si el entry está linkeado. Avanza siempre; REGRESA solo
-    // dentro de la banda que maneja la agenda (ASIGNADA↔COORDINADA): confirmado
-    // →tentativo debe volver la OT a ASIGNADA (UAT 2026-07-30). Estados de
-    // trabajo (EN_CURSO+) nunca se regresan desde acá. Best-effort.
-    const entry = entries.find(e => e.id === entryId);
+    // Propagar a las OTs linkeadas. Avanza siempre; REGRESA solo dentro de la
+    // banda que maneja la agenda (ASIGNADA↔COORDINADA): confirmado→tentativo
+    // debe volver la OT a ASIGNADA (UAT 2026-07-30). Estados de trabajo
+    // (EN_CURSO+) nunca se regresan desde acá. Best-effort.
     const targetOT = AGENDA_TO_OT_ESTADO[estado];
-    if (entry?.otNumber && targetOT) {
-      ordenesTrabajoService.getByOtNumber(entry.otNumber).then(ot => {
-        if (!ot) return;
-        const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
-        const BANDA_AGENDA: OTEstadoAdmin[] = ['ASIGNADA', 'COORDINADA'];
-        const avanza = OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current];
-        const regresa = OT_ESTADO_ORDER[targetOT] < OT_ESTADO_ORDER[current]
-          && BANDA_AGENDA.includes(current) && BANDA_AGENDA.includes(targetOT);
-        if (avanza || regresa) {
-          return ordenesTrabajoService.update(entry.otNumber!, {
-            estadoAdmin: targetOT,
-            estadoAdminFecha: new Date().toISOString(),
-          });
-        }
-      }).catch(err => console.error('[AgendaPage] propagar estadoAgenda a OT falló:', err));
+    if (targetOT) {
+      for (const en of targets) {
+        if (!en.otNumber) continue;
+        const otNum = en.otNumber;
+        ordenesTrabajoService.getByOtNumber(otNum).then(ot => {
+          if (!ot) return;
+          const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
+          const BANDA_AGENDA: OTEstadoAdmin[] = ['ASIGNADA', 'COORDINADA'];
+          const avanza = OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current];
+          const regresa = OT_ESTADO_ORDER[targetOT] < OT_ESTADO_ORDER[current]
+            && BANDA_AGENDA.includes(current) && BANDA_AGENDA.includes(targetOT);
+          if (avanza || regresa) {
+            return ordenesTrabajoService.update(otNum, {
+              estadoAdmin: targetOT,
+              estadoAdminFecha: new Date().toISOString(),
+            });
+          }
+        }).catch(err => console.error('[AgendaPage] propagar estadoAgenda a OT falló:', err));
+      }
     }
   }, [updateEntry, selectedCell, entries]);
 
