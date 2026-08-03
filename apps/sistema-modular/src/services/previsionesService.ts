@@ -42,6 +42,7 @@ function parsePrevision(id: string, data: Record<string, any>): AgendaPrevision 
     tipoServicioId: data.tipoServicioId ?? null,
     origenAgendaEntryId: data.origenAgendaEntryId ?? '',
     origenOtNumber: data.origenOtNumber ?? '',
+    reservaAgendaEntryId: data.reservaAgendaEntryId ?? null,
     estado: data.estado ?? 'prevista',
     tieneContrato: !!data.tieneContrato,
     otNumberGenerada: data.otNumberGenerada ?? null,
@@ -102,9 +103,129 @@ export const previsionesService = {
     await this.update(id, { estado: 'descartada' });
   },
 
-  /** Marca la previsión como convertida y guarda el número de la OT creada. */
+  /** Marca la previsión como convertida y guarda el número de la OT creada.
+   *  Si la previsión era una RESERVA manual de agenda (2026-08-03), la entrada
+   *  reservada pasa a ser la entrada de la OT: se le estampa el otNumber y se
+   *  eliminan las entradas que el alta de la OT haya auto-creado (duplicado de
+   *  un solo día — la reserva conserva el rango/cuartos elegidos a mano). */
   async marcarConvertida(id: string, otNumber: string): Promise<void> {
+    const prev = await this.getById(id);
     await this.update(id, { estado: 'convertida', otNumberGenerada: otNumber });
+
+    if (prev?.reservaAgendaEntryId) {
+      try {
+        const autoEntries = await agendaService.getByOtNumber(otNumber);
+        for (const e of autoEntries) {
+          if (e.id !== prev.reservaAgendaEntryId) await agendaService.delete(e.id);
+        }
+        await agendaService.update(prev.reservaAgendaEntryId, { otNumber });
+      } catch (err) {
+        console.error('[marcarConvertida] swap de la reserva de agenda falló:', err);
+      }
+    }
+  },
+
+  /** La previsión SIGUE a su reserva de agenda (2026-08-03): al mover la
+   *  entrada en la grilla, fecha/ingeniero del doc se actualizan; al borrar
+   *  la entrada, la previsión se descarta. Best-effort, no bloquea la agenda. */
+  async syncDesdeReserva(entryId: string, cambios: {
+    fechaInicio?: string; fechaFin?: string; ingenieroId?: string; ingenieroNombre?: string;
+  } | { descartar: true }): Promise<void> {
+    const snap = await getDocs(query(collection(db, COL), where('reservaAgendaEntryId', '==', entryId)));
+    for (const d of snap.docs) {
+      const estado = (d.data().estado ?? 'prevista') as EstadoPrevision;
+      if (estado === 'convertida' || estado === 'descartada') continue;
+      if ('descartar' in cambios) {
+        await this.update(d.id, { estado: 'descartada', notas: 'Reserva de agenda eliminada.' });
+      } else {
+        await this.update(d.id, {
+          ...cambios,
+          ...(cambios.fechaInicio ? { anioDestino: Number(cambios.fechaInicio.slice(0, 4)) } : {}),
+        });
+      }
+    }
+  },
+
+  /** Re-vincular la previsión tras un CORTAR/PEGAR de la reserva (2026-08-03):
+   *  la entrada vieja se borró y se recreó con otro id en otra celda. */
+  async relinkReserva(oldEntryId: string, newEntryId: string, cambios: {
+    fechaInicio: string; fechaFin: string; ingenieroId: string; ingenieroNombre: string;
+  }): Promise<void> {
+    const snap = await getDocs(query(collection(db, COL), where('reservaAgendaEntryId', '==', oldEntryId)));
+    for (const d of snap.docs) {
+      const estado = (d.data().estado ?? 'prevista') as EstadoPrevision;
+      if (estado === 'convertida') continue;
+      await this.update(d.id, {
+        reservaAgendaEntryId: newEntryId,
+        ...cambios,
+        anioDestino: Number(cambios.fechaInicio.slice(0, 4)),
+        // Si un delete previo la descartó por error de orden, revive.
+        ...(estado === 'descartada' ? { estado: 'prevista' as EstadoPrevision, notas: null } : {}),
+      });
+    }
+  },
+
+  /**
+   * Previsión MANUAL desde la agenda (2026-08-03): "reservar agenda para un
+   * servicio sin OT". La entrada de agenda ya fue creada por el caller (con
+   * los guards de feriado/día AGS del hook) — acá se crea el doc de previsión
+   * vinculado, para que aparezca en la solapa Previsiones y se convierta a OT
+   * con todo precargado.
+   */
+  async crearManualDesdeEntry(entryId: string, datos: {
+    fechaInicio: string;
+    fechaFin: string;
+    ingenieroId: string;
+    ingenieroNombre: string;
+    clienteId: string | null;
+    clienteNombre: string;
+    establecimientoId: string | null;
+    establecimientoNombre: string | null;
+    sistemaId: string | null;
+    sistemaNombre: string | null;
+    equipoAgsId: string | null;
+    tipoServicioId: string | null;
+    tipoServicio: string;
+    notas?: string | null;
+  }): Promise<string> {
+    const anioDestino = Number(datos.fechaInicio.slice(0, 4));
+    const id = previsionDocId(anioDestino, entryId);
+    let tieneContrato = false;
+    if (datos.clienteId) {
+      const activos = await contratosService.getActiveForCliente(datos.clienteId).catch(() => []);
+      tieneContrato = activos.length > 0;
+    }
+    const payload = deepCleanForFirestore({
+      anioDestino,
+      fechaInicio: datos.fechaInicio,
+      fechaFin: datos.fechaFin,
+      ingenieroId: datos.ingenieroId,
+      ingenieroNombre: datos.ingenieroNombre,
+      clienteNombre: datos.clienteNombre,
+      tipoServicio: datos.tipoServicio,
+      sistemaNombre: datos.sistemaNombre,
+      establecimientoNombre: datos.establecimientoNombre,
+      equipoModelo: null,
+      equipoAgsId: datos.equipoAgsId,
+      clienteId: datos.clienteId,
+      establecimientoId: datos.establecimientoId,
+      sistemaId: datos.sistemaId,
+      moduloId: null,
+      tipoServicioId: datos.tipoServicioId,
+      origenAgendaEntryId: '',
+      origenOtNumber: '',
+      reservaAgendaEntryId: entryId,
+      estado: 'prevista' as EstadoPrevision,
+      tieneContrato,
+      otNumberGenerada: null,
+      notas: datos.notas ?? null,
+      ...getCreateTrace(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, COL, id), payload);
+    logAudit({ action: 'create', collection: COL, documentId: id, after: payload });
+    return id;
   },
 
   async delete(id: string): Promise<void> {

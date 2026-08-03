@@ -4949,6 +4949,11 @@ export interface AgendaPrevision {
   origenAgendaEntryId: string;
   origenOtNumber: string;
 
+  /** Reserva MANUAL de agenda (2026-08-03): id de la entrada de agenda que
+   *  ocupa el lugar del servicio sin OT. Solo previsiones creadas a mano
+   *  desde la agenda; al convertir, esa entrada pasa a ser la de la OT. */
+  reservaAgendaEntryId?: string | null;
+
   estado: EstadoPrevision;
   /** Snapshot al generar: el cliente tenía contrato vigente. NO se recalcula al leer. */
   tieneContrato: boolean;

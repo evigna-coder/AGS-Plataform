@@ -11,6 +11,8 @@ import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
+import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/agenda/AgendaReservaModal';
+import { previsionesService } from '../../services/previsionesService';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
 import {
   AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
@@ -40,6 +42,8 @@ export const AgendaPage: FC = () => {
   const [notaTexto, setNotaTexto] = useState('');
   /** Buscador con salto a celda (Ctrl+B) — pedido 2026-08-03. */
   const [showBuscador, setShowBuscador] = useState(false);
+  /** Reserva de servicio sin OT (previsión manual) — pedido 2026-08-03. */
+  const [reservaTarget, setReservaTarget] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4 } | null>(null);
   /** Celda destino de un salto del buscador: sobrevive al clear de navegación. */
   const jumpTargetRef = useRef<SelectedCell | null>(null);
 
@@ -73,6 +77,49 @@ export const AgendaPage: FC = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  /** Reserva de servicio sin OT: crea la entrada de agenda (ocupa la celda)
+   *  y la previsión vinculada (solapa Previsiones, convertible a OT). */
+  const handleCrearReserva = useCallback(async (datos: ReservaServicioDatos) => {
+    const tgt = reservaTarget;
+    if (!tgt) return;
+    const entryId = await createEntry({
+      fechaInicio: tgt.fecha,
+      fechaFin: tgt.fecha,
+      quarterStart: tgt.quarter,
+      quarterEnd: tgt.quarter,
+      ingenieroId: tgt.ingenieroId,
+      ingenieroNombre: tgt.ingenieroNombre,
+      otNumber: '',
+      clienteNombre: datos.clienteNombre,
+      tipoServicio: datos.tipoServicio,
+      sistemaNombre: datos.sistemaNombre,
+      establecimientoNombre: datos.establecimientoNombre,
+      equipoModelo: null,
+      equipoAgsId: datos.equipoAgsId,
+      estadoAgenda: 'pendiente',
+      notas: datos.notas,
+      // La celda muestra otNumber || titulo — sin OT, se ve el cliente.
+      titulo: datos.clienteNombre,
+    });
+    if (!entryId) return; // bloqueado por feriado / día AGS (el guard ya avisó)
+    await previsionesService.crearManualDesdeEntry(entryId, {
+      fechaInicio: tgt.fecha,
+      fechaFin: tgt.fecha,
+      ingenieroId: tgt.ingenieroId,
+      ingenieroNombre: tgt.ingenieroNombre,
+      clienteId: datos.clienteId,
+      clienteNombre: datos.clienteNombre,
+      establecimientoId: datos.establecimientoId,
+      establecimientoNombre: datos.establecimientoNombre,
+      sistemaId: datos.sistemaId,
+      sistemaNombre: datos.sistemaNombre,
+      equipoAgsId: datos.equipoAgsId,
+      tipoServicioId: datos.tipoServicioId,
+      tipoServicio: datos.tipoServicio,
+      notas: datos.notas,
+    });
+  }, [reservaTarget, createEntry]);
 
   /** Salto del buscador: navegar a la fecha, seleccionar la celda y scrollearla. */
   const handleJumpToEntry = useCallback((entry: AgendaEntry) => {
@@ -205,7 +252,7 @@ export const AgendaPage: FC = () => {
       for (const src of cb.entries) {
         const span = differenceInCalendarDays(parseISO(src.fechaFin), parseISO(src.fechaInicio));
         const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
-        createEntry({
+        const creado = createEntry({
           fechaInicio: cell.fecha,
           fechaFin: end,
           quarterStart: cell.quarter,
@@ -225,6 +272,19 @@ export const AgendaPage: FC = () => {
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
+        // Reserva sin OT (2026-08-03): el corte descartó su previsión (vía
+        // deleteEntry) — el pegado la revive y re-vincula a la entrada nueva.
+        if (!src.otNumber) {
+          creado.then(newId => {
+            if (!newId) return;
+            return previsionesService.relinkReserva(src.id, newId, {
+              fechaInicio: cell.fecha,
+              fechaFin: end,
+              ingenieroId: cell.ingenieroId,
+              ingenieroNombre: ingeniero.nombre,
+            });
+          }).catch(err => console.error('[AgendaPage] relink previsión al pegar corte falló:', err));
+        }
         // Sync de la OT al nuevo ingeniero/fecha. Best-effort.
         // Re-PROMOCIONAR (2026-08-03): el corte revirtió la OT a CREADA
         // (deleteEntry la devuelve a la cola por si el corte nunca se pega);
@@ -688,6 +748,15 @@ export const AgendaPage: FC = () => {
         <AgendaBuscador entries={entries} onJump={handleJumpToEntry} onClose={() => setShowBuscador(false)} />
       )}
 
+      {reservaTarget && (
+        <AgendaReservaModal
+          ingenieroNombre={reservaTarget.ingenieroNombre}
+          fecha={reservaTarget.fecha}
+          onClose={() => setReservaTarget(null)}
+          onCreate={handleCrearReserva}
+        />
+      )}
+
       <AgendaInfoBar
         selectedCell={selectedCell}
         clipboardLabel={clipboardLabel}
@@ -776,6 +845,24 @@ export const AgendaPage: FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               Agregar tarea manual
+            </button>
+            {/* Reserva de servicio sin OT → previsión (2026-08-03) */}
+            <button
+              onClick={() => {
+                setReservaTarget({
+                  ingenieroId: contextMenu.ingenieroId,
+                  ingenieroNombre: contextMenu.ingenieroNombre,
+                  fecha: contextMenu.fecha,
+                  quarter: contextMenu.quarter,
+                });
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Reservar servicio (sin OT)
             </button>
             <button
               onClick={handleOpenNotaInput}

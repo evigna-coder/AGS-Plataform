@@ -252,6 +252,18 @@ export function useAgenda(): UseAgendaReturn {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e));
     // Fire to Firestore (don't block UI)
     agendaService.update(id, data).catch(err => console.error('Error updating entry:', err));
+    // Reserva de servicio sin OT (2026-08-03): si se mueve, la previsión la sigue.
+    const moved = entries.find(e => e.id === id);
+    if (moved && !moved.otNumber && (data.fechaInicio || data.fechaFin || data.ingenieroId)) {
+      import('../services/previsionesService').then(({ previsionesService }) =>
+        previsionesService.syncDesdeReserva(id, {
+          fechaInicio: data.fechaInicio ?? moved.fechaInicio,
+          fechaFin: data.fechaFin ?? moved.fechaFin,
+          ingenieroId: data.ingenieroId ?? moved.ingenieroId,
+          ingenieroNombre: data.ingenieroNombre ?? moved.ingenieroNombre,
+        }),
+      ).catch(err => console.error('[useAgenda] sync previsión desde reserva falló:', err));
+    }
   }, [entries, primerFeriadoEnRango, primerDiaAgsEnRango]);
 
   const deleteEntry = useCallback(async (id: string) => {
@@ -261,6 +273,12 @@ export function useAgenda(): UseAgendaReturn {
     // Optimistic: remove immediately
     setEntries(prev => prev.filter(e => e.id !== id));
     agendaService.delete(id).catch(err => console.error('Error deleting entry:', err));
+    // Reserva de servicio sin OT (2026-08-03): borrar la reserva descarta la previsión.
+    if (entry && !entry.otNumber) {
+      import('../services/previsionesService').then(({ previsionesService }) =>
+        previsionesService.syncDesdeReserva(id, { descartar: true }),
+      ).catch(err => console.error('[useAgenda] descartar previsión desde reserva falló:', err));
+    }
     // Revertir la OT si tenía una OT linkeada: clear ingeniero/fecha y bajar
     // estadoAdmin a CREADA (solo si estaba en ASIGNADA o COORDINADA — no
     // regresamos estados avanzados como EN_CURSO, CIERRE_TECNICO, etc).
