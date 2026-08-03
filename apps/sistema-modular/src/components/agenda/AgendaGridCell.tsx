@@ -67,7 +67,7 @@ interface AgendaGridCellProps {
 /** Lightweight cell — only re-renders when its own data changes. */
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
-  entryId, entryOtNumber, entryTitulo, entryEstado,
+  entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -94,8 +94,12 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
 
   const hasMultiple = entryCount > 1;
   const cancelled = entryEstado === 'cancelado';
-  const bg = entryEstado ? CELL_BG[entryEstado] : '';
-  const text = entryEstado ? CELL_TEXT[entryEstado] : '';
+  // CAPACITACIÓN va SIEMPRE en rosa oscuro, sea cual sea el estado (pedido
+  // 2026-08-03) — el color identifica al tipo de servicio. Cancelado mantiene
+  // su look (rojo + tachado) para que se note la baja.
+  const esCapacitacion = !cancelled && !!entryTipoServicio?.toLowerCase().includes('capacitaci');
+  const bg = esCapacitacion ? 'bg-[#e59a8e]' : entryEstado ? CELL_BG[entryEstado] : '';
+  const text = esCapacitacion ? 'text-[#4a1710]' : entryEstado ? CELL_TEXT[entryEstado] : '';
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
@@ -231,6 +235,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryId === next.entryId &&
     prev.entryOtNumber === next.entryOtNumber &&
     prev.entryEstado === next.entryEstado &&
+    prev.entryTipoServicio === next.entryTipoServicio &&
     prev.entryTitulo === next.entryTitulo &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&
