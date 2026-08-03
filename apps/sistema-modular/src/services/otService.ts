@@ -674,7 +674,10 @@ export const ordenesTrabajoService = {
   },
 
   // Actualizar OT
-  async update(otNumber: string, data: Partial<WorkOrder>) {
+  /** `opts.skipAgendaSync`: para updates que VIENEN de la agenda (mover una
+   *  entrada por DnD, 2026-08-03) — el rebote agenda→OT→agenda de syncFromOT
+   *  colapsaría a un día el span de la entrada recién movida. */
+  async update(otNumber: string, data: Partial<WorkOrder>, opts?: { skipAgendaSync?: boolean }) {
     // D7: si data.estadoAdmin está presente, validar que la transición sea legal.
     // Antes el dropdown del EditOTModal podía mover de cualquier estado a cualquier
     // otro (incluyendo retrocesos desde FINALIZADO o saltos a estados terminales).
@@ -813,7 +816,7 @@ export const ordenesTrabajoService = {
     }
 
     // ── Auto-sync agenda when engineer or date changes ──
-    if (data.ingenieroAsignadoId !== undefined || data.fechaServicioAprox !== undefined) {
+    if (!opts?.skipAgendaSync && (data.ingenieroAsignadoId !== undefined || data.fechaServicioAprox !== undefined)) {
       try {
         await agendaService.syncFromOT(otNumber, {
           ingenieroId: data.ingenieroAsignadoId as string | null | undefined,
@@ -881,6 +884,24 @@ export const ordenesTrabajoService = {
         } catch (err) {
           console.error('[otService] propagación padre→hijas falló (no bloquea):', err);
         }
+      }
+    }
+
+    // ── Equipo de la OT corregido → refrescar la foto en la agenda (2026-08-03) ──
+    // La tarjeta de agenda guarda sistema/modelo/código al agendar; sin esto,
+    // corregir el equipo de la OT dejaba la tarjeta mostrando el equipo viejo.
+    if (data.sistemaId !== undefined || data.sistema !== undefined || data.moduloModelo !== undefined) {
+      try {
+        const freshEq = await this.getByOtNumber(otNumber);
+        if (freshEq) {
+          await agendaService.syncEquipoFromOT(otNumber, {
+            sistemaId: freshEq.sistemaId ?? null,
+            sistemaNombre: freshEq.sistema ?? null,
+            equipoModelo: freshEq.moduloModelo ?? null,
+          });
+        }
+      } catch (err) {
+        console.error('[otService] sync equipo→agenda falló (no bloquea):', err);
       }
     }
   },

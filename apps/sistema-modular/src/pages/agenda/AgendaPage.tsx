@@ -174,11 +174,21 @@ export const AgendaPage: FC = () => {
           titulo: src.titulo ?? null,
         });
         // Sync de la OT al nuevo ingeniero/fecha. Best-effort.
+        // Re-PROMOCIONAR (2026-08-03): el corte revirtió la OT a CREADA
+        // (deleteEntry la devuelve a la cola por si el corte nunca se pega);
+        // al pegar, la OT vuelve a estar agendada → CREADA→ASIGNADA, igual
+        // que el drop desde la cola. Sin esto, mover con Ctrl+X/Ctrl+V
+        // dejaba la OT en CREADA para siempre.
         if (src.otNumber) {
-          ordenesTrabajoService.update(src.otNumber, {
-            ingenieroAsignadoId: cell.ingenieroId,
-            ingenieroAsignadoNombre: ingeniero.nombre,
-            fechaServicioAprox: cell.fecha,
+          const otNum = src.otNumber;
+          ordenesTrabajoService.getByOtNumber(otNum).then(ot => {
+            const shouldPromote = !ot?.estadoAdmin || ot.estadoAdmin === 'CREADA';
+            return ordenesTrabajoService.update(otNum, {
+              ingenieroAsignadoId: cell.ingenieroId,
+              ingenieroAsignadoNombre: ingeniero.nombre,
+              fechaServicioAprox: cell.fecha,
+              ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+            });
           }).catch(err => console.error('[AgendaPage] sync OT al pegar corte falló:', err));
         }
       }
@@ -247,12 +257,16 @@ export const AgendaPage: FC = () => {
         });
         // Sync la OT: asignar ingeniero + fecha y, si estaba en CREADA, transicionar
         // a ASIGNADA. Best-effort post-entry (no bloquea el drop si falla).
-        const shouldPromote = ot.estadoAdmin === 'CREADA' || !ot.estadoAdmin;
-        ordenesTrabajoService.update(ot.otNumber, {
-          ingenieroAsignadoId: cell.ingenieroId,
-          ingenieroAsignadoNombre: ingeniero.nombre,
-          fechaServicioAprox: fechaInicio,
-          ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+        // Estado FRESCO de Firestore (2026-08-03): el de la cola puede estar
+        // viejo (refresh 60s) y saltearse la promoción tras un eliminar.
+        ordenesTrabajoService.getByOtNumber(ot.otNumber).then(fresh => {
+          const shouldPromote = !fresh?.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+          return ordenesTrabajoService.update(ot.otNumber, {
+            ingenieroAsignadoId: cell.ingenieroId,
+            ingenieroAsignadoNombre: ingeniero.nombre,
+            fechaServicioAprox: fechaInicio,
+            ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+          });
         }).catch(err => console.error('[AgendaPage] sync OT al dropear pending falló:', err));
       }
     }

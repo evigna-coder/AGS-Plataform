@@ -253,6 +253,28 @@ export const agendaService = {
       await this.update(entry.id, updates);
     }
   },
+
+  /** Sincroniza el EQUIPO mostrado en las entradas activas de una OT
+   *  (2026-08-03): la tarjeta guarda una foto del equipo tomada al agendar;
+   *  si el equipo de la OT se corrige después, la tarjeta quedaba mostrando
+   *  el equipo viejo. */
+  async syncEquipoFromOT(otNumber: string, cambios: {
+    sistemaId?: string | null;
+    sistemaNombre?: string | null;
+    equipoModelo?: string | null;
+  }): Promise<void> {
+    const existing = await this.getByOtNumber(otNumber);
+    const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
+    if (active.length === 0) return;
+    const equipoAgsId = await _resolveAgsId(cambios.sistemaId);
+    for (const entry of active) {
+      await this.update(entry.id, {
+        sistemaNombre: cambios.sistemaNombre ?? null,
+        equipoModelo: cambios.equipoModelo ?? null,
+        equipoAgsId,
+      });
+    }
+  },
 };
 
 // ── Feriados Service ──
