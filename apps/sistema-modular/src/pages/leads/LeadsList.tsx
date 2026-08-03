@@ -209,7 +209,10 @@ export const LeadsList = () => {
         case 'estado': cmp = a.estado.localeCompare(b.estado); break;
         case 'areaActual': cmp = (a.areaActual || '').localeCompare(b.areaActual || ''); break;
         case 'asignadoA': cmp = getResponsableNombre(a.asignadoA).localeCompare(getResponsableNombre(b.asignadoA)); break;
-        case 'createdAt': cmp = (a.createdAt || '').localeCompare(b.createdAt || ''); break;
+        // 'Fecha' de la grilla = ÚLTIMA MODIFICACIÓN (pedido 2026-08-03): el
+        // ticket es uno solo que muta de estado — con createdAt parecía viejo
+        // aunque acabara de moverse. La creación vive en el tooltip y en "Xd".
+        case 'createdAt': cmp = (a.updatedAt || a.createdAt || '').localeCompare(b.updatedAt || b.createdAt || ''); break;
         case 'proximoContacto': cmp = (a.proximoContacto || '').localeCompare(b.proximoContacto || ''); break;
       }
       return cmp * dir;
@@ -446,8 +449,9 @@ export const LeadsList = () => {
                         </td>
                       )}
                       {!isHidden(7) && (
-                        <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                          <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
+                        <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}
+                          title={`Creado: ${formatDate(lead.createdAt)} · Últ. modificación: ${formatDate(lead.updatedAt || lead.createdAt)}`}>
+                          <span className="text-[10px] text-slate-400">{formatDate(lead.updatedAt || lead.createdAt)}</span>
                           {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                         </td>
                       )}

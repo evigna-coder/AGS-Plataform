@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { minikitsService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -22,8 +22,10 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
 
 export const MinikitsList = () => {
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('minikits-list');
   const FILTER_SCHEMA = useMemo(() => ({
+    q: { type: 'string' as const, default: '' },
     showInactive: { type: 'boolean' as const, default: false },
     sortField: { type: 'string' as const, default: 'codigo' },
     sortDir:   { type: 'string' as const, default: 'asc' },
@@ -36,10 +38,17 @@ export const MinikitsList = () => {
 
   const [minikits, setMinikits] = useState<Minikit[]>([]);
   const [loading, setLoading] = useState(true);
-  const sortedMinikits = useMemo(
-    () => sortByField(minikits, filters.sortField, filters.sortDir as SortDir),
-    [minikits, filters.sortField, filters.sortDir],
-  );
+  const sortedMinikits = useMemo(() => {
+    const q = filters.q.trim().toLowerCase();
+    const list = q
+      ? minikits.filter(mk =>
+          mk.codigo?.toLowerCase().includes(q) ||
+          mk.nombre?.toLowerCase().includes(q) ||
+          mk.descripcion?.toLowerCase().includes(q) ||
+          mk.asignadoA?.nombre?.toLowerCase().includes(q))
+      : minikits;
+    return sortByField(list, filters.sortField, filters.sortDir as SortDir);
+  }, [minikits, filters.q, filters.sortField, filters.sortDir]);
 
   // Inline create
   const [showCreate, setShowCreate] = useState(false);
@@ -146,9 +155,18 @@ export const MinikitsList = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        <div className="flex justify-between items-center">
-          <p className="text-xs text-slate-400">{minikits.length} minikit(s)</p>
-          <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-64">
+              <Input
+                value={filters.q}
+                onChange={e => setFilter('q', e.target.value)}
+                placeholder="Buscar por código, nombre, asignado..."
+              />
+            </div>
+            <p className="text-xs text-slate-400 shrink-0">{sortedMinikits.length} minikit(s)</p>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer shrink-0">
             <input type="checkbox" checked={filters.showInactive} onChange={e => setFilter('showInactive', e.target.checked)}
               className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
@@ -190,7 +208,10 @@ export const MinikitsList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedMinikits.map(mk => (
-                  <tr key={mk.id} className={`hover:bg-slate-50 ${!mk.activo ? 'opacity-50' : ''}`}>
+                  // One-click (pedido 2026-08-03): la fila entera abre el detalle;
+                  // las acciones frenan la propagación.
+                  <tr key={mk.id} onClick={() => navigate(`/stock/minikits/${mk.id}`)}
+                    className={`hover:bg-slate-50 cursor-pointer ${!mk.activo ? 'opacity-50' : ''}`}>
                     <td className={`px-2 py-2 ${getAlignClass(0)}`}>
                       <span className="font-mono font-semibold text-teal-600 text-xs whitespace-nowrap">{mk.codigo}</span>
                     </td>
@@ -205,13 +226,11 @@ export const MinikitsList = () => {
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex gap-3">
-                        <Link to={`/stock/minikits/${mk.id}`}
-                          className="text-teal-600 hover:underline font-medium text-[10px]">Ver</Link>
-                        <button onClick={() => handleToggleActivo(mk)}
+                        <button onClick={e => { e.stopPropagation(); handleToggleActivo(mk); }}
                           className={`font-medium text-[10px] ${mk.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
                           {mk.activo ? 'Desactivar' : 'Activar'}
                         </button>
-                        <button onClick={() => handleDelete(mk)}
+                        <button onClick={e => { e.stopPropagation(); handleDelete(mk); }}
                           className="text-red-600 hover:underline font-medium text-[10px]">Eliminar</button>
                       </div>
                     </td>

@@ -351,7 +351,12 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const pres = presupuestosCliente.find(p => p.id === presupuestoId);
     if (pres) {
       set('presupuestoNumero', pres.numero);
-      if (pres.ordenesCompraIds?.length > 0) set('ordenCompra', pres.ordenesCompraIds[0]);
+      // OC del CLIENTE del ppto → OT (2026-08-03): vive en `ordenCompraNumero`
+      // (el modal "Adjuntar OC" escribe ahí); `ordenesCompraIds` son otra cosa
+      // (OCs de compra) y por eso el arrastre nunca funcionaba.
+      const ocCliente = (pres as { ordenCompraNumero?: string | null }).ordenCompraNumero
+        || pres.ordenesCompraIds?.[0];
+      if (ocCliente) set('ordenCompra', ocCliente);
     } else {
       set('presupuestoNumero', '');
     }
