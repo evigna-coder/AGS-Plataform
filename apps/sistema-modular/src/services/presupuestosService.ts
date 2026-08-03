@@ -1700,11 +1700,17 @@ export const presupuestosService = {
     );
     const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
     const POST_OC: TicketEstado[] = ['oc_recibida', 'espera_importacion', 'pendiente_entrega', 'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada', 'pendiente_facturacion'];
-    const reusable = existingSnap.docs
+    // Tickets OPERATIVOS (materiales/compras) linkean el mismo ppto pero no son
+    // la oportunidad comercial — mismo filtro que derivarTicketACoordinacion
+    // (UAT 2026-07-16: el gate agarraba el ticket de materiales).
+    const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
+    const comerciales = existingSnap.docs
       .map(d => ({ ...(d.data() as Lead), id: d.id }))
-      .filter(t => !TERMINAL.includes(t.estado) && !POST_OC.includes(t.estado));
-    if (reusable.length === 0) return; // sin ticket reusable (nuevo o ya post-OC)
-    const ticket = reusable[0];
+      .filter(t => !TERMINAL.includes(t.estado))
+      .filter(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
+    const reusable = comerciales.filter(t => !POST_OC.includes(t.estado));
+    // Ya hay un ticket comercial en coordinación o más allá → nada que avisar.
+    if (comerciales.length > 0 && reusable.length === 0) return;
     const user = getCurrentUserTrace();
 
     // Lookup coord (best-effort) para derivación automática a coordinación.
@@ -1723,32 +1729,97 @@ export const presupuestosService = {
       console.warn('[_transicionarTicketOCRecibida] coord lookup failed:', err);
     }
 
-    const nuevoEstado: TicketEstado = coordId ? 'en_coordinacion' : 'oc_recibida';
-    const postaOC: Posta = {
+    if (reusable.length > 0) {
+      const ticket = reusable[0];
+      const nuevoEstado: TicketEstado = coordId ? 'en_coordinacion' : 'oc_recibida';
+      const postaOC: Posta = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: user?.uid ?? 'system',
+        deUsuarioNombre: user?.name ?? 'Sistema',
+        aUsuarioId: coordId ?? ticket.asignadoA ?? '',
+        aUsuarioNombre: coordNombre ?? ticket.asignadoNombre ?? '',
+        comentario: coordId
+          ? `OC ${ocNumero} cargada — derivado a coordinación`
+          : `OC ${ocNumero} cargada — a la espera del coordinador`,
+        estadoAnterior: ticket.estado,
+        estadoNuevo: nuevoEstado,
+      };
+      const updates: Partial<Lead> = {
+        estado: nuevoEstado,
+        postas: [...(ticket.postas || []), postaOC],
+      };
+      if (coordId) {
+        updates.asignadoA = coordId;
+        updates.asignadoNombre = coordNombre;
+        updates.areaActual = 'ing_soporte' as TicketArea;
+        updates.accionPendiente = `OC ${ocNumero} recibida — coordinar OTs`;
+      }
+      await leadsService.update(ticket.id, updates as any);
+      console.log(`[_transicionarTicketOCRecibida] ticket ${ticket.id} ${ticket.estado} → ${nuevoEstado} (ppto ${presupuestoId})`);
+      return;
+    }
+
+    // ── Sin ticket comercial vivo → CREARLO (2026-08-03) ──
+    // Antes retornaba en silencio: un ppto creado/aceptado sin ticket quedaba
+    // MUDO al cargarle la OC y coordinación nunca se enteraba.
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    if (!coordId) {
+      await this._appendPendingAction(presupuestoId, {
+        type: 'notificar_coordinador_ot',
+        reason: `OC ${ocNumero} cargada en ppto ${pres.numero} pero falta adminConfig.usuarioCoordinadorOTId. Configurar en /admin/config-flujos y avisar a coordinación a mano.`,
+      }).catch(err => console.error('[_transicionarTicketOCRecibida] _appendPendingAction failed:', err));
+      return;
+    }
+    let razonSocial = '';
+    try {
+      const { clientesService } = await import('./clientesService');
+      const cliente = await clientesService.getById((pres.clienteId ?? '').toString());
+      razonSocial = cliente?.razonSocial ?? '';
+    } catch (err) {
+      console.warn('[_transicionarTicketOCRecibida] cliente lookup failed:', err);
+    }
+    const postaCreacion: Posta = {
       id: crypto.randomUUID(),
       fecha: new Date().toISOString(),
       deUsuarioId: user?.uid ?? 'system',
       deUsuarioNombre: user?.name ?? 'Sistema',
-      aUsuarioId: coordId ?? ticket.asignadoA ?? '',
-      aUsuarioNombre: coordNombre ?? ticket.asignadoNombre ?? '',
-      comentario: coordId
-        ? `OC ${ocNumero} cargada — derivado a coordinación`
-        : `OC ${ocNumero} cargada — a la espera del coordinador`,
-      estadoAnterior: ticket.estado,
-      estadoNuevo: nuevoEstado,
+      aUsuarioId: coordId,
+      aUsuarioNombre: coordNombre ?? '',
+      comentario: `OC ${ocNumero} cargada — derivado a coordinación`,
+      estadoAnterior: 'nuevo' as TicketEstado,
+      estadoNuevo: 'en_coordinacion' as TicketEstado,
     };
-    const updates: Partial<Lead> = {
-      estado: nuevoEstado,
-      postas: [...(ticket.postas || []), postaOC],
-    };
-    if (coordId) {
-      updates.asignadoA = coordId;
-      updates.asignadoNombre = coordNombre;
-      updates.areaActual = 'ing_soporte' as TicketArea;
-      updates.accionPendiente = `OC ${ocNumero} recibida — coordinar OTs`;
-    }
-    await leadsService.update(ticket.id, updates as any);
-    console.log(`[_transicionarTicketOCRecibida] ticket ${ticket.id} ${ticket.estado} → ${nuevoEstado} (ppto ${presupuestoId})`);
+    const ticketId = await leadsService.create({
+      clienteId: (pres.clienteId ?? null) as string | null,
+      contactoId: pres.contactoId ?? null,
+      razonSocial,
+      contactos: [],
+      contacto: '',
+      email: '',
+      telefono: '',
+      motivoLlamado: TIPO_PPTO_TO_MOTIVO[pres.tipo] ?? 'otros',
+      motivoContacto: `OC ${ocNumero} recibida — Ppto ${pres.numero}`,
+      descripcion: `OC ${ocNumero} cargada para el presupuesto ${pres.numero}. Coordinar las OT(s) que correspondan.`,
+      sistemaId: pres.sistemaId ?? null,
+      moduloId: null,
+      estado: 'en_coordinacion' as TicketEstado,
+      postas: [postaCreacion],
+      asignadoA: coordId,
+      asignadoNombre: coordNombre,
+      derivadoPor: null,
+      areaActual: 'ing_soporte' as TicketArea,
+      accionPendiente: `OC ${ocNumero} recibida — coordinar OTs`,
+      prioridad: 'normal',
+      proximoContacto: null,
+      valorEstimado: pres.total ?? null,
+      createdBy: user?.uid,
+      finalizadoAt: null,
+      presupuestosIds: [presupuestoId],
+      otIds: [],
+    });
+    console.log(`[_transicionarTicketOCRecibida] ticket ${ticketId} CREADO en_coordinacion (ppto ${pres.numero}, OC ${ocNumero})`);
   },
 
   /**
