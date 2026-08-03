@@ -48,9 +48,14 @@ export const FacturaComentariosModal = ({ factura, autor, onClose, onAdded }: Fa
               .slice()
               .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
               .map((c, i) => (
-                <div key={i} className="border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                <div key={i} className={`border rounded-lg px-3 py-2 ${c.tipo === 'aprobacion' ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200 bg-white'}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-slate-600">{c.autor || 'Anónimo'}</span>
+                    <span className="text-[11px] font-medium text-slate-600 flex items-center gap-1.5">
+                      {c.autor || 'Anónimo'}
+                      {c.tipo === 'aprobacion' && (
+                        <span className="text-[9px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-px rounded-full">Aprobación</span>
+                      )}
+                    </span>
                     <span className="text-[10px] text-slate-400 whitespace-nowrap">{formatFecha(c.fecha)}</span>
                   </div>
                   <p className="text-xs text-slate-700 mt-1 whitespace-pre-wrap">{c.texto}</p>

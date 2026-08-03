@@ -158,6 +158,7 @@ export const facturasService = {
       finalizadoAt: null,
       presupuestosIds: [],
       otIds: [],
+      facturaId: facturaRef.id,
     });
 
     await updateDoc(docRef(COLLECTION, facturaRef.id), deepCleanForFirestore({
@@ -176,16 +177,90 @@ export const facturasService = {
     return { facturaId: facturaRef.id, ticketId, numero };
   },
 
-  async aprobar(id: string, actor?: string): Promise<void> {
+  /**
+   * Aviso al CREADOR de la factura vía ticket nuevo asignado a él (pedido
+   * 2026-08-03): cuando otro usuario aprueba o comenta, el creador tiene que
+   * enterarse. No se toca el ticket original de validación/pago — ese sigue
+   * en la bandeja del responsable. Best-effort: si falla, no rompe la acción.
+   */
+  async _avisarCreador(factura: Factura, resumen: string, detalle: string | null): Promise<void> {
+    try {
+      const user = getCurrentUserTrace();
+      // Sin creador registrado, o el actor ES el creador → no hay a quién avisar.
+      if (!factura.createdBy || !factura.createdByName) return;
+      if (user && user.uid === factura.createdBy) return;
+
+      const descripcion = `${resumen}${detalle ? `\n\n"${detalle}"` : ''}\n\n(Factura ${factura.numero ?? ''} — Control de facturas #${factura.id})`;
+      const posta: Posta | null = user ? {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: user.uid,
+        deUsuarioNombre: user.name,
+        aUsuarioId: factura.createdBy,
+        aUsuarioNombre: factura.createdByName,
+        estadoAnterior: 'nuevo',
+        estadoNuevo: 'nuevo',
+        comentario: resumen,
+      } : null;
+
+      await leadsService.create({
+        clienteId: null,
+        contactoId: null,
+        razonSocial: factura.proveedorNombre,
+        contacto: '',
+        email: '',
+        telefono: '',
+        motivoLlamado: 'administracion',
+        motivoContacto: resumen,
+        descripcion,
+        sistemaId: null,
+        moduloId: null,
+        estado: 'nuevo',
+        postas: posta ? [posta] : [],
+        asignadoA: factura.createdBy,
+        asignadoNombre: factura.createdByName,
+        derivadoPor: null,
+        areaActual: 'administracion',
+        accionPendiente: resumen,
+        prioridad: 'normal',
+        proximoContacto: null,
+        valorEstimado: null,
+        createdBy: user?.uid,
+        finalizadoAt: null,
+        presupuestosIds: [],
+        otIds: [],
+        facturaId: factura.id,
+      });
+    } catch (err) {
+      console.error('No se pudo avisar al creador de la factura:', err);
+    }
+  },
+
+  async aprobar(id: string, actor?: string, comentarioAprobacion?: string): Promise<void> {
+    const texto = comentarioAprobacion?.trim() || '';
     const batch = createBatch();
-    batch.update(docRef(COLLECTION, id), {
+    const data: Record<string, any> = {
       estado: 'aprobada' as EstadoFactura,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
-    batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: { estado: 'aprobada', actor: actor ?? null } });
+    };
+    if (texto) {
+      const comentario: ComentarioFactura = { texto, autor: actor ?? 'Sistema', fecha: new Date().toISOString(), tipo: 'aprobacion' };
+      data.comentarios = arrayUnion(deepCleanForFirestore(comentario));
+    }
+    batch.update(docRef(COLLECTION, id), data);
+    batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: { estado: 'aprobada', actor: actor ?? null, comentario: texto || null } });
     await batch.commit();
-    logBusinessEvent({ eventName: 'factura.aprobada', collection: COLLECTION, documentId: id, details: { actor: actor ?? null } });
+    logBusinessEvent({ eventName: 'factura.aprobada', collection: COLLECTION, documentId: id, details: { actor: actor ?? null, comentario: texto || null } });
+
+    const factura = await this.getById(id);
+    if (factura) {
+      await this._avisarCreador(
+        factura,
+        `Factura ${factura.numero ?? ''} de ${factura.proveedorNombre} APROBADA por ${actor ?? 'Sistema'}`,
+        texto || null,
+      );
+    }
   },
 
   async marcarPagada(id: string, actor?: string): Promise<void> {
@@ -207,5 +282,14 @@ export const facturasService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
+
+    const factura = await this.getById(id);
+    if (factura) {
+      await this._avisarCreador(
+        factura,
+        `Nuevo comentario de ${autor} en factura ${factura.numero ?? ''} de ${factura.proveedorNombre}`,
+        texto,
+      );
+    }
   },
 };

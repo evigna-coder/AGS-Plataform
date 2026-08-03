@@ -11,6 +11,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CargarFacturaModal } from '../../components/control-facturas/CargarFacturaModal';
 import { FacturaComentariosModal } from '../../components/control-facturas/FacturaComentariosModal';
+import { AprobarFacturaModal } from '../../components/control-facturas/AprobarFacturaModal';
 
 const ESTADO_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Todas' },
@@ -36,10 +37,13 @@ const diasDesde = (iso?: string): number | null => {
 export const ControlFacturasList = () => {
   const { usuario } = useAuth();
   const FILTER_SCHEMA = useMemo(() => ({
-    estado: { type: 'string' as const, default: '' },
+    // Default 'pendiente': lo operativo es lo que falta aprobar (2026-08-03).
+    estado: { type: 'string' as const, default: 'pendiente' },
     proveedor: { type: 'string' as const, default: '' },
     desde: { type: 'string' as const, default: '' },
     hasta: { type: 'string' as const, default: '' },
+    // Llegada desde el ticket ("Ver en Control de facturas"): resalta la fila.
+    factura: { type: 'string' as const, default: '' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
@@ -47,6 +51,7 @@ export const ControlFacturasList = () => {
   const [loading, setLoading] = useState(true);
   const [showCargar, setShowCargar] = useState(false);
   const [comentando, setComentando] = useState<Factura | null>(null);
+  const [aprobando, setAprobando] = useState<Factura | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -57,6 +62,12 @@ export const ControlFacturasList = () => {
     );
     return () => { unsubRef.current?.(); };
   }, []);
+
+  // Scroll a la factura señalada desde un ticket (una vez que hay filas).
+  useEffect(() => {
+    if (!filters.factura || facturas.length === 0) return;
+    document.querySelector(`[data-factura-row="${filters.factura}"]`)?.scrollIntoView({ block: 'center' });
+  }, [filters.factura, facturas.length]);
 
   // Mantener abierto el modal de comentarios sincronizado con los datos frescos.
   useEffect(() => {
@@ -84,12 +95,6 @@ export const ControlFacturasList = () => {
   const hasAdvanced = !!(filters.proveedor || filters.desde || filters.hasta);
 
   const actor = usuario?.displayName ?? 'Sistema';
-  const aprobar = async (f: Factura) => {
-    setBusyId(f.id);
-    try { await facturasService.aprobar(f.id, actor); }
-    catch (err) { console.error(err); alert('Error al aprobar la factura'); }
-    finally { setBusyId(null); }
-  };
   const marcarPagada = async (f: Factura) => {
     setBusyId(f.id);
     try { await facturasService.marcarPagada(f.id, actor); }
@@ -160,7 +165,8 @@ export const ControlFacturasList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(f => (
-                  <tr key={f.id} className="hover:bg-slate-50">
+                  <tr key={f.id} data-factura-row={f.id}
+                    className={filters.factura === f.id ? 'bg-teal-50 ring-1 ring-inset ring-teal-300' : 'hover:bg-slate-50'}>
                     <td className="px-3 py-2 text-[11px] font-mono text-slate-500 whitespace-nowrap">{f.numero ?? '—'}</td>
                     <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{formatFecha(f.createdAt)}</td>
                     <td className="px-3 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
@@ -184,7 +190,7 @@ export const ControlFacturasList = () => {
                           Previsualizar
                         </a>
                         {f.estado === 'pendiente' && (
-                          <button onClick={() => aprobar(f)} disabled={busyId === f.id}
+                          <button onClick={() => setAprobando(f)} disabled={busyId === f.id}
                             className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50 disabled:opacity-50">
                             Aprobar
                           </button>
@@ -211,6 +217,7 @@ export const ControlFacturasList = () => {
 
       {showCargar && <CargarFacturaModal onClose={() => setShowCargar(false)} onCreated={() => setShowCargar(false)} />}
       {comentando && <FacturaComentariosModal factura={comentando} autor={actor} onClose={() => setComentando(null)} />}
+      {aprobando && <AprobarFacturaModal factura={aprobando} actor={actor} onClose={() => setAprobando(null)} />}
     </div>
   );
 };

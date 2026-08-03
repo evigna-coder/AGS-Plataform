@@ -209,6 +209,7 @@ export function parseLeadDoc(d: { id: string; data: () => Record<string, unknown
     presupuestosIds: (data.presupuestosIds as string[]) ?? [],
     otIds: (data.otIds as string[]) ?? [],
     otsRelacionadas: (data.otsRelacionadas as string[]) ?? [],
+    facturaId: (data.facturaId as string) ?? null,
     // Fallback al timestamp actual en vez de '' — el parser miente menos.
     // Tickets legacy sin createdAt aparecen en el momento de hidratación, no en el epoch.
     createdAt: toISO(data.createdAt) ?? new Date().toISOString(),

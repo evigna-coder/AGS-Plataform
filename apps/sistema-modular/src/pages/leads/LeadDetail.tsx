@@ -16,6 +16,7 @@ import type { ContactoTicket } from '@ags/shared';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { OTResumenModal } from '../../components/ordenes-trabajo/OTResumenModal';
 import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
+import { TicketFacturaCard } from '../../components/control-facturas/TicketFacturaCard';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -295,6 +296,9 @@ export const LeadDetail = () => {
                 </Card>
               )}
             </div>
+
+            {/* Factura vinculada (tickets de Control de facturas) */}
+            <TicketFacturaCard lead={lead} />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (

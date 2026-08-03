@@ -919,6 +919,9 @@ export interface Ticket {
   revisionDescartada?: boolean;
   presupuestosIds?: string[];
   otIds?: string[];
+  /** Factura del módulo Control de facturas vinculada (ticket de validación
+   *  o de aviso al creador). Permite el botón "Ver factura" (2026-08-03). */
+  facturaId?: string | null;
   /**
    * Números de OT que motivaron la creación de este ticket de seguimiento.
    * Distinto de `otIds` (OTs generadas por este ticket): acá se listan OTs
@@ -2852,6 +2855,8 @@ export interface ComentarioFactura {
   texto: string;
   autor: string;
   fecha: string; // ISO
+  /** 'aprobacion' = comentario dejado al aprobar la factura (2026-08-03). */
+  tipo?: 'aprobacion' | null;
 }
 
 /**
