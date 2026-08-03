@@ -159,7 +159,7 @@ export const ControlFacturasList = () => {
                   <th className={`${thClass} text-right`}>Días</th>
                   <th className={thClass}>Proveedor</th>
                   <th className={thClass}>Estado</th>
-                  <th className={thClass}>Coment.</th>
+                  <th className={thClass}>Último comentario</th>
                   <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>
               </thead>
@@ -182,7 +182,26 @@ export const ControlFacturasList = () => {
                     <td className="px-3 py-2 whitespace-nowrap">
                       <StatusBadge label={FACTURA_ESTADO_LABELS[f.estado]} colorClass={FACTURA_ESTADO_COLORS[f.estado]} />
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-slate-400 whitespace-nowrap">{f.comentarios.length || '—'}</td>
+                    <td className="px-3 py-2 text-[11px] max-w-[260px]">
+                      {(() => {
+                        // Último comentario visible en la grilla (pedido 2026-08-03) —
+                        // típicamente el de aprobación. Click abre el historial completo.
+                        const ultimo = f.comentarios.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))[0];
+                        if (!ultimo) return <span className="text-slate-400">—</span>;
+                        return (
+                          <button onClick={() => setComentando(f)} title={`${ultimo.autor}: ${ultimo.texto}`}
+                            className="flex items-center gap-1.5 max-w-full text-left hover:underline decoration-slate-300">
+                            {ultimo.tipo === 'aprobacion' && (
+                              <span className="text-[9px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-px rounded-full shrink-0">Aprob.</span>
+                            )}
+                            <span className="text-slate-600 truncate">{ultimo.texto}</span>
+                            {f.comentarios.length > 1 && (
+                              <span className="text-slate-400 shrink-0">+{f.comentarios.length - 1}</span>
+                            )}
+                          </button>
+                        );
+                      })()}
+                    </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <a href={f.pdfUrl} target="_blank" rel="noopener noreferrer"
