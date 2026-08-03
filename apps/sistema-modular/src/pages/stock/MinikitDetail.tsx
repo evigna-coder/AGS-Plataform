@@ -12,6 +12,7 @@ import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitMo
 import { ConsumirUnidadMinikitModal } from '../../components/stock/ConsumirUnidadMinikitModal';
 import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { imprimirListadoMinikit } from '../../utils/minikitImprimir';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
@@ -282,6 +283,7 @@ export const MinikitDetail = () => {
               unidades={unidades}
               onEdit={() => setShowRequeridosEditor(true)}
               onReponer={canVerify ? (req, deficit) => setReponerFor({ req, deficit }) : undefined}
+              onImprimir={orden => imprimirListadoMinikit(minikit, requeridos, unidades, orden)}
             />
           </div>
         </div>

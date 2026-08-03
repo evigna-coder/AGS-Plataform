@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import type { MinikitRequeridoItem, UnidadStock } from '@ags/shared';
+import type { OrdenListadoMinikit } from '../../utils/minikitImprimir';
 
 interface Props {
   requeridos: MinikitRequeridoItem[];
@@ -9,13 +10,16 @@ interface Props {
   onEdit: () => void;
   /** Si se pasa, muestra "+ Reponer" en cada fila con falta. */
   onReponer?: (req: MinikitRequeridoItem, deficit: number) => void;
+  /** Imprimir el listado para el kit físico (2026-08-03). */
+  onImprimir?: (orden: OrdenListadoMinikit) => void;
 }
 
 const Badge = ({ label, color }: { label: string; color: string }) => (
   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${color}`}>{label}</span>
 );
 
-export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer }: Props) => {
+export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer, onImprimir }: Props) => {
+  const [ordenImpresion, setOrdenImpresion] = useState<OrdenListadoMinikit>('sector');
   const comparison = useMemo(() => {
     return requeridos.map(req => {
       const actual = unidades.filter(u => u.articuloId === req.articuloId).length;
@@ -50,6 +54,18 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer 
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${allOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {allOk ? 'Completo' : `Reposición pendiente (${faltantes})`}
           </span>
+          {onImprimir && (
+            <span className="flex items-center gap-1">
+              <select value={ordenImpresion} onChange={e => setOrdenImpresion(e.target.value as OrdenListadoMinikit)}
+                className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-slate-500">
+                <option value="sector">Por sector</option>
+                <option value="codigo">Por código</option>
+                <option value="descripcion">Alfabético</option>
+              </select>
+              <button onClick={() => onImprimir(ordenImpresion)}
+                className="text-teal-600 hover:underline font-medium text-[11px]">Imprimir</button>
+            </span>
+          )}
           <button onClick={onEdit} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
         </div>
       }

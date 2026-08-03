@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { articulosService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -22,6 +22,14 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
   const [addCantidad, setAddCantidad] = useState(1);
   const [addSector, setAddSector] = useState('');
   const [newSector, setNewSector] = useState('');
+  /** Filtro sobre los requeridos ya cargados (pedido 2026-08-03). */
+  const [filtro, setFiltro] = useState('');
+  /** Flujo Enter estilo presupuestos (2026-08-03): elegir artículo → salta a
+   *  Cant. → Enter agrega y reabre el buscador para el siguiente. */
+  const [focusArticuloToken, setFocusArticuloToken] = useState(0);
+  const cantRef = useRef<HTMLInputElement>(null);
+  /** Renombrar sector inline (2026-08-03). */
+  const [editandoSector, setEditandoSector] = useState<{ original: string; nuevo: string } | null>(null);
 
   useEffect(() => {
     articulosService.getAll({ activoOnly: true }).then(setArticulos).catch(console.error);
@@ -55,6 +63,19 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
     }]);
     setAddArticuloId('');
     setAddCantidad(1);
+    // Cadena de carga rápida: reabrir el buscador para el próximo artículo.
+    setFocusArticuloToken(t => t + 1);
+  };
+
+  const handleRenameSector = () => {
+    if (!editandoSector) return;
+    const nuevo = editandoSector.nuevo.trim();
+    const { original } = editandoSector;
+    setEditandoSector(null);
+    if (!nuevo || nuevo === original || sectores.includes(nuevo)) return;
+    setSectores(prev => prev.map(s => s === original ? nuevo : s));
+    setItems(prev => prev.map(i => i.sector === original ? { ...i, sector: nuevo } : i));
+    if (addSector === original) setAddSector(nuevo);
   };
 
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
@@ -92,7 +113,24 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
             <div className="flex flex-wrap gap-1.5 mb-2">
               {sectores.map(s => (
                 <span key={s} className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-lg border border-purple-100">
-                  {s}
+                  {editandoSector?.original === s ? (
+                    <input
+                      autoFocus
+                      value={editandoSector.nuevo}
+                      onChange={e => setEditandoSector({ original: s, nuevo: e.target.value })}
+                      onBlur={handleRenameSector}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); handleRenameSector(); }
+                        if (e.key === 'Escape') setEditandoSector(null);
+                      }}
+                      className="bg-white border border-purple-200 rounded px-1 py-0 text-xs w-24 focus:outline-none"
+                    />
+                  ) : (
+                    <button onClick={() => setEditandoSector({ original: s, nuevo: s })}
+                      title="Click para renombrar" className="hover:underline decoration-purple-300">
+                      {s}
+                    </button>
+                  )}
                   <button onClick={() => handleRemoveSector(s)} className="text-purple-400 hover:text-purple-700 text-[10px] ml-0.5">✕</button>
                 </span>
               ))}
@@ -111,33 +149,25 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
         {/* Items */}
         <div>
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Artículos requeridos ({items.length})</p>
-          {items.length > 0 && (
-            <div className="space-y-1 mb-3">
-              {items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded px-2 py-1.5">
-                  <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{item.articuloCodigo}</span>
-                  <span className="text-xs text-slate-700 truncate flex-1">{item.articuloDescripcion}</span>
-                  {sectores.length > 0 && (
-                    <select value={item.sector || ''} onChange={e => updateItem(idx, { sector: e.target.value || null })}
-                      className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 w-24">
-                      <option value="">Sin sector</option>
-                      {sectores.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  )}
-                  <span className="text-[10px] text-slate-400 shrink-0">Min:</span>
-                  <input type="number" min={1} value={item.cantidadMinima}
-                    onChange={e => updateItem(idx, { cantidadMinima: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center" />
-                  <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 text-xs shrink-0">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
 
-          <div className={`grid gap-2 items-end ${sectores.length > 0 ? 'grid-cols-[1fr_auto_70px_36px]' : 'grid-cols-[1fr_70px_36px]'}`}>
+          {/* Agregar ARRIBA de la lista (2026-08-03): al fondo del modal, el
+              desplegable del buscador se abría hacia abajo y quedaba recortado
+              por el scroll — no se veía el listado de artículos. */}
+          <div className={`grid gap-2 items-end mb-3 ${sectores.length > 0 ? 'grid-cols-[1fr_auto_70px_36px]' : 'grid-cols-[1fr_70px_36px]'}`}>
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Agregar artículo</label>
-              <SearchableSelect value={addArticuloId} onChange={setAddArticuloId} options={articuloOptions} placeholder="Buscar artículo..." />
+              <SearchableSelect
+                value={addArticuloId}
+                onChange={v => {
+                  setAddArticuloId(v);
+                  // Cadena estilo presupuestos: elegido el artículo, el foco
+                  // salta a Cant. — Enter ahí agrega y vuelve al buscador.
+                  if (v) setTimeout(() => cantRef.current?.select(), 0);
+                }}
+                options={articuloOptions}
+                placeholder="Buscar artículo..."
+                autoFocusToken={focusArticuloToken}
+              />
             </div>
             {sectores.length > 0 && (
               <div>
@@ -145,10 +175,60 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
                 <SearchableSelect value={addSector} onChange={setAddSector} options={sectorOpts} placeholder="Sector" />
               </div>
             )}
-            <Input label="Cant." type="number" value={String(addCantidad)}
-              onChange={e => setAddCantidad(Math.max(1, parseInt(e.target.value) || 1))} />
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Cant.</label>
+              <input
+                ref={cantRef}
+                type="number"
+                min={1}
+                value={String(addCantidad)}
+                onChange={e => setAddCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
+                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-teal-700"
+              />
+            </div>
             <Button size="sm" variant="outline" onClick={handleAddItem} disabled={!addArticuloId}>+</Button>
           </div>
+
+          {/* Buscador sobre los requeridos ya cargados */}
+          {items.length > 5 && (
+            <div className="mb-2">
+              <Input inputSize="sm" value={filtro} onChange={e => setFiltro(e.target.value)}
+                placeholder="Filtrar requeridos por código, descripción o sector..." />
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="space-y-1">
+              {items
+                .map((item, idx) => ({ item, idx }))
+                .filter(({ item }) => {
+                  const q = filtro.trim().toLowerCase();
+                  if (!q) return true;
+                  return item.articuloCodigo?.toLowerCase().includes(q)
+                    || item.articuloDescripcion?.toLowerCase().includes(q)
+                    || item.sector?.toLowerCase().includes(q);
+                })
+                .map(({ item, idx }) => (
+                  <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded px-2 py-1.5">
+                    <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{item.articuloCodigo}</span>
+                    <span className="text-xs text-slate-700 truncate flex-1">{item.articuloDescripcion}</span>
+                    {sectores.length > 0 && (
+                      <select value={item.sector || ''} onChange={e => updateItem(idx, { sector: e.target.value || null })}
+                        className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 w-24">
+                        <option value="">Sin sector</option>
+                        {sectores.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    )}
+                    <span className="text-[10px] text-slate-400 shrink-0">Min:</span>
+                    <input type="number" min={1} value={item.cantidadMinima}
+                      onChange={e => updateItem(idx, { cantidadMinima: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center" />
+                    <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 text-xs shrink-0">✕</button>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       </div>
     </Modal>

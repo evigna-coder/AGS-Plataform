@@ -221,7 +221,9 @@ export function useSearchableSelect({
         break;
       case 'ArrowDown':
         e.preventDefault();
-        if (!isOpen) { setIsOpen(true); }
+        // Abrir con ↓ resalta la PRIMERA opción directamente (UAT 2026-08-03:
+        // "no baja al primero disponible" — quedaba en -1 y pedía una 2da flecha).
+        if (!isOpen) { setIsOpen(true); setHighlightedIndex(0); }
         else { setHighlightedIndex(prev => prev < allOptions.length - 1 ? prev + 1 : prev); }
         break;
       case 'ArrowUp':

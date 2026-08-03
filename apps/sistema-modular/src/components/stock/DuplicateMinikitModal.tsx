@@ -14,6 +14,7 @@ interface Props {
 export const DuplicateMinikitModal = ({ source, onClose, onCreated }: Props) => {
   const [codigo, setCodigo] = useState('');
   const [nombre, setNombre] = useState(`${source.nombre} (copia)`);
+  const [descripcion, setDescripcion] = useState(source.descripcion ?? '');
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
@@ -23,7 +24,7 @@ export const DuplicateMinikitModal = ({ source, onClose, onCreated }: Props) => 
       const newId = await minikitsService.create({
         codigo: codigo.trim(),
         nombre: nombre.trim(),
-        descripcion: source.descripcion ?? null,
+        descripcion: descripcion.trim() || null,
         estado: 'en_base',
         asignadoA: null,
         requeridos: source.requeridos ? source.requeridos.map(r => ({ ...r })) : [],
@@ -58,6 +59,8 @@ export const DuplicateMinikitModal = ({ source, onClose, onCreated }: Props) => 
         </p>
         <Input label="Código *" value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej: MKGC2" autoFocus />
         <Input label="Nombre *" value={nombre} onChange={e => setNombre(e.target.value)} />
+        <Input label="Descripción" value={descripcion} onChange={e => setDescripcion(e.target.value)}
+          placeholder="Ej: Minikit HPLC 2" />
       </div>
     </Modal>
   );
