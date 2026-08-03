@@ -29,6 +29,9 @@ interface AgendaWeekBlockProps {
   notas?: AgendaNota[];
   /** Días AGS (no laborables POR INGENIERO): claves `${ingenieroId}_${fecha}`. */
   diasAgs?: Set<string>;
+  /** Alto de fila adaptativo (2026-08-03): calculado por AgendaGrid para que
+   *  la vista entre sin scroll vertical. undefined = tamaño fijo del zoom. */
+  rowHeightPx?: number;
 }
 
 const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> = {
@@ -42,9 +45,11 @@ const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> 
 export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
   weekStart, weekDays, ingenieros, entries, zoom, borderless, selectedCellKey, selectionRange,
   onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs,
+  rowHeightPx,
 }) => {
   const columns = useMemo(() => buildWeekdayColumns(weekDays), [weekDays]);
   const sizes = ZOOM_SIZES[zoom];
+  const rowHeight = rowHeightPx ? `${rowHeightPx}px` : sizes.row;
   const showText = zoom === 'week' || zoom === '2weeks';
   const compact = zoom !== 'week' && zoom !== '2weeks';
 
@@ -87,6 +92,14 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
 
   const weekNum = getISOWeek(weekStart);
 
+  // Badge de MES en el header de cada semana (pedido 2026-08-03: "no se
+  // distingue en qué mes estoy"). Mes del jueves (regla ISO de semanas);
+  // color alternado par/impar para que el cambio de mes salte a la vista.
+  const jueves = useMemo(() => { const d = new Date(weekStart); d.setDate(d.getDate() + 3); return d; }, [weekStart]);
+  const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const mesBadge = MESES_CORTOS[jueves.getMonth()];
+  const mesColor = jueves.getMonth() % 2 === 0 ? 'bg-slate-800 text-white' : 'bg-teal-700 text-white';
+
   // Comentarios por ingeniero → Map "fecha:quarter"→texto (celda exacta donde
   // se agregó — pedido 2026-07-30). Legacy sin quarter → celda 4 del día.
   const notasPorIngeniero = useMemo(() => {
@@ -110,7 +123,7 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
       compact={compact}
       selectedCellKey={selectedCellKey}
       selectionRange={selectionRange}
-      rowHeight={sizes.row}
+      rowHeight={rowHeight}
       feriados={feriados}
       notasByFecha={notasPorIngeniero.get(ing.id)}
       diasAgs={diasAgs}
@@ -119,7 +132,7 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
       onCellContextMenu={onCellContextMenu}
     />
   )), [ingenieros, columns, entriesByEngineer, showText, compact, selectedCellKey, selectionRange,
-      sizes.row, feriados, notasPorIngeniero, diasAgs, onCellClick, onEntryClick, onCellContextMenu]);
+      rowHeight, feriados, notasPorIngeniero, diasAgs, onCellClick, onEntryClick, onCellContextMenu]);
 
   // ── BORDERLESS: inside month containers (views 2M, Año) ──
   if (borderless) {
@@ -143,6 +156,7 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
           className={`bg-slate-50 border-b border-slate-100 px-2 py-px flex items-center gap-1 ${canDrillDown ? 'cursor-pointer hover:bg-slate-100 transition-colors' : ''}`}
           onClick={canDrillDown ? () => onWeekClick(weekStart) : undefined}
         >
+          <span className={`text-[7px] font-bold px-1 py-px rounded ${mesColor}`}>{mesBadge}</span>
           <span className="text-[8px] font-semibold text-teal-600">S{weekNum}</span>
           <span className="text-[8px] text-slate-400">{formatWeekRange(weekStart)}</span>
         </div>
@@ -151,6 +165,7 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
           className={`bg-slate-50 border-b border-slate-200 px-3 py-0.5 flex items-center gap-2 ${canDrillDown ? 'cursor-pointer hover:bg-slate-100 transition-colors' : ''}`}
           onClick={canDrillDown ? () => onWeekClick(weekStart) : undefined}
         >
+          <span className={`text-[9px] font-bold px-1.5 py-px rounded ${mesColor}`}>{mesBadge}</span>
           <span className="text-[10px] font-semibold text-teal-600">S{weekNum}</span>
           <span className="text-[10px] text-slate-400">{formatWeekRange(weekStart)}</span>
         </div>

@@ -28,7 +28,13 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
 }) => {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
-  const showAbove = vh - cellRect.bottom < 160;
+  // Altura estimada REAL (2026-08-03): ~54px por card + padding. El umbral
+  // fijo de 160px cortaba la lista con muchas OTs en las filas de abajo.
+  const estimatedH = entries.length * 54 + 16;
+  const spaceBelow = vh - cellRect.bottom - 8;
+  const spaceAbove = cellRect.top - 8;
+  const showAbove = spaceBelow < Math.min(estimatedH, 300) && spaceAbove > spaceBelow;
+  const maxH = Math.max(120, (showAbove ? spaceAbove : spaceBelow) - 8);
   const w = Math.min(400, vw - 16);
   const left = Math.min(Math.max(8, cellRect.left - 40), vw - w - 8);
 
@@ -37,6 +43,7 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
     left,
     width: w,
     zIndex: 9999,
+    maxHeight: maxH,
     ...(showAbove
       ? { bottom: vh - cellRect.top + 4 }
       : { top: cellRect.bottom + 4 }),
@@ -45,7 +52,9 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
   return (
     <div
       style={style}
-      className="bg-white border border-slate-200 rounded-lg shadow-xl"
+      // Transparencia leve + blur: la agenda de fondo se sigue viendo (pedido
+      // 2026-08-03). overflow-y-auto: si ni arriba entra todo, scrollea.
+      className="bg-white/90 backdrop-blur-[2px] border border-slate-200 rounded-lg shadow-xl overflow-y-auto"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

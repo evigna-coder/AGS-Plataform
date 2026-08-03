@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgendaEntry } from '@ags/shared';
+import { agendaService } from '../../services/agendaService';
 
 interface AgendaBuscadorProps {
+  /** Entradas del rango visible — resultado instantáneo mientras carga todo. */
   entries: AgendaEntry[];
   onJump: (entry: AgendaEntry) => void;
   onClose: () => void;
@@ -22,6 +24,18 @@ export const AgendaBuscador = ({ entries, onJump, onClose }: AgendaBuscadorProps
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Búsqueda sobre TODA la agenda (2026-08-03): la suscripción trae solo el
+  // rango visible — se carga la colección completa al abrir; mientras tanto
+  // se busca sobre lo visible para que el resultado sea instantáneo.
+  const [todas, setTodas] = useState<AgendaEntry[] | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    agendaService.listAll()
+      .then(list => { if (!cancel) setTodas(list); })
+      .catch(err => console.error('Error cargando agenda completa para buscar:', err));
+    return () => { cancel = true; };
+  }, []);
+  const universo = todas ?? entries;
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -30,7 +44,7 @@ export const AgendaBuscador = ({ entries, onJump, onClose }: AgendaBuscadorProps
     // busca solo la primera "celda".
     const q = query.split(/[\n\t]/)[0].trim().toLowerCase();
     if (q.length < 2) return [];
-    return entries
+    return universo
       .filter(e =>
         e.otNumber?.toLowerCase().includes(q) ||
         e.clienteNombre?.toLowerCase().includes(q) ||
@@ -40,7 +54,7 @@ export const AgendaBuscador = ({ entries, onJump, onClose }: AgendaBuscadorProps
         e.titulo?.toLowerCase().includes(q))
       .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
       .slice(0, 12);
-  }, [entries, query]);
+  }, [universo, query]);
 
   useEffect(() => { setHighlight(0); }, [query]);
 

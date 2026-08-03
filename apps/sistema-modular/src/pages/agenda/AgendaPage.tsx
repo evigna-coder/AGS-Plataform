@@ -681,6 +681,7 @@ export const AgendaPage: FC = () => {
         onNext={goToNext}
         onToday={goToToday}
         onSearch={() => setShowBuscador(true)}
+        onPickDate={goToDate}
       />
 
       {showBuscador && (

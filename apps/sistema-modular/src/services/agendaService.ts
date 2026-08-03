@@ -122,6 +122,13 @@ export const agendaService = {
     return snap.docs.map(d => parseAgendaEntry(d));
   },
 
+  /** TODAS las entradas (una lectura). Para el buscador con salto a celda
+   *  (2026-08-03): la suscripción del hook trae solo el rango visible. */
+  async listAll(): Promise<AgendaEntry[]> {
+    const snap = await getDocs(query(collection(db, 'agendaEntries'), orderBy('fechaInicio', 'asc')));
+    return snap.docs.map(d => parseAgendaEntry(d));
+  },
+
   /**
    * Set de otNumbers con entrada de agenda VIGENTE (no cancelada), SIN filtro de
    * rango. La cola "a programar" no puede descontar usando las entries del rango

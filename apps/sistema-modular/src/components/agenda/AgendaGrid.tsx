@@ -1,4 +1,4 @@
-import { type FC, useMemo, useRef, useCallback } from 'react';
+import { type FC, useMemo, useCallback, useEffect, useState } from 'react';
 import type { Ingeniero, AgendaEntry, AgendaNota, ZoomLevel } from '@ags/shared';
 import { AgendaWeekBlock } from './AgendaWeekBlock';
 import type { SelectionRange } from '../../utils/agendaDateUtils';
@@ -31,8 +31,36 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
 }) => {
   // Extract selected fecha from cellKey ("ingId:YYYY-MM-DD:quarter") for per-week filtering
   const selectedFecha = selectedCellKey ? selectedCellKey.split(':')[1] : null;
-  const gridRef = useRef<HTMLDivElement>(null);
   const weeks = useMemo(() => groupDaysByWeek(visibleDays), [visibleDays]);
+
+  // ── Alto de fila ADAPTATIVO (2026-08-03): en monitores más chicos las vistas
+  // 1S/2S/1M generaban scroll vertical — se mide el alto disponible y se
+  // reparte entre las filas (con mínimo legible). En pantallas grandes el
+  // clamp superior mantiene el tamaño de siempre.
+  const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
+  const [availH, setAvailH] = useState(0);
+  useEffect(() => {
+    if (!gridEl) return;
+    const ro = new ResizeObserver(() => setAvailH(gridEl.clientHeight));
+    ro.observe(gridEl);
+    setAvailH(gridEl.clientHeight);
+    return () => ro.disconnect();
+  }, [gridEl]);
+
+  const nIng = Math.max(1, ingenieros.length);
+  const rowHeightPx = useMemo(() => {
+    if (!availH) return undefined;
+    const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+    // Overheads ≈ padding del contenedor + header de semana + header de días
+    // + bordes, medidos sobre el layout actual.
+    if (zoom === 'week') return clamp(Math.floor((availH - 74) / nIng), 16, 26);
+    if (zoom === '2weeks') return clamp(Math.floor((availH - 128) / (nIng * 2)), 12, 22);
+    if (zoom === 'month') {
+      const rows = Math.max(1, groupWeeksByMonth(weeks).length);
+      return clamp(Math.floor((availH - 16 - rows * 36) / (nIng * rows)), 8, 16);
+    }
+    return undefined; // 2M / Año: grillas panorámicas, quedan como están
+  }, [availH, zoom, nIng, weeks]);
 
   const emptyState = ingenieros.length === 0 ? (
     <div className="flex-1 flex items-center justify-center text-slate-400 text-xs">
@@ -79,15 +107,16 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
         onToggleFeriado={onToggleFeriado}
         notas={notas}
         diasAgs={diasAgs}
+        rowHeightPx={rowHeightPx}
       />
     );
   }, [ingenieros, entriesByWeek, zoom, selectedFecha, selectedCellKey, selectionRange,
-      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs]);
+      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs, rowHeightPx]);
 
   // ── Views 1 & 2 (1S, 2S): vertical stack ──
   if (zoom === 'week' || zoom === '2weeks') {
     return (
-      <div ref={gridRef} className="h-full overflow-y-auto p-2 flex flex-col gap-2">
+      <div ref={setGridEl} className="h-full overflow-y-auto p-2 flex flex-col gap-2">
         {weeks.map(w => wb(w))}
         {emptyState}
       </div>
@@ -100,11 +129,11 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
   // ── View 3 (1M): month rows with vertical label + weeks side by side ──
   if (zoom === 'month') {
     return (
-      <div ref={gridRef} className="h-full overflow-auto p-2 space-y-1.5">
+      <div ref={setGridEl} className="h-full overflow-auto p-2 space-y-1.5">
         {monthGroups.map(group => (
           <div key={group.monthKey} className="flex gap-1.5">
-            {/* Vertical month label */}
-            <div className="flex items-center justify-center w-5 shrink-0 rounded bg-slate-800">
+            {/* Vertical month label — color alternado por mes (2026-08-03) */}
+            <div className={`flex items-center justify-center w-5 shrink-0 rounded ${parseInt(group.monthKey.slice(5, 7), 10) % 2 === 1 ? 'bg-slate-800' : 'bg-teal-700'}`}>
               <span className="text-[9px] font-bold text-white uppercase tracking-widest whitespace-nowrap"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>
                 {group.label.split(' ')[0]}
@@ -129,11 +158,12 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
   const monthCols = zoom === 'year' ? 'grid-cols-4' : 'grid-cols-3';
 
   return (
-    <div ref={gridRef} className={`h-full overflow-y-auto p-2 grid ${monthCols} gap-2 auto-rows-min content-start`}>
+    <div ref={setGridEl} className={`h-full overflow-y-auto p-2 grid ${monthCols} gap-2 auto-rows-min content-start`}>
       {monthGroups.map(group => (
         <div key={group.monthKey} className="border border-slate-300 rounded bg-white">
-          <div className="bg-slate-100 border-b border-slate-200 px-2 py-0.5">
-            <span className={`${zoom === 'year' ? 'text-[8px]' : 'text-[9px]'} font-bold text-slate-600 uppercase tracking-wide`}>
+          {/* Header de mes — tinte alternado por mes (2026-08-03) */}
+          <div className={`border-b border-slate-200 px-2 py-0.5 ${parseInt(group.monthKey.slice(5, 7), 10) % 2 === 1 ? 'bg-slate-800' : 'bg-teal-700'}`}>
+            <span className={`${zoom === 'year' ? 'text-[8px]' : 'text-[9px]'} font-bold text-white uppercase tracking-wide`}>
               {group.label}
             </span>
           </div>
