@@ -85,7 +85,7 @@ export interface OTPrefill {
 }
 
 /** Arma el prefill de "Copiar OT" desde una OT existente (pedido 2026-07-30):
- *  se arrastra todo lo re-editable; número, fecha de servicio y ticket NO se copian. */
+ *  se arrastra todo lo re-editable; número y ticket NO se copian. */
 export function buildOTCopyPrefill(ot: WorkOrder): OTPrefill {
   return {
     tipoOT: ot.tipoOT ?? 'servicio',
@@ -96,6 +96,9 @@ export function buildOTCopyPrefill(ot: WorkOrder): OTPrefill {
     tipoServicioNombre: ot.tipoServicio || undefined,
     contactoNombre: ot.contacto || undefined,
     ingenieroId: ot.ingenieroAsignadoId || undefined,
+    // 2026-08-03: la fecha TAMBIÉN se copia (al principio se excluía a propósito;
+    // el user la quiere — con ingeniero + fecha la copia nace ASIGNADA y agendada).
+    fechaServicioAprox: ot.fechaServicioAprox || undefined,
     // El select de presupuesto trabaja por ID — solo el número dejaba el campo
     // vacío en la copia (2026-07-31). presupuestoOrigenId lo guarda la creación.
     presupuestoId: ot.presupuestoOrigenId || undefined,
