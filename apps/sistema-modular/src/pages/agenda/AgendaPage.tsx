@@ -10,6 +10,7 @@ import { AgendaHeader } from '../../components/agenda/AgendaHeader';
 import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
+import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
 import {
   AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
@@ -37,9 +38,22 @@ export const AgendaPage: FC = () => {
   /** Comentario de celda (estilo Excel) — pedido 2026-07-30. */
   const [notaInput, setNotaInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue: string; notaId: string | null } | null>(null);
   const [notaTexto, setNotaTexto] = useState('');
+  /** Buscador con salto a celda (Ctrl+B) — pedido 2026-08-03. */
+  const [showBuscador, setShowBuscador] = useState(false);
+  /** Celda destino de un salto del buscador: sobrevive al clear de navegación. */
+  const jumpTargetRef = useRef<SelectedCell | null>(null);
 
-  // Clear selection on navigation/zoom change
-  useEffect(() => { setSelectedCell(null); setSelectionRange(null); }, [anchor, zoomLevel]);
+  // Clear selection on navigation/zoom change — salvo que la navegación sea
+  // un salto del buscador (el destino ES la selección nueva).
+  useEffect(() => {
+    if (jumpTargetRef.current) {
+      setSelectedCell(jumpTargetRef.current);
+      jumpTargetRef.current = null;
+    } else {
+      setSelectedCell(null);
+    }
+    setSelectionRange(null);
+  }, [anchor, zoomLevel]);
 
   // Auto-scroll selected cell into view when navigating with keyboard
   useEffect(() => {
@@ -47,6 +61,41 @@ export const AgendaPage: FC = () => {
     const el = document.querySelector('[data-agenda-selected="true"]');
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   }, [selectedCell]);
+
+  // Ctrl+B abre/cierra el buscador (funciona también sin celda seleccionada).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setShowBuscador(v => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /** Salto del buscador: navegar a la fecha, seleccionar la celda y scrollearla. */
+  const handleJumpToEntry = useCallback((entry: AgendaEntry) => {
+    const found = findEntriesAtCell(entries, entry.ingenieroId, entry.fechaInicio, entry.quarterStart);
+    const cell: SelectedCell = {
+      ingenieroId: entry.ingenieroId,
+      ingenieroNombre: entry.ingenieroNombre,
+      fecha: entry.fechaInicio,
+      quarter: entry.quarterStart,
+      entry,
+      allEntries: found.length > 0 ? found : [entry],
+    };
+    setShowBuscador(false);
+    // Si la fecha ya está visible el anchor no cambia (el clear no corre y la
+    // selección directa alcanza); si cambia, el ref la re-aplica tras el clear.
+    jumpTargetRef.current = cell;
+    setSelectedCell(cell);
+    goToDate(parseISO(entry.fechaInicio));
+    // Si el anchor NO cambió, el efecto nunca consume el ref — limpiarlo para
+    // que una navegación manual posterior no "restaure" este salto viejo.
+    // (El efecto corre en el commit, antes de este timeout.)
+    setTimeout(() => { jumpTargetRef.current = null; }, 0);
+  }, [entries, goToDate]);
 
   // El comentario de celda viaja con el servicio al moverlo por DnD o al
   // cortar/pegar (UAT 2026-07-30/31): describe al servicio agendado, no a la
@@ -88,8 +137,11 @@ export const AgendaPage: FC = () => {
   const handleCopy = useCallback(() => {
     const cell = selectedCellRef.current;
     if (!cell?.entry) return;
-    setClipboard({ type: 'entry', entry: cell.entry });
-  }, []);
+    // Copiar TODOS los servicios de la celda (pedido 2026-08-03): antes iba
+    // solo cell.entry (el de arriba) y el pegado dejaba los demás atrás.
+    const found = findEntriesAtCell(entries, cell.ingenieroId, cell.fecha, cell.quarter);
+    setClipboard({ type: 'entry', entry: cell.entry, entries: found.length > 0 ? found : [cell.entry] });
+  }, [entries]);
 
   // ── Cortar (pedido 2026-07-31) ──
   // Levanta TODOS los servicios de la celda: se borran (las OTs vuelven solas a
@@ -183,12 +235,15 @@ export const AgendaPage: FC = () => {
           const otNum = src.otNumber;
           ordenesTrabajoService.getByOtNumber(otNum).then(ot => {
             const shouldPromote = !ot?.estadoAdmin || ot.estadoAdmin === 'CREADA';
+            // skipAgendaSync (2026-08-03): la entrada ya se creó ACÁ con su
+            // estado preservado — el rebote OT→agenda corría en paralelo al
+            // alta y, si le ganaba, creaba un duplicado gris 'tentativo'.
             return ordenesTrabajoService.update(otNum, {
               ingenieroAsignadoId: cell.ingenieroId,
               ingenieroAsignadoNombre: ingeniero.nombre,
               fechaServicioAprox: cell.fecha,
               ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
-            });
+            }, { skipAgendaSync: true });
           }).catch(err => console.error('[AgendaPage] sync OT al pegar corte falló:', err));
         }
       }
@@ -204,29 +259,36 @@ export const AgendaPage: FC = () => {
     }
 
     if (cb.type === 'entry' && cb.entry) {
-      const existing = cb.entry.otNumber
-        ? entries.find(e => e.otNumber === cb.entry!.otNumber && e.ingenieroId === cell.ingenieroId)
-        : null;
-      if (existing) {
-        const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
-        updateEntry(existing.id, {
-          fechaFin: newEnd,
-          quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
-        });
-      } else {
-        createEntry({
-          fechaInicio, fechaFin, quarterStart, quarterEnd,
-          ingenieroId: cell.ingenieroId,
-          ingenieroNombre: ingeniero.nombre,
-          otNumber: cb.entry.otNumber,
-          clienteNombre: cb.entry.clienteNombre,
-          tipoServicio: cb.entry.tipoServicio,
-          sistemaNombre: cb.entry.sistemaNombre,
-          establecimientoNombre: cb.entry.establecimientoNombre,
-          estadoAgenda: 'tentativo',
-          notas: null,
-          titulo: cb.entry.titulo || null,
-        });
+      // Pegar TODOS los servicios copiados de la celda (pedido 2026-08-03).
+      // Entradas viejas en el clipboard pueden no traer `entries` — fallback.
+      const copiadas = cb.entries && cb.entries.length > 0 ? cb.entries : [cb.entry];
+      for (const src of copiadas) {
+        const existing = src.otNumber
+          ? entries.find(e => e.otNumber === src.otNumber && e.ingenieroId === cell.ingenieroId)
+          : null;
+        if (existing) {
+          const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
+          updateEntry(existing.id, {
+            fechaFin: newEnd,
+            quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
+          });
+        } else {
+          createEntry({
+            fechaInicio, fechaFin, quarterStart, quarterEnd,
+            ingenieroId: cell.ingenieroId,
+            ingenieroNombre: ingeniero.nombre,
+            otNumber: src.otNumber,
+            clienteNombre: src.clienteNombre,
+            tipoServicio: src.tipoServicio,
+            sistemaNombre: src.sistemaNombre,
+            establecimientoNombre: src.establecimientoNombre,
+            equipoModelo: src.equipoModelo ?? null,
+            equipoAgsId: src.equipoAgsId ?? null,
+            estadoAgenda: 'tentativo',
+            notas: null,
+            titulo: src.titulo || null,
+          });
+        }
       }
     } else if (cb.type === 'pending' && cb.ot) {
       const existing = entries.find(e => e.otNumber === cb.ot!.otNumber && e.ingenieroId === cell.ingenieroId);
@@ -261,12 +323,14 @@ export const AgendaPage: FC = () => {
         // viejo (refresh 60s) y saltearse la promoción tras un eliminar.
         ordenesTrabajoService.getByOtNumber(ot.otNumber).then(fresh => {
           const shouldPromote = !fresh?.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+          // skipAgendaSync: la entrada se crea acá — evita el duplicado del
+          // rebote OT→agenda si el ensure gana la carrera al addDoc.
           return ordenesTrabajoService.update(ot.otNumber, {
             ingenieroAsignadoId: cell.ingenieroId,
             ingenieroAsignadoNombre: ingeniero.nombre,
             fechaServicioAprox: fechaInicio,
             ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
-          });
+          }, { skipAgendaSync: true });
         }).catch(err => console.error('[AgendaPage] sync OT al dropear pending falló:', err));
       }
     }
@@ -616,7 +680,12 @@ export const AgendaPage: FC = () => {
         onPrev={goToPrev}
         onNext={goToNext}
         onToday={goToToday}
+        onSearch={() => setShowBuscador(true)}
       />
+
+      {showBuscador && (
+        <AgendaBuscador entries={entries} onJump={handleJumpToEntry} onClose={() => setShowBuscador(false)} />
+      )}
 
       <AgendaInfoBar
         selectedCell={selectedCell}

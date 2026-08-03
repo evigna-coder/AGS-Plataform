@@ -198,12 +198,14 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
           // promocionaba, y la OT re-agendada quedaba CREADA.
           ordenesTrabajoService.getByOtNumber(ot.otNumber).then(fresh => {
             const shouldPromote = !fresh?.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+            // skipAgendaSync: la entrada se crea acá — evita el duplicado del
+            // rebote OT→agenda si el ensure gana la carrera al addDoc.
             return ordenesTrabajoService.update(ot.otNumber, {
               ingenieroAsignadoId: targetIngenieroId,
               ingenieroAsignadoNombre: targetIngeniero.nombre,
               fechaServicioAprox: targetFecha,
               ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
-            });
+            }, { skipAgendaSync: true });
           }).catch(err => console.error('[useAgendaDnd] sync OT en DnD drop falló:', err));
         }
       }
@@ -217,29 +219,45 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
 
-      const origStart = parseISO(entry.fechaInicio);
-      const origEnd = parseISO(entry.fechaFin);
-      const daySpan = differenceInCalendarDays(origEnd, origStart);
-      const newStart = parseISO(targetFecha);
-      const newEnd = daySpan > 0 ? addDays(newStart, daySpan) : newStart;
+      // Mover TODOS los servicios de la celda juntos (pedido 2026-08-03):
+      // el drag movía solo la entrada de arriba y los demás quedaban atrás.
+      const cellMates = findEntriesAtCell(entries, entry.ingenieroId, entry.fechaInicio, entry.quarterStart);
+      const toMove = cellMates.length > 0 ? cellMates : [entry];
 
-      const movedEntry: AgendaEntry = {
-        ...entry,
-        fechaInicio: targetFecha,
-        fechaFin: formatDateKey(newEnd),
-        quarterStart: targetQuarter,
-        ingenieroId: targetIngenieroId,
-        ingenieroNombre: targetIngeniero.nombre,
-      };
+      const movedEntries: AgendaEntry[] = [];
+      for (const en of toMove) {
+        const daySpan = differenceInCalendarDays(parseISO(en.fechaFin), parseISO(en.fechaInicio));
+        const newStart = parseISO(targetFecha);
+        const newEnd = daySpan > 0 ? addDays(newStart, daySpan) : newStart;
+        const cambios = {
+          fechaInicio: targetFecha,
+          fechaFin: formatDateKey(newEnd),
+          quarterStart: targetQuarter,
+          quarterEnd: en.quarterEnd,
+          ingenieroId: targetIngenieroId,
+          ingenieroNombre: targetIngeniero.nombre,
+        };
+        movedEntries.push({ ...en, ...cambios });
+        updateEntry(en.id, cambios);
 
-      updateEntry(entryId, {
-        fechaInicio: targetFecha,
-        fechaFin: formatDateKey(newEnd),
-        quarterStart: targetQuarter,
-        quarterEnd: entry.quarterEnd,
-        ingenieroId: targetIngenieroId,
-        ingenieroNombre: targetIngeniero.nombre,
-      });
+        // Sync de la OT al mover (2026-08-03): el drag dejaba fechaServicioAprox
+        // e ingeniero VIEJOS en la OT — la grilla decía una cosa y la OT otra.
+        // skipAgendaSync: sin él, syncFromOT rebotaría sobre la entrada recién
+        // movida y colapsaría un servicio de varios días a uno solo.
+        if (en.otNumber) {
+          const otNum = en.otNumber;
+          ordenesTrabajoService.getByOtNumber(otNum).then(fresh => {
+            if (!fresh) return;
+            const shouldPromote = !fresh.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+            return ordenesTrabajoService.update(otNum, {
+              ingenieroAsignadoId: targetIngenieroId,
+              ingenieroAsignadoNombre: targetIngeniero.nombre,
+              fechaServicioAprox: targetFecha,
+              ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+            }, { skipAgendaSync: true });
+          }).catch(err => console.error('[useAgendaDnd] sync OT al mover entrada falló:', err));
+        }
+      }
 
       // El comentario de la celda origen viaja con el servicio (quedaba
       // "pegado" a la celda al mover la entrada).
@@ -248,31 +266,13 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         { ingenieroId: targetIngenieroId, ingenieroNombre: targetIngeniero.nombre, fecha: targetFecha, quarter: targetQuarter },
       );
 
-      // Sync de la OT al mover (2026-08-03): el drag dejaba fechaServicioAprox
-      // e ingeniero VIEJOS en la OT — la grilla decía una cosa y la OT otra.
-      // skipAgendaSync: sin él, syncFromOT rebotaría sobre la entrada recién
-      // movida y colapsaría un servicio de varios días a uno solo.
-      if (entry.otNumber) {
-        const otNum = entry.otNumber;
-        ordenesTrabajoService.getByOtNumber(otNum).then(fresh => {
-          if (!fresh) return;
-          const shouldPromote = !fresh.estadoAdmin || fresh.estadoAdmin === 'CREADA';
-          return ordenesTrabajoService.update(otNum, {
-            ingenieroAsignadoId: targetIngenieroId,
-            ingenieroAsignadoNombre: targetIngeniero.nombre,
-            fechaServicioAprox: targetFecha,
-            ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
-          }, { skipAgendaSync: true });
-        }).catch(err => console.error('[useAgendaDnd] sync OT al mover entrada falló:', err));
-      }
-
       setSelectedCell({
         ingenieroId: targetIngenieroId,
         ingenieroNombre: targetIngeniero.nombre,
         fecha: targetFecha,
         quarter: targetQuarter,
-        entry: movedEntry,
-        allEntries: [movedEntry],
+        entry: movedEntries[0],
+        allEntries: movedEntries,
       });
     }
   }, [pendingOTs, ingenieros, entries, createEntry, updateEntry, setSelectedPendingOTs, setSelectedCell, primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry]);

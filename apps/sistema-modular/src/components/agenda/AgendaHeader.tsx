@@ -8,6 +8,8 @@ interface AgendaHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  /** Abre el buscador con salto a celda (Ctrl+B) — pedido 2026-08-03. */
+  onSearch?: () => void;
 }
 
 export const AgendaHeader: FC<AgendaHeaderProps> = ({
@@ -16,6 +18,7 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
   onPrev,
   onNext,
   onToday,
+  onSearch,
 }) => {
   const rangeLabel = formatRangeLabel(anchor, zoomLevel);
 
@@ -53,6 +56,21 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
           </svg>
         </button>
       </div>
+
+      {/* Buscador con salto a celda */}
+      {onSearch && (
+        <button
+          onClick={onSearch}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-100 text-slate-500 transition-colors shrink-0"
+          title="Buscar OT, cliente o equipo (Ctrl+B)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <span className="text-[11px] font-medium">Buscar</span>
+          <span className="text-[9px] font-mono text-slate-300 border border-slate-200 rounded px-1">Ctrl+B</span>
+        </button>
+      )}
 
       {/* Range label */}
       <span className="text-xs text-slate-400 truncate min-w-0">{rangeLabel}</span>

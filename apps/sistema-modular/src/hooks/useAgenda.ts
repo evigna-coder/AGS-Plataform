@@ -270,12 +270,15 @@ export function useAgenda(): UseAgendaReturn {
         if (!ot) return;
         const REVERTIBLE: string[] = ['ASIGNADA', 'COORDINADA'];
         const shouldRevertEstado = REVERTIBLE.includes(ot.estadoAdmin || '');
+        // skipAgendaSync (2026-08-03): la entrada ya se borró ACÁ. Sin el flag,
+        // el rebote OT→agenda (ingeniero null → borrar entrada) podía llegar
+        // DESPUÉS de un pegado rápido y borrarle la entrada recién creada.
         return ordenesTrabajoService.update(otNumber, {
           ingenieroAsignadoId: null,
           ingenieroAsignadoNombre: null,
           fechaServicioAprox: null as any,
           ...(shouldRevertEstado ? { estadoAdmin: 'CREADA' as any, estadoAdminFecha: new Date().toISOString() } : {}),
-        });
+        }, { skipAgendaSync: true });
       }).catch(err => console.error('[useAgenda.deleteEntry] revert OT failed:', err));
     }
   }, [entries]);
