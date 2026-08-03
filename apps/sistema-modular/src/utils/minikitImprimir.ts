@@ -15,7 +15,10 @@ export function imprimirListadoMinikit(
 ): void {
   const filas = requeridos.map(r => ({
     ...r,
-    actual: unidades.filter(u => u.articuloId === r.articuloId).length,
+    // Sumar `cantidad` (un doc puede valer N unidades), no contar docs.
+    actual: unidades
+      .filter(u => u.articuloId === r.articuloId)
+      .reduce((s, u) => s + (u.cantidad ?? 1), 0),
   }));
 
   filas.sort((a, b) => {
@@ -52,7 +55,7 @@ export function imprimirListadoMinikit(
   }
 
   const rev = minikit.ultimaVerificacion;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(minikit.codigo)} — Listado</title>
+  const html = `<html><head><meta charset="utf-8"><title>${esc(minikit.codigo)} — Listado</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; padding: 24px; }
@@ -75,11 +78,47 @@ export function imprimirListadoMinikit(
     <thead><tr><th>Código</th><th>Descripción</th><th>Mínimo</th><th>Cantidad</th></tr></thead>
     <tbody>${cuerpo}</tbody>
   </table>
-<script>window.onload = () => { window.print(); };</script>
 </body></html>`;
 
-  const w = window.open('', '_blank');
-  if (!w) { alert('El navegador bloqueó la ventana de impresión — habilitá popups para este sitio.'); return; }
-  w.document.write(html);
-  w.document.close();
+  // En Electron: impresión SILENCIOSA con copies:1 (2026-08-03) — el diálogo
+  // heredaba el default de la impresora (3 copias, configurado para el remito).
+  // Sale directo a la impresora predeterminada, 1 copia, como el remito.
+  const api = (window as unknown as {
+    electronAPI?: { printHtmlSilent?: (html: string) => Promise<{ success: boolean; failureReason?: string | null }> };
+  }).electronAPI;
+  if (api?.printHtmlSilent) {
+    api.printHtmlSilent(html).then(res => {
+      if (!res.success) {
+        console.warn('[minikitImprimir] silencioso falló, fallback a diálogo:', res.failureReason);
+        imprimirPorIframe(html);
+      }
+    }).catch(() => imprimirPorIframe(html));
+    return;
+  }
+
+  imprimirPorIframe(html);
+}
+
+/** Fallback browser/dev: iframe oculto + diálogo de impresión (sin popups). */
+function imprimirPorIframe(html: string): void {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  const idoc = iframe.contentDocument;
+  if (!idoc) { document.body.removeChild(iframe); alert('No se pudo preparar la impresión.'); return; }
+  idoc.open();
+  idoc.write(html);
+  idoc.close();
+  // Print tras el layout; limpiar el iframe después (afterprint no es 100%
+  // confiable cross-entorno — timeout generoso como red de seguridad).
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 60000);
+  }, 150);
 }

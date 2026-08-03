@@ -29,6 +29,10 @@ try {
     printPdfSilent: (buffer) => {
       return ipcRenderer.invoke('print:pdf-silent', buffer);
     },
+    // Imprimir HTML en silencio, SIEMPRE 1 copia (listado de minikit).
+    printHtmlSilent: (html) => {
+      return ipcRenderer.invoke('print:html-silent', html);
+    },
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);

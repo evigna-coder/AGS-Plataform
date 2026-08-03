@@ -542,6 +542,42 @@ function registerIpcHandlers() {
     });
   });
 
+  // Print: imprimir HTML EN SILENCIO, SIEMPRE 1 COPIA (2026-08-03 — listado de
+  // minikit). El diálogo heredaba el default de copias de la impresora (3, del
+  // remito); copies:1 explícito lo pisa. Mismo esquema que print:pdf-silent.
+  ipcMain.handle('print:html-silent', async (_event, html) => {
+    const tmpDir = join(os.tmpdir(), 'ags-pdfs');
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
+    const filePath = join(tmpDir, `listado-print-${Date.now()}.html`);
+    writeFileSync(filePath, html, 'utf8');
+
+    return await new Promise((resolve) => {
+      const printWin = new BrowserWindow({ show: false });
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        try { if (!printWin.isDestroyed()) printWin.close(); } catch (_) { /* noop */ }
+        try { unlinkSync(filePath); } catch (_) { /* noop */ }
+        resolve(result);
+      };
+      printWin.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+          try {
+            printWin.webContents.print({ silent: true, printBackground: true, copies: 1 }, (success, failureReason) => {
+              finish({ success, failureReason: failureReason || null });
+            });
+          } catch (err) {
+            finish({ success: false, failureReason: String(err) });
+          }
+        }, 300);
+      });
+      printWin.webContents.on('did-fail-load', (_e, _code, desc) => finish({ success: false, failureReason: desc || 'did-fail-load' }));
+      printWin.loadFile(filePath).catch((err) => finish({ success: false, failureReason: String(err) }));
+      setTimeout(() => finish({ success: false, failureReason: 'timeout' }), 20000);
+    });
+  });
+
   // Abrir módulo en nueva ventana (misma app, con preload completo)
   ipcMain.on('open-module-window', (event, route) => {
     console.log('[IPC] Abriendo módulo en nueva ventana:', route);
