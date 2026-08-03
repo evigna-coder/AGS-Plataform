@@ -21,12 +21,20 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
 export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer, onImprimir }: Props) => {
   const [ordenImpresion, setOrdenImpresion] = useState<OrdenListadoMinikit>('sector');
   const comparison = useMemo(() => {
-    return requeridos.map(req => {
-      const actual = unidades.filter(u => u.articuloId === req.articuloId).length;
+    const filas = requeridos.map(req => {
+      // Sumar `cantidad` (un doc puede valer N unidades), no contar docs
+      // (2026-08-03: "repongo 2 y queda en 1").
+      const actual = unidades
+        .filter(u => u.articuloId === req.articuloId)
+        .reduce((s, u) => s + (u.cantidad ?? 1), 0);
       const diff = actual - req.cantidadMinima;
       const status: 'ok' | 'warning' | 'missing' = diff >= 0 ? 'ok' : diff >= -1 ? 'warning' : 'missing';
       return { ...req, actual, diff, status };
     });
+    // Faltantes y "casi" arriba (pedido 2026-08-03): lo que hay que reponer
+    // primero, a mano. Dentro de cada grupo se respeta el orden configurado.
+    const peso = { missing: 0, warning: 1, ok: 2 } as const;
+    return filas.sort((a, b) => peso[a.status] - peso[b.status]);
   }, [requeridos, unidades]);
 
   const statusColors = { ok: 'bg-green-100 text-green-700', warning: 'bg-amber-100 text-amber-700', missing: 'bg-red-100 text-red-700' };

@@ -194,9 +194,12 @@ export const misOTService = {
       where('activo', '==', true),
     );
     const snap = await getDocs(q);
+    // Presentes físicamente = todo salvo lo que ya no existe en inventario
+    // (mismo criterio que el detalle de minikit en sistema-modular).
+    const YA_NO_ESTA = ['consumido', 'vendido', 'entregado', 'baja'];
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock))
-      .filter(u => u.estado === 'disponible');
+      .filter(u => !YA_NO_ESTA.includes(u.estado));
   },
 
   /** Unidades de stock físicamente en poder del ingeniero. */

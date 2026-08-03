@@ -60,28 +60,34 @@ export const MinikitDetail = () => {
   const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem; deficit: number } | null>(null);
   const [consumirUnidad, setConsumirUnidad] = useState<UnidadStock | null>(null);
 
-  const loadRelated = useCallback(async (mk: Minikit) => {
-    const allUnidades = await unidadesService.getAll({ activoOnly: true });
-    // Solo unidades FÍSICAMENTE presentes en el kit (estado 'disponible'). Al consumir una
-    // parte queda 'entregado' y debe salir del contenido para que la verificación calcule
-    // bien el déficit y no la cuente como presente.
-    setUnidades(allUnidades.filter(u =>
-      u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === mk.id && u.estado === 'disponible'));
-  }, []);
+  // Compat: algunos modales llaman loadRelated tras operar — con la suscripción
+  // en tiempo real ya no hace falta refetch manual, queda como no-op.
+  const loadRelated = useCallback(async (_mk: Minikit) => {}, []);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    const unsub = minikitsService.subscribeById(id, async (mk) => {
+    const unsub = minikitsService.subscribeById(id, (mk) => {
       setMinikit(mk);
-      if (mk) await loadRelated(mk);
       setLoading(false);
     }, (err) => {
       console.error('Error cargando minikit:', err);
       setLoading(false);
     });
     return () => unsub();
-  }, [id, loadRelated]);
+  }, [id]);
+
+  // Unidades del kit EN TIEMPO REAL (2026-08-03): el fetch único + pestañas
+  // vivas dejaba el listado con la foto vieja tras transferir unidades
+  // ("pasé todas y una no aparece; Stock la muestra bien"). Presentes
+  // físicamente = todo salvo lo que ya no existe en inventario — el filtro
+  // viejo (solo 'disponible') además escondía reservadas/en tránsito.
+  useEffect(() => {
+    if (!id) return;
+    const YA_NO_ESTA: string[] = ['consumido', 'vendido', 'entregado', 'baja'];
+    return unidadesService.subscribeByMinikit(id, us =>
+      setUnidades(us.filter(u => !YA_NO_ESTA.includes(u.estado))));
+  }, [id]);
 
   const openAsignar = async () => {
     try {
@@ -229,7 +235,28 @@ export const MinikitDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-4">
-            <Card compact title={`Contenido (${unidades.length} unidad${unidades.length !== 1 ? 'es' : ''})`}>
+            {/* Requeridos ARRIBA (pedido 2026-08-03): es lo que más se usa;
+                el contenido crudo (unidades) queda al final. */}
+            <MinikitRequeridosCard
+              requeridos={requeridos}
+              unidades={unidades}
+              onEdit={() => setShowRequeridosEditor(true)}
+              onReponer={canVerify ? (req, deficit) => setReponerFor({ req, deficit }) : undefined}
+              onImprimir={orden => imprimirListadoMinikit(minikit, requeridos, unidades, orden)}
+            />
+
+            <MinikitVerificacionCard
+              estado={minikit.estado}
+              requeridos={requeridos}
+              unidades={unidades}
+              ultimaVerificacion={minikit.ultimaVerificacion ?? null}
+              canVerify={canVerify}
+              saving={saving}
+              onCerrarVerificacion={handleCerrarVerificacion}
+              onReponer={(req, deficit) => setReponerFor({ req, deficit })}
+            />
+
+            <Card compact title={`Contenido (${unidades.reduce((s, u) => s + (u.cantidad ?? 1), 0)} unidad${unidades.reduce((s, u) => s + (u.cantidad ?? 1), 0) !== 1 ? 'es' : ''})`}>
               {unidades.length === 0 ? (
                 <p className="text-xs text-slate-400 py-4 text-center">No hay unidades asignadas a este minikit.</p>
               ) : (
@@ -239,6 +266,7 @@ export const MinikitDetail = () => {
                       <tr className="border-b border-slate-100">
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Codigo</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Descripcion</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Cant.</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Condicion</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Serie</th>
@@ -250,6 +278,7 @@ export const MinikitDetail = () => {
                         <tr key={u.id} className="border-b border-slate-50 last:border-0">
                           <td className="text-xs py-2 pr-3 font-mono text-teal-600 font-semibold whitespace-nowrap">{u.articuloCodigo}</td>
                           <td className="text-xs py-2 pr-3 text-slate-700 truncate max-w-[200px]">{u.articuloDescripcion}</td>
+                          <td className="text-xs py-2 pr-3 text-center font-medium">{u.cantidad ?? 1}</td>
                           <td className="text-xs py-2 pr-3"><Badge label={CONDICION_LABELS[u.condicion]} color={CONDICION_COLORS[u.condicion]} /></td>
                           <td className="text-xs py-2 pr-3"><Badge label={u.estado.replace('_', ' ')} color={ESTADO_UNIDAD_COLORS[u.estado] ?? 'bg-slate-100 text-slate-500'} /></td>
                           <td className="text-xs py-2 text-slate-400">{u.nroSerie ? `S/N: ${u.nroSerie}` : '--'}</td>
@@ -266,25 +295,6 @@ export const MinikitDetail = () => {
                 </div>
               )}
             </Card>
-
-            <MinikitVerificacionCard
-              estado={minikit.estado}
-              requeridos={requeridos}
-              unidades={unidades}
-              ultimaVerificacion={minikit.ultimaVerificacion ?? null}
-              canVerify={canVerify}
-              saving={saving}
-              onCerrarVerificacion={handleCerrarVerificacion}
-              onReponer={(req, deficit) => setReponerFor({ req, deficit })}
-            />
-
-            <MinikitRequeridosCard
-              requeridos={requeridos}
-              unidades={unidades}
-              onEdit={() => setShowRequeridosEditor(true)}
-              onReponer={canVerify ? (req, deficit) => setReponerFor({ req, deficit }) : undefined}
-              onImprimir={orden => imprimirListadoMinikit(minikit, requeridos, unidades, orden)}
-            />
           </div>
         </div>
       </div>

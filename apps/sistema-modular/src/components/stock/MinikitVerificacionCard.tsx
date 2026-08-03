@@ -39,7 +39,9 @@ export const MinikitVerificacionCard = ({
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
     for (const u of unidades) {
-      out[u.articuloId] = (out[u.articuloId] ?? 0) + 1;
+      // Un doc puede representar N unidades (lotes sin serie) — sumar
+      // `cantidad`, no contar docs (2026-08-03: "repongo 2 y queda en 1").
+      out[u.articuloId] = (out[u.articuloId] ?? 0) + (u.cantidad ?? 1);
     }
     return out;
   }, [unidades]);

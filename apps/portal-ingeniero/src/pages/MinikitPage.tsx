@@ -45,7 +45,13 @@ export default function MinikitPage() {
     const reqs: MinikitRequeridoItem[] = minikit?.requeridos ?? [];
     const term = q.trim().toLowerCase();
     return reqs
-      .map(r => ({ ...r, actual: unidades.filter(u => u.articuloId === r.articuloId).length }))
+      // Sumar `cantidad` (un doc puede valer N unidades), no contar docs.
+      .map(r => ({
+        ...r,
+        actual: unidades
+          .filter(u => u.articuloId === r.articuloId)
+          .reduce((s, u) => s + (u.cantidad ?? 1), 0),
+      }))
       .filter(r => !term
         || r.articuloCodigo?.toLowerCase().includes(term)
         || r.articuloDescripcion?.toLowerCase().includes(term)

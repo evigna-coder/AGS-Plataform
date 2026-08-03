@@ -425,6 +425,28 @@ export const unidadesService = {
     return items;
   },
 
+  /** Suscripción en tiempo real a las unidades ubicadas en un minikit
+   *  (2026-08-03): el detalle cargaba una vez y las pestañas viven horas —
+   *  tras transferir unidades el listado mostraba la foto vieja. */
+  subscribeByMinikit(minikitId: string, callback: (unidades: UnidadStock[]) => void): () => void {
+    const q = query(
+      collection(db, 'unidades'),
+      where('ubicacion.tipo', '==', 'minikit'),
+      where('ubicacion.referenciaId', '==', minikitId),
+      where('activo', '==', true),
+    );
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as UnidadStock[];
+      items.sort((a, b) => a.articuloCodigo.localeCompare(b.articuloCodigo));
+      callback(items);
+    }, err => console.error('[unidadesService.subscribeByMinikit] error:', err));
+  },
+
   async getById(id: string): Promise<UnidadStock | null> {
     const snap = await getDoc(doc(db, 'unidades', id));
     if (!snap.exists()) return null;
