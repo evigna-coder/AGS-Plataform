@@ -120,7 +120,9 @@ export const PresupuestosList = () => {
     vista:       { type: 'string' as const,  default: '' },
     search:      { type: 'string' as const,  default: '' },
     cliente:     { type: 'string' as const,  default: '' },
-    estado:      { type: 'string' as const,  default: '' },
+    // Default 'borrador_enviado' (pedido 2026-08-03): lo operativo del día a
+    // día son los pptos en armado o esperando respuesta del cliente.
+    estado:      { type: 'string' as const,  default: 'borrador_enviado' },
     tipo:        { type: 'string' as const,  default: '' },
     responsable: { type: 'string' as const,  default: '' },
     fechaDesde:  { type: 'string' as const,  default: '' },
@@ -273,7 +275,10 @@ export const PresupuestosList = () => {
         if (p.estado === 'pendiente_facturacion' && solicitudSets.activas.has(p.id)) return false;
       }
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
-      if (filters.estado && p.estado !== filters.estado) return false;
+      // 'borrador_enviado' = vista default combinada (borrador + enviado).
+      if (filters.estado === 'borrador_enviado') {
+        if (p.estado !== 'borrador' && p.estado !== 'enviado') return false;
+      } else if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
       if (filters.fechaDesde && p.createdAt < filters.fechaDesde) return false;
@@ -457,7 +462,11 @@ export const PresupuestosList = () => {
           </div>
           <div className="min-w-[100px]">
             <SearchableSelect size="sm" value={filters.estado} onChange={v => setFilter('estado', v)}
-              options={[{ value: '', label: 'Estado: Todos' }, ...Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }))]}
+              options={[
+                { value: '', label: 'Estado: Todos' },
+                { value: 'borrador_enviado', label: 'Borrador + Enviado' },
+                ...Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label })),
+              ]}
               placeholder="Estado" />
           </div>
           <div className="min-w-[90px]">

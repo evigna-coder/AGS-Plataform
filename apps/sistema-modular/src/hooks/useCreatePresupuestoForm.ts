@@ -115,9 +115,11 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       conceptosServicioService.getAll(),
     ]).then(([c, s, cats, conds, concs]) => {
       setClientes(c); setSistemas(s); setCategorias(cats); setCondiciones(conds); setConceptos(concs);
-      // Default condición de pago: 30 días (si está en el catálogo y no hay una ya elegida).
-      const treintaDias = conds.find(cp => cp.dias === 30);
-      if (treintaDias) setForm(prev => (prev.condicionPagoId ? prev : { ...prev, condicionPagoId: treintaDias.id }));
+      // Default condición de pago: CONTADO CONTRA ENTREGA (pedido 2026-08-03 —
+      // antes era 30 días). Match por nombre; fallback a la de 0 días.
+      const contado = conds.find(cp => /contado|contra entrega/i.test(cp.nombre ?? ''))
+        ?? conds.find(cp => cp.dias === 0);
+      if (contado) setForm(prev => (prev.condicionPagoId ? prev : { ...prev, condicionPagoId: contado.id }));
     });
   }, [open]);
 
