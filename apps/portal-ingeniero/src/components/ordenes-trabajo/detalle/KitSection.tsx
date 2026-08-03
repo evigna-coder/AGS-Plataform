@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { KitItem } from '../../../hooks/useKitIngeniero';
 import { GCard } from './atoms';
 
@@ -34,6 +35,16 @@ export function KitIngenieroCard({ items, loading }: { items: KitItem[]; loading
             >
               Ver certificado ↗
             </a>
+          )}
+          {/* Contenido del minikit con buscador (2026-08-03) — mismo patrón
+              que "Ver certificado" de los instrumentos. */}
+          {item.tipo === 'minikit' && item.codigo && (
+            <Link
+              to={`/minikits/${encodeURIComponent(item.codigo)}`}
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wider text-teal-700 bg-white border border-teal-700/40 rounded-xl whitespace-nowrap hover:bg-teal-50"
+            >
+              Ver contenido →
+            </Link>
           )}
         </div>
       ))}

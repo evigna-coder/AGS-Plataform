@@ -175,6 +175,30 @@ export const misOTService = {
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock));
   },
 
+  /** Minikit por código visible (ej "MKLC2") — acceso desde el kit del
+   *  ingeniero en la OT (2026-08-03). */
+  async getMinikitByCodigo(codigo: string): Promise<(Record<string, unknown> & { id: string }) | null> {
+    const q = query(collection(db, 'minikits'), where('codigo', '==', codigo));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() };
+  },
+
+  /** Unidades físicamente dentro de un minikit (para el "Actual" del listado). */
+  async getUnidadesDeMinikit(minikitId: string): Promise<UnidadStock[]> {
+    const q = query(
+      collection(db, 'unidades'),
+      where('ubicacion.tipo', '==', 'minikit'),
+      where('ubicacion.referenciaId', '==', minikitId),
+      where('activo', '==', true),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock))
+      .filter(u => u.estado === 'disponible');
+  },
+
   /** Unidades de stock físicamente en poder del ingeniero. */
   async getUnidadesDeIngeniero(ingenieroIds: string[]): Promise<UnidadStock[]> {
     const unique = Array.from(new Set(ingenieroIds.filter(Boolean)));

@@ -19,6 +19,7 @@ import PerfilPage from './pages/PerfilPage';
 import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 import QFDocumentosPage from './pages/QFDocumentosPage';
+import MinikitPage from './pages/MinikitPage';
 import RecepcionPage from './pages/RecepcionPage';
 import FichaFotosPage from './pages/FichaFotosPage';
 import PagosVEPPage from './pages/PagosVEPPage';
@@ -149,6 +150,7 @@ function PrivateApp() {
           <Route path="loaners/:loanerId/fotos-iniciales" element={<LoanerFotosInicialesPage />} />
           <Route path="loaners/:loanerId/retorno" element={<LoanerRetornoPage />} />
           <Route path="qf-documentos" element={<QFDocumentosPage />} />
+          <Route path="minikits/:codigo" element={<MinikitPage />} />
           {canRecepcion && (
             <>
               <Route path="recepcion" element={<RecepcionPage />} />
