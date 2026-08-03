@@ -3,14 +3,15 @@ import { addDoc, setDoc, updateDoc, deleteDoc } from './firebase';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
-/** Resolve a sistema's agsVisibleId (cached per-process). */
+/** ID visible del equipo: código interno del CLIENTE, fallback agsVisibleId
+ *  (pedido coordinación 2026-08-03). Cached per-process. */
 const _agsIdCache = new Map<string, string | null>();
 async function _resolveAgsId(sistemaId: string | undefined | null): Promise<string | null> {
   if (!sistemaId) return null;
   if (_agsIdCache.has(sistemaId)) return _agsIdCache.get(sistemaId)!;
   try {
     const snap = await getDoc(doc(db, 'sistemas', sistemaId));
-    const agsId = snap.exists() ? (snap.data().agsVisibleId ?? null) : null;
+    const agsId = snap.exists() ? (snap.data().codigoInternoCliente || snap.data().agsVisibleId || null) : null;
     _agsIdCache.set(sistemaId, agsId);
     return agsId;
   } catch { return null; }

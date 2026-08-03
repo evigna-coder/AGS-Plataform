@@ -77,6 +77,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
             {entry.clienteNombre && <span className="text-[11px] text-slate-600 truncate">{entry.clienteNombre}</span>}
             {entry.tipoServicio && <span className="text-[11px] text-slate-500 truncate">{entry.tipoServicio}</span>}
             {entry.sistemaNombre && <span className="text-[11px] text-slate-400 truncate">{entry.sistemaNombre}</span>}
+            {entry.equipoAgsId && <span className="text-[11px] font-mono text-slate-500 shrink-0">{entry.equipoAgsId}</span>}
 
             {/* Estado dropdown */}
             <select

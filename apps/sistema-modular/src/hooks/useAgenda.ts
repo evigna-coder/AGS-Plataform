@@ -133,14 +133,18 @@ export function useAgenda(): UseAgendaReturn {
     return () => { clearInterval(int); document.removeEventListener('visibilitychange', onVis); };
   }, []);
 
-  // Mapa sistemaId → agsVisibleId para las tarjetas del sidebar (UAT 2026-07-17).
+  // Mapa sistemaId → id visible para las tarjetas del sidebar (UAT 2026-07-17).
+  // Prioriza el código interno del CLIENTE (pedido coordinación 2026-08-03).
   // sistemasService.getAll() ya está cacheado (serviceCache), es una carga barata.
   const [equipoIdBySistema, setEquipoIdBySistema] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     sistemasService.getAll()
       .then(list => {
         const m = new Map<string, string>();
-        for (const s of list) if (s.agsVisibleId) m.set(s.id, s.agsVisibleId);
+        for (const s of list) {
+          const id = s.codigoInternoCliente || s.agsVisibleId;
+          if (id) m.set(s.id, id);
+        }
         setEquipoIdBySistema(m);
       })
       .catch(err => console.error('Error cargando sistemas para agenda:', err));

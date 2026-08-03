@@ -25,16 +25,18 @@ export const OT_ESTADO_ORDER: Record<OTEstadoAdmin, number> = {
   CIERRE_TECNICO: 4, CIERRE_ADMINISTRATIVO: 5, FINALIZADO: 6,
 };
 
-/** In-memory cache for sistemaId → agsVisibleId lookups within a session. */
+/** In-memory cache for sistemaId → id visible lookups within a session. */
 const agsIdCache = new Map<string, string | null>();
 
-/** Resuelve el agsVisibleId del sistema (cacheado en memoria). */
+/** ID visible del equipo para agenda: código interno del CLIENTE (pedido
+ *  coordinación 2026-08-03 — es el id con el que ella identifica los equipos);
+ *  fallback al agsVisibleId si el equipo no tiene código. Cacheado en memoria. */
 export async function resolveEquipoAgsId(sistemaId: string | undefined | null): Promise<string | null> {
   if (!sistemaId) return null;
   if (agsIdCache.has(sistemaId)) return agsIdCache.get(sistemaId)!;
   try {
     const sistema = await sistemasService.getById(sistemaId);
-    const agsId = sistema?.agsVisibleId ?? null;
+    const agsId = sistema?.codigoInternoCliente || sistema?.agsVisibleId || null;
     agsIdCache.set(sistemaId, agsId);
     return agsId;
   } catch {
