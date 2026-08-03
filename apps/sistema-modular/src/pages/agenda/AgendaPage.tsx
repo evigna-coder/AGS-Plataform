@@ -676,10 +676,12 @@ export const AgendaPage: FC = () => {
 
         {/* Context menu */}
         {/* Menú contextual COMPACTO y desplegado hacia ARRIBA (anclado por bottom):
-            el visor resumen de servicios se abre hacia abajo y se pisaban (2026-07-30). */}
+            el visor resumen de servicios se abre hacia abajo y se pisaban (2026-07-30).
+            z-[10000]: por encima del popover de servicios (9999), que en las filas
+            de abajo también se abre hacia arriba y lo tapaba (2026-08-03). */}
         {contextMenu && (
           <div
-            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-0.5 min-w-[150px]"
+            className="fixed z-[10000] bg-white border border-slate-200 rounded-lg shadow-lg py-0.5 min-w-[150px]"
             style={{ left: contextMenu.x, bottom: Math.max(8, window.innerHeight - contextMenu.y) }}
           >
             <button
@@ -734,7 +736,7 @@ export const AgendaPage: FC = () => {
         {/* Comentario de celda (estilo Excel) */}
         {notaInput && (
           <div
-            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[260px]"
+            className="fixed z-[10000] bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[260px]"
             style={{ left: notaInput.x, bottom: Math.max(8, window.innerHeight - notaInput.y) }}
             onClick={e => e.stopPropagation()}
           >
@@ -773,8 +775,8 @@ export const AgendaPage: FC = () => {
         {/* Manual task inline input */}
         {manualTaskInput && (
           <div
-            className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[240px]"
-            style={{ left: manualTaskInput.x, top: manualTaskInput.y }}
+            className="fixed z-[10000] bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[240px]"
+            style={{ left: manualTaskInput.x, bottom: Math.max(8, window.innerHeight - manualTaskInput.y) }}
             onClick={e => e.stopPropagation()}
           >
             <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">

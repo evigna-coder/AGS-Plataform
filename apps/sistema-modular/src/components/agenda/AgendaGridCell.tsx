@@ -139,7 +139,13 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         style={{ height: rowHeight }}
         {...(isSelected ? { 'data-agenda-selected': 'true' } : {})}
         onClick={(e) => onClick?.(e)}
-        onContextMenu={onContextMenu}
+        onContextMenu={(e) => {
+          // Cerrar popover y globito: el menú contextual se abre en el mismo
+          // lugar y quedaba tapado/mezclado con ellos (2026-08-03).
+          setShowPopover(false);
+          setShowNota(false);
+          onContextMenu?.(e);
+        }}
         onMouseEnter={() => {
           if (hasEntry && allEntriesRef && allEntriesRef.length > 0) {
             if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -188,10 +194,19 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
       {showNota && notaTexto && cellElementRef.current && createPortal(
         (() => {
           const rect = cellElementRef.current!.getBoundingClientRect();
+          // En las filas de abajo el popover de servicios se da vuelta hacia
+          // ARRIBA (mismo umbral 160px) y tapaba al globito — ahí el globito
+          // baja, en espejo (2026-08-03). z por encima del popover (9999).
+          const popoverArriba = window.innerHeight - rect.bottom < 160;
           return (
             <div
-              className="fixed z-50 max-w-[260px] bg-amber-50 border border-amber-300 rounded-lg shadow-lg px-2.5 py-1.5 pointer-events-none"
-              style={{ left: Math.min(rect.left, window.innerWidth - 280), bottom: window.innerHeight - rect.top + 4 }}
+              className="fixed z-[10000] max-w-[260px] bg-amber-50 border border-amber-300 rounded-lg shadow-lg px-2.5 py-1.5 pointer-events-none"
+              style={{
+                left: Math.min(rect.left, window.innerWidth - 280),
+                ...(popoverArriba
+                  ? { top: rect.bottom + 4 }
+                  : { bottom: window.innerHeight - rect.top + 4 }),
+              }}
             >
               <p className="text-[11px] text-amber-900 whitespace-pre-wrap break-words">{notaTexto}</p>
             </div>
