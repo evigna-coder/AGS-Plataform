@@ -32,6 +32,14 @@ export default function OTDetailPage() {
   const ot = form.ot as MisOTDoc & { problemaFallaInicial?: string; pdfUrl?: string | null } | null;
   const { sistema, modulos } = useSistemaContext(ot?.sistemaId);
 
+  // Hasta el CIERRE TÉCNICO, el portal muestra solo "Detalle" (pedido
+  // 2026-08-03): la info del equipo que necesitan antes de ir al cliente.
+  // El reporte/partes/firmas se completan en la app de campo; acá aparecen
+  // recién cuando la OT está cerrada, como consulta.
+  const conCierreTecnico = form.status === 'FINALIZADO'
+    || ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes((ot as { estadoAdmin?: string } | null)?.estadoAdmin ?? '');
+  const visibleTabs = conCierreTecnico ? TABS : TABS.filter(t => t.id === 'detalle');
+
   if (form.loading) {
     return <div className="flex items-center justify-center py-20"><Spinner size="lg" /></div>;
   }
@@ -46,7 +54,7 @@ export default function OTDetailPage() {
       {/* Tab bar — mobile: 4 tabs a ancho completo; desktop: alineados a la izquierda */}
       <div className="shrink-0 bg-white border-b border-slate-100">
         <div className="flex max-w-5xl mx-auto w-full md:px-4">
-          {TABS.map(t => (
+          {visibleTabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -81,7 +89,7 @@ export default function OTDetailPage() {
       {/* Acciones — desktop: barra inferior compacta */}
       <div className="hidden md:block shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_20px_rgba(30,41,59,0.08)] px-4 py-2">
         <div className="flex gap-2.5 max-w-5xl mx-auto w-full justify-end">
-          {!form.readOnly && (
+          {!form.readOnly && conCierreTecnico && (
             <button
               onClick={() => form.save()}
               disabled={form.saving}
@@ -128,7 +136,7 @@ export default function OTDetailPage() {
             >
               {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
             </a>
-            {!form.readOnly && (
+            {!form.readOnly && conCierreTecnico && (
               <button
                 onClick={() => form.save()}
                 disabled={form.saving}
