@@ -12,7 +12,8 @@ const CELL_BG: Record<EstadoAgenda, string> = {
   tentativo: 'bg-slate-300',
   tentativo_interior: 'bg-[#a09a4e]',
   confirmado: 'bg-blue-300',
-  confirmado_interior: 'bg-[#7d90a8]',
+  // Azul grisáceo más AZUL (2026-08-04: "#7d90a8 parece gris oscuro").
+  confirmado_interior: 'bg-[#6d8ec9]',
   en_progreso: 'bg-teal-300',
   completado: 'bg-emerald-300',
   cancelado: 'bg-red-200',

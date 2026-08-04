@@ -7,7 +7,7 @@ const BORDER: Record<string, string> = {
   tentativo: 'border-l-slate-400',
   tentativo_interior: 'border-l-[#a09a4e]',
   confirmado: 'border-l-blue-500',
-  confirmado_interior: 'border-l-[#7d90a8]',
+  confirmado_interior: 'border-l-[#6d8ec9]',
   en_progreso: 'border-l-teal-500',
   completado: 'border-l-emerald-500',
   cancelado: 'border-l-red-400',
