@@ -4859,6 +4859,9 @@ export interface AgendaEntry {
   establecimientoNombre: string | null;
   equipoModelo?: string | null;  // e.g. "HPLC 1100"
   equipoAgsId?: string | null;   // equipo visible ID (AGS-XXXX)
+  /** Flag ORTOGONAL al estado (2026-08-04): el cliente tiene pago adelantado.
+   *  La celda se parte en diagonal — mitad azul marino, mitad color del estado. */
+  pagoAdelantado?: boolean;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;

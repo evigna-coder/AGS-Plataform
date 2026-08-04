@@ -40,6 +40,8 @@ interface AgendaGridCellProps {
   entryEstado?: EstadoAgenda;
   entryClienteNombre?: string;
   entryTipoServicio?: string;
+  /** Pago adelantado (2026-08-04): diagonal azul marino sobre el color del estado. */
+  entryPagoAdelantado?: boolean;
   entrySistemaNombre?: string | null;
   entryNotas?: string | null;
   isStart?: boolean;
@@ -68,7 +70,7 @@ interface AgendaGridCellProps {
 /** Lightweight cell — only re-renders when its own data changes. */
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
-  entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio,
+  entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -163,9 +165,17 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
           setShowNota(false);
         }}
       >
+        {/* Pago adelantado: media celda AZUL MARINO en diagonal, el resto deja
+            ver el color del estado (pedido 2026-08-04 — flag ortogonal). */}
+        {hasEntry && entryPagoAdelantado && !cancelled && (
+          <span
+            className="absolute inset-0 bg-[#1e3a8a] pointer-events-none"
+            style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+          />
+        )}
         {isStart && hasEntry && showText && (
           <span
-            className={`text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''}`}
+            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${entryPagoAdelantado ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
             style={{ lineHeight: rowHeight }}
           >
             {entryOtNumber || entryTitulo || '—'}
@@ -237,6 +247,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryOtNumber === next.entryOtNumber &&
     prev.entryEstado === next.entryEstado &&
     prev.entryTipoServicio === next.entryTipoServicio &&
+    prev.entryPagoAdelantado === next.entryPagoAdelantado &&
     prev.entryTitulo === next.entryTitulo &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&

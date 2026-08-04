@@ -97,7 +97,12 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
                 <div className="text-[10px] text-slate-400 truncate">{entry.tipoServicio}</div>
               )}
             </div>
-            {/* Right: estado */}
+            {/* Right: pago adelantado + estado */}
+            {entry.pagoAdelantado && (
+              <span className="text-[9px] font-semibold text-white bg-[#1e3a8a] px-1.5 py-px rounded-full leading-tight shrink-0">
+                Pago adelantado
+              </span>
+            )}
             <span className={`text-[9px] font-medium px-1.5 py-px rounded-full leading-tight shrink-0 ${ESTADO_AGENDA_COLORS[entry.estadoAgenda] || 'bg-slate-200 text-slate-700'}`}>
               {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
             </span>

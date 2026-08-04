@@ -58,6 +58,7 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     establecimientoNombre: data.establecimientoNombre ?? null,
     equipoModelo: data.equipoModelo ?? null,
     equipoAgsId: data.equipoAgsId ?? null,
+    pagoAdelantado: data.pagoAdelantado === true,
     estadoAgenda: data.estadoAgenda,
     notas: data.notas ?? null,
     titulo: data.titulo ?? null,

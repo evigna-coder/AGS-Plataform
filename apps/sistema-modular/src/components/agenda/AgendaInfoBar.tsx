@@ -14,6 +14,8 @@ interface AgendaInfoBarProps {
   onShrinkEntry?: (entryId: string) => void;
   onSelectEntry?: (entry: AgendaEntry) => void;
   onChangeEstado?: (entryId: string, estado: EstadoAgenda) => void;
+  /** Pago adelantado (2026-08-04): flag ortogonal — aplica a toda la celda. */
+  onTogglePagoAdelantado?: (entryId: string, valor: boolean) => void;
 }
 
 function EntryRange({ entry }: { entry: AgendaEntry }) {
@@ -31,6 +33,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onShrinkEntry,
   onSelectEntry,
   onChangeEstado,
+  onTogglePagoAdelantado,
 }) => {
   const entry = selectedCell?.entry ?? null;
   const allEntries = selectedCell?.allEntries ?? [];
@@ -89,6 +92,20 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
                 <option key={est} value={est}>{ESTADO_AGENDA_LABELS[est]}</option>
               ))}
             </select>
+
+            {/* Pago adelantado — diagonal azul marino en la celda */}
+            {onTogglePagoAdelantado && (
+              <label className="flex items-center gap-1 text-[10px] font-medium text-slate-500 cursor-pointer shrink-0 select-none"
+                title="El cliente tiene pago adelantado — la celda se marca con diagonal azul marino">
+                <input
+                  type="checkbox"
+                  checked={!!entry.pagoAdelantado}
+                  onChange={e => onTogglePagoAdelantado(entry.id, e.target.checked)}
+                  className="w-3 h-3 accent-[#1e3a8a]"
+                />
+                <span className={entry.pagoAdelantado ? 'text-[#1e3a8a] font-semibold' : ''}>Pago adelantado</span>
+              </label>
+            )}
 
             <EntryRange entry={entry} />
 

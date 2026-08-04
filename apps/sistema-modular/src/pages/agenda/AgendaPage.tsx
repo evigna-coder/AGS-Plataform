@@ -274,6 +274,7 @@ export const AgendaPage: FC = () => {
           // Cortar/pegar es un MOVIMIENTO: el estado se preserva (un confirmado
           // no vuelve a tentativo por moverlo de celda).
           estadoAgenda: src.estadoAgenda,
+          pagoAdelantado: src.pagoAdelantado ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
@@ -350,6 +351,7 @@ export const AgendaPage: FC = () => {
             equipoModelo: src.equipoModelo ?? null,
             equipoAgsId: src.equipoAgsId ?? null,
             estadoAgenda: 'tentativo',
+            pagoAdelantado: src.pagoAdelantado ?? false,
             notas: null,
             titulo: src.titulo || null,
           });
@@ -691,6 +693,22 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell, entries]);
 
+  /** Pago adelantado: flag ortogonal al estado — aplica a TODA la celda
+   *  (mismo criterio que el cambio de estado, 2026-08-04). */
+  const handleTogglePagoAdelantado = useCallback((entryId: string, valor: boolean) => {
+    const targets = selectedCell?.allEntries?.some(e => e.id === entryId)
+      ? selectedCell.allEntries
+      : entries.filter(e => e.id === entryId);
+    for (const en of targets) updateEntry(en.id, { pagoAdelantado: valor });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: { ...selectedCell.entry, pagoAdelantado: valor },
+        allEntries: selectedCell.allEntries.map(e => ({ ...e, pagoAdelantado: valor })),
+      });
+    }
+  }, [updateEntry, selectedCell, entries]);
+
   const handleDeleteEntry = useCallback((entryId: string) => {
     deleteEntry(entryId);
     if (selectedCell && selectedCell.allEntries.length > 1) {
@@ -779,6 +797,7 @@ export const AgendaPage: FC = () => {
         onShrinkEntry={handleShrinkEntry}
         onSelectEntry={handleSelectEntry}
         onChangeEstado={handleChangeEstado}
+        onTogglePagoAdelantado={handleTogglePagoAdelantado}
       />
 
       <DndContext
