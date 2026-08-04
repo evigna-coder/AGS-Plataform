@@ -229,11 +229,18 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
         const daySpan = differenceInCalendarDays(parseISO(en.fechaFin), parseISO(en.fechaInicio));
         const newStart = parseISO(targetFecha);
         const newEnd = daySpan > 0 ? addDays(newStart, daySpan) : newStart;
+        // Entradas de UN día: preservar la DURACIÓN en cuartos, no el
+        // quarterEnd crudo (2026-08-04: mover Q1→Q3 dejaba Q3-Q1, rango
+        // invertido = entrada INVISIBLE en la grilla). Multi-día: el fin cae
+        // en otro día, cualquier cuarto es válido.
+        const quarterEnd = daySpan === 0
+          ? (Math.min(4, targetQuarter + Math.max(0, en.quarterEnd - en.quarterStart)) as 1 | 2 | 3 | 4)
+          : en.quarterEnd;
         const cambios = {
           fechaInicio: targetFecha,
           fechaFin: formatDateKey(newEnd),
           quarterStart: targetQuarter,
-          quarterEnd: en.quarterEnd,
+          quarterEnd,
           ingenieroId: targetIngenieroId,
           ingenieroNombre: targetIngeniero.nombre,
         };

@@ -147,6 +147,13 @@ export const agendaService = {
   },
 
   async create(data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>): Promise<string> {
+    // Cinturón (2026-08-04): una entrada de UN día con quarterEnd < quarterStart
+    // es un rango invertido — no ocupa ninguna celda y queda INVISIBLE en la
+    // grilla (aunque el buscador la encuentra). Normalizar acá corta el bug en
+    // cualquier caller presente o futuro.
+    if (data.fechaInicio === data.fechaFin && data.quarterEnd < data.quarterStart) {
+      data = { ...data, quarterEnd: data.quarterStart };
+    }
     const payload = deepCleanForFirestore({
       ...data,
       ...getCreateTrace(),

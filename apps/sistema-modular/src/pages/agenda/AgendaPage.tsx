@@ -252,11 +252,16 @@ export const AgendaPage: FC = () => {
       for (const src of cb.entries) {
         const span = differenceInCalendarDays(parseISO(src.fechaFin), parseISO(src.fechaInicio));
         const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
+        // Un día: preservar DURACIÓN en cuartos — pegar Q1→Q3 dejaba Q3-Q1
+        // (rango invertido = invisible en la grilla, 2026-08-04).
+        const quarterEndPegado = span === 0
+          ? (Math.min(4, cell.quarter + Math.max(0, src.quarterEnd - src.quarterStart)) as 1 | 2 | 3 | 4)
+          : src.quarterEnd;
         const creado = createEntry({
           fechaInicio: cell.fecha,
           fechaFin: end,
           quarterStart: cell.quarter,
-          quarterEnd: src.quarterEnd,
+          quarterEnd: quarterEndPegado,
           ingenieroId: cell.ingenieroId,
           ingenieroNombre: ingeniero.nombre,
           otNumber: src.otNumber,
