@@ -1266,27 +1266,57 @@ export const presupuestosService = {
           const stockMinimo = articulo?.stockMinimo ?? 0;
           const qtyResultante = qtyDisponible - item.cantidad;
 
-          // Auto-req: si el stock cae bajo el mínimo y no hay requerimiento previo
-          // para este (presupuesto, articulo), crear uno.
-          // OJO (UAT 2026-07-16, duplicados REQ): el getAll con filtros + orderBy
-          // necesitaba un índice compuesto inexistente → tiraba, el catch devolvía []
-          // y se creaba un req duplicado del ya generado al CREAR el ppto. Query
-          // directa con 2 igualdades (sin orderBy, sin índice) y FAIL-SAFE: si el
-          // chequeo falla, NO crear (mejor un req de menos que duplicados).
-          let hayReqPrevio = true;
+          // Auto-req: la ACEPTACIÓN manda (2026-08-04). Si ya hay un req
+          // pendiente/aprobado para este (presupuesto, artículo) — generado a
+          // mano desde Partes, o heredado de una revisión con OTRAS cantidades
+          // (caso Molinos: rev 1 con 6 u generó req de 5; la rev aceptada tenía
+          // 3) — se AJUSTA a la necesidad real de hoy en vez de saltearlo.
+          // en_compra/comprado no se tocan (gasto comprometido).
+          // OJO (UAT 2026-07-16, duplicados REQ): query directa con 2 igualdades
+          // (sin orderBy, sin índice) y FAIL-SAFE: si el chequeo falla, NO
+          // crear ni ajustar (mejor un req de menos que duplicados).
+          const qtyReq = qtyResultante < stockMinimo
+            ? Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible)
+            : 0;
+          let reqsPrevios: Array<{ id: string; estado: string; cantidad: number }> | null = null;
           try {
             const reqSnap = await getDocs(query(
               collection(db, 'requerimientos_compra'),
               where('presupuestoId', '==', presupuestoId),
               where('articuloId', '==', item.stockArticuloId!),
             ));
-            hayReqPrevio = !reqSnap.empty;
+            reqsPrevios = reqSnap.docs.map(d => ({
+              id: d.id,
+              estado: (d.data().estado as string) ?? 'pendiente',
+              cantidad: (d.data().cantidad as number) ?? 0,
+            }));
           } catch (err) {
-            console.error('[aceptarConRequerimientos] check de reqs previos falló — se omite crear para no duplicar:', err);
+            console.error('[aceptarConRequerimientos] check de reqs previos falló — se omite crear/ajustar para no duplicar:', err);
           }
 
-          if (!hayReqPrevio && qtyResultante < stockMinimo) {
-            const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible);
+          const ajustables = (reqsPrevios ?? []).filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
+          if (reqsPrevios && ajustables.length > 0) {
+            const [principal, ...extras] = ajustables;
+            if (qtyReq > 0 && principal.cantidad !== qtyReq) {
+              await requerimientosService.update(principal.id, {
+                cantidad: qtyReq,
+                notas: `Cantidad ajustada al aceptar ${pres.numero}: ${principal.cantidad} → ${qtyReq}.`,
+              }).catch(err => console.error('[aceptarConRequerimientos] ajuste de req previo falló:', err));
+            } else if (qtyReq <= 0) {
+              await requerimientosService.update(principal.id, {
+                estado: 'cancelado',
+                notas: `Cancelado al aceptar ${pres.numero}: el stock cubre la cantidad aceptada.`,
+              }).catch(err => console.error('[aceptarConRequerimientos] cancelación de req previo falló:', err));
+            }
+            for (const extra of extras) {
+              await requerimientosService.update(extra.id, {
+                estado: 'cancelado',
+                notas: `Duplicado — consolidado en otro requerimiento al aceptar ${pres.numero}.`,
+              }).catch(err => console.error('[aceptarConRequerimientos] cancelación de req duplicado falló:', err));
+            }
+          }
+
+          if (reqsPrevios && reqsPrevios.length === 0 && qtyReq > 0) {
             await requerimientosService.create({
               articuloId: item.stockArticuloId ?? null,
               articuloCodigo: articulo?.codigo ?? null,
