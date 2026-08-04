@@ -21,29 +21,41 @@ interface AgendaPendingSidebarProps {
   width?: number;
 }
 
+/** OT de ENTREGA DE PARTES (2026-08-04): no se agenda — figura en su pestaña
+ *  para que la coordinadora la reclame. tipoOT nuevo + fallback por nombre
+ *  del tipo de servicio para OTs previas al campo. */
+const esEntrega = (ot: WorkOrder) =>
+  ot.tipoOT === 'entrega' || /entrega de insumos|entrega de partes/i.test(ot.tipoServicio ?? '');
+
 export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
   pendingOTs, equipoIdBySistema, selectedOTs, onToggleSelect, onCopyOT, width = 256,
 }) => {
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('');
+  /** Pestañas de la cola (2026-08-04): servicios (agendables) vs entregas. */
+  const [tab, setTab] = useState<'servicios' | 'entregas'>('servicios');
+
+  const servicios = useMemo(() => pendingOTs.filter(ot => !esEntrega(ot)), [pendingOTs]);
+  const entregas = useMemo(() => pendingOTs.filter(esEntrega), [pendingOTs]);
+  const enTab = tab === 'servicios' ? servicios : entregas;
 
   const filtered = useMemo(() => {
-    return pendingOTs.filter(ot => {
+    return enTab.filter(ot => {
       if (estadoFilter && (ot.estadoAdmin || 'CREADA') !== estadoFilter) return false;
       if (!search) return true;
       return matchesSearch(search, ot.otNumber, ot.razonSocial);
     });
-  }, [pendingOTs, search, estadoFilter]);
+  }, [enTab, search, estadoFilter]);
 
-  // Count per estado for filter pills
+  // Count per estado for filter pills (de la pestaña activa)
   const estadoCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    pendingOTs.forEach(ot => {
+    enTab.forEach(ot => {
       const est = ot.estadoAdmin || 'CREADA';
       counts[est] = (counts[est] || 0) + 1;
     });
     return counts;
-  }, [pendingOTs]);
+  }, [enTab]);
 
   const selCount = selectedOTs.size;
 
@@ -59,6 +71,27 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
           )}
         </div>
         <p className="text-[10px] text-slate-400 mt-0.5">{pendingOTs.length} OTs sin asignar</p>
+
+        {/* Pestañas: servicios (se agendan) / entregas de partes (solo reclamo) */}
+        <div className="flex gap-1 mt-1.5">
+          <button
+            onClick={() => { setTab('servicios'); setEstadoFilter(''); }}
+            className={`flex-1 text-[10px] px-2 py-1 rounded font-medium transition-colors ${tab === 'servicios' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          >
+            Servicios ({servicios.length})
+          </button>
+          <button
+            onClick={() => { setTab('entregas'); setEstadoFilter(''); }}
+            className={`flex-1 text-[10px] px-2 py-1 rounded font-medium transition-colors ${tab === 'entregas' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          >
+            Entregas ({entregas.length})
+          </button>
+        </div>
+        {tab === 'entregas' && (
+          <p className="text-[9px] text-orange-600 mt-1">
+            Las entregas de partes NO se agendan — esta lista es para reclamarlas.
+          </p>
+        )}
         {selCount > 0 && (
           <p className="text-[9px] text-teal-600 mt-1">
             Arrastrá a la celda destino, o presioná <kbd className="bg-slate-100 px-1 rounded text-slate-600">Ctrl+V</kbd> en la celda seleccionada
@@ -72,7 +105,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
               onClick={() => setEstadoFilter('')}
               className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${!estadoFilter ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
             >
-              Todas ({pendingOTs.length})
+              Todas ({enTab.length})
             </button>
             {Object.entries(estadoCounts).map(([est, count]) => (
               <button
@@ -86,7 +119,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
           </div>
         )}
 
-        {pendingOTs.length > 5 && (
+        {enTab.length > 5 && (
           <input
             type="text"
             value={search}
@@ -109,8 +142,9 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
             equipoAgsId={(ot.sistemaId && equipoIdBySistema?.get(ot.sistemaId)) || ''}
             selected={selectedOTs.has(ot.otNumber)}
             selectionCount={selCount}
-            onToggleSelect={onToggleSelect}
-            onCopy={onCopyOT}
+            onToggleSelect={tab === 'servicios' ? onToggleSelect : undefined}
+            onCopy={tab === 'servicios' ? onCopyOT : undefined}
+            arrastrable={tab === 'servicios'}
           />
         ))}
       </div>
@@ -126,14 +160,17 @@ interface DraggableOTCardProps {
   selectionCount: number;
   onToggleSelect?: (otNumber: string) => void;
   onCopy?: (ot: WorkOrder) => void;
+  /** false = entrega de partes: no se arrastra a la agenda (2026-08-04). */
+  arrastrable?: boolean;
 }
 
 const DraggableOTCard: FC<DraggableOTCardProps> = ({
-  ot, equipoAgsId, selected, selectionCount, onToggleSelect, onCopy,
+  ot, equipoAgsId, selected, selectionCount, onToggleSelect, onCopy, arrastrable = true,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `pending:${ot.otNumber}`,
     data: { type: 'pending', ot },
+    disabled: !arrastrable,
   });
 
   const estadoAdmin = ot.estadoAdmin || 'CREADA';
@@ -142,31 +179,33 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={`rounded-md px-2.5 py-2 cursor-grab active:cursor-grabbing border transition-shadow hover:shadow-sm
+      {...(arrastrable ? { ...listeners, ...attributes } : {})}
+      className={`rounded-md px-2.5 py-2 border transition-shadow hover:shadow-sm
+        ${arrastrable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
         ${selected
           ? 'bg-teal-50 border-teal-300 ring-1 ring-teal-300'
-          : 'bg-amber-50 border-amber-200'}
+          : arrastrable ? 'bg-amber-50 border-amber-200' : 'bg-orange-50 border-orange-200'}
         ${isDragging ? 'opacity-30' : ''}
       `}
     >
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleSelect?.(ot.otNumber); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-            selected
-              ? 'bg-teal-600 border-teal-600'
-              : 'border-slate-300 hover:border-teal-400'
-          }`}
-        >
-          {selected && (
-            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
+        {onToggleSelect && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(ot.otNumber); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
+              selected
+                ? 'bg-teal-600 border-teal-600'
+                : 'border-slate-300 hover:border-teal-400'
+            }`}
+          >
+            {selected && (
+              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+        )}
         <span className="text-[11px] font-semibold text-slate-700 flex-1 truncate">OT-{ot.otNumber}</span>
         <span className={`text-[8px] font-medium px-1 py-0.5 rounded-full shrink-0 ${badgeClass}`}>
           {OT_ESTADO_LABELS[estadoAdmin as OTEstadoAdmin] || estadoAdmin}
@@ -176,17 +215,19 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
             {selectionCount}
           </span>
         )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onCopy?.(ot); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="text-[9px] text-slate-400 hover:text-teal-600 transition-colors px-1 shrink-0"
-          title="Copiar para pegar con Ctrl+V"
-        >
-          copiar
-        </button>
+        {onCopy && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onCopy(ot); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="text-[9px] text-slate-400 hover:text-teal-600 transition-colors px-1 shrink-0"
+            title="Copiar para pegar con Ctrl+V"
+          >
+            copiar
+          </button>
+        )}
       </div>
-      <p className="text-[10px] text-slate-500 truncate mt-0.5 pl-5">{ot.razonSocial}</p>
-      {ot.sistema && <p className="text-[10px] text-slate-400 truncate pl-5">{ot.sistema}</p>}
+      <p className={`text-[10px] text-slate-500 truncate mt-0.5 ${onToggleSelect ? 'pl-5' : ''}`}>{ot.razonSocial}</p>
+      {ot.sistema && <p className={`text-[10px] text-slate-400 truncate ${onToggleSelect ? 'pl-5' : ''}`}>{ot.sistema}</p>}
       {/* Tipo de servicio + ID de equipo (UAT 2026-07-17). Sin '—' si faltan. */}
       {(ot.tipoServicio || equipoAgsId) && (
         <p className="text-[10px] font-mono text-slate-400 truncate pl-5">

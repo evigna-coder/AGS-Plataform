@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 
 interface Props {
   rows: PresupuestoControlRow[];
-  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number };
+  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number; sinOtAbierta: number };
   mostrarEnviados: boolean;
   onToggleEnviados: (v: boolean) => void;
   onOpenPresupuesto: (id: string) => void;
@@ -32,6 +32,21 @@ const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
     items.push(
       <p key="anticipo" className="text-[10px] text-purple-700 font-medium">
         Pago anticipado — se factura antes del servicio (ej. esperando ingreso de importación)
+      </p>,
+    );
+  }
+  // Aceptado sin ninguna OT abierta (2026-08-04): crear la OT o entregar partes.
+  if (row.sinOtAbierta) {
+    items.push(
+      <p key="sinot" className="text-[10px] text-orange-600 font-medium">
+        Sin OT abierta — crear OT o entregar partes
+      </p>,
+    );
+  }
+  if (row.otsEnSemana.length > 0) {
+    items.push(
+      <p key="semana" className="text-[10px] text-teal-700">
+        Agendada esta semana: {row.otsEnSemana.map(n => `OT-${n}`).join(', ')}
       </p>,
     );
   }
@@ -60,7 +75,7 @@ export const PresupuestosControlSection: React.FC<Props> = ({
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-          2 · Presupuestos con trabajo realizado o pago anticipado — pendientes a hoy (no limita por semana)
+          2 · Presupuestos aceptados: trabajo realizado, agendados esta semana, sin OT abierta o pago anticipado
         </p>
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
           <input
@@ -73,10 +88,11 @@ export const PresupuestosControlSection: React.FC<Props> = ({
         </label>
       </div>
 
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-6 gap-2">
         <Kpi label="En control" value={kpis.conTrabajo} tone="text-slate-700" />
         <Kpi label="Listos sin aviso" value={kpis.listosSinAviso} tone="text-teal-700" />
         <Kpi label="Esperando otras OTs" value={kpis.esperandoOTs} tone="text-red-600" />
+        <Kpi label="Sin OT abierta" value={kpis.sinOtAbierta} tone="text-orange-600" />
         <Kpi label="Sin OC del cliente" value={kpis.sinOC} tone="text-amber-600" />
         <Kpi label="Pago anticipado" value={kpis.anticipadas} tone="text-purple-700" />
       </div>

@@ -29,6 +29,10 @@ export interface PresupuestoControlRow {
   listoParaAviso: boolean;
   /** Condición de pago anticipada: figura en el control aunque ninguna OT haya cerrado. */
   pagoAnticipado: boolean;
+  /** Aceptado SIN ninguna OT abierta (2026-08-04): crear OT o entregar partes. */
+  sinOtAbierta: boolean;
+  /** OTs del ppto agendadas en la semana visible (2026-08-04): ancla el ppto al control de esa semana. */
+  otsEnSemana: string[];
 }
 
 // Sección 1: la OT se considera "cerrada" desde el cierre técnico en adelante.
@@ -168,6 +172,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     const condicionesAnticipadas = new Set(
       condiciones.filter(esCondicionAnticipada).map(c => c.id));
 
+    // OTs agendadas en la semana visible: anclan sus pptos al control (2026-08-04).
+    const otsAgendadasSemana = new Set(entries.map(e => e.otNumber).filter(Boolean));
+
     const rows: PresupuestoControlRow[] = [];
     for (const p of presupuestos) {
       const pagoAnticipado = !!p.condicionPagoId && condicionesAnticipadas.has(p.condicionPagoId);
@@ -184,7 +191,13 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           const estado = otByNumber.get(n)?.estadoAdmin;
           return !!estado && OT_CERRADA.has(estado);
         });
-      if (!tieneTrabajoRealizado && !enUniversoAnticipada) continue;
+      // 2026-08-04: además del trabajo realizado y las anticipadas, entran al
+      // control (a) los aceptados SIN ninguna OT abierta (crear OT / entregar
+      // partes — antes eran invisibles hasta que alguien abriera la OT) y
+      // (b) los aceptados con alguna OT AGENDADA en la semana visible.
+      const sinOtAbierta = enUniversoTrabajo && nums.size === 0;
+      const otsEnSemana = [...nums].filter(n => otsAgendadasSemana.has(n)).sort();
+      if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta && otsEnSemana.length === 0) continue;
 
       const avisoEnviado = pptosConAviso.has(p.id);
       const otsPendientes = [...nums]
@@ -202,12 +215,13 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
         avisoEnviado, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
+        sinOtAbierta, otsEnSemana,
       });
     }
     // Listos primero, después trabados, enviados al final; dentro de cada grupo por número.
     const rank = (r: PresupuestoControlRow) => r.avisoEnviado ? 2 : r.listoParaAviso ? 0 : 1;
     return rows.sort((a, b) => rank(a) - rank(b) || a.presupuesto.numero.localeCompare(b.presupuesto.numero));
-  }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones]);
+  }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones, entries]);
 
   const presupuestoKpis = useMemo(() => ({
     conTrabajo: presupuestoRows.length,
@@ -215,6 +229,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     esperandoOTs: presupuestoRows.filter(r => !r.avisoEnviado && r.otsPendientes.length > 0).length,
     sinOC: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOC).length,
     anticipadas: presupuestoRows.filter(r => r.pagoAnticipado && !r.avisoEnviado).length,
+    sinOtAbierta: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOtAbierta).length,
   }), [presupuestoRows]);
 
   return {
