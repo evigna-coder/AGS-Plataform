@@ -260,6 +260,28 @@ export const facturasService = {
         `Factura ${factura.numero ?? ''} de ${factura.proveedorNombre} APROBADA por ${actor ?? 'Sistema'}`,
         texto || null,
       );
+
+      // Aprobar FINALIZA el ticket de validación (pedido 2026-08-03): su
+      // trabajo era validar la factura — aprobada, cumplió. El ticket de
+      // aviso al creador queda vivo. Best-effort.
+      if (factura.ticketId) {
+        try {
+          const user = getCurrentUserTrace();
+          await leadsService.finalizar(factura.ticketId, {
+            id: crypto.randomUUID(),
+            fecha: new Date().toISOString(),
+            deUsuarioId: user?.uid ?? 'system',
+            deUsuarioNombre: user?.name ?? 'Sistema',
+            aUsuarioId: user?.uid ?? 'system',
+            aUsuarioNombre: user?.name ?? 'Sistema',
+            comentario: `Factura ${factura.numero ?? ''} aprobada${texto ? ` — "${texto}"` : ''} — validación completada.`,
+            estadoAnterior: 'nuevo',
+            estadoNuevo: 'finalizado',
+          });
+        } catch (err) {
+          console.error('[facturasService.aprobar] finalizar ticket falló (no bloquea):', err);
+        }
+      }
     }
   },
 
