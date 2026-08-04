@@ -277,8 +277,13 @@ export const PresupuestosList = () => {
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
       // 'borrador_enviado' = vista default combinada: lo operativo del día
       // (borrador + enviado + pendiente de OC, 2026-08-04).
+      // OJO: si hay un drill-down activo (card KPI o chips de OC), el default
+      // NO restringe — "Aceptados" con el default daba intersección VACÍA
+      // ("hago click en la card y no filtra nada", 2026-08-04). Un estado
+      // elegido explícitamente (no el sentinel) sí se respeta.
+      const drillDownActivo = !!(filters.kpi || filters.ocPendiente || filters.ocTrabajoRealizado);
       if (filters.estado === 'borrador_enviado') {
-        if (p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc') return false;
+        if (!drillDownActivo && p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc') return false;
       } else if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
@@ -509,8 +514,13 @@ export const PresupuestosList = () => {
         </div>
       </PageHeader>
 
+      {/* Las cards cuentan sobre el MISMO universo que la pestaña activa
+          (2026-08-04): contratos (P5) viven en su solapa — la card decía "2
+          aceptados" y la lista mostraba 1 porque el otro era un contrato. */}
       <PresupuestoDashboard
-        presupuestos={presupuestos}
+        presupuestos={filters.vista === 'contratos'
+          ? presupuestos.filter(p => p.tipo === 'contrato')
+          : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')}
         solicitudes={solicitudes}
         activeKpi={filters.kpi as any}
         onKpiClick={(k) => setFilter('kpi', filters.kpi === k ? '' : k)}
