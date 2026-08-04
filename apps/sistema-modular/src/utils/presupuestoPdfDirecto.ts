@@ -45,7 +45,7 @@ function computeTotalesConImpuestos(items: PresupuestoItem[], categorias: Catego
  * categorías) y delega en downloadPresupuestoPDF, que arma el nombre de
  * archivo "N° - Razón Social.pdf".
  */
-export async function descargarPresupuestoPdfDirecto(p: Presupuesto): Promise<void> {
+async function armarParamsPdf(p: Presupuesto) {
   const [cliente, establecimiento, contactos, condiciones, categorias] = await Promise.all([
     p.clienteId ? clientesService.getById(p.clienteId).catch(() => null) : Promise.resolve(null),
     p.establecimientoId ? establecimientosService.getById(p.establecimientoId).catch(() => null) : Promise.resolve(null),
@@ -63,8 +63,7 @@ export async function descargarPresupuestoPdfDirecto(p: Presupuesto): Promise<vo
 
   const { subtotal, total } = computeTotalesConImpuestos(p.items ?? [], categorias);
 
-  const { downloadPresupuestoPDF } = await import('../components/presupuestos/pdf');
-  await downloadPresupuestoPDF({
+  return {
     // Totales RECALCULADOS con impuestos (ver computeTotalesConImpuestos).
     presupuesto: { ...p, subtotal, total },
     cliente,
@@ -72,5 +71,44 @@ export async function descargarPresupuestoPdfDirecto(p: Presupuesto): Promise<vo
     contacto,
     condicionPago,
     categorias,
-  });
+  };
+}
+
+export async function descargarPresupuestoPdfDirecto(p: Presupuesto): Promise<void> {
+  const params = await armarParamsPdf(p);
+  const { downloadPresupuestoPDF } = await import('../components/presupuestos/pdf');
+  await downloadPresupuestoPDF(params);
+}
+
+/** Carpeta del escritorio donde se vuelcan los PDFs (pedido 2026-08-04). */
+const CARPETA_ESCRITORIO = 'Ordenes de compra';
+
+/**
+ * Auto-volcado del PDF al ESCRITORIO (Electron; en browser es no-op): al crear
+ * o guardar un presupuesto, el PDF queda en "Escritorio/Ordenes de compra"
+ * listo para adjuntar por mail. Mismo nombre de archivo que la descarga
+ * ("N° - Razón Social.pdf") — editar y guardar lo REGENERA (sobrescribe).
+ * Best-effort: nunca bloquea el guardado.
+ */
+export async function autoGuardarPresupuestoPdfEscritorio(presupuestoId: string): Promise<void> {
+  try {
+    const api = (window as unknown as {
+      electronAPI?: { saveToDesktopFolder?: (folder: string, file: string, buf: Uint8Array) => Promise<{ success: boolean; failureReason?: string | null }> };
+    }).electronAPI;
+    if (!api?.saveToDesktopFolder) return; // browser / dev sin Electron
+
+    const { presupuestosService } = await import('../services/firebaseService');
+    const p = await presupuestosService.getById(presupuestoId);
+    if (!p?.numero) return;
+
+    const params = await armarParamsPdf(p);
+    const pdf = await import('../components/presupuestos/pdf');
+    const blob = await pdf.generatePresupuestoPDF(params);
+    const filename = pdf.presupuestoPdfFilename(p.numero, params.cliente?.razonSocial);
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    const res = await api.saveToDesktopFolder(CARPETA_ESCRITORIO, filename, buf);
+    if (!res.success) console.warn('[autoGuardarPresupuestoPdf] no se pudo guardar:', res.failureReason);
+  } catch (err) {
+    console.warn('[autoGuardarPresupuestoPdf] falló (no bloquea el guardado):', err);
+  }
 }

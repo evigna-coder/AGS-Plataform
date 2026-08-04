@@ -33,6 +33,10 @@ try {
     printHtmlSilent: (html) => {
       return ipcRenderer.invoke('print:html-silent', html);
     },
+    // Guardar un archivo en una carpeta del escritorio (PDF del presupuesto).
+    saveToDesktopFolder: (folderName, fileName, buffer) => {
+      return ipcRenderer.invoke('file:save-to-desktop-folder', folderName, fileName, buffer);
+    },
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);

@@ -353,6 +353,11 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         esquemaFacturacion: form.esquemaFacturacion,
         finalizarConSoloFacturado: form.finalizarConSoloFacturado,
       });
+      // Auto-volcado del PDF al escritorio (Electron; no-op en browser) —
+      // guardar REGENERA el PDF en "Escritorio/Ordenes de compra" (2026-08-04).
+      import('../utils/presupuestoPdfDirecto')
+        .then(m => m.autoGuardarPresupuestoPdfEscritorio(presupuestoId))
+        .catch(err => console.warn('[usePresupuestoEdit] auto-guardado PDF falló:', err));
       // Sync lead estado
       if (form.origenTipo === 'lead' && form.origenId) {
         const mappedLeadEstado = PRESUPUESTO_TO_LEAD_ESTADO[form.estado];

@@ -365,6 +365,12 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       };
       const { id: presupuestoId, numero } = await presupuestosService.create(data);
 
+      // Auto-volcado del PDF al escritorio (Electron; no-op en browser) —
+      // queda en "Escritorio/Ordenes de compra" listo para el mail (2026-08-04).
+      import('../utils/presupuestoPdfDirecto')
+        .then(m => m.autoGuardarPresupuestoPdfEscritorio(presupuestoId))
+        .catch(err => console.warn('[useCreatePresupuestoForm] auto-guardado PDF falló:', err));
+
       // Auto-complete pendientes marcadas
       if (selectedPendienteIds.size > 0) {
         const ids = Array.from(selectedPendienteIds);

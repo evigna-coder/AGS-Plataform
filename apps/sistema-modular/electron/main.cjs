@@ -578,6 +578,21 @@ function registerIpcHandlers() {
     });
   });
 
+  // Guardar un archivo en una carpeta del ESCRITORIO (2026-08-04): auto-volcado
+  // del PDF del presupuesto al crear/guardar, para enviarlo por mail sin
+  // descargar a mano. Sobrescribe si existe (regeneración al editar).
+  ipcMain.handle('file:save-to-desktop-folder', async (_event, folderName, fileName, buffer) => {
+    try {
+      const dir = join(app.getPath('desktop'), String(folderName));
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const filePath = join(dir, String(fileName));
+      writeFileSync(filePath, Buffer.from(buffer));
+      return { success: true, path: filePath };
+    } catch (err) {
+      return { success: false, failureReason: String(err) };
+    }
+  });
+
   // Abrir módulo en nueva ventana (misma app, con preload completo)
   ipcMain.on('open-module-window', (event, route) => {
     console.log('[IPC] Abriendo módulo en nueva ventana:', route);
