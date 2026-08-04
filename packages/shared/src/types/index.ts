@@ -1048,6 +1048,9 @@ export const ORIGEN_PRESUPUESTO_LABELS: Record<OrigenPresupuesto, string> = {
 export type PresupuestoEstado =
   | 'borrador'
   | 'enviado'
+  /** Aceptado DE PALABRA — el cliente debe la OC para poder facturar
+   *  (2026-08-04: repuesto usado en el cliente, visitas, contratos seguros). */
+  | 'pendiente_oc'
   | 'aceptado'
   | 'en_ejecucion'
   | 'pendiente_facturacion'
@@ -1057,6 +1060,7 @@ export type PresupuestoEstado =
 export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
+  pendiente_oc: 'Pendiente de OC',
   aceptado: 'Aceptado',
   en_ejecucion: 'En ejecución',
   pendiente_facturacion: 'Pendiente de facturación',
@@ -1067,6 +1071,7 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
 export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   borrador: 'bg-slate-100 text-slate-700',
   enviado: 'bg-blue-100 text-blue-700',
+  pendiente_oc: 'bg-violet-100 text-violet-700',
   aceptado: 'bg-emerald-100 text-emerald-700',
   en_ejecucion: 'bg-cyan-100 text-cyan-700',
   pendiente_facturacion: 'bg-amber-100 text-amber-700',
@@ -1079,7 +1084,9 @@ export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
   borrador: 'borrador',
   enviado: 'enviado',
   en_seguimiento: 'enviado',
-  pendiente_oc: 'enviado',
+  // 2026-08-04: pendiente_oc vuelve como estado de primera clase (antes se
+  // migraba a 'enviado').
+  pendiente_oc: 'pendiente_oc',
   aguarda: 'enviado',
   aceptado: 'aceptado',
   autorizado: 'aceptado',

@@ -71,10 +71,10 @@ export const AdjuntarOCModal: React.FC<Props> = ({
         adjuntos: allAdjuntos,
       });
       // Regla 2026-04-22: adjuntar OC = aceptación. Si el ppto estaba en
-      // borrador o enviado, dispara el circuito completo de aceptación
-      // (idempotente: no-op si ya estaba aceptado).
+      // borrador, enviado o pendiente de OC (2026-08-04), dispara el circuito
+      // completo de aceptación (idempotente: no-op si ya estaba aceptado).
       const pres = await presupuestosService.getById(presupuestoId);
-      if (pres && (pres.estado === 'borrador' || pres.estado === 'enviado')) {
+      if (pres && (pres.estado === 'borrador' || pres.estado === 'enviado' || pres.estado === 'pendiente_oc')) {
         await presupuestosService.aceptarConRequerimientos(presupuestoId);
       }
       onSaved?.();

@@ -275,9 +275,10 @@ export const PresupuestosList = () => {
         if (p.estado === 'pendiente_facturacion' && solicitudSets.activas.has(p.id)) return false;
       }
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
-      // 'borrador_enviado' = vista default combinada (borrador + enviado).
+      // 'borrador_enviado' = vista default combinada: lo operativo del día
+      // (borrador + enviado + pendiente de OC, 2026-08-04).
       if (filters.estado === 'borrador_enviado') {
-        if (p.estado !== 'borrador' && p.estado !== 'enviado') return false;
+        if (p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc') return false;
       } else if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
@@ -464,7 +465,7 @@ export const PresupuestosList = () => {
             <SearchableSelect size="sm" value={filters.estado} onChange={v => setFilter('estado', v)}
               options={[
                 { value: '', label: 'Estado: Todos' },
-                { value: 'borrador_enviado', label: 'Borrador + Enviado' },
+                { value: 'borrador_enviado', label: 'Borrador + Enviado + Pend. OC' },
                 ...Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label })),
               ]}
               placeholder="Estado" />

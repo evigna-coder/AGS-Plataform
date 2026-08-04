@@ -90,10 +90,11 @@ const MONEDAS: MonedaCuota[] = ['USD', 'ARS', 'EUR'];
 const SIMBOLO: Record<MonedaCuota, string> = { USD: 'U$S', ARS: '$', EUR: '€' };
 
 /** Estados con "pipeline activo" — deberían tener fechaEnvio cargada. */
-const PIPELINE_ACTIVO = new Set(['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+const PIPELINE_ACTIVO = new Set(['enviado', 'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 
-/** Decisión Esteban 2026-07-17 (#3): OC adeudada incluye en_ejecucion y pendiente_facturacion. */
-export const OC_ADEUDADA_ESTADOS = new Set(['aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+/** Decisión Esteban 2026-07-17 (#3): OC adeudada incluye en_ejecucion y pendiente_facturacion.
+ *  2026-08-04: + pendiente_oc — es literalmente "el cliente nos debe la OC". */
+export const OC_ADEUDADA_ESTADOS = new Set(['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 
 /** OT con servicio realizado: cierre técnico o posterior. */
 const OT_CERRADA = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);

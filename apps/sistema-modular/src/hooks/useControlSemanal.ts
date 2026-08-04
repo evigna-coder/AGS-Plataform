@@ -36,11 +36,14 @@ const OT_CERRADA = new Set<OTEstadoAdmin>(['CIERRE_TECNICO', 'CIERRE_ADMINISTRAT
 // Sección 2: para facturación cuenta el cierre ADMINISTRATIVO (mismo criterio que CierreFacturacionWizard).
 const OT_CERRADA_ADMIN = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 // Universo de presupuestos con trabajo en curso o realizado.
-const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(['aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+// pendiente_oc (2026-08-04): aceptado de palabra, el cliente debe la OC — el
+// caso típico es el repuesto ya usado (trabajo hecho, falta OC para facturar):
+// TIENE que figurar en el control con su chip "Sin OC".
+const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 // Pago anticipado (UAT 2026-07-19): estos pptos figuran desde el ENVÍO — se facturan
 // antes del servicio (ej. servicio que espera una importación), así que hay que
 // trabajarlos aunque ninguna OT esté cerrada.
-const ESTADOS_ANTICIPADA = new Set<Presupuesto['estado']>(['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+const ESTADOS_ANTICIPADA = new Set<Presupuesto['estado']>(['enviado', 'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 // Detección por texto del catálogo de condiciones de pago ("anticipado"/"adelanto") —
 // cuando exista el flag formal "requiere pago anticipado" (item 11 UAT Fanely),
 // cambiar solo esta función.

@@ -542,7 +542,7 @@ export const presupuestosService = {
     // sus reservas deben liberarse (UAT 2026-07-31: se retrotrajo el estado de
     // un ppto real y las unidades quedaron clavadas en 'reservado' sin salida).
     // En el flujo normal hacia adelante (borrador→enviado) no hay reservas → no-op.
-    if (data.estado === 'enviado' || data.estado === 'borrador') {
+    if (data.estado === 'enviado' || data.estado === 'borrador' || data.estado === 'pendiente_oc') {
       try {
         const pres = await this.getById(id);
         await this._liberarReservasDePresupuesto(
