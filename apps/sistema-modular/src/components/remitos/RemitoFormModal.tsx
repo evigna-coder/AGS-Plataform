@@ -137,6 +137,7 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
             onAddManual={h.addManual}
             onUpdate={h.updateItem}
             onRemove={h.removeItem}
+            onNormalizeCantidad={h.normalizarCantidad}
           />
         </div>
       </div>

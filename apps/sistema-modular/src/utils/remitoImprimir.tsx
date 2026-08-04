@@ -9,7 +9,7 @@ import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 const MM = 2.83465;
 const CM = 10 * MM;
 const OFFSET_X = -1.0 * CM;
-const OFFSET_Y = -3.7 * CM;
+const OFFSET_Y = -3.6 * CM; // 2026-08-04: +1mm (bajar todo 1mm, calibración con papel real)
 // Ronda 2 — correcciones por campo medidas sobre el papel:
 const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
   razonSocial: { y: 1 * MM },        // 1 mm abajo

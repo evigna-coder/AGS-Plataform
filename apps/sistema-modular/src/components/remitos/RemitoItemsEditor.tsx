@@ -10,6 +10,9 @@ interface Props {
   onAddManual: () => void;
   onUpdate: (id: string, patch: Partial<RemitoItem>) => void;
   onRemove: (id: string) => void;
+  /** Al salir del campo cantidad: capea a la existencia de la unidad y completa
+   *  con otras unidades del mismo artículo si se pidió más (2026-08-04). */
+  onNormalizeCantidad: (id: string) => void;
 }
 
 const inp = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400';
@@ -19,7 +22,7 @@ const inp = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ou
  * disponibles + tabla editable con cantidad, N° de serie y observaciones por
  * línea. Todo dentro del mismo modal — sin pantalla externa.
  */
-export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddManual, onUpdate, onRemove }: Props) {
+export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddManual, onUpdate, onRemove, onNormalizeCantidad }: Props) {
   // No ofrecer unidades ya agregadas. La UBICACIÓN en el label ES elegir de
   // dónde sale el artículo (misma pieza en dos depósitos = dos opciones).
   const opciones = useMemo(() => {
@@ -92,13 +95,20 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
                       )}
                     </td>
                     <td className="px-2 py-1.5">
-                      <input type="number" min={1} {...(max ? { max } : {})} value={it.cantidad}
-                        onChange={e => {
-                          const v = Math.max(1, Number(e.target.value) || 1);
-                          onUpdate(it.id, { cantidad: max ? Math.min(v, max) : v });
-                        }}
+                      {/* Tipeo libre; al salir del campo se capea a la unidad y
+                          el excedente se completa con otras unidades del mismo
+                          artículo (2026-08-04: el tope duro "no dejaba
+                          modificar cantidades" con stock doc-por-unidad). */}
+                      <input type="number" min={1} value={it.cantidad}
+                        onChange={e => onUpdate(it.id, { cantidad: Number(e.target.value) || 0 })}
+                        onBlur={() => onNormalizeCantidad(it.id)}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                         className={`${inp} text-center`} />
-                      {max != null && max > 1 && <span className="block text-[9px] text-slate-400 text-center">máx {max}</span>}
+                      {it.unidadId && max != null && (
+                        <span className="block text-[9px] text-slate-400 text-center" title="Si pedís más, se completa con otras unidades del mismo artículo">
+                          {max} en esta unidad
+                        </span>
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <input value={it.serie ?? ''} onChange={e => onUpdate(it.id, { serie: e.target.value || null })}

@@ -74,6 +74,22 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     setMaxCantidad({});
   }, [open, remito]);
 
+  // En EDICIÓN, hidratar los topes de los items existentes cuando cargan las
+  // unidades (antes quedaban sin tope y se podía exceder la existencia).
+  useEffect(() => {
+    if (!open || !remito || unidades.length === 0) return;
+    setMaxCantidad(prev => {
+      const next = { ...prev };
+      for (const it of remito.items ?? []) {
+        if (it.unidadId && next[it.id] == null) {
+          const u = unidades.find(x => x.id === it.unidadId);
+          if (u) next[it.id] = u.cantidad ?? 1;
+        }
+      }
+      return next;
+    });
+  }, [open, remito, unidades]);
+
   // Cliente → establecimientos filtrados + autoselección de único (regla del proyecto)
   const establecimientosFiltrados = useMemo(() => {
     if (!form.clienteId) return [];
@@ -149,6 +165,60 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   const updateItem = useCallback((id: string, patch: Partial<RemitoItem>) => {
     setItems(prev => prev.map(it => (it.id === id ? { ...it, ...patch } : it)));
   }, []);
+
+  /**
+   * Normaliza la cantidad de un item al confirmar (blur) — 2026-08-04 ("el
+   * sistema no me permite modificar las cantidades"): cada fila está atada a
+   * UNA unidad de stock y el tope era la existencia de ese doc (casi siempre
+   * 1). Ahora, si se pide más, la fila se capea y el resto se completa
+   * AUTOMÁTICAMENTE con otras unidades disponibles del mismo artículo
+   * (filas nuevas). Ítems manuales: sin tope.
+   */
+  const normalizarCantidad = useCallback((id: string) => {
+    const it = items.find(x => x.id === id);
+    if (!it) return;
+    const deseada = Math.max(1, Number(it.cantidad) || 1);
+    if (!it.unidadId) {
+      if (deseada !== it.cantidad) updateItem(id, { cantidad: deseada });
+      return;
+    }
+    const cap = maxCantidad[id] ?? deseada;
+    if (deseada <= cap) {
+      if (deseada !== it.cantidad) updateItem(id, { cantidad: deseada });
+      return;
+    }
+    // Completar con otras unidades del mismo artículo (no usadas en el remito)
+    let resto = deseada - cap;
+    const usadas = new Set(items.map(x => x.unidadId).filter(Boolean));
+    const nuevas: RemitoItem[] = [];
+    const nuevosMax: Record<string, number> = {};
+    for (const u of unidades) {
+      if (resto <= 0) break;
+      if (u.articuloId !== it.articuloId || usadas.has(u.id)) continue;
+      const tomar = Math.min(resto, u.cantidad ?? 1);
+      const nid = crypto.randomUUID();
+      nuevas.push({
+        id: nid,
+        unidadId: u.id,
+        articuloId: u.articuloId,
+        articuloCodigo: u.articuloCodigo,
+        articuloDescripcion: u.articuloDescripcion,
+        cantidad: tomar,
+        tipoItem: it.tipoItem,
+        devuelto: false,
+        serie: u.nroSerie ?? null,
+        observaciones: null,
+      });
+      nuevosMax[nid] = u.cantidad ?? 1;
+      usadas.add(u.id);
+      resto -= tomar;
+    }
+    if (resto > 0) {
+      alert(`De ${it.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
+    }
+    setItems(prev => prev.map(x => (x.id === id ? { ...x, cantidad: cap } : x)).concat(nuevas));
+    if (Object.keys(nuevosMax).length > 0) setMaxCantidad(prev => ({ ...prev, ...nuevosMax }));
+  }, [items, unidades, maxCantidad, updateItem]);
   const removeItem = useCallback((id: string) => {
     setItems(prev => prev.filter(it => it.id !== id));
   }, []);
@@ -170,6 +240,13 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       const ing = ingenieros.find(i => i.id === form.ingenieroId);
       const cliente = clientes.find(c => c.id === form.clienteId);
       const est = establecimientosFiltrados.find(e => e.id === form.establecimientoId);
+      // Red de seguridad: si guardan sin blur del campo cantidad, capear a la
+      // existencia de cada unidad (el completado con otras unidades ya ocurrió
+      // en el blur; acá solo se evita exceder el doc).
+      const itemsFinal = items.map(it =>
+        it.unidadId && maxCantidad[it.id] != null
+          ? { ...it, cantidad: Math.min(Math.max(1, it.cantidad || 1), maxCantidad[it.id]) }
+          : { ...it, cantidad: Math.max(1, it.cantidad || 1) });
       const data = {
         tipo: form.tipo,
         // Ingeniero OPCIONAL (2026-07-31): la entrega no siempre la lleva un ingeniero.
@@ -182,7 +259,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
         otNumbers: form.otNumbers,
         fechaSalida: form.fechaSalida || null,
         observaciones: form.observaciones || null,
-        items,
+        items: itemsFinal,
       };
       if (remito) {
         await remitosService.update(remito.id, data);
@@ -203,6 +280,6 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   return {
     form, set, selectCliente, items, maxCantidad, saving,
     ingenieros, clientes, establecimientosFiltrados, unidades, otsCliente,
-    addOt, removeOt, addUnidad, addManual, updateItem, removeItem, guardar,
+    addOt, removeOt, addUnidad, addManual, updateItem, removeItem, normalizarCantidad, guardar,
   };
 }
