@@ -748,9 +748,11 @@ export const presupuestosService = {
         : emisor?.role === 'admin_soporte' ? 'admin_soporte'
           : (pres.tipo === 'ventas' ? 'ventas' : 'admin_soporte');
 
-    // Asignatario: responsable configurado del área destino; fallback al usuario
-    // fijo de seguimiento (config legacy FLOW-01). Debe estar activo.
-    const candidatos = [cfg.responsablePorArea?.[areaDestino], cfg.usuarioSeguimientoId]
+    // Asignatario: PRIMERO el usuario de seguimiento configurado en FLOW-01
+    // (2026-08-04: "tengo configurado a Migue y los tickets van a Cynthia" —
+    // el responsable por área le ganaba a la config explícita del flow);
+    // fallback al responsable del área destino. Debe estar activo.
+    const candidatos = [cfg.usuarioSeguimientoId, cfg.responsablePorArea?.[areaDestino]]
       .filter((x): x is string => !!x);
     let asignadoId: string | null = null;
     let asignado: Awaited<ReturnType<typeof usuariosService.getById>> = null;
@@ -1630,7 +1632,7 @@ export const presupuestosService = {
               estado: 'en_coordinacion' as TicketEstado,
               asignadoA: coordId,
               asignadoNombre: coordinador.displayName ?? null,
-              areaActual: 'ing_soporte' as TicketArea,
+              areaActual: 'admin_soporte' as TicketArea, // coordinación vive en ADMIN de soporte (2026-08-04: 'los autogenerados nunca a ing. de soporte')
               accionPendiente: 'Crear OT(s) necesarias para el presupuesto aceptado',
               proximoContacto: fechaEntrega,
               valorEstimado: pres.total ?? null,
@@ -1693,7 +1695,7 @@ export const presupuestosService = {
               asignadoA: coordId,
               asignadoNombre: coordinador.displayName ?? null,
               derivadoPor: null,
-              areaActual: 'ing_soporte' as TicketArea,
+              areaActual: 'admin_soporte' as TicketArea, // coordinación vive en ADMIN de soporte (2026-08-04: 'los autogenerados nunca a ing. de soporte')
               accionPendiente: 'Crear OT(s) necesarias para el presupuesto aceptado',
               adjuntos: [],
               presupuestosIds: [presupuestoId],
@@ -1782,7 +1784,7 @@ export const presupuestosService = {
       if (coordId) {
         updates.asignadoA = coordId;
         updates.asignadoNombre = coordNombre;
-        updates.areaActual = 'ing_soporte' as TicketArea;
+        updates.areaActual = 'admin_soporte' as TicketArea; // coordinación vive en ADMIN de soporte (2026-08-04)
         updates.accionPendiente = `OC ${ocNumero} recibida — coordinar OTs`;
       }
       await leadsService.update(ticket.id, updates as any);
@@ -1839,7 +1841,7 @@ export const presupuestosService = {
       asignadoA: coordId,
       asignadoNombre: coordNombre,
       derivadoPor: null,
-      areaActual: 'ing_soporte' as TicketArea,
+      areaActual: 'admin_soporte' as TicketArea, // coordinación vive en ADMIN de soporte (2026-08-04: 'los autogenerados nunca a ing. de soporte')
       accionPendiente: `OC ${ocNumero} recibida — coordinar OTs`,
       prioridad: 'normal',
       proximoContacto: null,
