@@ -180,11 +180,14 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
                           ? h.form.origenUnidadIds.filter(id => id !== u.id)
                           : [...h.form.origenUnidadIds, u.id];
                         h.set('origenUnidadIds', next);
+                        // Autocompletar cantidad SOLO con unidades sueltas (1 c/u):
+                        // tildar un lote ×N pisaba la cantidad con TODO el lote y
+                        // se prestaba a reponer de más (2026-08-04). Con un lote
+                        // seleccionado, la cantidad la escribe el usuario.
                         if (next.length > 0 && h.form.tipo !== 'ajuste') {
-                          const sum = h.unidadesEnOrigen
-                            .filter(x => next.includes(x.id))
-                            .reduce((acc, x) => acc + (x.cantidad ?? 1), 0);
-                          h.set('cantidad', sum);
+                          const seleccionadas = h.unidadesEnOrigen.filter(x => next.includes(x.id));
+                          const hayLote = seleccionadas.some(x => (x.cantidad ?? 1) > 1);
+                          if (!hayLote) h.set('cantidad', seleccionadas.length);
                         }
                       }}
                       className="w-3.5 h-3.5 accent-teal-600" />

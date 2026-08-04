@@ -219,15 +219,29 @@ export function useAsignacionRapida() {
           fechaAsignacion: new Date().toISOString(), fechaDevolucion: null,
         }));
 
-        const remitoId = await remitosService.create({
+        // Remito de salida a campo con TODO lo que sale (2026-08-04): antes
+        // solo listaba artículos — una asignación de instrumentos/minikits
+        // generaba un remito VACÍO (0 items) imposible de cerrar.
+        const itemsRemito = items.map(i => ({
+          id: crypto.randomUUID(),
+          unidadId: i.unidadId ?? '',
+          articuloId: i.articuloId ?? '',
+          articuloCodigo: i.articuloCodigo ?? i.minikitCodigo ?? i.vehiculoPatente ?? '',
+          articuloDescripcion: i.articuloDescripcion ?? i.instrumentoNombre ?? i.dispositivoDescripcion ?? i.minikitCodigo ?? i.tipo,
+          cantidad: i.cantidad,
+          tipoItem: 'sale_y_vuelve' as const,
+          devuelto: false,
+          fechaDevolucion: null,
+          minikitId: i.minikitId ?? null,
+          minikitCodigo: i.minikitCodigo ?? null,
+          instrumentoId: i.instrumentoId ?? null,
+          dispositivoId: i.dispositivoId ?? null,
+        }));
+        const remitoId = itemsRemito.length === 0 ? null : await remitosService.create({
           tipo: 'salida_campo', ingenieroId: ing.id, ingenieroNombre: ing.nombre,
           clienteId, clienteNombre,
           estado: 'en_transito',
-          items: items.filter(i => i.tipo === 'articulo').map(i => ({
-            id: crypto.randomUUID(), unidadId: i.unidadId ?? '', articuloId: i.articuloId ?? '',
-            articuloCodigo: i.articuloCodigo ?? '', articuloDescripcion: i.articuloDescripcion ?? '',
-            cantidad: i.cantidad, tipoItem: 'sale_y_vuelve' as const, devuelto: false, fechaDevolucion: null,
-          })),
+          items: itemsRemito,
           observaciones: observaciones || null,
           fechaSalida: new Date().toISOString(), fechaDevolucion: null,
         });

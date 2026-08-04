@@ -141,6 +141,39 @@ export const asignacionesService = {
       estado: allDone ? 'completada' : 'activa',
     });
 
+    // Cerrar el REMITO de salida a campo vinculado (2026-08-04: "devolví todo
+    // y el remito quedó en tránsito"): marcar devueltos los items que volvieron
+    // y completar el remito cuando la asignación quedó completada. Best-effort.
+    if (asg.remitoId) {
+      try {
+        const { remitosService } = await import('./firebaseService');
+        const remito = await remitosService.getById(asg.remitoId);
+        if (remito && (remito.estado === 'en_transito' || remito.estado === 'completado_parcial')) {
+          const nowIso = new Date().toISOString();
+          const devueltasUnidades = new Set(reciénDevueltos.map(({ item }) => item.unidadId).filter(Boolean));
+          const devueltosOtros = new Set(
+            reciénDevueltos.flatMap(({ item }) => [item.instrumentoId, item.minikitId, item.dispositivoId].filter(Boolean)));
+          const matchea = (ri: (typeof remito.items)[number]) =>
+            (ri.unidadId && devueltasUnidades.has(ri.unidadId))
+            || (ri.instrumentoId && devueltosOtros.has(ri.instrumentoId))
+            || (ri.minikitId && devueltosOtros.has(ri.minikitId))
+            || (ri.dispositivoId && devueltosOtros.has(ri.dispositivoId));
+          const itemsRemito = (remito.items ?? []).map(ri =>
+            matchea(ri) && !ri.devuelto
+              ? { ...ri, devuelto: true, fechaDevolucion: nowIso }
+              : ri);
+          const algunoDevuelto = itemsRemito.some(ri => ri.devuelto);
+          await remitosService.update(asg.remitoId, {
+            items: itemsRemito,
+            estado: allDone ? 'completado' : (algunoDevuelto ? 'completado_parcial' : remito.estado),
+            ...(allDone ? { fechaDevolucion: nowIso } : {}),
+          });
+        }
+      } catch (err) {
+        console.error('[devolverItems] cierre del remito vinculado falló (no bloquea):', err);
+      }
+    }
+
     if (opts?.skipEntityEffects) return;
 
     // B2: destino de las unidades devueltas — la posición ORIGINAL de la que

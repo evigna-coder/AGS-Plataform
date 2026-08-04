@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
+import { InventarioIngenieroInline } from '../../components/stock/InventarioIngenieroInline';
 import { useAsignacionRapida, type DragPayload } from '../../hooks/useAsignacionRapida';
 import type { UnidadStock, Minikit, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
 
@@ -20,6 +21,9 @@ export const AsignacionRapidaPage = () => {
   const dragRef = useRef<DragPayload | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
+  /** Vista rápida inline del inventario (2026-08-04): click en el nombre
+   *  despliega; el modal completo queda detrás del botón "Detalle". */
+  const [expandedIngId, setExpandedIngId] = useState<string | null>(null);
 
   const clienteOpts = [{ value: '', label: 'Sin cliente' }, ...Object.values(
     clientes.filter(c => c.cuit).reduce<Record<string, { value: string; label: string }>>((acc, c) => {
@@ -127,7 +131,10 @@ export const AsignacionRapidaPage = () => {
                       items={group?.items ?? []}
                       onRemove={removeFromCart}
                       onTogglePerm={(id, val) => updateCartItem(id, { permanente: val })}
-                      onNameClick={() => setInventarioIngId(ing.id)}
+                      expanded={expandedIngId === ing.id}
+                      onNameClick={() => setExpandedIngId(prev => prev === ing.id ? null : ing.id)}
+                      onOpenDetalle={() => setInventarioIngId(ing.id)}
+                      inline={expandedIngId === ing.id ? <InventarioIngenieroInline ingenieroId={ing.id} /> : null}
                     />
                   );
                 })}
@@ -156,7 +163,7 @@ export const AsignacionRapidaPage = () => {
 // ── Engineer drop-zone (collapsed when empty, expanded when has items) ──
 
 const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onClienteChange,
-  onDrop, onDragOver, onDragLeave, items, onRemove, onTogglePerm, onNameClick }: {
+  onDrop, onDragOver, onDragLeave, items, onRemove, onTogglePerm, expanded, onNameClick, onOpenDetalle, inline }: {
   nombre: string; count: number; isOver: boolean;
   clienteId: string; clienteOpts: { value: string; label: string }[];
   onClienteChange: (val: string) => void;
@@ -166,7 +173,11 @@ const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onCl
   items: { id: string; codigo: string; label: string; tipo: string; permanente: boolean }[];
   onRemove: (id: string) => void;
   onTogglePerm: (id: string, val: boolean) => void;
+  /** Vista rápida inline desplegada (2026-08-04). */
+  expanded: boolean;
   onNameClick: () => void;
+  onOpenDetalle: () => void;
+  inline: React.ReactNode;
 }) => (
   <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}
     className={`rounded-md border transition-all ${
@@ -176,20 +187,39 @@ const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onCl
           ? 'border-amber-200 bg-amber-50'
           : 'border-amber-200 bg-amber-50 hover:border-amber-300'
     }`}>
-    {/* Header */}
-    <div className={`flex items-center justify-between px-4 ${count > 0 ? 'py-3' : 'py-7'}`}>
-      <button onClick={onNameClick}
-        className={`text-sm font-semibold truncate text-left ${count > 0 ? 'text-amber-900 hover:text-amber-700' : 'text-slate-600 hover:text-amber-700'}`}>
-        {nombre}
+    {/* Header — click en el nombre = vista rápida inline (2026-08-04) */}
+    <div className={`flex items-center justify-between gap-2 px-4 ${count > 0 || expanded ? 'py-3' : 'py-7'}`}>
+      <button onClick={onNameClick} title="Ver qué tiene asignado (vista rápida)"
+        className={`flex items-center gap-1.5 text-sm font-semibold truncate text-left min-w-0 ${count > 0 ? 'text-amber-900 hover:text-amber-700' : 'text-slate-600 hover:text-amber-700'}`}>
+        <svg className={`w-3 h-3 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+        <span className="truncate">{nombre}</span>
       </button>
-      {count > 0 ? (
-        <span className="ml-2 inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full bg-amber-500 text-white text-[10px] font-bold shrink-0">
-          {count}
-        </span>
-      ) : (
-        <span className="text-[10px] text-slate-300 italic shrink-0">soltar aquí</span>
-      )}
+      <div className="flex items-center gap-2 shrink-0">
+        {expanded && (
+          <button onClick={onOpenDetalle}
+            className="text-[10px] font-medium text-teal-700 hover:underline">
+            Detalle ↗
+          </button>
+        )}
+        {count > 0 ? (
+          <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full bg-amber-500 text-white text-[10px] font-bold">
+            {count}
+          </span>
+        ) : (
+          !expanded && <span className="text-[10px] text-slate-300 italic">soltar aquí</span>
+        )}
+      </div>
     </div>
+
+    {/* Vista rápida inline del inventario asignado */}
+    {expanded && (
+      <div className="px-3 pb-3">
+        <p className="text-[9px] font-mono font-semibold text-slate-400 uppercase tracking-wide mb-1">Tiene asignado</p>
+        {inline}
+      </div>
+    )}
 
     {/* Expanded content when has items */}
     {count > 0 && (
