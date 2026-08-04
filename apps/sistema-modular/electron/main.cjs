@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { join, extname } = require('path');
-const { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, appendFileSync } = require('fs');
 const crypto = require('crypto');
 const http = require('http');
 const os = require('os');
@@ -336,21 +336,34 @@ function setupAutoUpdater(targetWindow) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
+  // Log del updater A ARCHIVO (2026-08-04): los errores iban solo a una consola
+  // que en producción nadie ve — PCs clavadas en versiones viejas sin rastro
+  // ("no ven las pestañas nuevas"). %APPDATA%/<app>/updater.log.
+  const updaterLogPath = join(app.getPath('userData'), 'updater.log');
+  const ulog = (msg) => {
+    try { appendFileSync(updaterLogPath, `${new Date().toISOString()} [v${app.getVersion()}] ${msg}\n`); } catch (_) { /* noop */ }
+  };
+  ulog('— setupAutoUpdater —');
+
   autoUpdater.on('error', (err) => {
     console.error('[AutoUpdater] Error:', err?.message || err);
+    ulog(`ERROR: ${err?.message || err}`);
   });
 
   autoUpdater.on('checking-for-update', () => {
     console.log('[AutoUpdater] Checking for update...');
+    ulog('checking-for-update');
   });
 
   autoUpdater.on('update-available', (info) => {
     console.log('[AutoUpdater] Update available:', info?.version);
+    ulog(`update-available: ${info?.version}`);
     try { targetWindow?.webContents.send('update:available', { version: info?.version }); } catch {}
   });
 
   autoUpdater.on('update-not-available', () => {
     console.log('[AutoUpdater] Up to date');
+    ulog('up-to-date');
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -365,6 +378,7 @@ function setupAutoUpdater(targetWindow) {
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[AutoUpdater] Downloaded:', info?.version);
+    ulog(`update-downloaded: ${info?.version} (se aplica al cerrar/reiniciar la app)`);
     try { targetWindow?.webContents.send('update:downloaded', { version: info?.version }); } catch {}
   });
 
@@ -689,6 +703,16 @@ function createWindow() {
     alwaysOnTop: false, // No mantener siempre al frente
     skipTaskbar: false // Mostrar en la barra de tareas
   });
+
+  // Versión SIEMPRE visible en el título (2026-08-04): sin esto no había forma
+  // de saber qué versión corre una terminal ("¿aplicó el auto-update?").
+  // page-title-updated: el <title> del index.html pisaba el título al cargar.
+  const tituloConVersion = `AGS Sistema Modular — v${app.getVersion()}`;
+  mainWindow.webContents.on('page-title-updated', (e) => {
+    e.preventDefault();
+    mainWindow.setTitle(tituloConVersion);
+  });
+  mainWindow.setTitle(tituloConVersion);
 
   // Content Security Policy: solo aplica a URLs propias.
   // No pisamos los headers de sitios externos (accounts.google.com, etc.) porque
