@@ -613,6 +613,8 @@ export function useAppLogic(
             moduloDescripcion: loaded.moduloDescripcion,
             moduloMarca: loaded.moduloMarca,
             contacto: loaded.contacto,
+            sistemaId: loaded.sistemaId,
+            moduloId: loaded.moduloId,
           }).catch(() => {});
         }
       }).catch(err => {
@@ -876,6 +878,8 @@ export function useAppLogic(
           moduloDescripcion: loaded.moduloDescripcion,
           moduloMarca: loaded.moduloMarca,
           contacto: loaded.contacto,
+          sistemaId: loaded.sistemaId,
+          moduloId: loaded.moduloId,
         }).catch(() => {});
       }
     } catch (error: any) {

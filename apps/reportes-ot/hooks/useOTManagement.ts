@@ -362,6 +362,11 @@ export const useOTManagement = (
           moduloDescripcion: data.moduloDescripcion || '',
           moduloMarca: data.moduloMarca || '',
           contacto: data.contacto || '',
+          // IDs del snapshot (2026-08-05, caso HPLC 9/11): la consulta hidrataba
+          // el selector re-matcheando POR NOMBRE y con equipos gemelos elegía
+          // otro sistema del cliente. El ID guardado es la fuente de verdad.
+          sistemaId: data.sistemaId || '',
+          moduloId: data.moduloId || '',
         };
       } else {
         // 🟡 NO EXISTE

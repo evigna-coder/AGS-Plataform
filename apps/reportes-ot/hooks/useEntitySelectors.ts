@@ -342,6 +342,10 @@ export function useEntitySelectors(
       moduloDescripcion?: string;
       moduloMarca?: string;
       contacto?: string;
+      /** IDs del snapshot del doc (2026-08-05): hidratan el selector con la
+       *  fuente de verdad — el matching por nombre queda de fallback legacy. */
+      sistemaId?: string;
+      moduloId?: string;
     },
   ) => {
     if (!razonSocial.trim()) return;
@@ -393,15 +397,20 @@ export function useEntitySelectors(
     setAllContactos(conts);
     setAllSistemas(syss);
 
-    // Helper para buscar sistema: primero por nombre + código interno, luego solo nombre
+    // Helper para buscar sistema (caso HPLC 9/11, 2026-08-05): 1º por ID del
+    // snapshot (fuente de verdad), 2º nombre + código interno, 3º solo nombre
+    // ÚNICAMENTE si el snapshot no trae código — con equipos gemelos (mismo
+    // modelo = mismo nombre) degradar a nombre-solo elegía otro sistema.
     const sistemaTarget = formData.sistema?.toLowerCase().trim() || '';
     const codigoTarget = formData.codigoInternoCliente?.toLowerCase().trim() || '';
+    const sistemaIdTarget = formData.sistemaId || '';
     const findSistema = (list: typeof syss) =>
-      (codigoTarget && list.find(s =>
+      (sistemaIdTarget ? list.find(s => s.id === sistemaIdTarget) : undefined) ||
+      (codigoTarget ? list.find(s =>
         s.nombre.toLowerCase().trim() === sistemaTarget &&
         (s.codigoInternoCliente?.toLowerCase().trim() || '') === codigoTarget
-      )) ||
-      list.find(s => s.nombre.toLowerCase().trim() === sistemaTarget);
+      ) : undefined) ||
+      (!codigoTarget ? list.find(s => s.nombre.toLowerCase().trim() === sistemaTarget) : undefined);
 
     // Sistemas: filtrar por sector del sistema si hay sectores; si no, mostrar todo.
     // Contactos: no se filtran por sector (paridad con sistema-modular).
@@ -432,9 +441,11 @@ export function useEntitySelectors(
       }
     }
 
-    // Intentar match del sistema
-    if (!formData.sistema) return;
-    const sysMatch = findSistema(visibleSistemas);
+    // Intentar match del sistema. Si no hay match INEQUÍVOCO, el selector queda
+    // sin selección — los campos de texto ya muestran el snapshot correcto;
+    // adivinar mostraba el equipo equivocado (HPLC 9/11).
+    if (!formData.sistema && !sistemaIdTarget) return;
+    const sysMatch = findSistema(visibleSistemas) || findSistema(syss);
     if (!sysMatch) return;
 
     setSistemaId(sysMatch.id);
@@ -443,29 +454,32 @@ export function useEntitySelectors(
     const mods = await firebase.getModulosBySistema(sysMatch.id);
     setModulos(mods);
 
-    // Intentar match del módulo (por nombre + serie para desambiguar duplicados)
-    if (!formData.moduloModelo) return;
-    const nombreTarget = formData.moduloModelo.toLowerCase().trim();
+    // Intentar match del módulo: 1º por ID del snapshot, 2º nombre + serie,
+    // 3º solo nombre (legacy).
+    const moduloIdTarget = formData.moduloId || '';
+    const modPorId = moduloIdTarget ? mods.find(m => m.id === moduloIdTarget) : undefined;
+    if (!formData.moduloModelo && !modPorId) return;
+    const nombreTarget = formData.moduloModelo?.toLowerCase().trim() || '';
     const serieTarget = formData.moduloSerie?.toLowerCase().trim() || '';
-    const modMatch =
-      // Primero intentar match exacto por nombre + serie
-      mods.find(m =>
-        m.nombre?.toLowerCase().trim() === nombreTarget &&
-        (m.serie?.toLowerCase().trim() || '') === serieTarget
-      ) ||
-      // Fallback: match solo por nombre (si no hay serie o no matchea)
+    const modExacto = mods.find(m =>
+      m.nombre?.toLowerCase().trim() === nombreTarget &&
+      (m.serie?.toLowerCase().trim() || '') === serieTarget
+    );
+    const modMatch = modPorId || modExacto ||
       mods.find(m => m.nombre?.toLowerCase().trim() === nombreTarget);
     if (modMatch) {
       setModuloId(modMatch.id);
-      // Backfill: si el snapshot del reporte tiene los campos descriptivos vacíos
-      // (típicamente porque la OT se finalizó antes de que cargaran esos datos
-      // en sistema-modular), los rellenamos desde el módulo live. Solo si están
-      // vacíos en el reporte — no pisamos texto que el técnico haya cargado a mano.
-      if (!formData.moduloDescripcion?.trim() && modMatch.descripcion) {
-        setters.setModuloDescripcion(modMatch.descripcion);
-      }
-      if (!formData.moduloMarca?.trim() && modMatch.marca) {
-        setters.setModuloMarca(modMatch.marca);
+      // Backfill de descripción/marca vacías desde el módulo live — SOLO con
+      // match confiable (ID o nombre+serie). Con match por nombre-solo podía
+      // persistir datos del equipo equivocado vía autosave (2026-08-05).
+      const matchConfiable = !!modPorId || !!modExacto;
+      if (matchConfiable) {
+        if (!formData.moduloDescripcion?.trim() && modMatch.descripcion) {
+          setters.setModuloDescripcion(modMatch.descripcion);
+        }
+        if (!formData.moduloMarca?.trim() && modMatch.marca) {
+          setters.setModuloMarca(modMatch.marca);
+        }
       }
     }
   }, [clientes, firebase, setters]);
