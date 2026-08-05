@@ -65,7 +65,9 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
             className={`rounded-md border border-slate-100 border-l-[3px] ${
               entry.estadoAgenda !== 'cancelado' && entry.tipoServicio?.toLowerCase().includes('capacitaci')
                 ? 'border-l-[#e59a8e]'
-                : BORDER[entry.estadoAgenda] ?? 'border-l-slate-400'
+                : entry.estadoAgenda !== 'cancelado' && entry.tipoServicio?.toLowerCase().includes('bch')
+                  ? 'border-l-[#e0c878]'
+                  : BORDER[entry.estadoAgenda] ?? 'border-l-slate-400'
             } px-2.5 py-1.5 flex items-start gap-3`}
           >
             {/* 3 renglones (layout coordinación 2026-08-03):

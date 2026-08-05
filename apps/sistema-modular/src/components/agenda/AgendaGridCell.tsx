@@ -101,8 +101,11 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   // 2026-08-03) — el color identifica al tipo de servicio. Cancelado mantiene
   // su look (rojo + tachado) para que se note la baja.
   const esCapacitacion = !cancelled && !!entryTipoServicio?.toLowerCase().includes('capacitaci');
-  const bg = esCapacitacion ? 'bg-[#e59a8e]' : entryEstado ? CELL_BG[entryEstado] : '';
-  const text = esCapacitacion ? 'text-[#4a1710]' : entryEstado ? CELL_TEXT[entryEstado] : '';
+  // BCH (2026-08-05): "Trabajo en BCH" y "Reparación en BCH" van SIEMPRE en
+  // amarillo opaco — mismo criterio que capacitación (el color = tipo de servicio).
+  const esBch = !cancelled && !esCapacitacion && !!entryTipoServicio?.toLowerCase().includes('bch');
+  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : entryEstado ? CELL_BG[entryEstado] : '';
+  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : entryEstado ? CELL_TEXT[entryEstado] : '';
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
