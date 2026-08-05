@@ -467,7 +467,9 @@ export const PresupuestosList = () => {
               placeholder="Cliente" />
           </div>
           <div className="min-w-[100px]">
-            <SearchableSelect size="sm" value={filters.estado} onChange={v => setFilter('estado', v)}
+            <SearchableSelect size="sm" value={filters.estado}
+              // Elegir un estado apaga el drill-down de las cards (exclusión mutua 2026-08-05)
+              onChange={v => { setFilter('estado', v); if (filters.kpi) setFilter('kpi', ''); }}
               options={[
                 { value: '', label: 'Estado: Todos' },
                 { value: 'borrador_enviado', label: 'Borrador + Enviado + Pend. OC' },
@@ -523,7 +525,23 @@ export const PresupuestosList = () => {
           : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')}
         solicitudes={solicitudes}
         activeKpi={filters.kpi as any}
-        onKpiClick={(k) => setFilter('kpi', filters.kpi === k ? '' : k)}
+        // Exclusión mutua (2026-08-05): activar una card resetea el estado del
+        // desplegable al default — antes se SUMABAN y elegir "En ejecución" con
+        // una card activa dejaba la lista vacía sin salida visible.
+        onKpiClick={(k) => {
+          const nuevo = filters.kpi === k ? '' : k;
+          setFilter('kpi', nuevo);
+          if (nuevo && filters.estado && filters.estado !== 'borrador_enviado') {
+            setFilter('estado', 'borrador_enviado');
+          }
+        }}
+        onVerTodos={() => {
+          setFilter('kpi', '');
+          setFilter('estado', '');
+          setFilter('ocPendiente', false);
+          setFilter('ocTrabajoRealizado', false);
+        }}
+        verTodosActivo={!filters.kpi && filters.estado === '' && !filters.ocPendiente && !filters.ocTrabajoRealizado}
       />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
