@@ -79,6 +79,7 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
 
   await printRemitoSilentOrOpen(
     <RemitoOverlayPDF fecha={fechaFmt} destinatario={destinatario} items={items}
+      observaciones={remito.observaciones}
       globalOffsetX={OFFSET_X} globalOffsetY={OFFSET_Y} fieldOffsets={FIELD_OFFSETS} />,
   );
 

@@ -162,10 +162,10 @@ export const asignacionesService = {
             matchea(ri) && !ri.devuelto
               ? { ...ri, devuelto: true, fechaDevolucion: nowIso }
               : ri);
-          const algunoDevuelto = itemsRemito.some(ri => ri.devuelto);
+          const algunoResuelto = itemsRemito.some(ri => ri.devuelto || ri.consumido);
           await remitosService.update(asg.remitoId, {
             items: itemsRemito,
-            estado: allDone ? 'completado' : (algunoDevuelto ? 'completado_parcial' : remito.estado),
+            estado: allDone ? 'completado' : (algunoResuelto ? 'completado_parcial' : remito.estado),
             ...(allDone ? { fechaDevolucion: nowIso } : {}),
           });
         }
@@ -280,6 +280,7 @@ export const asignacionesService = {
 
     const nowIso = new Date().toISOString();
     const consumidos: { item: ItemAsignacion; cantCon: number }[] = [];
+    const reciénConsumidos: ItemAsignacion[] = [];
     const updatedItems = asg.items.map(item => {
       const con = consumos.find(c => c.itemId === item.id);
       if (!con) return item;
@@ -295,6 +296,7 @@ export const asignacionesService = {
         // fecha de asignación). Última fecha si hay consumos parciales sucesivos.
         fechaConsumo: cantCon > 0 ? nowIso : (item.fechaConsumo ?? null),
       };
+      if (item.estado !== 'consumido' && updated.estado === 'consumido') reciénConsumidos.push(updated);
       if (cantCon > 0) consumidos.push({ item: updated, cantCon });
       return updated;
     });
@@ -304,6 +306,39 @@ export const asignacionesService = {
       items: updatedItems,
       estado: allDone ? 'completada' : 'activa',
     });
+
+    // Cerrar el REMITO de salida a campo vinculado (2026-08-04, espejo del
+    // bloque de devolverItems): un item consumido en campo también resuelve su
+    // línea del remito — sin esto el remito quedaba "en tránsito" para siempre
+    // cuando algo se consumía en vez de volver. Best-effort.
+    if (asg.remitoId && reciénConsumidos.length > 0) {
+      try {
+        const { remitosService } = await import('./firebaseService');
+        const remito = await remitosService.getById(asg.remitoId);
+        if (remito && (remito.estado === 'en_transito' || remito.estado === 'completado_parcial')) {
+          const consumidasUnidades = new Set(reciénConsumidos.map(i => i.unidadId).filter(Boolean));
+          const consumidosOtros = new Set(
+            reciénConsumidos.flatMap(i => [i.instrumentoId, i.minikitId, i.dispositivoId].filter(Boolean)));
+          const matchea = (ri: (typeof remito.items)[number]) =>
+            (ri.unidadId && consumidasUnidades.has(ri.unidadId))
+            || (ri.instrumentoId && consumidosOtros.has(ri.instrumentoId))
+            || (ri.minikitId && consumidosOtros.has(ri.minikitId))
+            || (ri.dispositivoId && consumidosOtros.has(ri.dispositivoId));
+          const itemsRemito = (remito.items ?? []).map(ri =>
+            matchea(ri) && !ri.devuelto && !ri.consumido
+              ? { ...ri, consumido: true, fechaConsumo: nowIso, cantidadConsumida: ri.cantidad }
+              : ri);
+          const algunoResuelto = itemsRemito.some(ri => ri.devuelto || ri.consumido);
+          await remitosService.update(asg.remitoId, {
+            items: itemsRemito,
+            estado: allDone ? 'completado' : (algunoResuelto ? 'completado_parcial' : remito.estado),
+            ...(allDone ? { fechaDevolucion: nowIso } : {}),
+          });
+        }
+      } catch (err) {
+        console.error('[consumirItems] cierre del remito vinculado falló (no bloquea):', err);
+      }
+    }
 
     // B1: efectos de stock del consumo en campo — descontar existencias y dejar el
     // MovimientoStock 'consumo' (ingeniero → consumo_ot). Best-effort post-update,

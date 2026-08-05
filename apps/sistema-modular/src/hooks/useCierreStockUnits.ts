@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Part, Articulo, Patron, UnidadStock, TipoUbicacionStock } from '@ags/shared';
-import { articulosService, unidadesService } from '../services/stockService';
+import type { Part, Articulo, Patron, Remito, UnidadStock, TipoUbicacionStock } from '@ags/shared';
+import { articulosService, remitosService, unidadesService } from '../services/stockService';
 import { patronesService } from '../services/patronesService';
 
 /** Ubicación con stock disponible agregado (para elegir posición de descarga). */
@@ -22,6 +22,19 @@ export interface PatronLoteOrigen {
   fechaVencimiento: string | null;
 }
 
+/** Item de un remito en campo ofrecido como origen de descarga (2026-08-04):
+ *  el material ya salió con un remito de salida y está en poder del ingeniero —
+ *  al cerrar la OT se consume desde ahí y el remito se resuelve/cierra. */
+export interface RemitoItemOrigen {
+  remitoId: string;
+  remitoNumero: string;
+  itemId: string;
+  ingenieroNombre: string;
+  /** Cantidad pendiente del item (cantidad − consumida). */
+  cantidad: number;
+  serie: string | null;
+}
+
 /** Info de stock resuelta para una parte del cierre. */
 export interface PartStockInfo {
   /** Artículo de catálogo resuelto (por stockArticuloId o, en su defecto, por código). */
@@ -36,10 +49,13 @@ export interface PartStockInfo {
   patron: Patron | null;
   /** Lotes del patrón con saldo, FIFO por vencimiento — origen alternativo de descarga. */
   patronLotes: PatronLoteOrigen[];
+  /** Items de remitos en campo que matchean el artículo — origen "Remito N° xxx". */
+  remitoOrigenes: RemitoItemOrigen[];
 }
 
 const EMPTY: PartStockInfo = {
   articulo: null, requiereTrazabilidad: false, unidades: [], posiciones: [], patron: null, patronLotes: [],
+  remitoOrigenes: [],
 };
 
 /** Normaliza un código para el match parte↔patrón (trim; case-insensitive por las dudas). */
@@ -57,6 +73,34 @@ function patronLotesDisponibles(patron: Patron): PatronLoteOrigen[] {
       fechaVencimiento: l.fechaVencimiento ?? null,
     }))
     .sort((a, b) => (a.fechaVencimiento ?? '9999-12-31').localeCompare(b.fechaVencimiento ?? '9999-12-31'));
+}
+
+/** Estados de remito con items posiblemente aún en campo. */
+const REMITO_ESTADOS_EN_CAMPO = new Set(['confirmado', 'en_transito', 'completado_parcial']);
+
+/** Items 'sale y vuelve' pendientes de los remitos en campo que matchean el artículo. */
+function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?: string | null): RemitoItemOrigen[] {
+  const cod = normCodigo(codigo);
+  const out: RemitoItemOrigen[] = [];
+  for (const r of remitos) {
+    for (const it of r.items ?? []) {
+      if (it.tipoItem !== 'sale_y_vuelve' || it.devuelto || it.consumido) continue;
+      const matchArticulo = (articulo && it.articuloId === articulo.id)
+        || (!!cod && normCodigo(it.articuloCodigo) === cod);
+      if (!matchArticulo) continue;
+      const pendiente = it.cantidad - (it.cantidadConsumida ?? 0);
+      if (pendiente <= 0) continue;
+      out.push({
+        remitoId: r.id,
+        remitoNumero: r.numero,
+        itemId: it.id,
+        ingenieroNombre: r.ingenieroNombre || 'Ingeniero',
+        cantidad: pendiente,
+        serie: it.serie ?? null,
+      });
+    }
+  }
+  return out;
 }
 
 /** Agrupa unidades disponibles por ubicación, sumando cantidad. */
@@ -102,6 +146,11 @@ export function useCierreStockUnits(articulos: Part[]): {
       const patronPorCodigo = new Map<string, Patron>();
       for (const p of patrones) patronPorCodigo.set(normCodigo(p.codigoArticulo), p);
 
+      // Remitos en campo (2026-08-04): sus items pendientes se ofrecen como
+      // origen "Remito N° xxx" — el material ya salió, se consume desde ahí.
+      const remitosEnCampo = (await remitosService.getAll().catch(() => []))
+        .filter(r => REMITO_ESTADOS_EN_CAMPO.has(r.estado));
+
       const result: Record<string, PartStockInfo> = {};
       await Promise.all(articulos.map(async part => {
         let articulo: Articulo | null = null;
@@ -121,6 +170,7 @@ export function useCierreStockUnits(articulos: Part[]): {
         result[part.id] = {
           articulo, requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
           patron, patronLotes: patron ? patronLotesDisponibles(patron) : [],
+          remitoOrigenes: remitoOrigenesDe(remitosEnCampo, articulo, part.codigo),
         };
       }));
       if (!cancelled) { setInfo(result); setLoading(false); }

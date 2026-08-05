@@ -2115,6 +2115,22 @@ export const reservasService = {
     let deducidas = 0;
     let cubiertasPorReserva = 0;
     for (const selection of params.selections) {
+      // Caso 0 — origen REMITO en campo (2026-08-04): el material ya salió con un
+      // remito de salida; se consume desde el remito (que se resuelve/cierra solo
+      // si no le quedan items pendientes) en vez de descontar del depósito.
+      if (selection.origenTipo === 'remito' && selection.remitoId && selection.remitoItemId) {
+        try {
+          deducidas += await consumirSeleccionDesdeRemito({
+            selection,
+            otNumber: params.otNumber,
+            solicitadoPorNombre: params.solicitadoPorNombre,
+          });
+        } catch (err) {
+          console.error(`[entregarSeleccionesCierre] consumo desde remito ${selection.remitoNumero ?? selection.remitoId} falló:`, err);
+        }
+        continue;
+      }
+
       // Caso 1 — unidad puntual (serie/lote) que está RESERVADA para un ppto de esta OT:
       // consumir la reserva. Sin esto, deducirUnidadDisponible fallaba (estado 'reservado')
       // y la intención del admin ("esta unidad salió con esta OT") se perdía.
@@ -2199,3 +2215,51 @@ export const reservasService = {
     return pendiente;
   },
 };
+
+/**
+ * Consumo de una selección del cierre cuyo origen es un REMITO en campo
+ * (2026-08-04, "descargar desde la posición Remito N° xxx"): descuenta del item
+ * del remito — vía asignacionesService si el remito nació de una asignación
+ * (mantiene también el comprobante), o vía el stock aplicado si es un remito
+ * manual — y los servicios cierran el remito solo si no le quedan items
+ * pendientes. Devuelve la cantidad consumida. Imports dinámicos para no crear
+ * ciclos con el barrel firebaseService.
+ */
+async function consumirSeleccionDesdeRemito(params: {
+  selection: StockSelection;
+  otNumber: string;
+  solicitadoPorNombre: string;
+}): Promise<number> {
+  const { selection } = params;
+  const remito = await remitosService.getById(selection.remitoId!);
+  if (!remito) throw new Error(`Remito ${selection.remitoNumero ?? selection.remitoId} no encontrado`);
+  const item = remito.items.find(i => i.id === selection.remitoItemId);
+  if (!item) throw new Error(`El item seleccionado ya no está en el remito ${remito.numero}`);
+  if (item.devuelto || item.consumido) throw new Error(`El item del remito ${remito.numero} ya está resuelto`);
+  const pendiente = item.cantidad - (item.cantidadConsumida ?? 0);
+  const consumir = Math.min(selection.cantidad ?? 1, pendiente);
+  if (consumir <= 0) return 0;
+
+  if (item.asignacionId) {
+    const { asignacionesService } = await import('./firebaseService');
+    const asg = await asignacionesService.getById(item.asignacionId);
+    if (!asg) throw new Error(`La asignación del remito ${remito.numero} ya no existe`);
+    const ai = (item.asignacionItemId ? asg.items.find(a => a.id === item.asignacionItemId) : undefined)
+      ?? asg.items.find(a =>
+        (item.unidadId && a.unidadId === item.unidadId)
+        || (item.instrumentoId && a.instrumentoId === item.instrumentoId)
+        || (item.minikitId && a.minikitId === item.minikitId)
+        || (item.dispositivoId && a.dispositivoId === item.dispositivoId));
+    if (!ai) throw new Error(`No se pudo vincular el item del remito ${remito.numero} con su asignación`);
+    await asignacionesService.consumirItems(asg.id, [{ itemId: ai.id, cantidad: consumir, otNumber: params.otNumber }]);
+  } else {
+    const { movimientosAplicarService } = await import('./movimientosAplicar');
+    await movimientosAplicarService.descargarItemsStockRemito({
+      remito,
+      resoluciones: [{ itemId: item.id, consumir, devolverResto: false }],
+      otNumber: params.otNumber,
+      creadoPor: params.solicitadoPorNombre,
+    });
+  }
+  return consumir;
+}

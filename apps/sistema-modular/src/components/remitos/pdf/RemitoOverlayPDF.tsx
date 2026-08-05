@@ -50,6 +50,15 @@ const COL_X = {
   descripcion: 400,
 };
 
+/** Recuadro de observaciones generales (2026-08-04): arranca en la columna
+ *  descripción, 9,5 cm debajo de la primera fila de items. 11 × 1,5 cm. */
+const PT_MM = 2.83465;
+const OBS_BOX = {
+  offsetY: 95 * PT_MM,   // 9,5 cm bajo la primera línea de la tabla
+  width: 110 * PT_MM,    // 11 cm
+  height: 15 * PT_MM,    // 1,5 cm
+};
+
 // =============================================
 
 const styles = StyleSheet.create({
@@ -113,6 +122,8 @@ export interface RemitoOverlayFieldOffsets {
   colCantX?: number;
   colProductoX?: number;
   colDescripcionX?: number;
+  /** Ajuste fino del recuadro de observaciones generales. */
+  obsBox?: { x?: number; y?: number };
 }
 
 interface RemitoOverlayPDFProps {
@@ -120,6 +131,9 @@ interface RemitoOverlayPDFProps {
   destinatario: RemitoOverlayDestinatario;
   transportista?: RemitoOverlayDestinatario | null;
   items: RemitoOverlayItem[];
+  /** Observaciones generales del remito (texto libre): recuadro debajo del
+   *  detalle de items. Sin texto → no se dibuja el recuadro. */
+  observaciones?: string | null;
   /** Offsets globales para calibrar contra impresora específica (en pt). */
   globalOffsetX?: number;
   globalOffsetY?: number;
@@ -142,13 +156,14 @@ interface PaginaProps {
   destinatario: RemitoOverlayDestinatario;
   transportista?: RemitoOverlayDestinatario | null;
   items: RemitoOverlayItem[];
+  observaciones?: string | null;
   ox: number;
   oy: number;
   fo: RemitoOverlayFieldOffsets;
 }
 
 /** Una página = una copia del remito. Renderiza idéntico siempre. */
-function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy, fo }: PaginaProps) {
+function PaginaRemito({ fecha, destinatario, transportista, items, observaciones, ox, oy, fo }: PaginaProps) {
   return (
     <Page size="A4" style={styles.page}>
       {/* Fecha */}
@@ -188,6 +203,26 @@ function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy, fo }:
           </View>
         );
       })}
+
+      {/* Recuadro de observaciones generales (2026-08-04): contacto, horario de
+          entrega, "pendiente entrega de", etc. Solo si hay texto. */}
+      {observaciones?.trim() ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + (fo.obsBox?.x ?? 0) + ox,
+            top: TABLE_TOP + (fo.tablaY ?? 0) + OBS_BOX.offsetY + (fo.obsBox?.y ?? 0) + oy,
+            width: OBS_BOX.width,
+            height: OBS_BOX.height,
+            borderWidth: 1,
+            borderColor: '#000',
+            borderStyle: 'solid',
+            padding: 4,
+          }}
+        >
+          <Text style={{ fontSize: 8.5 }}>{observaciones.trim()}</Text>
+        </View>
+      ) : null}
     </Page>
   );
 }
@@ -197,6 +232,7 @@ export function RemitoOverlayPDF({
   destinatario,
   transportista,
   items,
+  observaciones,
   globalOffsetX = 0,
   globalOffsetY = 0,
   fieldOffsets,
@@ -215,6 +251,7 @@ export function RemitoOverlayPDF({
           destinatario={destinatario}
           transportista={transportista}
           items={items}
+          observaciones={observaciones}
           ox={ox}
           oy={oy}
           fo={fieldOffsets ?? {}}

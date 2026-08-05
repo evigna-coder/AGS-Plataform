@@ -1,5 +1,5 @@
 import type { Part, StockSelection, UnidadStock, CondicionUnidad } from '@ags/shared';
-import { useCierreStockUnits, type StockPosicion, type PartStockInfo, type PatronLoteOrigen } from '../../hooks/useCierreStockUnits';
+import { useCierreStockUnits, type StockPosicion, type PartStockInfo, type PatronLoteOrigen, type RemitoItemOrigen } from '../../hooks/useCierreStockUnits';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
 interface Props {
@@ -31,9 +31,10 @@ function loteLabel(l: PatronLoteOrigen): string {
   return `Lote ${l.lote}${saldo}${vto}`;
 }
 
-/** Opciones de origen unificadas (patrón + stock) para el select de una parte. */
+/** Opciones de origen unificadas (patrón + remito en campo + stock) para el select de una parte. */
 type OrigenOption =
   | { kind: 'patron'; value: string; label: string; lote: PatronLoteOrigen }
+  | { kind: 'remito'; value: string; label: string; remito: RemitoItemOrigen }
   | { kind: 'unidad'; value: string; label: string; unidad: UnidadStock }
   | { kind: 'posicion'; value: string; label: string; pos: StockPosicion };
 
@@ -41,6 +42,16 @@ function buildOptions(stock: PartStockInfo): OrigenOption[] {
   const opts: OrigenOption[] = [];
   for (const l of stock.patronLotes) {
     opts.push({ kind: 'patron', value: `patron:${l.lote}`, label: loteLabel(l), lote: l });
+  }
+  // Remitos en campo (2026-08-04): el material ya salió con un remito de salida —
+  // descargarlo desde acá consume desde el remito y lo cierra si queda resuelto.
+  for (const r of stock.remitoOrigenes) {
+    opts.push({
+      kind: 'remito',
+      value: `remito:${r.remitoId}:${r.itemId}`,
+      label: `Remito ${r.remitoNumero} — ${r.ingenieroNombre} (×${r.cantidad})${r.serie ? ` · S/N ${r.serie}` : ''}`,
+      remito: r,
+    });
   }
   if (stock.requiereTrazabilidad) {
     for (const u of stock.unidades) opts.push({ kind: 'unidad', value: `unidad:${u.id}`, label: unidadLabel(u), unidad: u });
@@ -95,6 +106,24 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
     });
   };
 
+  /** Selección desde un remito en campo: al cerrar se consume desde el remito. */
+  const selectRemito = (part: Part, r: RemitoItemOrigen) => {
+    updateSelection(part, {
+      articuloId: get(part.id).articulo?.id ?? null,
+      origenTipo: 'remito',
+      origenId: r.remitoId,
+      origenNombre: `Remito ${r.remitoNumero} — ${r.ingenieroNombre}`,
+      remitoId: r.remitoId,
+      remitoNumero: r.remitoNumero,
+      remitoItemId: r.itemId,
+      unidadStockId: null,
+      nroSerie: r.serie,
+      nroLote: null,
+      patronId: null,
+      patronLote: null,
+    });
+  };
+
   /** Selección por lote de patrón (activo). Descuenta la cantidad del lote al cerrar. */
   const selectPatronLote = (part: Part, lote: PatronLoteOrigen) => {
     updateSelection(part, {
@@ -114,6 +143,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
   const currentValue = (sel: StockSelection | undefined): string => {
     if (!sel) return '';
     if (sel.origenTipo === 'patron' && sel.patronLote) return `patron:${sel.patronLote}`;
+    if (sel.origenTipo === 'remito' && sel.remitoId && sel.remitoItemId) return `remito:${sel.remitoId}:${sel.remitoItemId}`;
     if (sel.unidadStockId) return `unidad:${sel.unidadStockId}`;
     if (sel.origenId) return `posicion:${sel.origenId}`;
     return '';
@@ -124,6 +154,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
     const opt = buildOptions(stock).find(o => o.value === value);
     if (!opt) return;
     if (opt.kind === 'patron') selectPatronLote(part, opt.lote);
+    else if (opt.kind === 'remito') selectRemito(part, opt.remito);
     else if (opt.kind === 'unidad') selectUnidad(part, opt.unidad);
     else selectPosicion(part, opt.pos);
   };
@@ -149,15 +180,17 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
               const sel = getSelection(part.id);
               const stock = get(part.id);
               const options = buildOptions(stock);
-              const stockGroup = options.filter(o => o.kind !== 'patron');
+              const stockGroup = options.filter(o => o.kind === 'unidad' || o.kind === 'posicion');
               const patronGroup = options.filter(o => o.kind === 'patron');
+              const remitoGroup = options.filter(o => o.kind === 'remito');
               // Opciones aplanadas para el SearchableSelect (no soporta optgroups): el grupo
-              // Patrón/Stock queda en subLabel. "Quitar origen" (value '') solo si ya hay
-              // selección — replica el <option value=""> del select nativo sin mostrarlo cuando
-              // el campo está vacío (ahí manda el placeholder).
+              // Patrón/Remito/Stock queda en subLabel. "Quitar origen" (value '') solo si ya
+              // hay selección — replica el <option value=""> del select nativo sin mostrarlo
+              // cuando el campo está vacío (ahí manda el placeholder).
               const searchOptions = [
                 ...(sel ? [{ value: '', label: '— Quitar origen —' }] : []),
                 ...patronGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Patrón (activo)' })),
+                ...remitoGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'En campo (remito)' })),
                 ...stockGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Stock' })),
               ];
               return (
@@ -170,7 +203,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                   <td className="px-2 py-1.5">
                     {disabled ? (
                       <span className="text-[11px] text-slate-600">
-                        {sel?.origenTipo === 'patron'
+                        {sel?.origenTipo === 'patron' || sel?.origenTipo === 'remito'
                           ? sel.origenNombre || '—'
                           : sel?.nroSerie ? `S/N ${sel.nroSerie}` : sel?.nroLote ? `Lote ${sel.nroLote}` : sel?.origenNombre || '—'}
                       </span>

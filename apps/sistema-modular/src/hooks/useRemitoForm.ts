@@ -104,19 +104,30 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     });
   }, [establecimientos]);
 
-  // OTs del cliente (padres) para el selector de asociadas
+  // OTs ABIERTAS del cliente/establecimiento para el selector de asociadas
+  // (2026-08-04, caso REM-0018/OT 29719.02): antes listaba solo PADRES y todas
+  // (incluso finalizadas) — la OT hija de la entrega ni aparecía y el remito
+  // salía sin OT. Ahora: no finalizadas, del establecimiento elegido (las
+  // legacy sin establecimientoId se ofrecen igual), hijas incluidas y padres
+  // con hijas excluidos (contenedores no-accionables).
   useEffect(() => {
     if (!open || !form.clienteId) { setOtsCliente([]); return; }
     let cancelled = false;
     ordenesTrabajoService.getAll({ clienteId: form.clienteId })
-      .then((ots: Array<{ otNumber: string }>) => {
+      .then((ots: Array<{ otNumber: string; estadoAdmin?: string; establecimientoId?: string | null }>) => {
         if (cancelled) return;
-        const padres = ots.map(o => o.otNumber).filter(n => n && !n.includes('.'));
-        setOtsCliente([...new Set(padres)].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })));
+        const conHijas = new Set(
+          ots.filter(o => o.otNumber?.includes('.')).map(o => o.otNumber.split('.')[0]));
+        const abiertas = ots
+          .filter(o => o.otNumber && o.estadoAdmin !== 'FINALIZADO')
+          .filter(o => !form.establecimientoId || !o.establecimientoId || o.establecimientoId === form.establecimientoId)
+          .filter(o => o.otNumber.includes('.') || !conHijas.has(o.otNumber))
+          .map(o => o.otNumber);
+        setOtsCliente([...new Set(abiertas)].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })));
       })
       .catch(() => { if (!cancelled) setOtsCliente([]); });
     return () => { cancelled = true; };
-  }, [open, form.clienteId]);
+  }, [open, form.clienteId, form.establecimientoId]);
 
   const addOt = useCallback((ot: string) => {
     if (!ot) return;

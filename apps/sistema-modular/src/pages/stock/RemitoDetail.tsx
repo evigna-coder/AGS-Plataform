@@ -9,6 +9,9 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAcciones';
 import { RemitoFirmaCard } from '../../components/remitos/RemitoFirmaCard';
+import { RemitoDescargaModal } from '../../components/remitos/RemitoDescargaModal';
+import { RemitoHistorialCard } from '../../components/remitos/RemitoHistorialCard';
+import { itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
@@ -39,6 +42,7 @@ export const RemitoDetail = () => {
   useDeclareParent('/stock/remitos');
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDescarga, setShowDescarga] = useState(false);
   // Confirmar aplica el movimiento real de stock (I4); ver useRemitoAcciones.
   const { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma } = useRemitoAcciones(id, remito);
 
@@ -56,6 +60,14 @@ export const RemitoDetail = () => {
   }, [id]);
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remito...</p></div>;
+
+  // Descarga desde el remito (2026-08-04): items 'sale y vuelve' sin resolver,
+  // sea de stock propio (efecto aplicado) o de una asignación vinculada.
+  const hayDescargables = remito != null
+    && ['confirmado', 'en_transito', 'completado_parcial'].includes(remito.estado)
+    && remito.items.some(it => !it.devuelto && !it.consumido && it.tipoItem === 'sale_y_vuelve'
+      && (!!it.asignacionId || itemRemitoConEfectoAplicado(it)));
+
   if (!remito) return (
     <div className="text-center py-12">
       <p className="text-slate-400">Remito no encontrado</p>
@@ -90,6 +102,11 @@ export const RemitoDetail = () => {
                 {acting ? 'Procesando...' : 'En transito'}
               </Button>
             )}
+            {hayDescargables && (
+              <Button size="sm" variant="outline" onClick={() => setShowDescarga(true)} disabled={acting}>
+                Descargar / cerrar
+              </Button>
+            )}
             {remito.estado === 'en_transito' && (
               <>
                 <Button size="sm" onClick={() => transition('completado', { fechaDevolucion: new Date().toISOString() })} disabled={acting}>
@@ -113,7 +130,11 @@ export const RemitoDetail = () => {
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[remito.estado]} color={ESTADO_COLORS[remito.estado]} />} />
                 <LV label="Stock" value={stockRemitoLabel(remito)} />
                 <LV label="Ingeniero" value={remito.ingenieroNombre} />
-                {remito.clienteNombre && <LV label="Cliente" value={remito.clienteNombre} />}
+                {remito.clienteNombre && (
+                  <LV label="Cliente" value={remito.establecimientoNombre
+                    ? `${remito.clienteNombre} (${remito.establecimientoNombre})`
+                    : remito.clienteNombre} />
+                )}
                 {remito.otNumbers && remito.otNumbers.length > 0 && <LV label="OTs asociadas" value={remito.otNumbers.join(', ')} />}
               </div>
             </Card>
@@ -131,6 +152,7 @@ export const RemitoDetail = () => {
                 <p className="text-xs text-slate-700">{remito.observaciones}</p>
               </Card>
             )}
+            <RemitoHistorialCard remitoId={remito.id} />
           </div>
 
           <div className="flex-1 min-w-0 space-y-4">
@@ -169,7 +191,11 @@ export const RemitoDetail = () => {
                             <Badge label={TIPO_ITEM_LABELS[item.tipoItem]} color={item.tipoItem === 'sale_y_vuelve' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'} />
                           </td>
                           <td className="text-xs py-2 text-center">
-                            {remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
+                            {item.consumido ? (
+                              <span className="text-[10px] font-medium text-orange-600" title={item.fechaConsumo ? `Consumido el ${formatDate(item.fechaConsumo)}` : 'Consumido en campo'}>
+                                Consumido
+                              </span>
+                            ) : remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
                               <button onClick={() => toggleDevuelto(item, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>
                                 {item.devuelto && <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
@@ -188,6 +214,8 @@ export const RemitoDetail = () => {
           </div>
         </div>
       </div>
+
+      <RemitoDescargaModal open={showDescarga} remito={remito} onClose={() => setShowDescarga(false)} />
     </div>
   );
 };

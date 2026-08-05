@@ -123,8 +123,11 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
           </div>
           <div>
             <label className={lbl}>Observaciones</label>
-            <input value={h.form.observaciones} onChange={e => h.set('observaciones', e.target.value)}
-              placeholder="Opcional" className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            {/* Se imprimen en un recuadro debajo del detalle de items (2026-08-04). */}
+            <textarea value={h.form.observaciones} onChange={e => h.set('observaciones', e.target.value)}
+              placeholder="Ej.: Contacto, entregar de 8 a 17 hs, pendiente entrega de… (sale impreso en un recuadro debajo del detalle)"
+              rows={2}
+              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
           </div>
         </div>
 

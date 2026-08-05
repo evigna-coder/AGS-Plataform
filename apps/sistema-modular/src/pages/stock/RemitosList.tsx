@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { remitosService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -9,6 +8,10 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { RemitoFormModal } from '../../components/remitos/RemitoFormModal';
+import { RemitoDescargaModal } from '../../components/remitos/RemitoDescargaModal';
+import { RemitoItemsInline } from '../../components/remitos/RemitoItemsInline';
+import { RemitoVerModal } from '../../components/remitos/RemitoVerModal';
+import { itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
@@ -21,9 +24,12 @@ const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text
 
 export const RemitosList = () => {
   const confirm = useConfirm();
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('remitos-list');
+  // v2 (2026-08-04): +columna Cliente — clave nueva para descartar anchos guardados de 8 columnas.
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('remitos-list-v2');
   const FILTER_SCHEMA = useMemo(() => ({
-    estado: { type: 'string' as const, default: '' },
+    // Default 'pendientes' (2026-08-04): borrador + confirmado + en tránsito.
+    // Los devueltos/finalizados salen de la vista salvo elección explícita.
+    estado: { type: 'string' as const, default: 'pendientes' },
     tipo: { type: 'string' as const, default: '' },
     showAll: { type: 'boolean' as const, default: false },
     clienteId: { type: 'string' as const, default: '' },
@@ -39,6 +45,24 @@ export const RemitosList = () => {
   // Rework 2026-07-31: mismo modal para editar (solo borrador sin imprimir).
   const [editRemito, setEditRemito] = useState<Remito | null>(null);
   const [imprimiendoId, setImprimiendoId] = useState<string | null>(null);
+  // Desplegable de artículos + acciones de estado en la línea (2026-08-04).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [descargaRemito, setDescargaRemito] = useState<Remito | null>(null);
+  const [verRemito, setVerRemito] = useState<Remito | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  /** Tiene items 'sale y vuelve' sin resolver, descargables desde el remito. */
+  const esDescargable = (r: Remito) =>
+    ['confirmado', 'en_transito', 'completado_parcial'].includes(r.estado)
+    && (r.items ?? []).some(it => !it.devuelto && !it.consumido && it.tipoItem === 'sale_y_vuelve'
+      && (!!it.asignacionId || itemRemitoConEfectoAplicado(it)));
+
+  const handleEstado = async (r: Remito, estado: EstadoRemito, extra?: Partial<Remito>) => {
+    setActingId(r.id);
+    try { await remitosService.update(r.id, { estado, ...extra }); }
+    catch (err) { console.error('Error actualizando remito:', err); alert('Error al actualizar el remito'); }
+    finally { setActingId(null); }
+  };
 
   const handleImprimir = async (r: Remito) => {
     setImprimiendoId(r.id);
@@ -65,13 +89,20 @@ export const RemitosList = () => {
   // Subscribe to remitos with current filters
   useEffect(() => {
     unsubRef.current?.();
+    // 'pendientes' y 'todos' son sentinels de UI: la query no filtra por estado
+    // y el recorte se hace acá (URLs viejas con estado='' cuentan como pendientes).
+    const estadoSel = filters.estado || 'pendientes';
+    const esSentinel = estadoSel === 'pendientes' || estadoSel === 'todos';
     unsubRef.current = remitosService.subscribe(
       {
-        estado: filters.estado || undefined,
+        estado: esSentinel ? undefined : estadoSel,
         tipo: filters.tipo || undefined,
       },
       (data) => {
-        const filtered = filters.showAll ? data : data.filter(r => r.estado !== 'cancelado');
+        let filtered = filters.showAll ? data : data.filter(r => r.estado !== 'cancelado');
+        if (estadoSel === 'pendientes') {
+          filtered = filtered.filter(r => r.estado === 'borrador' || r.estado === 'confirmado' || r.estado === 'en_transito');
+        }
         setRemitos(filtered);
         setLoading(false);
       },
@@ -123,9 +154,10 @@ export const RemitosList = () => {
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
+          <select value={filters.estado || 'pendientes'} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
-            <option value="">Todos los estados</option>
+            <option value="pendientes">Pendientes (borrador + en tránsito)</option>
+            <option value="todos">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoRemito[]).map(k => (
               <option key={k} value={k}>{ESTADO_LABELS[k]}</option>
             ))}
@@ -162,14 +194,15 @@ export const RemitosList = () => {
                   <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 ) : (
                   <colgroup>
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '12%' }} />
                     <col style={{ width: '11%' }} />
-                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '17%' }} />
                     <col style={{ width: '12%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '8%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '11%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '11%' }} />
                   </colgroup>
                 )}
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -191,34 +224,52 @@ export const RemitosList = () => {
                     </th>
                     <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}>
                       <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
-                      Ingeniero
+                      Cliente
                       <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
                     <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(4)}`}>
                       <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
-                      Items
+                      Ingeniero
                       <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
-                    <SortableHeader label="Fecha salida" field="fechaSalida" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
                       <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
+                      Items
                       <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </SortableHeader>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
+                    </th>
+                    <SortableHeader label="Fecha salida" field="fechaSalida" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
                       <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
-                      OTs
                       <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </SortableHeader>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(7)}`}>
+                      <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
+                      OTs
+                      <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
                     <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider relative">
                       Acciones
-                      <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                      <div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {sorted.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50">
+                    <Fragment key={r.id}>
+                    <tr
+                      className="hover:bg-slate-50 cursor-pointer"
+                      title={expandedId === r.id ? 'Ocultar artículos' : 'Ver artículos'}
+                      // Un click en cualquier parte de la fila despliega los artículos;
+                      // los botones/links de la fila no disparan el toggle.
+                      onClick={e => {
+                        if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+                        setExpandedId(expandedId === r.id ? null : r.id);
+                      }}
+                    >
                       <td className={`px-4 py-2 ${getAlignClass(0)}`}>
-                        <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className={`text-slate-400 text-[10px] transition-transform ${expandedId === r.id ? 'rotate-90' : ''}`}>▶</span>
+                          <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
+                        </span>
                       </td>
                       <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[r.tipo]}`}>
@@ -233,15 +284,21 @@ export const RemitosList = () => {
                           <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-600">Impreso</span>
                         )}
                       </td>
-                      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(3)}`}>{r.ingenieroNombre}</td>
-                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(4)}`}>{r.items?.length ?? 0}</td>
-                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(5)}`}>{formatDate(r.fechaSalida)}</td>
-                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>
+                      <td className={`px-4 py-2 text-xs text-slate-700 truncate ${getAlignClass(3)}`}
+                        title={r.clienteNombre ? `${r.clienteNombre}${r.establecimientoNombre ? ` (${r.establecimientoNombre})` : ''}` : undefined}>
+                        {r.clienteNombre
+                          ? <>{r.clienteNombre}{r.establecimientoNombre && <span className="text-slate-400"> ({r.establecimientoNombre})</span>}</>
+                          : '-'}
+                      </td>
+                      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(4)}`}>{r.ingenieroNombre}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(5)}`}>{r.items?.length ?? 0}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>{formatDate(r.fechaSalida)}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(7)}`}>
                         {r.otNumbers?.length ? r.otNumbers.join(', ') : '-'}
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <Link to={`/stock/remitos/${r.id}`} className="text-xs text-teal-600 hover:underline font-medium">Ver</Link>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button onClick={() => setVerRemito(r)} className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
                           {/* Editable solo mientras sea borrador SIN imprimir (rework 2026-07-31) */}
                           {r.estado === 'borrador' && !r.impreso && (
                             <button onClick={() => setEditRemito(r)} className="text-xs text-slate-600 hover:underline font-medium">Editar</button>
@@ -252,12 +309,41 @@ export const RemitosList = () => {
                               {imprimiendoId === r.id ? 'Imprimiendo…' : r.impreso ? 'Reimprimir' : 'Imprimir'}
                             </button>
                           )}
+                          {/* Cambios de estado en la línea (2026-08-04): tránsito / descarga / completar */}
+                          {r.estado === 'confirmado' && (
+                            <button onClick={() => void handleEstado(r, 'en_transito')} disabled={actingId === r.id}
+                              className="text-xs text-amber-600 hover:underline font-medium disabled:opacity-40">
+                              Tránsito
+                            </button>
+                          )}
+                          {esDescargable(r) && (
+                            <button onClick={() => setDescargaRemito(r)} disabled={actingId === r.id}
+                              className="text-xs text-orange-600 hover:underline font-medium disabled:opacity-40"
+                              title="Consumos y devoluciones por item — cierra el remito al resolver todo">
+                              Descargar
+                            </button>
+                          )}
+                          {(r.estado === 'en_transito' || r.estado === 'completado_parcial') && !esDescargable(r) && (
+                            <button onClick={() => void handleEstado(r, 'completado', { fechaDevolucion: new Date().toISOString() })}
+                              disabled={actingId === r.id}
+                              className="text-xs text-green-600 hover:underline font-medium disabled:opacity-40">
+                              Completar
+                            </button>
+                          )}
                           {r.estado === 'borrador' && (
                             <button onClick={() => handleDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
                           )}
                         </div>
                       </td>
                     </tr>
+                    {expandedId === r.id && (
+                      <tr className="bg-slate-50/60">
+                        <td colSpan={9} className="px-6 py-2 border-b border-slate-100">
+                          <RemitoItemsInline remito={r} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -271,6 +357,16 @@ export const RemitosList = () => {
         onClose={() => { setShowCreate(false); setEditRemito(null); }}
         onSaved={loadData}
       />
+      {descargaRemito && (
+        <RemitoDescargaModal
+          open
+          remito={descargaRemito}
+          onClose={() => setDescargaRemito(null)}
+        />
+      )}
+      {verRemito && (
+        <RemitoVerModal remito={verRemito} onClose={() => setVerRemito(null)} />
+      )}
     </div>
   );
 };

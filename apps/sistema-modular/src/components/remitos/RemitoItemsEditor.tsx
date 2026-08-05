@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RemitoItem, UnidadStock } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
@@ -23,6 +23,18 @@ const inp = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ou
  * línea. Todo dentro del mismo modal — sin pantalla externa.
  */
 export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddManual, onUpdate, onRemove, onNormalizeCantidad }: Props) {
+  // Flujo de carga rápida (2026-08-04): elegir artículo → foco en la cantidad
+  // de la fila nueva con el texto seleccionado → Enter vuelve al buscador.
+  const cantidadRefs = useRef(new Map<string, HTMLInputElement>());
+  const esperandoFilaNueva = useRef(false);
+  const [buscadorFocusToken, setBuscadorFocusToken] = useState(0);
+
+  useEffect(() => {
+    if (!esperandoFilaNueva.current || items.length === 0) return;
+    esperandoFilaNueva.current = false;
+    const inp = cantidadRefs.current.get(items[items.length - 1].id);
+    if (inp) { inp.focus(); inp.select(); }
+  }, [items]);
   // No ofrecer unidades ya agregadas. La UBICACIÓN en el label ES elegir de
   // dónde sale el artículo (misma pieza en dos depósitos = dos opciones).
   const opciones = useMemo(() => {
@@ -45,9 +57,10 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
           </label>
           <SearchableSelect
             value=""
-            onChange={v => v && onAdd(v)}
+            onChange={v => { if (v) { esperandoFilaNueva.current = true; onAdd(v); } }}
             options={opciones}
             placeholder="Buscar por código, descripción o serie…"
+            autoFocusToken={buscadorFocusToken}
           />
         </div>
         <button onClick={onAddManual} title="Ítem que no está en stock — no genera movimiento"
@@ -100,9 +113,12 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
                           artículo (2026-08-04: el tope duro "no dejaba
                           modificar cantidades" con stock doc-por-unidad). */}
                       <input type="number" min={1} value={it.cantidad}
+                        ref={el => { if (el) cantidadRefs.current.set(it.id, el); else cantidadRefs.current.delete(it.id); }}
                         onChange={e => onUpdate(it.id, { cantidad: Number(e.target.value) || 0 })}
                         onBlur={() => onNormalizeCantidad(it.id)}
-                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        // Enter confirma la cantidad y devuelve el foco al buscador
+                        // para cargar el siguiente artículo (el blur normaliza).
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setBuscadorFocusToken(t => t + 1); } }}
                         className={`${inp} text-center`} />
                       {it.unidadId && max != null && (
                         <span className="block text-[9px] text-slate-400 text-center" title="Si pedís más, se completa con otras unidades del mismo artículo">

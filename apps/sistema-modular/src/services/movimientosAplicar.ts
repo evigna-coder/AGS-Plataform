@@ -495,6 +495,167 @@ export const movimientosAplicarService = {
   },
 
   /**
+   * DESCARGA de un remito de stock propio (2026-08-04: "la descarga se pueda
+   * realizar desde el remito, así no se pierde ninguna parte de la cadena"):
+   * resuelve items 'sale_y_vuelve' pendientes en UNA transacción — por item,
+   * `consumir` N unidades (movimiento 'consumo' contra la OT) y el resto vuelve
+   * a su ubicación de origen (movimiento 'devolucion'). Al final el remito
+   * queda 'completado' si no restan items pendientes, o 'completado_parcial'.
+   * (Los remitos de ASIGNACIÓN se descargan vía asignacionesService, que además
+   * mantiene el comprobante de asignación.)
+   */
+  async descargarItemsStockRemito(params: {
+    remito: Remito;
+    /** Por item: cuánto se consume. `devolverResto: false` (cierre de OT) deja el
+     *  remanente en poder del ingeniero (el item sigue pendiente si quedó algo);
+     *  default true: el resto vuelve a su ubicación de origen y el item se resuelve. */
+    resoluciones: { itemId: string; consumir: number; devolverResto?: boolean }[];
+    otNumber: string | null;
+    creadoPor: string;
+  }): Promise<void> {
+    const { remito, resoluciones, otNumber, creadoPor } = params;
+    if (!['confirmado', 'en_transito', 'completado_parcial'].includes(remito.estado)) {
+      throw new Error(`El remito no admite descarga en estado '${remito.estado}'`);
+    }
+    if (resoluciones.length === 0) return;
+    const porItem = new Map(resoluciones.map(r => [r.itemId, r]));
+    const aResolver = remito.items.filter(it => porItem.has(it.id));
+    for (const it of aResolver) {
+      const etiqueta = it.articuloCodigo || it.articuloDescripcion || it.id;
+      if (!itemRemitoConEfectoAplicado(it) || it.tipoItem !== 'sale_y_vuelve') {
+        throw new Error(`${etiqueta}: este item no tiene efecto de stock aplicado — descargarlo desde su flujo de origen`);
+      }
+      if (it.devuelto || it.consumido) throw new Error(`${etiqueta}: el item ya está resuelto`);
+      if (porItem.get(it.id)!.devolverResto !== false && !it.salidaUbicacionOrigen?.referenciaId) {
+        throw new Error(`${etiqueta}: no quedó registrada la ubicación de origen — resolverlo con un movimiento manual`);
+      }
+    }
+
+    const now = Timestamp.now();
+    const nowIso = new Date().toISOString();
+
+    await runTransaction(db, async (tx) => {
+      // READS primero (regla de tx Firestore).
+      const snaps = new Map<string, DocumentSnapshot<DocumentData>>();
+      for (const it of aResolver) {
+        const item = it as RemitoItemAplicado;
+        snaps.set(it.id, await tx.get(docRef('unidades', item.salidaUnidadId || item.unidadId!)));
+      }
+
+      const resueltos = new Map<string, { consumir: number; devolver: number; agotada: boolean }>();
+      for (const it of aResolver) {
+        const item = it as RemitoItemAplicado;
+        const etiqueta = it.articuloCodigo || it.articuloDescripcion || it.id;
+        const snap = snaps.get(it.id)!;
+        if (!snap.exists()) throw new Error(`${etiqueta}: la unidad ya no existe en stock`);
+        const data = snap.data();
+        if (data.activo === false) throw new Error(`${etiqueta}: la unidad está dada de baja`);
+        if (data.estado !== 'disponible') {
+          throw new Error(`${etiqueta}: la unidad no está disponible (estado '${data.estado}')`);
+        }
+        if (data.ubicacion?.tipo !== 'ingeniero' || data.ubicacion?.referenciaId !== remito.ingenieroId) {
+          throw new Error(`${etiqueta}: la unidad ya no figura en poder del ingeniero del remito — verificar su ubicación en Stock`);
+        }
+        const qty = data.cantidad ?? 1;
+        const res = porItem.get(it.id)!;
+        const consumir = Math.min(Math.max(0, res.consumir), qty);
+        // Cierre de OT (devolverResto false): el remanente sigue con el ingeniero.
+        const devolver = res.devolverResto === false ? 0 : qty - consumir;
+        const unidadId = item.salidaUnidadId || item.unidadId!;
+        const unidadRef = docRef('unidades', unidadId);
+        const origen = item.salidaUbicacionOrigen!;
+
+        if (consumir >= qty) {
+          tx.update(unidadRef, deepCleanForFirestore({
+            estado: 'consumido' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now,
+          }));
+        } else if (devolver > 0) {
+          tx.update(unidadRef, deepCleanForFirestore({
+            ...(consumir > 0 ? { cantidad: qty - consumir } : {}),
+            ubicacion: origen, ...getUpdateTrace(), updatedAt: now,
+          }));
+        } else if (consumir > 0) {
+          // Consumo parcial sin devolución: solo decrementa; queda en el ingeniero.
+          tx.update(unidadRef, deepCleanForFirestore({
+            cantidad: qty - consumir, ...getUpdateTrace(), updatedAt: now,
+          }));
+        }
+
+        const movBase = {
+          unidadId,
+          articuloId: data.articuloId ?? '',
+          articuloCodigo: data.articuloCodigo ?? '',
+          articuloDescripcion: data.articuloDescripcion ?? '',
+          nroSerie: data.nroSerie ?? null,
+          nroLote: data.nroLote ?? null,
+          origenTipo: 'ingeniero' as TipoOrigenDestino,
+          origenId: remito.ingenieroId,
+          origenNombre: remito.ingenieroNombre || 'Ingeniero',
+          remitoId: remito.id,
+          creadoPor,
+          ...getCreateTrace(),
+          createdAt: now,
+        };
+        if (consumir > 0) {
+          tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
+            ...movBase,
+            tipo: 'consumo' as TipoMovimiento,
+            cantidad: consumir,
+            destinoTipo: 'consumo_ot' as TipoOrigenDestino,
+            destinoId: otNumber ?? '',
+            destinoNombre: otNumber ? `OT ${otNumber}` : 'Consumo en campo',
+            otNumber: otNumber ?? null,
+            motivo: `Remito ${remito.numero} — descarga: consumo`,
+          }));
+        }
+        if (devolver > 0) {
+          tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
+            ...movBase,
+            tipo: 'devolucion' as TipoMovimiento,
+            cantidad: devolver,
+            destinoTipo: origen.tipo as TipoOrigenDestino,
+            destinoId: origen.referenciaId,
+            destinoNombre: origen.referenciaNombre,
+            otNumber: null,
+            motivo: `Remito ${remito.numero} — descarga: devolución a stock`,
+          }));
+        }
+        resueltos.set(it.id, { consumir, devolver, agotada: consumir >= qty });
+      }
+
+      const itemsFinales = remito.items.map(it => {
+        const res = resueltos.get(it.id);
+        if (!res) return it;
+        return {
+          ...it,
+          ...(res.consumir > 0
+            ? { cantidadConsumida: (it.cantidadConsumida ?? 0) + res.consumir, fechaConsumo: nowIso }
+            : {}),
+          // Resuelto por consumo total, o por devolución del resto; con
+          // devolverResto=false y consumo parcial el item sigue pendiente.
+          ...(res.agotada
+            ? { consumido: true }
+            : res.devolver > 0 ? { devuelto: true, fechaDevolucion: nowIso } : {}),
+        };
+      });
+      const pendientes = itemsFinales.some(it =>
+        itemRemitoConEfectoAplicado(it) && it.tipoItem === 'sale_y_vuelve' && !it.devuelto && !it.consumido);
+      tx.update(docRef('remitos', remito.id), deepCleanForFirestore({
+        items: itemsFinales,
+        estado: pendientes ? 'completado_parcial' : 'completado',
+        ...(pendientes ? {} : { fechaDevolucion: nowIso }),
+        ...getUpdateTrace(), updatedAt: now,
+      }));
+    });
+
+    logAudit({ action: 'update', collection: 'remitos', documentId: remito.id });
+    for (const it of aResolver) {
+      const item = it as RemitoItemAplicado;
+      logAudit({ action: 'update', collection: 'unidades_stock', documentId: item.salidaUnidadId || item.unidadId! });
+    }
+  },
+
+  /**
    * Marca (o des-marca) el retorno físico de un item 'sale_y_vuelve' cuya
    * salida fue aplicada al confirmar el remito: mueve la unidad de vuelta a su
    * ubicación de origen (o la re-saca al ingeniero si se des-marca) y asienta
