@@ -98,7 +98,7 @@ function classifyEntry(entry: AgendaEntry, ot: WorkOrder | null): { estado: Agen
  * (mismo criterio que CierreFacturacionWizard). Excluye OTs padre con hijas:
  * son contenedores no-accionables que nunca reciben cierre administrativo.
  */
-function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<string> {
+export function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<string> {
   const nums = new Set<string>([
     ...(pres.otsVinculadasNumbers ?? []),
     ...(pres.otVinculadaNumber ? [pres.otVinculadaNumber] : []),

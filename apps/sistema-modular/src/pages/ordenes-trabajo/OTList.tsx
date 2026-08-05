@@ -15,6 +15,7 @@ import { TiposServicioModal } from '../../components/ordenes-trabajo/TiposServic
 import { NewItemOTModal } from '../../components/ordenes-trabajo/NewItemOTModal';
 import { OTFiltersBar } from '../../components/ordenes-trabajo/OTFiltersBar';
 import { OTKpiBar } from '../../components/ordenes-trabajo/OTKpiBar';
+import { PresupuestosSinOtKpi } from '../../components/ordenes-trabajo/PresupuestosSinOtKpi';
 import { OTBulkActionsBar } from '../../components/ordenes-trabajo/OTBulkActionsBar';
 import { OTListTable, OT_DATA_COLUMNS } from '../../components/ordenes-trabajo/OTListTable';
 import { OTColumnsMenu } from '../../components/ordenes-trabajo/OTColumnsMenu';
@@ -159,7 +160,13 @@ export const OTList = () => {
         />
       </PageHeader>
 
-      {ordenes.length > 0 && <OTKpiBar kpis={kpis} />}
+      {ordenes.length > 0 && (
+        <div className="flex items-start gap-3 px-5 pb-2">
+          <div className="[&>div]:px-0 [&>div]:pb-0"><OTKpiBar kpis={kpis} /></div>
+          {/* Pptos aceptados sin OT abierta (pedido coordinadora 2026-08-05) */}
+          <PresupuestosSinOtKpi />
+        </div>
+      )}
 
       <OTBulkActionsBar
         count={selectedOTs.size}
