@@ -96,6 +96,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [form, setForm] = useState<PresupuestoFormState>(INITIAL_PRESUPUESTO_FORM);
   const [items, setItems] = useState<PresupuestoItem[]>([]);
+  // Cola de carga de contratos (2026-08-04): alcance elegido (ids de sistemas).
+  const [sistemasPlan, setSistemasPlan] = useState<string[]>([]);
   const [cuotas, setCuotas] = useState<PresupuestoCuota[]>([]);
   // Phase 12: cuota schema (porcentual facturación) — for non-contrato types
   const [esquemaFacturacion, setEsquemaFacturacion] = useState<PresupuestoCuotaFacturacion[]>([]);
@@ -280,7 +282,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [form.origenId, leadsCache]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); setAutoAppliedOnce(false); };
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); setAutoAppliedOnce(false); setSistemasPlan([]); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
@@ -359,6 +361,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         condicionesComerciales: form.condicionesComerciales || undefined,
         aceptacionPresupuesto: form.aceptacionPresupuesto || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
+        // Cola de carga del contrato: alcance elegido al crear (2026-08-04).
+        ...(form.tipo === 'contrato' && sistemasPlan.length > 0 ? { contratoSistemasPlan: sistemasPlan } : {}),
         // Phase 12: include esquema for non-contrato types when populated
         ...(form.tipo !== 'contrato' && esquemaFacturacion.length > 0 ? { esquemaFacturacion } : {}),
         ...(form.tipo === 'ventas' ? { ventasMetadata: form.ventasMetadata } : {}),
@@ -436,6 +440,10 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   };
 
   const addItem = (item: PresupuestoItem) => setItems(prev => [...prev, item]);
+  /** Alta en lote (tabla de contrato: un sistema genera N items de una). */
+  const addItems = (list: PresupuestoItem[]) => setItems(prev => [...prev, ...list]);
+  /** Quitar un sistema entero del contrato (todas las filas de su grupo). */
+  const removeItemsByGrupo = (grupo: number) => setItems(prev => prev.filter(i => (i.grupo || 0) !== grupo));
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
   const updateItem = (id: string, field: keyof PresupuestoItem, value: any) =>
     setItems(prev => prev.map(i => {
@@ -460,7 +468,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     saving, form, setForm, items, cuotas, setCuotas,
     // Phase 12: esquema facturación porcentual for non-contrato types
     esquemaFacturacion, setEsquemaFacturacion,
-    handleClose, handleSave, addItem, removeItem, updateItem,
+    handleClose, handleSave, addItem, addItems, removeItem, removeItemsByGrupo, updateItem,
+    sistemasPlan, setSistemasPlan,
     clientes, establecimientos, sistemasFiltrados, contactos,
     categorias, condiciones, conceptos, leadOptions, otOptions,
     showCrearLead, setShowCrearLead, reloadLeads,

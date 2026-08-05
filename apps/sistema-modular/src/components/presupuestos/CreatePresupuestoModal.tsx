@@ -4,6 +4,8 @@ import { useCreatePresupuestoForm } from '../../hooks/useCreatePresupuestoForm';
 import type { OrigenPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { CreatePresupuestoItems } from './CreatePresupuestoItems';
+import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
+import { modulosService } from '../../services/equiposService';
 import { SubItemsRow } from './equipos/SubItemsRow';
 import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
 import { EsquemaFacturacionSection } from './EsquemaFacturacionSection';
@@ -70,13 +72,33 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <hr className="border-[#E5E5E5]" />
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">Items del presupuesto</p>
 
-        <CreatePresupuestoItems
-          items={h.items} onAdd={h.addItem} onRemove={h.removeItem} onUpdate={h.updateItem}
-          categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda}
-          renderSubRow={h.form.tipo === 'ventas' ? (item, idx) => (
-            <SubItemsRow item={item} itemNumero={idx} colSpan={h.form.moneda === 'MIXTA' ? 10 : 9}
-              presupuestoId={null} onChangeSubItems={(subs) => h.updateItem(item.id, 'subItems', subs)} />
-          ) : undefined} />
+        {h.form.tipo === 'contrato' ? (
+          /* Contrato (2026-08-04): misma tabla jerárquica que la edición, con la
+             cola de carga por alcance — antes la creación usaba la tabla plana
+             y los sistemas solo se podían cargar editando después. */
+          <PresupuestoItemsTableContrato
+            items={h.items}
+            moneda={h.form.moneda}
+            sistemas={h.sistemasFiltrados}
+            loadModulos={(sistemaId) => modulosService.getBySistema(sistemaId)}
+            onAddItems={h.addItems}
+            onUpdateItem={h.updateItem}
+            onRemoveItem={h.removeItem}
+            onRemoveSistema={(_sistemaId, grupo) => h.removeItemsByGrupo(grupo)}
+            conceptosServicio={h.conceptos}
+            categoriasPresupuesto={h.categorias}
+            sistemasPlan={h.sistemasPlan}
+            onChangeSistemasPlan={h.setSistemasPlan}
+          />
+        ) : (
+          <CreatePresupuestoItems
+            items={h.items} onAdd={h.addItem} onRemove={h.removeItem} onUpdate={h.updateItem}
+            categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda}
+            renderSubRow={h.form.tipo === 'ventas' ? (item, idx) => (
+              <SubItemsRow item={item} itemNumero={idx} colSpan={h.form.moneda === 'MIXTA' ? 10 : 9}
+                presupuestoId={null} onChangeSubItems={(subs) => h.updateItem(item.id, 'subItems', subs)} />
+            ) : undefined} />
+        )}
 
         {/* Cuotas / Esquema de facturación */}
         <hr className="border-[#E5E5E5]" />

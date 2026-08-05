@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import { SearchableSelect } from '../../ui/SearchableSelect';
-import { tiposEquipoService } from '../../../services/tiposEquipoService';
-import type { PresupuestoItem, Sistema, ModuloSistema, TipoEquipoPlantilla } from '@ags/shared';
-import { buildItemsFromPlantilla, findPlantillaForSistema, nextGrupoNumber } from './contratoItemHelpers';
+import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
+import type { PresupuestoItem, Sistema, ModuloSistema, ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
+import { makeSubItem, nextGrupoNumber, nextSubForGrupo } from './contratoItemHelpers';
 
 interface Props {
   open: boolean;
@@ -12,43 +12,37 @@ interface Props {
   sistemas: Sistema[];
   loadModulos: (sistemaId: string) => Promise<ModuloSistema[]>;
   existingItems: PresupuestoItem[];
-  /** Sectores ya usados en el presupuesto, para autocomplete. */
-  sectoresUsados: string[];
   onConfirm: (newItems: PresupuestoItem[]) => void;
   /** Cola de carga (2026-08-04): sistema FIJO a cargar — el selector queda
    *  bloqueado en ese sistema (viene de la cola de alcance del contrato). */
   sistemaFijoId?: string | null;
+  /** Loop de servicios embebido (rediseño 2026-08-04): buscador + Enter. */
+  conceptosServicio?: ConceptoServicio[];
+  categoriasPresupuesto?: CategoriaPresupuesto[];
+  moneda?: MonedaPresupuesto;
 }
 
 const labelCls = 'block text-[11px] font-medium text-slate-500 mb-1';
 
+/**
+ * Carga de UN sistema al contrato (rediseño 2026-08-04, pedido UAT): se eligió
+ * el sistema (o vino fijo desde la cola), se generan la cabecera + módulos S/L
+ * automáticamente, y los SERVICIOS se cargan en loop con el mismo buscador de
+ * la carga de items (buscar → cantidad → Enter → vuelve al buscador). Sin
+ * sector ni plantillas (se volaron a pedido del user).
+ */
 export const AgregarSistemaContratoModal: React.FC<Props> = ({
-  open, onClose, sistemas, loadModulos, existingItems, sectoresUsados, onConfirm,
-  sistemaFijoId = null,
+  open, onClose, sistemas, loadModulos, existingItems, onConfirm,
+  sistemaFijoId = null, conceptosServicio = [], categoriasPresupuesto = [], moneda,
 }) => {
-  const [plantillas, setPlantillas] = useState<TipoEquipoPlantilla[]>([]);
   const [sistemaId, setSistemaId] = useState('');
-  const [plantillaId, setPlantillaId] = useState('');
-  const [sector, setSector] = useState('');
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
-  const [preview, setPreview] = useState<PresupuestoItem[]>([]);
-  const [loadingPlantillas, setLoadingPlantillas] = useState(false);
+  const [servicios, setServicios] = useState<PresupuestoItem[]>([]);
 
-  // Load plantillas once when modal opens
-  useEffect(() => {
-    if (!open) return;
-    setLoadingPlantillas(true);
-    tiposEquipoService.getAll()
-      .then(setPlantillas)
-      .catch(err => console.error('Error cargando plantillas:', err))
-      .finally(() => setLoadingPlantillas(false));
-  }, [open]);
-
-  // Reset when modal closes; al abrir desde la cola, prefijar el sistema.
+  // Reset al cerrar; al abrir desde la cola, prefijar el sistema.
   useEffect(() => {
     if (!open) {
-      setSistemaId(''); setPlantillaId(''); setSector('');
-      setModulos([]); setPreview([]);
+      setSistemaId(''); setModulos([]); setServicios([]);
     } else if (sistemaFijoId) {
       setSistemaId(sistemaFijoId);
     }
@@ -56,9 +50,19 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
 
   const selectedSistema = useMemo(() => sistemas.find(s => s.id === sistemaId) || null, [sistemas, sistemaId]);
 
-  // Memoizado: identidad estable de options para el SearchableSelect.
-  // Los sistemas YA cargados al contrato no se ofrecen (2026-08-04: cargarlos
-  // dos veces era el error típico de la carga libre).
+  // Cambio de sistema: módulos reales frescos y servicios cargados en cero.
+  useEffect(() => {
+    setServicios([]);
+    if (!selectedSistema) { setModulos([]); return; }
+    let cancelled = false;
+    loadModulos(selectedSistema.id)
+      .then(mods => { if (!cancelled) setModulos(mods); })
+      .catch(() => { if (!cancelled) setModulos([]); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sistemaId]);
+
+  // Los sistemas YA cargados al contrato no se ofrecen (anti-duplicado).
   const sistemaOptions = useMemo(() => {
     const cargados = new Set(existingItems.map(i => i.sistemaId).filter(Boolean));
     return sistemas
@@ -69,155 +73,165 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
       }));
   }, [sistemas, existingItems, sistemaId]);
 
-  // Memoizado: identidad estable de options para el SearchableSelect.
-  const plantillaOptions = useMemo(() => plantillas.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre })), [plantillas]);
+  const grupo = useMemo(() => nextGrupoNumber(existingItems), [existingItems]);
 
-  // Auto-populate sector & plantilla when a sistema is picked
-  useEffect(() => {
+  /** Alta de un servicio desde la carga completa embebida (loop con Enter).
+   *  La configuración del equipo NO entra como items (2026-08-04: el bloque
+   *  "Módulos del sistema" del PDF ya la muestra) — solo van los servicios. */
+  const handleAddServicio = (p: Partial<PresupuestoItem>) => {
     if (!selectedSistema) return;
-    // Sector from sistema if present
-    if (selectedSistema.sector && !sector) setSector(selectedSistema.sector);
-    // Auto-match plantilla
-    const match = findPlantillaForSistema(selectedSistema, plantillas);
-    if (match) setPlantillaId(match.id);
-    // Load módulos reales
-    loadModulos(selectedSistema.id).then(setModulos).catch(() => setModulos([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sistemaId, plantillas]);
-
-  // Build preview whenever inputs change. La plantilla es OPCIONAL (2026-07-31):
-  // para equipos sin plantilla que matchee, antes el preview quedaba vacío y el
-  // botón Agregar deshabilitado — "click en agregar no agrega nada". Sin
-  // plantilla se genera el header del sistema + módulos reales como S/L.
-  useEffect(() => {
-    if (!selectedSistema) { setPreview([]); return; }
-    const plantilla = plantillas.find(p => p.id === plantillaId) ?? null;
-    const grupo = nextGrupoNumber(existingItems);
-    const items = buildItemsFromPlantilla({
+    const cantidad = p.cantidad || 1;
+    const precioUnitario = p.precioUnitario || 0;
+    const descuento = p.descuento || 0;
+    const base = cantidad * precioUnitario;
+    const sub = servicios.length === 0 ? 1 : nextSubForGrupo(servicios, grupo);
+    setServicios(prev => [...prev, {
+      id: crypto.randomUUID(),
+      codigoProducto: p.codigoProducto ?? '',
+      descripcion: p.descripcion || '',
+      cantidad,
+      unidad: p.unidad || 'servicio',
+      precioUnitario,
+      descuento,
+      factor: p.factor ?? null,
+      categoriaPresupuestoId: p.categoriaPresupuestoId,
+      conceptoServicioId: p.conceptoServicioId ?? null,
+      stockArticuloId: p.stockArticuloId ?? null,
+      itemRequiereImportacion: p.itemRequiereImportacion ?? false,
+      disponibilidad: p.disponibilidad ?? null,
+      etaDiasEstimados: p.etaDiasEstimados ?? null,
+      subtotal: descuento ? base * (1 - descuento / 100) : base,
       grupo,
-      sector: sector.trim() || null,
-      sistema: selectedSistema,
-      modulosReales: modulos,
-      plantilla,
-      moduloPrincipalSerie: modulos[0]?.serie ?? null,
-    });
-    setPreview(items);
-  }, [selectedSistema, plantillaId, sector, modulos, plantillas, existingItems]);
-
-  const handleConfirm = () => {
-    if (preview.length === 0) { alert('Seleccione un sistema'); return; }
-    onConfirm(preview);
-    onClose();
+      subItem: makeSubItem(grupo, sub),
+      sistemaId: selectedSistema.id,
+      sistemaCodigoInterno: selectedSistema.codigoInternoCliente ?? null,
+      sistemaNombre: selectedSistema.nombre,
+      sectorNombre: selectedSistema.sector?.trim() || null,
+      // Serie del módulo principal: ancla el S/N del header de la card del PDF
+      // (antes lo aportaba el item cabecera, que ya no se genera).
+      moduloSerie: modulos[0]?.serie ?? null,
+    }]);
   };
 
-  const updatePreviewPrice = (itemId: string, field: 'precioUnitario' | 'cantidad', value: number) => {
-    setPreview(prev => prev.map(item => {
+  const updateServicio = (itemId: string, field: 'precioUnitario' | 'cantidad', value: number) => {
+    setServicios(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const updated = { ...item, [field]: value };
-      if (!updated.esSinCargo) {
-        updated.subtotal = (updated.cantidad || 0) * (updated.precioUnitario || 0);
-      }
+      const base = (updated.cantidad || 0) * (updated.precioUnitario || 0);
+      updated.subtotal = updated.descuento ? base * (1 - updated.descuento / 100) : base;
       return updated;
     }));
   };
 
+  const handleConfirm = () => {
+    if (!selectedSistema) { alert('Seleccione un sistema'); return; }
+    if (servicios.length === 0) { alert('Cargá al menos un servicio para este sistema'); return; }
+    onConfirm(servicios);
+    onClose();
+  };
+
   if (!open) return null;
 
-  const sectoresOptions = Array.from(new Set([...sectoresUsados, sector].filter(Boolean)));
+  const totalServicios = servicios.reduce((s, i) => s + (i.subtotal || 0), 0);
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="2xl" title="Agregar sistema al contrato"
-      subtitle="Seleccione sistema, sector y plantilla. Los items se generan automáticamente."
+    <Modal open={open} onClose={onClose} maxWidth="2xl" title="Cargar sistema al contrato"
+      subtitle="La cabecera y los módulos se generan solos — cargá los servicios en loop con el buscador."
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleConfirm} disabled={preview.length === 0}>
-          Agregar {preview.length > 0 && `(${preview.length} items)`}
+        <Button size="sm" onClick={handleConfirm} disabled={!selectedSistema || servicios.length === 0}>
+          Agregar {servicios.length > 0 ? `(${servicios.length} servicio${servicios.length > 1 ? 's' : ''})` : ''}
         </Button>
       </>}>
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className={labelCls}>Sistema *</label>
-            <SearchableSelect value={sistemaId} onChange={setSistemaId}
-              options={sistemaOptions}
-              placeholder="Seleccionar..."
-              disabled={!!sistemaFijoId} />
-            {sistemaFijoId && (
-              <p className="text-[10px] text-teal-700 mt-0.5">Desde la cola del contrato — al confirmar se consume de la lista.</p>
-            )}
-          </div>
-          <div>
-            <label className={labelCls}>Sector</label>
-            <input type="text" value={sector} onChange={e => setSector(e.target.value)}
-              list="sectores-datalist" placeholder="Ej: QC, Control de Calidad"
-              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400" />
-            <datalist id="sectores-datalist">
-              {sectoresOptions.map(s => <option key={s} value={s} />)}
-            </datalist>
-          </div>
-          <div>
-            <label className={labelCls}>Plantilla <span className="text-slate-300">(opcional)</span></label>
-            <SearchableSelect value={plantillaId} onChange={setPlantillaId}
-              options={[{ value: '', label: 'Sin plantilla' }, ...plantillaOptions]}
-              placeholder={loadingPlantillas ? 'Cargando...' : 'Seleccionar...'} />
-            {selectedSistema && !plantillaId && (
-              <p className="text-[10px] text-amber-600 mt-0.5">
-                Sin plantilla para "{selectedSistema.nombre}": se agrega el sistema con sus módulos; los servicios se cargan a mano dentro del grupo.
-              </p>
-            )}
-          </div>
+        <div>
+          <label className={labelCls}>Sistema *</label>
+          <SearchableSelect value={sistemaId} onChange={setSistemaId}
+            options={sistemaOptions}
+            placeholder="Seleccionar..."
+            disabled={!!sistemaFijoId} />
+          {sistemaFijoId && (
+            <p className="text-[10px] text-teal-700 mt-0.5">Desde la cola del contrato — al confirmar se consume de la lista.</p>
+          )}
         </div>
 
-        {preview.length > 0 && (
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
-              <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-                Preview · {preview.length} items ({modulos.length > 0 ? 'módulos reales del cliente' : plantillaId ? 'componentes de plantilla' : 'solo cabecera del sistema'})
-              </span>
+        {selectedSistema && (
+          <>
+            {/* Configuración del equipo — SOLO informativa (2026-08-04): no entra
+                como items; el PDF ya la muestra en el bloque Módulos del sistema. */}
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
+                <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
+                  Equipo · {modulos.length > 0 ? `${modulos.length} módulos (va al PDF como detalle, no como items)` : 'sin módulos cargados'}
+                </span>
+              </div>
+              {modulos.length > 0 && (
+                <div className="max-h-40 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {modulos.map(m => (
+                        <tr key={m.id} className="border-t border-slate-100 first:border-0">
+                          <td className="px-2 py-1 text-slate-500 font-mono text-[10px] w-32 truncate">{m.nombre || '—'}</td>
+                          <td className="px-2 py-1 text-slate-600 truncate">{m.descripcion || '—'}</td>
+                          <td className="px-2 py-1 text-slate-400 font-mono text-[10px] w-28 truncate">{m.serie || '—'}</td>
+                          <td className="px-2 py-1 text-slate-400 text-[10px] w-24 truncate">{m.marca || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-            <div className="max-h-80 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-1 text-left text-[10px] font-mono text-slate-500">#</th>
-                    <th className="px-2 py-1 text-left text-[10px] font-mono text-slate-500">Descripción</th>
-                    <th className="px-2 py-1 text-right text-[10px] font-mono text-slate-500 w-16">Cant.</th>
-                    <th className="px-2 py-1 text-right text-[10px] font-mono text-slate-500 w-24">Precio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.map(item => (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-2 py-1 text-slate-400 font-mono text-[10px]">{item.subItem}</td>
-                      <td className="px-2 py-1">
-                        <div className="text-slate-700">{item.descripcion}</div>
-                        {item.servicioCode && <div className="text-[10px] text-slate-400 font-mono">{item.servicioCode}</div>}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {item.esSinCargo ? (
-                          <span className="text-[10px] text-slate-400">S/L</span>
-                        ) : (
+
+            {/* Loop de servicios: buscador → cantidad → Enter → vuelve al buscador */}
+            <PresupuestoAddItemCompleto
+              inline
+              conceptosServicio={conceptosServicio}
+              categoriasPresupuesto={categoriasPresupuesto}
+              moneda={moneda}
+              onAdd={handleAddServicio}
+            />
+
+            {/* Servicios cargados a este sistema */}
+            {servicios.length > 0 && (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-teal-50/60 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-wide text-teal-700">
+                    Servicios · {servicios.length}
+                  </span>
+                  <span className="text-[10px] font-mono text-teal-700 font-semibold">
+                    Subtotal {totalServicios.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {servicios.map(item => (
+                      <tr key={item.id} className="border-t border-slate-100 first:border-0">
+                        <td className="px-2 py-1 text-slate-400 font-mono text-[10px] w-10">{item.subItem}</td>
+                        <td className="px-2 py-1 text-slate-500 font-mono text-[10px] w-32 truncate">{item.codigoProducto}</td>
+                        <td className="px-2 py-1 text-slate-700">{item.descripcion}</td>
+                        <td className="px-2 py-1 w-16">
                           <input type="number" min="0" value={item.cantidad}
-                            onChange={e => updatePreviewPrice(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
+                            onChange={e => updateServicio(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
                             className="w-14 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {item.esSinCargo ? (
-                          <span className="text-[10px] text-slate-400">—</span>
-                        ) : (
+                        </td>
+                        <td className="px-2 py-1 w-24">
                           <input type="number" min="0" step="0.01" value={item.precioUnitario || ''}
-                            onChange={e => updatePreviewPrice(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                            onChange={e => updateServicio(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
                             className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                        </td>
+                        <td className="px-2 py-1 w-8 text-center">
+                          <button onClick={() => setServicios(prev => prev.filter(s => s.id !== item.id))}
+                            className="text-red-400 hover:text-red-600 text-sm leading-none" title="Quitar">×</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Modal>

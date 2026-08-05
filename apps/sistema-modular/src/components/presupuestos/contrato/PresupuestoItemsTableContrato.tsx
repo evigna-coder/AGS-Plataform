@@ -4,8 +4,7 @@ import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto, Concep
 import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
 import { ContratoSistemasQueue } from './ContratoSistemasQueue';
-import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
-import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem, buildItemSueltoDesdeCargaCompleta, buildItemVisitasContrato } from './contratoItemHelpers';
+import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem, buildItemVisitasContrato } from './contratoItemHelpers';
 import { articulosService } from '../../../services/firebaseService';
 import { itemRequiresImportacion } from '../../../services/atpHelpers';
 import type { ArticuloMini } from './ArticuloInlineAutocomplete';
@@ -71,11 +70,6 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   };
 
   const grouped = useMemo(() => groupItemsForContrato(items), [items]);
-
-  const sectoresUsados = useMemo(
-    () => Array.from(new Set(items.map(i => i.sectorNombre).filter(Boolean) as string[])),
-    [items],
-  );
 
   // Global totals by currency
   const totalsByCurrency = useMemo(() => {
@@ -189,15 +183,8 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
         />
       )}
 
-      {/* Carga completa SIEMPRE desplegada (decisión 2026-07-30) — el ítem cae como
-          bloque propio "Otros / Capacitaciones". */}
-      <PresupuestoAddItemCompleto
-        inline
-        conceptosServicio={conceptosServicio}
-        categoriasPresupuesto={categoriasPresupuesto}
-        moneda={moneda}
-        onAdd={p => onAddItems([buildItemSueltoDesdeCargaCompleta(items, p)])}
-      />
+      {/* La carga completa vive DENTRO del modal de sistema (rediseño 2026-08-04):
+          el loop de servicios se hace por equipo, no suelto en la tabla. */}
 
       {/* Empty state */}
       {grouped.length === 0 ? (
@@ -256,9 +243,11 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
         sistemas={sistemas}
         loadModulos={loadModulos}
         existingItems={items}
-        sectoresUsados={sectoresUsados}
         onConfirm={onAddItems}
         sistemaFijoId={sistemaFijoId}
+        conceptosServicio={conceptosServicio}
+        categoriasPresupuesto={categoriasPresupuesto}
+        moneda={moneda}
       />
     </div>
   );
