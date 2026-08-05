@@ -43,6 +43,7 @@
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "pdf-lib": "^1.17.1",
+    "pdf-to-printer": "^5.8.0",
     "pdfjs-dist": "^5.4.624",
     "qrcode": "^1.5.4",
     "react": "^19.2.3",
@@ -84,6 +85,9 @@
       "dist/**/*",
       "electron/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/pdf-to-printer/**"
     ],
     "win": {
       "target": [

@@ -576,13 +576,29 @@ function registerIpcHandlers() {
         resolve(result);
       };
       printWin.webContents.once('did-finish-load', () => {
-        setTimeout(() => {
+        setTimeout(async () => {
+          // Doble faz (2026-08-04): webContents.print silencioso IGNORA duplexMode
+          // con varios drivers de Windows (probado: siguió saliendo simple faz).
+          // Plan B: HTML → PDF (printToPDF) → SumatraPDF vía pdf-to-printer con
+          // 'duplexlong', que sí lo respeta. Fallback al print de Electron si falla.
+          const pdfPath = filePath.replace(/\.html$/, '.pdf');
           try {
-            printWin.webContents.print({ silent: true, printBackground: true, copies: 1 }, (success, failureReason) => {
-              finish({ success, failureReason: failureReason || null });
-            });
+            const pdfBuffer = await printWin.webContents.printToPDF({ printBackground: true, pageSize: 'A4' });
+            writeFileSync(pdfPath, pdfBuffer);
+            const { print } = require('pdf-to-printer');
+            await print(pdfPath, { side: 'duplexlong', copies: 1, scale: 'noscale' });
+            finish({ success: true, failureReason: null });
           } catch (err) {
-            finish({ success: false, failureReason: String(err) });
+            console.error('[print:html-silent] pdf-to-printer falló, fallback a webContents.print:', err);
+            try {
+              printWin.webContents.print({ silent: true, printBackground: true, copies: 1, duplexMode: 'longEdge' }, (success, failureReason) => {
+                finish({ success, failureReason: failureReason || null });
+              });
+            } catch (err2) {
+              finish({ success: false, failureReason: String(err2) });
+            }
+          } finally {
+            try { unlinkSync(pdfPath); } catch (_) { /* noop */ }
           }
         }, 300);
       });
