@@ -401,7 +401,9 @@ export const misOTService = {
       contacto: ot.contacto || '',
       email: ot.emailPrincipal || '',
       telefono: '',
-      motivoLlamado: 'soporte',
+      // Venta de insumos (2026-08-05): antes salía como 'soporte' y el ticket
+      // no se distinguía de los de servicio en la bandeja de admin de soporte.
+      motivoLlamado: 'ventas_insumos',
       motivoOtros: null,
       motivoContacto: `Solicitud de presupuesto desde OT ${ot.otNumber}`,
       sistemaId: ot.sistemaId ?? null,
