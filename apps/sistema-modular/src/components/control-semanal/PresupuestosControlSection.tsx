@@ -43,6 +43,14 @@ const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
       </p>,
     );
   }
+  // Entrega de partes sin entregar (2026-08-04): ancla el ppto al control.
+  if (row.entregasPendientes.length > 0) {
+    items.push(
+      <p key="entregas" className="text-[10px] text-orange-600 font-medium">
+        Entrega de partes pendiente: {row.entregasPendientes.map(n => `OT-${n}`).join(', ')}
+      </p>,
+    );
+  }
   if (row.otsEnSemana.length > 0) {
     items.push(
       <p key="semana" className="text-[10px] text-teal-700">
@@ -75,7 +83,7 @@ export const PresupuestosControlSection: React.FC<Props> = ({
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-          2 · Presupuestos aceptados: trabajo realizado, agendados esta semana, sin OT abierta o pago anticipado
+          2 · Presupuestos aceptados: trabajo realizado, agendados esta semana, sin OT abierta, entrega pendiente o pago anticipado
         </p>
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
           <input
@@ -103,7 +111,7 @@ export const PresupuestosControlSection: React.FC<Props> = ({
           : 'Todos los avisos a facturación fueron enviados'} />
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full">
+          <table className="tabla-compacta w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className={thClass}>Presupuesto</th>

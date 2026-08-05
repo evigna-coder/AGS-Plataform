@@ -11,6 +11,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { AgendaControlSection } from '../../components/control-semanal/AgendaControlSection';
+import { EntregasControlSection } from '../../components/control-semanal/EntregasControlSection';
 import { PresupuestosControlSection } from '../../components/control-semanal/PresupuestosControlSection';
 
 const FILTER_SCHEMA = {
@@ -42,6 +43,7 @@ export const ControlSemanal = () => {
   const {
     loading, error, refetch,
     agendaRows, tareasSinOT, agendaKpis,
+    entregasPendientes, presupuestoIdByNumero,
     presupuestoRows, presupuestoKpis,
   } = useControlSemanal(weekStart, weekEnd);
 
@@ -119,6 +121,14 @@ export const ControlSemanal = () => {
               tareasSinOT={tareasSinOT}
               kpis={agendaKpis}
               onOpenOT={(otNumber) => navigateInActiveTab(`/ordenes-trabajo/${otNumber}`)}
+            />
+            <EntregasControlSection
+              entregas={entregasPendientes}
+              onOpenOT={(otNumber) => navigateInActiveTab(`/ordenes-trabajo/${otNumber}`)}
+              onOpenPresupuestoNumero={(numero) => {
+                const id = presupuestoIdByNumero.get(numero);
+                if (id) navigateInActiveTab(`/presupuestos/${id}`);
+              }}
             />
             <PresupuestosControlSection
               rows={presupuestoRows}

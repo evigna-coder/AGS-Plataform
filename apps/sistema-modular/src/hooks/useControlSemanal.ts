@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AgendaEntry, Cliente, CondicionPago, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
+import { esOTCerradaTecnicamente } from '@ags/shared';
 import {
   agendaService, clientesService, condicionesPagoService, facturacionService, ordenesTrabajoService, presupuestosService,
 } from '../services/firebaseService';
@@ -33,6 +34,9 @@ export interface PresupuestoControlRow {
   sinOtAbierta: boolean;
   /** OTs del ppto agendadas en la semana visible (2026-08-04): ancla el ppto al control de esa semana. */
   otsEnSemana: string[];
+  /** OTs de ENTREGA DE PARTES del ppto sin entregar (2026-08-04): como nunca se
+   *  agendan ni cierran solas, anclan el ppto al control hasta que se entreguen. */
+  entregasPendientes: string[];
 }
 
 // Sección 1: la OT se considera "cerrada" desde el cierre técnico en adelante.
@@ -52,6 +56,12 @@ const ESTADOS_ANTICIPADA = new Set<Presupuesto['estado']>(['enviado', 'pendiente
 // cuando exista el flag formal "requiere pago anticipado" (item 11 UAT Fanely),
 // cambiar solo esta función.
 const esCondicionAnticipada = (c: CondicionPago) => /anticip|adelant/i.test(`${c.nombre} ${c.descripcion ?? ''}`);
+
+/** OT de ENTREGA DE PARTES (2026-08-04): mismo criterio que la cola de agenda
+ *  (AgendaPendingSidebar) — tipoOT nuevo + fallback por nombre del tipo de
+ *  servicio para OTs previas al campo. */
+const esEntregaOT = (ot: WorkOrder) =>
+  ot.tipoOT === 'entrega' || /entrega de insumos|entrega de partes/i.test(ot.tipoServicio ?? '');
 
 function classifyEntry(entry: AgendaEntry, ot: WorkOrder | null): { estado: AgendaControlEstado; motivos: string[] } {
   if (!ot) return { estado: 'ot_no_encontrada', motivos: ['La OT referenciada no existe en la colección'] };
@@ -143,6 +153,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   const refetch = useCallback(() => setReloadKey(k => k + 1), []);
 
   const otByNumber = useMemo(() => new Map(ots.map(o => [o.otNumber, o])), [ots]);
+  /** numero de ppto → id, para linkear los budgets de las entregas pendientes. */
+  const presupuestoIdByNumero = useMemo(
+    () => new Map(presupuestos.map(p => [p.numero, p.id])), [presupuestos]);
   const clienteNombreById = useMemo(
     () => new Map(clientes.map(c => [c.id, c.razonSocial])), [clientes]);
 
@@ -157,6 +170,19 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   [entries, otByNumber]);
 
   const tareasSinOT = useMemo(() => entries.filter(e => !e.otNumber), [entries]);
+
+  // ── Sección 1b: entregas de partes pendientes (2026-08-04) ──
+  // Las entregas NUNCA van a agenda, así que la sección 1 no las ve. Figuran
+  // SIEMPRE (sin límite de semana) hasta el cierre técnico = entregadas.
+  // Las OTs padre con hijas son contenedores no-accionables: solo las hijas.
+  const entregasPendientes = useMemo<WorkOrder[]>(() => {
+    const padresConHijas = new Set(
+      ots.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
+    return ots
+      .filter(o => esEntregaOT(o) && !esOTCerradaTecnicamente(o))
+      .filter(o => o.otNumber.includes('.') || !padresConHijas.has(o.otNumber))
+      .sort((a, b) => a.otNumber.localeCompare(b.otNumber));
+  }, [ots]);
 
   const agendaKpis = useMemo(() => ({
     agendadas: agendaRows.length,
@@ -177,6 +203,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
 
     const rows: PresupuestoControlRow[] = [];
     for (const p of presupuestos) {
+      // Los CONTRATOS (P5) no van al control semanal (2026-08-04): tienen su
+      // propio circuito de cuotas/facturación — acá solo ruido.
+      if (p.tipo === 'contrato') continue;
       const pagoAnticipado = !!p.condicionPagoId && condicionesAnticipadas.has(p.condicionPagoId);
       const enUniversoTrabajo = ESTADOS_CON_TRABAJO.has(p.estado);
       const enUniversoAnticipada = pagoAnticipado && ESTADOS_ANTICIPADA.has(p.estado);
@@ -193,11 +222,21 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         });
       // 2026-08-04: además del trabajo realizado y las anticipadas, entran al
       // control (a) los aceptados SIN ninguna OT abierta (crear OT / entregar
-      // partes — antes eran invisibles hasta que alguien abriera la OT) y
-      // (b) los aceptados con alguna OT AGENDADA en la semana visible.
+      // partes — antes eran invisibles hasta que alguien abriera la OT),
+      // (b) los aceptados con alguna OT AGENDADA en la semana visible y
+      // (c) los que tienen una ENTREGA DE PARTES sin entregar (la entrega no se
+      // agenda ni cierra sola, así que sin esto el ppto desaparecía del control
+      // apenas se creaba la OT de entrega).
       const sinOtAbierta = enUniversoTrabajo && nums.size === 0;
       const otsEnSemana = [...nums].filter(n => otsAgendadasSemana.has(n)).sort();
-      if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta && otsEnSemana.length === 0) continue;
+      const entregasPpto = [...nums]
+        .filter(n => {
+          const ot = otByNumber.get(n);
+          return !!ot && esEntregaOT(ot) && !esOTCerradaTecnicamente(ot);
+        })
+        .sort();
+      if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta
+        && otsEnSemana.length === 0 && entregasPpto.length === 0) continue;
 
       const avisoEnviado = pptosConAviso.has(p.id);
       const otsPendientes = [...nums]
@@ -215,7 +254,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
         avisoEnviado, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
-        sinOtAbierta, otsEnSemana,
+        sinOtAbierta, otsEnSemana, entregasPendientes: entregasPpto,
       });
     }
     // Listos primero, después trabados, enviados al final; dentro de cada grupo por número.
@@ -239,6 +278,8 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     agendaRows,
     tareasSinOT,
     agendaKpis,
+    entregasPendientes,
+    presupuestoIdByNumero,
     presupuestoRows,
     presupuestoKpis,
   };

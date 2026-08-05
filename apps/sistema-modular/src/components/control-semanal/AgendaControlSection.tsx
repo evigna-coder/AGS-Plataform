@@ -51,7 +51,7 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, tareasSinOT, kpis,
       <EmptyState message="No hay visitas con OT agendadas en esta semana" />
     ) : (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-        <table className="w-full">
+        <table className="tabla-compacta w-full">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className={thClass}>Fecha</th>
