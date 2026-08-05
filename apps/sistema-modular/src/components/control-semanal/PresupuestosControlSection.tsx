@@ -4,16 +4,19 @@ import type { PresupuestoControlRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
+import { ComentarioInline } from './ComentarioInline';
 
 interface Props {
   rows: PresupuestoControlRow[];
-  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number; sinOtAbierta: number };
+  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number; sinOtAbierta: number; sinAceptar: number };
   mostrarEnviados: boolean;
   onToggleEnviados: (v: boolean) => void;
   onOpenPresupuesto: (id: string) => void;
   onGenerarAviso: (p: Presupuesto) => void;
   /** id del ppto cuyo aviso se está generando (deshabilita el botón). */
   generandoId: string | null;
+  /** Comentario de SOPORTE sobre el estado del ppto en el control (2026-08-05). */
+  onSaveComentario: (presupuestoId: string, comentario: string) => Promise<void>;
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -32,6 +35,15 @@ const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
     items.push(
       <p key="anticipo" className="text-[10px] text-purple-700 font-medium">
         Pago anticipado — se factura antes del servicio (ej. esperando ingreso de importación)
+      </p>,
+    );
+  }
+  // Sin aceptar con OT realizada (2026-08-05, caso portal): la creación desde
+  // el portal implica aceptación — hay que ponerle precios y procesarlo.
+  if (row.sinAceptar) {
+    items.push(
+      <p key="sinaceptar" className="text-[10px] text-violet-700 font-medium">
+        OT realizada con presupuesto sin aceptar — completar precios y aceptarlo (portal: la creación implica aceptación del cliente)
       </p>,
     );
   }
@@ -75,6 +87,7 @@ const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
 
 export const PresupuestosControlSection: React.FC<Props> = ({
   rows, kpis, mostrarEnviados, onToggleEnviados, onOpenPresupuesto, onGenerarAviso, generandoId,
+  onSaveComentario,
 }) => {
   const enviados = rows.filter(r => r.avisoEnviado);
   const visibles = mostrarEnviados ? rows : rows.filter(r => !r.avisoEnviado);
@@ -96,10 +109,11 @@ export const PresupuestosControlSection: React.FC<Props> = ({
         </label>
       </div>
 
-      <div className="grid grid-cols-6 gap-2">
+      <div className="grid grid-cols-7 gap-2">
         <Kpi label="En control" value={kpis.conTrabajo} tone="text-slate-700" />
         <Kpi label="Listos sin aviso" value={kpis.listosSinAviso} tone="text-teal-700" />
         <Kpi label="Esperando otras OTs" value={kpis.esperandoOTs} tone="text-red-600" />
+        <Kpi label="Sin aceptar" value={kpis.sinAceptar} tone="text-violet-700" />
         <Kpi label="Sin OT abierta" value={kpis.sinOtAbierta} tone="text-orange-600" />
         <Kpi label="Sin OC del cliente" value={kpis.sinOC} tone="text-amber-600" />
         <Kpi label="Pago anticipado" value={kpis.anticipadas} tone="text-purple-700" />
@@ -119,6 +133,7 @@ export const PresupuestosControlSection: React.FC<Props> = ({
                 <th className={thClass}>Total</th>
                 <th className={thClass}>Estado</th>
                 <th className={thClass}>Qué falta</th>
+                <th className={`${thClass} w-56`}>Comentario (soporte)</th>
                 <th className={`${thClass} text-right`}>Acción</th>
               </tr>
             </thead>
@@ -158,6 +173,12 @@ export const PresupuestosControlSection: React.FC<Props> = ({
                       </span>
                     </td>
                     <td className="px-3 py-2"><QueFalta row={row} /></td>
+                    <td className="px-3 py-2">
+                      {/* Comentario del estado (2026-08-05): "quedó pendiente una
+                          entrega", "falta un paso", etc. Guarda con blur/Enter. */}
+                      <ComentarioInline id={p.id} valor={p.comentarioControlSemanal || ''}
+                        placeholder="Comentario…" onSave={onSaveComentario} />
+                    </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       {row.listoParaAviso && (
                         <Button

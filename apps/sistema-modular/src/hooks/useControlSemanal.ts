@@ -37,6 +37,20 @@ export interface PresupuestoControlRow {
   /** OTs de ENTREGA DE PARTES del ppto sin entregar (2026-08-04): como nunca se
    *  agendan ni cierran solas, anclan el ppto al control hasta que se entreguen. */
   entregasPendientes: string[];
+  /** Ppto SIN aceptar (borrador/enviado) con OT ya realizada (2026-08-05, caso
+   *  portal: la creación desde el portal implica aceptación del cliente — hay
+   *  que ponerle precios/aceptarlo y pasarlo a facturar). */
+  sinAceptar: boolean;
+}
+
+/** Sección 3 (2026-08-05): cruce "pasado a facturar vs facturado" — lo confirma
+ *  ADMINISTRACIÓN. Una fila por solicitud de facturación activa. */
+export interface FacturacionControlRow {
+  solicitud: SolicitudFacturacion;
+  /** true = facturada o cobrada (el aviso se cumplió). */
+  facturada: boolean;
+  /** Facturada dentro de la semana visible (para el check de la semana). */
+  facturadaEstaSemana: boolean;
 }
 
 // Sección 1: la OT se considera "cerrada" desde el cierre técnico en adelante.
@@ -209,7 +223,11 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const pagoAnticipado = !!p.condicionPagoId && condicionesAnticipadas.has(p.condicionPagoId);
       const enUniversoTrabajo = ESTADOS_CON_TRABAJO.has(p.estado);
       const enUniversoAnticipada = pagoAnticipado && ESTADOS_ANTICIPADA.has(p.estado);
-      if (!enUniversoTrabajo && !enUniversoAnticipada) continue;
+      // 2026-08-05 (caso Synthon/portal): un ppto SIN aceptar (borrador/enviado)
+      // cuya OT ya se realizó también entra al universo — los creados desde el
+      // portal implican aceptación del cliente y quedaban invisibles.
+      const esPreAceptacion = p.estado === 'borrador' || p.estado === 'enviado';
+      if (!enUniversoTrabajo && !enUniversoAnticipada && !esPreAceptacion) continue;
       const nums = otsDelPresupuesto(p, ots);
       // "Trabajo realizado" = cierre TÉCNICO en adelante (criterio unificado con el
       // chip Pend. OC). Antes se exigía cierre ADMINISTRATIVO y un ppto con la OT
@@ -235,6 +253,10 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           return !!ot && esEntregaOT(ot) && !esOTCerradaTecnicamente(ot);
         })
         .sort();
+      // Pre-aceptación: entra SOLO si el trabajo ya se hizo (OT cerrada) o si
+      // tiene una OT agendada esta semana — no todo borrador del sistema.
+      const sinAceptar = esPreAceptacion && !enUniversoTrabajo && tieneTrabajoRealizado;
+      if (esPreAceptacion && !enUniversoAnticipada && !sinAceptar && otsEnSemana.length === 0) continue;
       if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta
         && otsEnSemana.length === 0 && entregasPpto.length === 0) continue;
 
@@ -254,13 +276,50 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
         avisoEnviado, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
-        sinOtAbierta, otsEnSemana, entregasPendientes: entregasPpto,
+        sinOtAbierta, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
       });
     }
     // Listos primero, después trabados, enviados al final; dentro de cada grupo por número.
     const rank = (r: PresupuestoControlRow) => r.avisoEnviado ? 2 : r.listoParaAviso ? 0 : 1;
     return rows.sort((a, b) => rank(a) - rank(b) || a.presupuesto.numero.localeCompare(b.presupuesto.numero));
   }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones, entries]);
+
+  // ── Sección 3: cruce con facturación (2026-08-05) ──
+  // "Todo lo que se pasó para facturar, ¿se facturó?" — universo: solicitudes
+  // NO anuladas. Las SIN facturar (pendiente/enviada) figuran SIEMPRE (backlog
+  // de administración); las facturadas/cobradas solo si la factura cayó en la
+  // semana visible (confirmación del cruce de esa semana).
+  const facturacionRows = useMemo<FacturacionControlRow[]>(() => {
+    const enSemana = (iso?: string | null) => {
+      const d = (iso ?? '').slice(0, 10);
+      return !!d && d >= weekStart && d <= weekEnd;
+    };
+    return solicitudes
+      .filter(s => s.estado !== 'anulada')
+      .map(s => {
+        const facturada = s.estado === 'facturada' || s.estado === 'cobrada';
+        return {
+          solicitud: s,
+          facturada,
+          facturadaEstaSemana: facturada && enSemana(s.fechaFactura ?? s.updatedAt),
+        };
+      })
+      .filter(r => !r.facturada || r.facturadaEstaSemana)
+      .sort((a, b) => (a.facturada ? 1 : 0) - (b.facturada ? 1 : 0)
+        || (a.solicitud.createdAt || '').localeCompare(b.solicitud.createdAt || ''));
+  }, [solicitudes, weekStart, weekEnd]);
+
+  const facturacionKpis = useMemo(() => ({
+    sinFacturar: facturacionRows.filter(r => !r.facturada).length,
+    facturadasSemana: facturacionRows.filter(r => r.facturadaEstaSemana).length,
+    montoSinFacturar: facturacionRows
+      .filter(r => !r.facturada)
+      .reduce((acc, r) => {
+        const m = r.solicitud.moneda || 'USD';
+        acc[m] = (acc[m] || 0) + (r.solicitud.montoTotal || 0);
+        return acc;
+      }, {} as Record<string, number>),
+  }), [facturacionRows]);
 
   const presupuestoKpis = useMemo(() => ({
     conTrabajo: presupuestoRows.length,
@@ -269,6 +328,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     sinOC: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOC).length,
     anticipadas: presupuestoRows.filter(r => r.pagoAnticipado && !r.avisoEnviado).length,
     sinOtAbierta: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOtAbierta).length,
+    sinAceptar: presupuestoRows.filter(r => !r.avisoEnviado && r.sinAceptar).length,
   }), [presupuestoRows]);
 
   return {
@@ -282,5 +342,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     presupuestoIdByNumero,
     presupuestoRows,
     presupuestoKpis,
+    facturacionRows,
+    facturacionKpis,
   };
 }

@@ -13,6 +13,8 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { AgendaControlSection } from '../../components/control-semanal/AgendaControlSection';
 import { EntregasControlSection } from '../../components/control-semanal/EntregasControlSection';
 import { PresupuestosControlSection } from '../../components/control-semanal/PresupuestosControlSection';
+import { FacturacionControlSection } from '../../components/control-semanal/FacturacionControlSection';
+import { facturacionService } from '../../services/firebaseService';
 
 const FILTER_SCHEMA = {
   /** Lunes de la semana bajo control (YYYY-MM-DD). '' = semana actual. */
@@ -45,7 +47,19 @@ export const ControlSemanal = () => {
     agendaRows, tareasSinOT, agendaKpis,
     entregasPendientes, presupuestoIdByNumero,
     presupuestoRows, presupuestoKpis,
+    facturacionRows, facturacionKpis,
   } = useControlSemanal(weekStart, weekEnd);
+
+  // Comentarios del control (2026-08-05): soporte anota en el ppto, administración
+  // en la solicitud. Se guardan en el doc — no dependen de la semana.
+  const saveComentarioPresupuesto = async (presupuestoId: string, comentario: string) => {
+    try { await presupuestosService.update(presupuestoId, { comentarioControlSemanal: comentario || null }); }
+    catch (err) { console.error('[ControlSemanal] comentario ppto:', err); alert('No se pudo guardar el comentario'); }
+  };
+  const saveComentarioSolicitud = async (solicitudId: string, comentario: string) => {
+    try { await facturacionService.update(solicitudId, { comentarioControl: comentario || null }); }
+    catch (err) { console.error('[ControlSemanal] comentario solicitud:', err); alert('No se pudo guardar el comentario'); }
+  };
 
   const goSemana = (d: Date) => {
     const key = formatDateKey(d);
@@ -138,6 +152,13 @@ export const ControlSemanal = () => {
               onOpenPresupuesto={(id) => navigateInActiveTab(`/presupuestos/${id}`)}
               onGenerarAviso={handleGenerarAviso}
               generandoId={generandoId}
+              onSaveComentario={saveComentarioPresupuesto}
+            />
+            <FacturacionControlSection
+              rows={facturacionRows}
+              kpis={facturacionKpis}
+              onOpenSolicitud={(id) => navigateInActiveTab(`/facturacion/${id}`)}
+              onSaveComentario={saveComentarioSolicitud}
             />
           </>
         )}
