@@ -4,6 +4,7 @@ import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, 
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
+import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
 import { clientesService } from './clientesService';
 import { getAdminSoporteAssignee } from './personalService';
@@ -1481,11 +1482,10 @@ export const ordenesTrabajoService = {
             where('presupuestosIds', 'array-contains', p.id),
           ));
           const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
-          const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
           const comercial = tksSnap.docs
             .map(d => ({ ...(d.data() as Lead), id: d.id }))
             .filter(t => !TERMINAL.includes(t.estado))
-            .find(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
+            .find(t => !esTicketOperativo(t));
           if (comercial) {
             await leadsService.update(comercial.id, {
               accionPendiente: 'Reclamar OC del cliente — trabajo realizado',

@@ -15,6 +15,7 @@ const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 import { leadsService } from './leadsService';
+import { esTicketOperativo } from './ticketsOperativos';
 import { adminConfigService } from './adminConfigService';
 import { usuariosService, getAdminSoporteAssignee } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
@@ -1413,7 +1414,9 @@ export const presupuestosService = {
             asignadoA: null,
             asignadoNombre: null,
             derivadoPor: actor?.uid ?? null,
-            areaActual: 'materiales',
+            // Regla de áreas 2026-08-05: reserva de materiales va a ADMIN de
+            // soporte técnico (antes 'materiales').
+            areaActual: 'admin_soporte',
             accionPendiente: 'Reservar stock físicamente',
             adjuntos: [],
             presupuestosIds: [presupuestoId],
@@ -1497,11 +1500,10 @@ export const presupuestosService = {
       query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
     );
     const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
-    const OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
     const comercial = existingSnap.docs
       .map(d => ({ ...(d.data() as Lead), id: d.id }))
       .filter(t => !TERMINAL.includes(t.estado))
-      .find(t => !OPERATIVAS.includes(t.areaActual as TicketArea));
+      .find(t => !esTicketOperativo(t));
 
     const accion = 'Comprar/importar los materiales del presupuesto aceptado';
     if (comercial) {
@@ -1516,9 +1518,10 @@ export const presupuestosService = {
         estadoAnterior: comercial.estado,
         estadoNuevo: comercial.estado,
       };
-      // derivar() auto-asigna al responsable del área compras y registra la posta.
-      await leadsService.derivar(comercial.id, posta, '', null, 'compras', accion);
-      console.log(`[_derivarTicketACompras] ticket ${comercial.id} → compras (ppto ${pres.numero})`);
+      // Regla de áreas 2026-08-05: compras/importaciones viven en admin de
+      // soporte (Miguel es el encargado de compras) — derivar ahí.
+      await leadsService.derivar(comercial.id, posta, '', null, 'admin_soporte', accion);
+      console.log(`[_derivarTicketACompras] ticket ${comercial.id} → admin_soporte/compras (ppto ${pres.numero})`);
       return;
     }
 
@@ -1546,7 +1549,9 @@ export const presupuestosService = {
       asignadoA: null,
       asignadoNombre: null,
       derivadoPor: actor?.uid ?? null,
-      areaActual: 'compras',
+      // Regla de áreas 2026-08-05: compras/importaciones → admin de soporte
+      // (Miguel es el encargado de compras; no hay bandeja propia de compras).
+      areaActual: 'admin_soporte',
       accionPendiente: accion,
       adjuntos: [],
       presupuestosIds: [presupuestoId],
@@ -1596,15 +1601,13 @@ export const presupuestosService = {
             query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
           );
           const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
-          // Los tickets OPERATIVOS (aviso "Reservar físicamente" a materiales, compras por
-          // requerimientos) linkean el mismo ppto pero NO son la oportunidad comercial:
-          // sin este filtro, el gate agarraba el ticket de materiales recién creado y lo
-          // derivaba al coordinador de OTs (UAT 2026-07-16 — Cynthia recibió "reservar stock").
-          const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
+          // Los tickets OPERATIVOS (aviso "Reservar físicamente", compras por
+          // requerimientos) linkean el mismo ppto pero NO son la oportunidad
+          // comercial (UAT 2026-07-16 — Cynthia recibió "reservar stock").
           const reusable = existingSnap.docs
             .map(d => ({ ...(d.data() as Lead), id: d.id }))
             .filter(t => !TERMINAL.includes(t.estado))
-            .filter(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
+            .filter(t => !esTicketOperativo(t));
           // Excluir tickets ya en `en_coordinacion` o estados posteriores
           // (ot_creada/ot_coordinada/ot_realizada/pendiente_facturacion) — significa
           // que el ticket ya pasó por este gate. Idempotency.
@@ -1732,14 +1735,12 @@ export const presupuestosService = {
     );
     const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
     const POST_OC: TicketEstado[] = ['oc_recibida', 'espera_importacion', 'pendiente_entrega', 'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada', 'pendiente_facturacion'];
-    // Tickets OPERATIVOS (materiales/compras) linkean el mismo ppto pero no son
-    // la oportunidad comercial — mismo filtro que derivarTicketACoordinacion
-    // (UAT 2026-07-16: el gate agarraba el ticket de materiales).
-    const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
+    // Tickets OPERATIVOS linkean el mismo ppto pero no son la oportunidad
+    // comercial — mismo filtro que derivarTicketACoordinacion (UAT 2026-07-16).
     const comerciales = existingSnap.docs
       .map(d => ({ ...(d.data() as Lead), id: d.id }))
       .filter(t => !TERMINAL.includes(t.estado))
-      .filter(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
+      .filter(t => !esTicketOperativo(t));
     const reusable = comerciales.filter(t => !POST_OC.includes(t.estado));
     // Ya hay un ticket comercial en coordinación o más allá → nada que avisar.
     if (comerciales.length > 0 && reusable.length === 0) return;

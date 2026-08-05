@@ -1557,7 +1557,8 @@ export const reservasService = {
           where('presupuestosIds', 'array-contains', params.presupuestoId),
         ))).docs.map(d => ({ id: d.id, data: d.data() as Record<string, unknown> }));
         const previo = vinculados.find(t =>
-          t.data.areaActual === 'materiales' &&
+          // 'materiales' legacy: avisos creados antes de la regla de áreas 2026-08-05.
+          (t.data.areaActual === 'admin_soporte' || t.data.areaActual === 'materiales') &&
           t.data.accionPendiente === 'Reservar stock físicamente' &&
           !['finalizado', 'no_concretado'].includes(t.data.estado as string));
         if (previo) {
@@ -1583,7 +1584,8 @@ export const reservasService = {
             asignadoA: null,
             asignadoNombre: null,
             derivadoPor: null,
-            areaActual: 'materiales',
+            // Regla de áreas 2026-08-05: reserva de materiales → admin de soporte.
+            areaActual: 'admin_soporte',
             accionPendiente: 'Reservar stock físicamente',
             adjuntos: [],
             presupuestosIds: [params.presupuestoId],
