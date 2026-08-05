@@ -103,7 +103,9 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   const esCapacitacion = !cancelled && !!entryTipoServicio?.toLowerCase().includes('capacitaci');
   // BCH (2026-08-05): "Trabajo en BCH" y "Reparación en BCH" van SIEMPRE en
   // amarillo opaco — mismo criterio que capacitación (el color = tipo de servicio).
-  const esBch = !cancelled && !esCapacitacion && !!entryTipoServicio?.toLowerCase().includes('bch');
+  // El catálogo dice "bench" ("Trabajo en bench" / "Reparación en bench");
+  // se acepta también la abreviatura "bch".
+  const esBch = !cancelled && !esCapacitacion && /bench|bch/i.test(entryTipoServicio ?? '');
   const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : entryEstado ? CELL_BG[entryEstado] : '';
   const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : entryEstado ? CELL_TEXT[entryEstado] : '';
   const rounded = hasEntry
