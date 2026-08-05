@@ -9,6 +9,9 @@ import type { ContactoOption } from '../types/entities';
 import type { AlertOptions, ConfirmOptions } from './useModal';
 
 const BCC_INTERNO = 'reportes@agsanalitica.com';
+// OTs con presupuesto autogenerado desde el portal (flag ccSoporteEnvio en el
+// doc): el mail final copia también a soporte (2026-08-05).
+const BCC_SOPORTE = 'soporte@agsanalitica.com';
 
 export type EmailSendStatus =
   | 'idle'
@@ -109,6 +112,19 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       return;
     }
 
+    // BCC: interno siempre; + soporte si la OT tiene ppto autogenerado desde el
+    // portal (flag ccSoporteEnvio). Best-effort: si la lectura falla, va solo el
+    // interno — nunca bloquea el envío.
+    let bcc = [BCC_INTERNO];
+    try {
+      const reportDoc = await firebase.getReport(otNumber);
+      if ((reportDoc as { ccSoporteEnvio?: boolean } | null)?.ccSoporteEnvio) {
+        bcc = [BCC_INTERNO, BCC_SOPORTE];
+      }
+    } catch (err) {
+      console.warn('[useSendReportByEmail] no se pudo leer ccSoporteEnvio:', err);
+    }
+
     const variant = formState.protocolSelections && formState.protocolSelections.length > 0
       ? 'reporte-con-anexos'
       : 'reporte-solo';
@@ -159,7 +175,7 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
             estado,
             fecha: new Date().toISOString(),
             destinatarios: to,
-            bcc: [BCC_INTERNO],
+            bcc,
             variante: variant,
             adjuntoTamanoMB: extra.adjuntoTamanoMB ?? null,
             error: extra.error ?? null,
@@ -226,7 +242,7 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
         await sendGmail({
           accessToken,
           to,
-          bcc: [BCC_INTERNO],
+          bcc,
           subject,
           htmlBody,
           attachments,
