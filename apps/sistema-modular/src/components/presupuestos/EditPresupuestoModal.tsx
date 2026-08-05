@@ -391,6 +391,23 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           </div>
         )}
 
+        {/* Notas complementarias (contrato, 2026-08-05): recuadro en la carátula
+            del PDF, debajo del plan de pagos y la condición de pago. */}
+        {form.tipo === 'contrato' && (
+          <div className="mt-4">
+            <label className="block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide">
+              Notas complementarias (carátula del PDF)
+            </label>
+            <textarea
+              value={form.notasComplementarias || ''}
+              onChange={e => setField('notasComplementarias', e.target.value || null)}
+              rows={3}
+              placeholder="Texto libre que sale en un recuadro en la carátula, debajo del plan de pagos…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+        )}
+
         {/* PDF sin precios por línea (contrato, 2026-08-04): formato del sistema
             viejo — los servicios se listan y el precio va solo en el total. */}
         {form.tipo === 'contrato' && (

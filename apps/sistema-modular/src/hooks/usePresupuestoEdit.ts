@@ -66,6 +66,8 @@ export interface PresupuestoFormState {
   ocultarPreciosItems: boolean;
   /** Alcance del contrato (cola de carga): ids de sistemas a cubrir. */
   contratoSistemasPlan: string[];
+  /** Notas libres de la carátula del contrato (recuadro "Notas complementarias"). */
+  notasComplementarias: string | null;
   // Ventas (Phase 10)
   ventasMetadata: VentasMetadata | null;
   // Facturación OT-céntrica (Tier-1)
@@ -103,6 +105,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
   ocultarPreciosItems: false,
   contratoSistemasPlan: [],
+  notasComplementarias: null,
   ventasMetadata: null,
   otsListasParaFacturar: undefined,
   // Phase 12: cuota schema
@@ -142,6 +145,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
     ocultarPreciosItems: p.ocultarPreciosItems ?? false,
     contratoSistemasPlan: p.contratoSistemasPlan ?? [],
+    notasComplementarias: p.notasComplementarias ?? null,
     ventasMetadata: p.ventasMetadata || null,
     otsListasParaFacturar: p.otsListasParaFacturar ?? undefined,
     // Phase 12: cuota schema
@@ -362,6 +366,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
         ocultarPreciosItems: form.ocultarPreciosItems,
         contratoSistemasPlan: form.contratoSistemasPlan,
+        notasComplementarias: form.notasComplementarias,
         // Ventas (Phase 10)
         ventasMetadata: form.ventasMetadata || null,
         // Phase 12: cuota schema (porcentual facturación)

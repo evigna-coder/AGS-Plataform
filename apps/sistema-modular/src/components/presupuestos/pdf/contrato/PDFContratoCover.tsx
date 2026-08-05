@@ -4,7 +4,7 @@ import { fmtDate, fmtDateISO, fmtNum, planCuotas, totalsByCurrency } from './pdf
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
-  const { presupuesto, cliente, establecimiento, contacto } = data;
+  const { presupuesto, cliente, establecimiento, contacto, condicionPago } = data;
   const totals = totalsByCurrency(presupuesto.items);
   const plan = planCuotas(presupuesto);
 
@@ -111,6 +111,29 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
               {list.length} cuotas en {cur}: {list.map(c => `#${c.numero} ${fmtNum(c.monto)}`).join(' · ')} (+ IVA)
             </Text>
           ))}
+        </View>
+      )}
+
+      {/* Condición de pago debajo del plan (UAT contrato 2026-08-05: no salía) */}
+      {condicionPago && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={cs.coverBlockLabel}>Condición de pago</Text>
+          <Text style={{ fontSize: 10, color: T.text, marginTop: 2 }}>
+            {condicionPago.nombre}{condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}
+          </Text>
+        </View>
+      )}
+
+      {/* Notas complementarias en recuadro (UAT contrato 2026-08-05) */}
+      {presupuesto.notasComplementarias?.trim() && (
+        <View style={{
+          marginTop: 10, padding: 8,
+          borderWidth: 0.75, borderColor: T.border, borderRadius: 4,
+        }}>
+          <Text style={[cs.coverBlockLabel, { marginBottom: 3 }]}>Notas complementarias</Text>
+          <Text style={{ fontSize: 8.5, color: T.text, lineHeight: 1.4 }}>
+            {presupuesto.notasComplementarias.trim()}
+          </Text>
         </View>
       )}
     </View>

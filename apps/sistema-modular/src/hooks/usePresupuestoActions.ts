@@ -141,6 +141,7 @@ export function usePresupuestoActions({
       contratoFechaInicio: form.contratoFechaInicio,
       contratoFechaFin: form.contratoFechaFin,
       ocultarPreciosItems: form.ocultarPreciosItems,
+      notasComplementarias: form.notasComplementarias,
       createdAt: form.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

@@ -28,6 +28,8 @@ export interface PresupuestoFormState {
   variacionTipoCambio: string;
   condicionesComerciales: string;
   aceptacionPresupuesto: string;
+  /** Contrato (2026-08-05): recuadro "Notas complementarias" de la carátula. */
+  notasComplementarias: string;
   ventasMetadata: VentasMetadata;
 }
 
@@ -38,6 +40,7 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   validezDias: 15, condicionPagoId: '', tipoCambio: '',
   notasTecnicas: '', notasAdministrativas: '', garantia: '',
   variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
+  notasComplementarias: '',
   ventasMetadata: { fechaEstimadaEntrega: null, lugarInstalacion: null, requiereEntrenamiento: false },
 };
 
@@ -360,6 +363,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         variacionTipoCambio: form.variacionTipoCambio || undefined,
         condicionesComerciales: form.condicionesComerciales || undefined,
         aceptacionPresupuesto: form.aceptacionPresupuesto || undefined,
+        notasComplementarias: form.notasComplementarias || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
         // Cola de carga del contrato: alcance elegido al crear (2026-08-04).
         ...(form.tipo === 'contrato' && sistemasPlan.length > 0 ? { contratoSistemasPlan: sistemasPlan } : {}),

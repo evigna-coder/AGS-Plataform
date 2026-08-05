@@ -125,6 +125,20 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           />
         )}
 
+        {/* Notas complementarias (contrato, 2026-08-05): recuadro en la carátula del PDF */}
+        {h.form.tipo === 'contrato' && (
+          <div>
+            <label className={lbl}>Notas complementarias (carátula del PDF)</label>
+            <textarea
+              value={h.form.notasComplementarias}
+              onChange={e => h.setForm({ ...h.form, notasComplementarias: e.target.value })}
+              rows={3}
+              placeholder="Texto libre que sale en un recuadro en la carátula, debajo del plan de pagos…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+        )}
+
         {/* Notes */}
         <hr className="border-[#E5E5E5]" />
         <div className="grid grid-cols-2 gap-4">
