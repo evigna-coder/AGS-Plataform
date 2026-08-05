@@ -44,6 +44,9 @@ export const Modal: React.FC<ModalProps> = ({
   minimizable = true,
 }) => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // Espejo del offset para el clamp del drag (el handler vive en un effect).
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
   const [minimized, setMinimized] = useState(false);
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -169,10 +172,32 @@ export const Modal: React.FC<ModalProps> = ({
     if (!open || minimized || !isTabActive) return;
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
-      setOffset({
+      const next = {
         x: e.clientX - dragStart.current.x,
         y: e.clientY - dragStart.current.y,
-      });
+      };
+      // Clamp del arrastre (2026-08-05): la barra de título no puede salir del
+      // área visible — arrastrada bajo la barra superior quedaba inalcanzable
+      // y el modal solo se recuperaba con Esc.
+      const dialog = dialogRef.current;
+      const container = dialog?.parentElement;
+      if (dialog && container) {
+        const dRect = dialog.getBoundingClientRect();
+        const cRect = container.getBoundingClientRect();
+        const dx = next.x - offsetRef.current.x;
+        const dy = next.y - offsetRef.current.y;
+        const top = dRect.top + dy;
+        const left = dRect.left + dx;
+        const minTop = cRect.top + 4;                       // header nunca arriba del borde
+        const maxTop = cRect.bottom - 56;                   // header siempre agarrable abajo
+        const minLeft = cRect.left - dRect.width + 120;     // al menos 120px visibles
+        const maxLeft = cRect.right - 120;
+        if (top < minTop) next.y += minTop - top;
+        else if (top > maxTop) next.y -= top - maxTop;
+        if (left < minLeft) next.x += minLeft - left;
+        else if (left > maxLeft) next.x -= left - maxLeft;
+      }
+      setOffset(next);
     };
     const handleMouseUp = () => { dragging.current = false; };
     document.addEventListener('mousemove', handleMouseMove);
