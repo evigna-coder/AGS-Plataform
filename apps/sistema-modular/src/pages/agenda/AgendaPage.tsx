@@ -275,6 +275,7 @@ export const AgendaPage: FC = () => {
           // no vuelve a tentativo por moverlo de celda).
           estadoAgenda: src.estadoAgenda,
           pagoAdelantado: src.pagoAdelantado ?? false,
+          requiereInduccion: src.requiereInduccion ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
@@ -352,6 +353,7 @@ export const AgendaPage: FC = () => {
             equipoAgsId: src.equipoAgsId ?? null,
             estadoAgenda: 'tentativo',
             pagoAdelantado: src.pagoAdelantado ?? false,
+            requiereInduccion: src.requiereInduccion ?? false,
             notas: null,
             titulo: src.titulo || null,
           });
@@ -709,6 +711,45 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell, entries]);
 
+  /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada
+   *  (a diferencia del pago adelantado, que aplica a toda la celda). */
+  const handleToggleRequiereInduccion = useCallback((entryId: string, valor: boolean) => {
+    updateEntry(entryId, { requiereInduccion: valor });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: selectedCell.entry.id === entryId
+          ? { ...selectedCell.entry, requiereInduccion: valor }
+          : selectedCell.entry,
+        allEntries: selectedCell.allEntries.map(e =>
+          e.id === entryId ? { ...e, requiereInduccion: valor } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
+  /** Firma de recibos (2026-08-05): evento mensual que reserva agenda —
+   *  tarea sin OT con título fijo; la celda se pinta violeta clarito. */
+  const handleAgregarFirmaRecibos = useCallback(() => {
+    if (!contextMenu) return;
+    createEntry({
+      fechaInicio: contextMenu.fecha,
+      fechaFin: contextMenu.fecha,
+      quarterStart: contextMenu.quarter,
+      quarterEnd: contextMenu.quarter,
+      ingenieroId: contextMenu.ingenieroId,
+      ingenieroNombre: contextMenu.ingenieroNombre,
+      otNumber: '',
+      clienteNombre: '',
+      tipoServicio: '',
+      sistemaNombre: null,
+      establecimientoNombre: null,
+      estadoAgenda: 'confirmado',
+      notas: null,
+      titulo: 'Firma de recibos',
+    });
+    setContextMenu(null);
+  }, [contextMenu, createEntry]);
+
   const handleDeleteEntry = useCallback((entryId: string) => {
     deleteEntry(entryId);
     if (selectedCell && selectedCell.allEntries.length > 1) {
@@ -798,6 +839,7 @@ export const AgendaPage: FC = () => {
         onSelectEntry={handleSelectEntry}
         onChangeEstado={handleChangeEstado}
         onTogglePagoAdelantado={handleTogglePagoAdelantado}
+        onToggleRequiereInduccion={handleToggleRequiereInduccion}
       />
 
       <DndContext
@@ -896,6 +938,16 @@ export const AgendaPage: FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
               Reservar servicio (sin OT)
+            </button>
+            {/* Firma de recibos (2026-08-05): evento mensual, celda violeta clarito */}
+            <button
+              onClick={handleAgregarFirmaRecibos}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.862 4.487Z" />
+              </svg>
+              Agregar firma de recibos
             </button>
             <button
               onClick={handleOpenNotaInput}

@@ -42,6 +42,8 @@ interface AgendaGridCellProps {
   entryTipoServicio?: string;
   /** Pago adelantado (2026-08-04): diagonal azul marino sobre el color del estado. */
   entryPagoAdelantado?: boolean;
+  /** Requiere inducción (2026-08-05): diagonal inferior NEGRA. */
+  entryRequiereInduccion?: boolean;
   entrySistemaNombre?: string | null;
   entryNotas?: string | null;
   isStart?: boolean;
@@ -70,7 +72,7 @@ interface AgendaGridCellProps {
 /** Lightweight cell — only re-renders when its own data changes. */
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
-  entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado,
+  entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado, entryRequiereInduccion,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -106,8 +108,10 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   // El catálogo dice "bench" ("Trabajo en bench" / "Reparación en bench");
   // se acepta también la abreviatura "bch".
   const esBch = !cancelled && !esCapacitacion && /bench|bch/i.test(entryTipoServicio ?? '');
-  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : entryEstado ? CELL_BG[entryEstado] : '';
-  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : entryEstado ? CELL_TEXT[entryEstado] : '';
+  // Firma de recibos (2026-08-05): evento mensual que reserva agenda — violeta clarito.
+  const esFirmaRecibos = !cancelled && /firma de recibos/i.test(entryTitulo ?? '');
+  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : esFirmaRecibos ? 'bg-[#d9c9f2]' : entryEstado ? CELL_BG[entryEstado] : '';
+  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : esFirmaRecibos ? 'text-[#3b2364]' : entryEstado ? CELL_TEXT[entryEstado] : '';
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
@@ -178,9 +182,17 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
             style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
           />
         )}
+        {/* Requiere inducción (2026-08-05): mitad INFERIOR negra — convive con
+            la diagonal azul del pago adelantado (mitad superior). */}
+        {hasEntry && entryRequiereInduccion && !cancelled && (
+          <span
+            className="absolute inset-0 bg-black pointer-events-none"
+            style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+          />
+        )}
         {isStart && hasEntry && showText && (
           <span
-            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${entryPagoAdelantado ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
+            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
             style={{ lineHeight: rowHeight }}
           >
             {entryOtNumber || entryTitulo || '—'}
@@ -253,6 +265,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryEstado === next.entryEstado &&
     prev.entryTipoServicio === next.entryTipoServicio &&
     prev.entryPagoAdelantado === next.entryPagoAdelantado &&
+    prev.entryRequiereInduccion === next.entryRequiereInduccion &&
     prev.entryTitulo === next.entryTitulo &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&

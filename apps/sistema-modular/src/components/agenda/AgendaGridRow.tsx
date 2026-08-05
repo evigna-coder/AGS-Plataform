@@ -90,6 +90,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
             entryClienteNombre={entry?.clienteNombre}
             entryTipoServicio={entry?.tipoServicio}
             entryPagoAdelantado={entry?.pagoAdelantado}
+            entryRequiereInduccion={entry?.requiereInduccion}
             entrySistemaNombre={entry?.sistemaNombre}
             entryNotas={entry?.notas}
             entryRef={entry}
