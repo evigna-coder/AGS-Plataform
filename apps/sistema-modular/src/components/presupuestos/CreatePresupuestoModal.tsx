@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useCreatePresupuestoForm } from '../../hooks/useCreatePresupuestoForm';
@@ -34,14 +35,40 @@ interface Props {
 
 export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreated, prefill }) => {
   const h = useCreatePresupuestoForm(open, onClose, onCreated, prefill);
+  // Condiciones comerciales ocultas por default (2026-08-05): vienen de plantillas.
+  const [mostrarCondiciones, setMostrarCondiciones] = useState(false);
   const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
   const sym = MONEDA_SIMBOLO[h.form.moneda] || '$';
   const totalItems = h.items.reduce((s, i) => s + (i.subtotal || 0), 0);
 
   return (
     <>
-    <Modal open={open} onClose={h.handleClose} title="Nuevo presupuesto" subtitle="Complete todos los datos del presupuesto" maxWidth="2xl">
-      <div className="space-y-4">
+    <Modal open={open} onClose={h.handleClose} title="Nuevo presupuesto" subtitle="Complete todos los datos del presupuesto" maxWidth="2xl"
+      // Footer FIJO del Modal (2026-08-05): "Crear presupuesto" quedaba dentro
+      // del scroll y la barra de tareas lo tapaba en monitores chicos.
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <div className="text-xs font-mono text-slate-500">
+            {h.items.length > 0 && h.form.moneda === 'MIXTA' ? (
+              <span>Items: <strong>{h.items.length}</strong> — {
+                Object.entries(h.items.reduce((acc, i) => { const m = i.moneda || 'USD'; acc[m] = (acc[m] || 0) + (i.subtotal || 0); return acc; }, {} as Record<string, number>))
+                  .map(([m, t]) => <span key={m}><strong className="text-teal-700">{MONEDA_SIMBOLO[m] || '$'} {t.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>)
+                  .reduce((prev, curr, i) => <>{prev}{i > 0 && ' · '}{curr}</> as any)
+              }</span>
+            ) : h.items.length > 0 ? (
+              <span>Items: <strong>{h.items.length}</strong> — Total: <strong className="text-teal-700">{sym} {totalItems.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={h.handleClose}>Cancelar</Button>
+            <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId || h.items.length === 0}>
+              {h.saving ? 'Creando...' : 'Crear presupuesto'}
+            </Button>
+          </div>
+        </div>
+      }>
+      {/* form-compacto (2026-08-05): letra/controles/ritmo achicados vía index.css */}
+      <div className="form-compacto space-y-4">
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">Datos del presupuesto</p>
 
         <PresupuestoFormHeader form={h.form} setForm={h.setForm} condiciones={h.condiciones}
@@ -139,43 +166,32 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           </div>
         )}
 
-        {/* Notes */}
+        {/* Notes — solo notas técnicas a la vista (2026-08-05): las condiciones
+            comerciales se editan desde PLANTILLAS y se aplican solas; quedan
+            ocultas tras un toggle por si hace falta un retoque puntual. */}
         <hr className="border-[#E5E5E5]" />
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={lbl}>Notas tecnicas</label>
-            <RichTextEditor value={h.form.notasTecnicas || ''}
-              onChange={html => h.setForm({ ...h.form, notasTecnicas: html })}
-              placeholder="Observaciones tecnicas..." />
-          </div>
-          <div>
-            <label className={lbl}>Condiciones comerciales</label>
-            <RichTextEditor value={h.form.condicionesComerciales || ''}
-              onChange={html => h.setForm({ ...h.form, condicionesComerciales: html })}
-              placeholder="Forma de pago, plazos..." />
-          </div>
+        <div>
+          <label className={lbl}>Notas tecnicas</label>
+          <RichTextEditor value={h.form.notasTecnicas || ''}
+            onChange={html => h.setForm({ ...h.form, notasTecnicas: html })}
+            placeholder="Observaciones tecnicas..." />
+        </div>
+        <div>
+          <button type="button" onClick={() => setMostrarCondiciones(v => !v)}
+            className="text-[10px] font-mono uppercase tracking-wide text-slate-400 hover:text-teal-700">
+            {mostrarCondiciones ? '▾' : '▸'} Condiciones comerciales
+            <span className="normal-case font-sans text-slate-300"> — se cargan desde plantillas{h.form.condicionesComerciales ? ' · con contenido' : ''}</span>
+          </button>
+          {mostrarCondiciones && (
+            <div className="mt-1">
+              <RichTextEditor value={h.form.condicionesComerciales || ''}
+                onChange={html => h.setForm({ ...h.form, condicionesComerciales: html })}
+                placeholder="Forma de pago, plazos..." />
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-5 py-3 border-t border-[#E5E5E5] bg-[#F0F0F0] rounded-b-xl -mx-5 -mb-4 mt-3">
-        <div className="text-xs font-mono text-slate-500">
-          {h.items.length > 0 && h.form.moneda === 'MIXTA' ? (
-            <span>Items: <strong>{h.items.length}</strong> — {
-              Object.entries(h.items.reduce((acc, i) => { const m = i.moneda || 'USD'; acc[m] = (acc[m] || 0) + (i.subtotal || 0); return acc; }, {} as Record<string, number>))
-                .map(([m, t]) => <span key={m}><strong className="text-teal-700">{MONEDA_SIMBOLO[m] || '$'} {t.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>)
-                .reduce((prev, curr, i) => <>{prev}{i > 0 && ' · '}{curr}</> as any)
-            }</span>
-          ) : h.items.length > 0 ? (
-            <span>Items: <strong>{h.items.length}</strong> — Total: <strong className="text-teal-700">{sym} {totalItems.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={h.handleClose}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId || h.items.length === 0}>
-            {h.saving ? 'Creando...' : 'Crear presupuesto'}
-          </Button>
-        </div>
-      </div>
     </Modal>
 
     {h.showCrearLead && (() => {

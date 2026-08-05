@@ -176,7 +176,11 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
             rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs" placeholder="Descripcion del item..." />
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      {/* Inline (2026-08-05): UNA fila de 6 columnas (cant/unidad/precio/dto/factor/
+          categoría) en lugar de dos — el modal de 1150px la banca de sobra. */}
+      <div className={inline
+        ? 'grid grid-cols-[70px_90px_100px_60px_1fr_1.4fr] gap-3'
+        : 'grid grid-cols-4 gap-3'}>
         <div>
           <label className={lbl}>Cantidad *</label>
           <input ref={cantidadRef} type="number" min="0" step="0.01" value={item.cantidad || ''} onFocus={e => e.currentTarget.select()}
@@ -196,21 +200,39 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
           <input type="number" min="0" max="100" step="0.5" value={item.descuento || ''} onFocus={e => e.currentTarget.select()}
             onChange={e => setItem(prev => ({ ...prev, descuento: Number(e.target.value) || 0 }))} className={inp} placeholder="0" />
         </div>
+        {inline && (
+          <>
+            <div>
+              <label className={lbl} title="Referencia interna, no va al PDF">Factor</label>
+              <input type="number" min="0" step="0.01" value={item.factor ?? ''}
+                onChange={e => setItem(prev => ({ ...prev, factor: e.target.value === '' ? null : Number(e.target.value) }))}
+                className={inp} placeholder="Ej: 1.45" />
+            </div>
+            <div>
+              <label className={lbl}>Categoria (trib.)</label>
+              <SearchableSelect value={item.categoriaPresupuestoId || ''} onChange={v => setItem(prev => ({ ...prev, categoriaPresupuestoId: v || undefined }))}
+                options={[{ value: '', label: 'Sin categoria' }, ...categoriasPresupuesto.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre }))]}
+                placeholder="Seleccionar..." />
+            </div>
+          </>
+        )}
       </div>
-      <div className={inline ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
-        <div>
-          <label className={lbl}>Factor de venta <span className="text-slate-300">(referencia interna, no va al PDF)</span></label>
-          <input type="number" min="0" step="0.01" value={item.factor ?? ''}
-            onChange={e => setItem(prev => ({ ...prev, factor: e.target.value === '' ? null : Number(e.target.value) }))}
-            className={inp} placeholder="Ej: 1.45 (multiplicador sobre FOB)" />
+      {!inline && (
+        <div className="space-y-3">
+          <div>
+            <label className={lbl}>Factor de venta <span className="text-slate-300">(referencia interna, no va al PDF)</span></label>
+            <input type="number" min="0" step="0.01" value={item.factor ?? ''}
+              onChange={e => setItem(prev => ({ ...prev, factor: e.target.value === '' ? null : Number(e.target.value) }))}
+              className={inp} placeholder="Ej: 1.45 (multiplicador sobre FOB)" />
+          </div>
+          <div>
+            <label className={lbl}>Categoria (reglas tributarias)</label>
+            <SearchableSelect value={item.categoriaPresupuestoId || ''} onChange={v => setItem(prev => ({ ...prev, categoriaPresupuestoId: v || undefined }))}
+              options={[{ value: '', label: 'Sin categoria' }, ...categoriasPresupuesto.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre }))]}
+              placeholder="Seleccionar categoria..." />
+          </div>
         </div>
-        <div>
-          <label className={lbl}>Categoria (reglas tributarias)</label>
-          <SearchableSelect value={item.categoriaPresupuestoId || ''} onChange={v => setItem(prev => ({ ...prev, categoriaPresupuestoId: v || undefined }))}
-            options={[{ value: '', label: 'Sin categoria' }, ...categoriasPresupuesto.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre }))]}
-            placeholder="Seleccionar categoria..." />
-        </div>
-      </div>
+      )}
       {categoria && <PresupuestoTaxPreview categoria={categoria} subtotal={subtotal} sym={sym} />}
       {!categoria && subtotal > 0 && (
         <div className="bg-slate-50 p-3 rounded-lg">

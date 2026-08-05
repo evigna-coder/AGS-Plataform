@@ -13,9 +13,12 @@ interface Props {
   activeKpi?: KpiFilter;
   /** Click en una tarjeta/indicador — el padre togglea el filtro. */
   onKpiClick?: (kpi: KpiFilter) => void;
+  /** "Ver todos" (2026-08-05): limpia cards + estado — muestra todo. */
+  onVerTodos?: () => void;
+  verTodosActivo?: boolean;
 }
 
-export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, activeKpi = '', onKpiClick }) => {
+export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
   const metrics = useMemo(() => {
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
     const aceptados = presupuestos.filter(p => p.estado === 'aceptado');
@@ -88,7 +91,20 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // Compactas (UAT 2026-07-18): label y número en una línea; el detalle solo
   // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
-    <div className="grid grid-cols-4 gap-2 px-5 pb-3 items-start">
+    <div className="grid grid-cols-5 gap-2 px-5 pb-3 items-start">
+      {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
+          estado — las cards "tapaban" al desplegable y no había cómo salir. */}
+      <button type="button" onClick={onVerTodos}
+        className={`bg-white border rounded-lg px-3 py-1.5 text-left w-full transition-colors ${
+          verTodosActivo ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'
+        }`}
+        title="Quitar filtros de cards y estado — ver todos los presupuestos">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Ver todos</p>
+          <p className="text-base font-black text-slate-700 leading-none">{presupuestos.length}</p>
+        </div>
+      </button>
+
       {/* Enviados */}
       <button type="button" className={cardCls('enviados')} onClick={() => toggle('enviados')}
         title="Filtrar la lista por presupuestos enviados">

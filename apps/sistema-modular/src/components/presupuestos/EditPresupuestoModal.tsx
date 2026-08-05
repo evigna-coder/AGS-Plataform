@@ -220,7 +220,56 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           dejaba este editor en un estado zombie: como el flotante monta con
           open={true} fijo, el reset interno nunca corría y todo click posterior
           en un presupuesto "no hacía nada" hasta recargar (UAT 2026-07-31). */}
-      <Modal open={open} onClose={onClose} title="" maxWidth="2xl" minimizable={false}>
+      <Modal open={open} onClose={onClose} title="" maxWidth="2xl" minimizable={false}
+        // Footer FIJO del Modal (2026-08-05): Guardar/Cerrar quedaban dentro del
+        // scroll y la barra de tareas los tapaba en monitores chicos.
+        footer={
+          <div className="form-compacto flex items-center justify-between w-full">
+            <div className="text-xs text-slate-500">
+              {form.items.length > 0 && isMixta ? (
+                <span>Items: <strong>{form.items.length}</strong> — {
+                  Object.entries(totalsByCurrency).map(([m, t], i) => (
+                    <span key={m}>{i > 0 && ' · '}<strong className="text-teal-700">{MONEDA_SIMBOLO[m] || '$'} {t.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
+                  ))
+                }</span>
+              ) : form.items.length > 0 ? (
+                <span>Items: <strong>{form.items.length}</strong> — Total: <strong className="text-teal-700">{actions.fmtMoney(totals.total)}</strong>
+                  {totals.totalImpuestos > 0 && <span className="text-slate-400"> (imp: {actions.fmtMoney(totals.totalImpuestos)})</span>}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {form.estado === 'aceptado' && (
+                <Button variant="outline" size="sm" onClick={() => setShowCargarOC(true)} title="Cargar OC del cliente (FLOW-02)">
+                  Cargar OC
+                </Button>
+              )}
+              {FACTURACION_STATES.includes(form.estado) && (
+                <Button variant="ghost" size="sm" onClick={() => setShowSolicitarFactura(true)}>
+                  Solicitar facturacion
+                </Button>
+              )}
+              {form.estado !== 'anulado' && (
+                <Button variant="ghost" size="sm" onClick={() => actions.setShowRevision(true)}>
+                  Crear revisión
+                </Button>
+              )}
+              {itemsConStock.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => setShowReservar(true)}>
+                  Reservar stock
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
+              {form.estado !== 'anulado' && (
+                <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving}>
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </Button>
+              )}
+            </div>
+          </div>
+        }>
+        {/* form-compacto (2026-08-05): letra/controles/ritmo achicados vía index.css */}
+        <div className="form-compacto">
         <PresupuestoHeaderBar
           presupuestoId={presupuestoId}
           numero={form.numero}
@@ -316,12 +365,10 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             moneda={form.moneda}
             totals={totals}
             notasTecnicas={form.notasTecnicas}
-            condicionesComerciales={form.condicionesComerciales}
             onAddItem={addItem}
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}
             onNotasTecnicasChange={(v) => setField('notasTecnicas', v)}
-            onCondicionesChange={(v) => setField('condicionesComerciales', v)}
             calculateItemTaxes={calculateItemTaxes}
             itemsByGrupo={itemsByGrupo}
             getGrupo={getGrupo}
@@ -510,49 +557,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           />
         </div>
 
-        {/* Footer */}
-        <div className="-mx-5 -mb-4 mt-4 flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">
-          <div className="text-xs text-slate-500">
-            {form.items.length > 0 && isMixta ? (
-              <span>Items: <strong>{form.items.length}</strong> — {
-                Object.entries(totalsByCurrency).map(([m, t], i) => (
-                  <span key={m}>{i > 0 && ' · '}<strong className="text-teal-700">{MONEDA_SIMBOLO[m] || '$'} {t.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
-                ))
-              }</span>
-            ) : form.items.length > 0 ? (
-              <span>Items: <strong>{form.items.length}</strong> — Total: <strong className="text-teal-700">{actions.fmtMoney(totals.total)}</strong>
-                {totals.totalImpuestos > 0 && <span className="text-slate-400"> (imp: {actions.fmtMoney(totals.totalImpuestos)})</span>}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {form.estado === 'aceptado' && (
-              <Button variant="outline" size="sm" onClick={() => setShowCargarOC(true)} title="Cargar OC del cliente (FLOW-02)">
-                Cargar OC
-              </Button>
-            )}
-            {FACTURACION_STATES.includes(form.estado) && (
-              <Button variant="ghost" size="sm" onClick={() => setShowSolicitarFactura(true)}>
-                Solicitar facturacion
-              </Button>
-            )}
-            {form.estado !== 'anulado' && (
-              <Button variant="ghost" size="sm" onClick={() => actions.setShowRevision(true)}>
-                Crear revisión
-              </Button>
-            )}
-            {itemsConStock.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setShowReservar(true)}>
-                Reservar stock
-              </Button>
-            )}
-            <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
-            {form.estado !== 'anulado' && (
-              <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving}>
-                {saving ? 'Guardando...' : 'Guardar'}
-              </Button>
-            )}
-          </div>
         </div>
       </Modal>
       <CreateRevisionModal

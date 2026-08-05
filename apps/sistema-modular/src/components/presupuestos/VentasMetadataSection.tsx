@@ -17,7 +17,8 @@ export const VentasMetadataSection: React.FC<Props> = ({ value, onChange }) => {
       <h4 className="text-[10px] font-mono uppercase tracking-wide text-teal-800 font-semibold mb-2">
         Datos de entrega e instalación
       </h4>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Una sola fila (compactación 2026-08-05): fecha + lugar + entrenamiento */}
+      <div className="grid grid-cols-[170px_1fr_auto] gap-3 items-end">
         <div>
           <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-0.5 block">
             Fecha estimada de entrega
@@ -41,16 +42,16 @@ export const VentasMetadataSection: React.FC<Props> = ({ value, onChange }) => {
             className="w-full border border-slate-200 rounded-md px-2 py-1 text-xs"
           />
         </div>
+        <label className="flex items-center gap-2 cursor-pointer pb-1 whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={!!v.requiereEntrenamiento}
+            onChange={e => onChange({ requiereEntrenamiento: e.target.checked })}
+            className="w-3.5 h-3.5 text-teal-600 rounded"
+          />
+          <span className="text-xs text-slate-700">Requiere entrenamiento post-instalación</span>
+        </label>
       </div>
-      <label className="flex items-center gap-2 mt-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={!!v.requiereEntrenamiento}
-          onChange={e => onChange({ requiereEntrenamiento: e.target.checked })}
-          className="w-3.5 h-3.5 text-teal-600 rounded"
-        />
-        <span className="text-xs text-slate-700">Requiere entrenamiento post-instalación</span>
-      </label>
     </div>
   );
 };

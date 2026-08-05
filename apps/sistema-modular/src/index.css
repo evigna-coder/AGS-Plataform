@@ -42,6 +42,41 @@ body {
   font-size: 10px;
 }
 
+/* ── Formularios compactos (pedido 2026-08-05) ──────────────────────────────
+   Mismo espíritu que .tabla-compacta pero para MODALES de formulario grandes
+   (creación/edición de presupuestos): dentro de un wrapper .form-compacto se
+   achica la letra un punto y se aprietan controles y ritmo vertical, sin tocar
+   cada componente. Para ajustar TODOS los forms compactos, tocar solo acá. */
+.form-compacto {
+  font-size: 12px;
+}
+.form-compacto .text-sm {
+  font-size: 12px;
+}
+.form-compacto .text-xs {
+  font-size: 11px;
+}
+/* Controles más bajos (py-1.5/py-2 ≈ 30-34px → ~26px). Checkboxes/radios no. */
+.form-compacto input:not([type="checkbox"]):not([type="radio"]),
+.form-compacto select {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.form-compacto textarea {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.35;
+}
+/* Ritmo vertical: los separadores space-y-4 (16px) bajan a 10px. */
+.form-compacto .space-y-4 > :not([hidden]) ~ :not([hidden]),
+.form-compacto.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 10px;
+}
+/* Labels de campo: un toque más pegados al control. */
+.form-compacto label {
+  margin-bottom: 2px;
+}
+
 /* Google Places Autocomplete dropdown — mostrar dirección completa */
 .pac-container {
   min-width: 360px !important;

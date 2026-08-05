@@ -27,12 +27,10 @@ interface PresupuestoItemsTableProps {
   moneda: MonedaPresupuesto;
   totals: PresupuestoTotals;
   notasTecnicas: string;
-  condicionesComerciales: string;
   onAddItem: (item: PresupuestoItem) => void;
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onRemoveItem: (itemId: string) => void;
   onNotasTecnicasChange: (v: string) => void;
-  onCondicionesChange: (v: string) => void;
   calculateItemTaxes: (item: PresupuestoItem) => { iva: number; ganancias: number; iibb: number; totalImpuestos: number };
   itemsByGrupo?: GrupoSistema[];
   getGrupo?: (sistemaId: string | null | undefined) => number;
@@ -56,9 +54,9 @@ const TABLE_HEADER = (
 
 export const PresupuestoItemsTable = ({
   items, categoriasPresupuesto, conceptosServicio, moneda,
-  totals, notasTecnicas, condicionesComerciales,
+  totals, notasTecnicas,
   onAddItem, onUpdateItem, onRemoveItem,
-  onNotasTecnicasChange, onCondicionesChange, calculateItemTaxes,
+  onNotasTecnicasChange, calculateItemTaxes,
   itemsByGrupo, getGrupo, renderSubRow,
 }: PresupuestoItemsTableProps) => {
   const [showWizard, setShowWizard] = useState(false);
@@ -184,11 +182,9 @@ export const PresupuestoItemsTable = ({
           placeholder="Notas tecnicas, observaciones..." minHeight={100} />
       </Card>
 
-      <Card compact>
-        <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Condiciones comerciales</h3>
-        <RichTextEditor value={condicionesComerciales} onChange={onCondicionesChange}
-          placeholder="Condiciones comerciales, forma de pago, etc..." minHeight={100} />
-      </Card>
+      {/* Condiciones comerciales: SIN card propia (2026-08-05) — el mismo campo ya
+          se edita en la sección colapsable "Condiciones del presupuesto" (con
+          plantillas); acá estaba duplicado y comía media pantalla. */}
 
       {showWizard && (
         <PresupuestoAddItemWizard
