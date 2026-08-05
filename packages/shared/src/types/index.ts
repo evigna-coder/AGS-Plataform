@@ -162,6 +162,9 @@ export interface WorkOrder {
   loanerId?: string | null;
   /** Snapshot del código del loaner (LNR-XXXX) para mostrar sin re-leer. */
   loanerCodigo?: string | null;
+  /** 2026-08-05: la OT tiene un presupuesto autogenerado desde el portal — el
+   *  mail final del reporte al cliente copia también a soporte@agsanalitica.com. */
+  ccSoporteEnvio?: boolean;
   createdAt?: string;
   createdBy?: string;
   fechaAsignacion?: string;
