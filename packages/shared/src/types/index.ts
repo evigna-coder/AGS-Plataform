@@ -1675,6 +1675,12 @@ export interface Presupuesto {
    *  sistemas que el contrato va a cubrir. La carga los consume de a uno (cola):
    *  pendiente = está acá y no tiene items; evita duplicar u olvidar equipos. */
   contratoSistemasPlan?: string[] | null;
+  /** Control semanal (2026-08-05): comentario de SOPORTE sobre el estado del
+   *  ppto en el control — por qué no se pasó a facturar, qué falta, etc. */
+  comentarioControlSemanal?: string | null;
+  /** Contrato (2026-08-05): notas libres que salen en la CARÁTULA del PDF, en un
+   *  recuadro "Notas complementarias" debajo del plan de pagos y la condición. */
+  notasComplementarias?: string | null;
   // --- Vigencia del contrato (distinto de validezDias que es la oferta) ---
   /** Fecha de inicio de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
   contratoFechaInicio?: string | null;
@@ -1847,6 +1853,9 @@ export interface SolicitudFacturacion {
   estado: SolicitudFacturacionEstado;
   observaciones?: string | null;
   otNumbers?: string[] | null;
+  /** Control semanal (2026-08-05): comentario de ADMINISTRACIÓN en el cruce
+   *  "pasado a facturar vs facturado" — por qué aún no se facturó, etc. */
+  comentarioControl?: string | null;
   // Datos de la factura emitida (carga admin/contable)
   numeroFactura?: string | null;
   fechaFactura?: string | null;
