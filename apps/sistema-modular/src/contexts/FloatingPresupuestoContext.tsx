@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 
 /**
  * Presupuestos flotantes MÚLTIPLES (UAT 2026-07-31: "se minimizó el modal de
@@ -66,11 +66,23 @@ export function FloatingPresupuestoProvider({ children }: { children: ReactNode 
   }, []);
 
   const setLabel = useCallback((id: string, label: string) => {
-    setEntries(prev => prev.map(e => (e.presupuestoId === id && e.label !== label ? { ...e, label } : e)));
+    // Sin cambio real → devolver la MISMA referencia para que React bail-outee.
+    // El map incondicional devolvía un array nuevo siempre y realimentaba el
+    // efecto onLabel del editor → "Maximum update depth exceeded" (2026-08-04).
+    setEntries(prev =>
+      prev.some(e => e.presupuestoId === id && e.label !== label)
+        ? prev.map(e => (e.presupuestoId === id ? { ...e, label } : e))
+        : prev);
   }, []);
 
+  // Value memoizado: un objeto inline re-renderizaba TODOS los consumidores en
+  // cada render del provider (parte del mismo loop).
+  const value = useMemo(
+    () => ({ entries, open, close, minimize, restore, minimizeAll, setLabel }),
+    [entries, open, close, minimize, restore, minimizeAll, setLabel]);
+
   return (
-    <FloatingPresupuestoContext.Provider value={{ entries, open, close, minimize, restore, minimizeAll, setLabel }}>
+    <FloatingPresupuestoContext.Provider value={value}>
       {children}
     </FloatingPresupuestoContext.Provider>
   );

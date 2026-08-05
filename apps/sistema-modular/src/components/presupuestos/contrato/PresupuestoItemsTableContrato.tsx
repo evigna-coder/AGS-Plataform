@@ -3,6 +3,7 @@ import { Button } from '../../ui/Button';
 import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto, ConceptoServicio, CategoriaPresupuesto } from '@ags/shared';
 import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
+import { ContratoSistemasQueue } from './ContratoSistemasQueue';
 import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
 import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem, buildItemSueltoDesdeCargaCompleta, buildItemVisitasContrato } from './contratoItemHelpers';
 import { articulosService } from '../../../services/firebaseService';
@@ -21,6 +22,9 @@ interface Props {
   /** Para la "Carga completa" (visible en todos los tipos — pedido 2026-07-30). */
   conceptosServicio?: ConceptoServicio[];
   categoriasPresupuesto?: CategoriaPresupuesto[];
+  /** Cola de carga (2026-08-04): alcance del contrato (ids de sistemas) + setter. */
+  sistemasPlan?: string[];
+  onChangeSistemasPlan?: (ids: string[]) => void;
 }
 
 /**
@@ -33,8 +37,11 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   items, moneda, sistemas, loadModulos,
   onAddItems, onUpdateItem, onRemoveItem, onRemoveSistema,
   conceptosServicio = [], categoriasPresupuesto = [],
+  sistemasPlan = [], onChangeSistemasPlan,
 }) => {
   const [showAdd, setShowAdd] = useState(false);
+  // Cola de carga: sistema fijado desde los chips pendientes del alcance.
+  const [sistemaFijoId, setSistemaFijoId] = useState<string | null>(null);
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloMini[]>([]);
   const isMixta = moneda === 'MIXTA';
 
@@ -170,6 +177,18 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Cola de carga por alcance (2026-08-04): elegir todos los sistemas del
+          contrato primero, cargarlos de a uno — se consumen de la lista. */}
+      {onChangeSistemasPlan && (
+        <ContratoSistemasQueue
+          sistemas={sistemas}
+          items={items}
+          plan={sistemasPlan}
+          onChangePlan={onChangeSistemasPlan}
+          onCargarSistema={(id) => { setSistemaFijoId(id); setShowAdd(true); }}
+        />
+      )}
+
       {/* Carga completa SIEMPRE desplegada (decisión 2026-07-30) — el ítem cae como
           bloque propio "Otros / Capacitaciones". */}
       <PresupuestoAddItemCompleto
@@ -233,12 +252,13 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
 
       <AgregarSistemaContratoModal
         open={showAdd}
-        onClose={() => setShowAdd(false)}
+        onClose={() => { setShowAdd(false); setSistemaFijoId(null); }}
         sistemas={sistemas}
         loadModulos={loadModulos}
         existingItems={items}
         sectoresUsados={sectoresUsados}
         onConfirm={onAddItems}
+        sistemaFijoId={sistemaFijoId}
       />
     </div>
   );

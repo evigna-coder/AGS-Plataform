@@ -62,6 +62,10 @@ export interface PresupuestoFormState {
   contratoFechaInicio: string | null;
   contratoFechaFin: string | null;
   cantidadCuotasPorMoneda: Record<string, number> | null;
+  /** PDF sin precio por línea de servicio (solo totales por equipo y del contrato). */
+  ocultarPreciosItems: boolean;
+  /** Alcance del contrato (cola de carga): ids de sistemas a cubrir. */
+  contratoSistemasPlan: string[];
   // Ventas (Phase 10)
   ventasMetadata: VentasMetadata | null;
   // Facturación OT-céntrica (Tier-1)
@@ -97,6 +101,8 @@ const INITIAL_FORM: PresupuestoFormState = {
   ordenCompraNumero: null,
   otVinculadaNumber: null, otsVinculadasNumbers: null,
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
+  ocultarPreciosItems: false,
+  contratoSistemasPlan: [],
   ventasMetadata: null,
   otsListasParaFacturar: undefined,
   // Phase 12: cuota schema
@@ -134,6 +140,8 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     contratoFechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : null,
     contratoFechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : null,
     cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
+    ocultarPreciosItems: p.ocultarPreciosItems ?? false,
+    contratoSistemasPlan: p.contratoSistemasPlan ?? [],
     ventasMetadata: p.ventasMetadata || null,
     otsListasParaFacturar: p.otsListasParaFacturar ?? undefined,
     // Phase 12: cuota schema
@@ -322,7 +330,11 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
 
       await presupuestosService.update(presupuestoId, {
         estado: form.estado, tipo: form.tipo, moneda: form.moneda, items: itemsWithGrupos,
-        subtotal: totals.subtotal, total: totals.total,
+        // `total` en Firestore = SIN impuestos (mismo criterio que la creación,
+        // que guarda total: subtotal). El save del modal sumaba impuestos y los
+        // contratos (items con categoría IVA) quedaban "con IVA" en la lista
+        // (UAT 2026-08-04). El desglose con IVA vive en el PDF, no acá.
+        subtotal: totals.subtotal, total: totals.subtotal,
         tipoCambio: form.tipoCambio || undefined,
         condicionPagoId: form.condicionPagoId || undefined,
         notasTecnicas: form.notasTecnicas || null,
@@ -343,7 +355,13 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         // Contrato (Fase 2 — new additive fields)
         contratoFechaInicio: form.contratoFechaInicio,
         contratoFechaFin: form.contratoFechaFin,
+        // Cuotas: FALTABAN en el payload — el plan armado en el modal se perdía
+        // al guardar/cerrar (UAT contrato 2026-08-04).
+        cuotas: form.cuotas,
+        cantidadCuotas: form.cantidadCuotas,
         cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
+        ocultarPreciosItems: form.ocultarPreciosItems,
+        contratoSistemasPlan: form.contratoSistemasPlan,
         // Ventas (Phase 10)
         ventasMetadata: form.ventasMetadata || null,
         // Phase 12: cuota schema (porcentual facturación)

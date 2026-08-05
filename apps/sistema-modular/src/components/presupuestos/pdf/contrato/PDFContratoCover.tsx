@@ -1,19 +1,20 @@
 import { View, Text, Image } from '@react-pdf/renderer';
 import { cs, T } from './pdfContratoStyles';
-import { fmtDate, fmtDateISO, fmtNum, totalsByCurrency } from './pdfContratoHelpers';
+import { fmtDate, fmtDateISO, fmtNum, planCuotas, totalsByCurrency } from './pdfContratoHelpers';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto, cliente, establecimiento, contacto } = data;
   const totals = totalsByCurrency(presupuesto.items);
-  const isMixta = presupuesto.moneda === 'MIXTA';
+  const plan = planCuotas(presupuesto);
 
   return (
     <View style={cs.coverWrap}>
       {/* Logo + ISO top bar */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
         <Image src={data.logoSrc} style={{ width: 120, height: 'auto' }} />
-        <Image src={data.isoLogoSrc} style={{ width: 55, height: 'auto' }} />
+        {/* Logo TÜV/ISO más grande (UAT contrato 2026-08-04) */}
+        <Image src={data.isoLogoSrc} style={{ width: 80, height: 'auto' }} />
       </View>
 
       {/* Title block */}
@@ -85,11 +86,33 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
             <View key={cur} style={cs.totalCard}>
               <Text style={cs.totalCardLabel}>Total {cur}</Text>
               <Text style={cs.totalCardValue}>{cur} {fmtNum(tot)}</Text>
-              {!isMixta && <Text style={cs.totalCardSub}>Sin IVA</Text>}
+              {/* IVA visible (UAT contrato 2026-08-04): antes decía solo "Sin IVA" */}
+              <Text style={cs.totalCardSub}>+ IVA 21%: {fmtNum(tot * 0.21)} · c/IVA {cur} {fmtNum(tot * 1.21)}</Text>
             </View>
           ))
         )}
       </View>
+
+      {/* Plan de pagos en la PORTADA (UAT contrato 2026-08-04): "12 pagos de tanto" */}
+      {(plan.uniformes.length > 0 || plan.desparejas.length > 0) && (
+        <View style={{ marginTop: 10 }}>
+          <Text style={cs.coverBlockLabel}>Plan de pagos</Text>
+          {plan.uniformes.map(r => (
+            <Text key={r.cur} style={{ fontSize: 10, color: T.text, marginTop: 3 }}>
+              {r.n} pagos mensuales de{' '}
+              <Text style={{ fontWeight: 'bold', color: T.primary }}>{r.cur} {fmtNum(r.monto)}</Text>
+              {' '}+ IVA
+              {r.ajusteRedondeo && <Text style={{ fontSize: 7, color: T.textMuted }}> (una cuota ajusta centavos por redondeo)</Text>}
+            </Text>
+          ))}
+          {/* Cuotas desparejas: sin anexo — se listan compactas acá mismo */}
+          {plan.desparejas.map(([cur, list]) => (
+            <Text key={cur} style={{ fontSize: 9, color: T.text, marginTop: 3 }}>
+              {list.length} cuotas en {cur}: {list.map(c => `#${c.numero} ${fmtNum(c.monto)}`).join(' · ')} (+ IVA)
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   );
 }

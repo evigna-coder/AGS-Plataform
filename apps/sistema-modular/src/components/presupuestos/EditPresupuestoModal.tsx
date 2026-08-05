@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { PresupuestoItemsTable } from './PresupuestoItemsTable';
@@ -131,9 +131,14 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   };
 
   // Label del pill flotante: el número del presupuesto una vez cargado.
+  // onLabel vive en un ref: el caller pasa una arrow nueva en cada render y
+  // tenerla en las deps realimentaba el efecto (loop "Maximum update depth",
+  // 2026-08-04) — el efecto solo debe reaccionar al número.
+  const onLabelRef = useRef(onLabel);
+  onLabelRef.current = onLabel;
   useEffect(() => {
-    if (form.numero) onLabel?.(form.numero);
-  }, [form.numero, onLabel]);
+    if (form.numero) onLabelRef.current?.(form.numero);
+  }, [form.numero]);
 
   // Refresh requerimientos section after a save completes. Auto-generation
   // happens asynchronously in presupuestosService.update/create so we poll
@@ -300,6 +305,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             onRemoveSistema={(_sistemaId, grupo) => removeItemsByGrupo(grupo)}
             conceptosServicio={conceptosServicio}
             categoriasPresupuesto={categoriasPresupuesto}
+            sistemasPlan={form.contratoSistemasPlan}
+            onChangeSistemasPlan={(ids) => setField('contratoSistemasPlan', ids)}
           />
         ) : (
           <PresupuestoItemsTable
@@ -382,6 +389,25 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               </span>
             </label>
           </div>
+        )}
+
+        {/* PDF sin precios por línea (contrato, 2026-08-04): formato del sistema
+            viejo — los servicios se listan y el precio va solo en el total. */}
+        {form.tipo === 'contrato' && (
+          <label className="mt-4 flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.ocultarPreciosItems}
+              onChange={e => setField('ocultarPreciosItems', e.target.checked)}
+              className="w-3.5 h-3.5 accent-teal-600 mt-0.5"
+            />
+            <span className="text-xs text-slate-700">
+              Ocultar precios de los servicios individuales en el PDF
+              <span className="block text-[10px] text-slate-400">
+                Los servicios se listan sin precio por línea — solo se muestra el total por equipo y el total del contrato.
+              </span>
+            </span>
+          </label>
         )}
 
         {/* Cuotas (contrato only) — non-contrato uses EsquemaFacturacionSection above */}

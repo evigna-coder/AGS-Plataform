@@ -3,7 +3,7 @@ import './pdfFonts';
 import { cs } from './contrato/pdfContratoStyles';
 import { PDFContratoCover } from './contrato/PDFContratoCover';
 import { PDFContratoDetail } from './contrato/PDFContratoDetail';
-import { PDFContratoCuotas, PDFContratoCondicionesText, PDFContratoAceptacion } from './contrato/PDFContratoCondiciones';
+import { PDFContratoCondicionesText, PDFContratoAceptacion } from './contrato/PDFContratoCondiciones';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 
 function PageHeaderStrip({ data }: { data: PresupuestoPDFData }) {
@@ -55,11 +55,11 @@ export function PresupuestoPDFContrato({ data }: { data: PresupuestoPDFData }) {
         <Footer data={data} />
       </Page>
 
-      {/* Hojas de detalle */}
+      {/* Hojas de detalle. Las cuotas NO van acá: el plan de pagos se informa
+          solo en la carátula ("12 cuotas de $X + IVA") — UAT contrato 2026-08-04. */}
       <Page size="A4" style={cs.page}>
         <PageHeaderStrip data={data} />
         <PDFContratoDetail data={data} />
-        <PDFContratoCuotas data={data} />
         <Footer data={data} />
       </Page>
 

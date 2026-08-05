@@ -133,6 +133,14 @@ export function usePresupuestoActions({
       proximoContacto: form.proximoContacto || null,
       responsableId: form.responsableId || null,
       responsableNombre: form.responsableNombre || null,
+      // Contrato (2026-08-04): estos campos faltaban y el PDF salía sin cuotas,
+      // sin vigencia y con el flag de ocultar precios ignorado.
+      cuotas: form.cuotas,
+      cantidadCuotas: form.cantidadCuotas,
+      cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
+      contratoFechaInicio: form.contratoFechaInicio,
+      contratoFechaFin: form.contratoFechaFin,
+      ocultarPreciosItems: form.ocultarPreciosItems,
       createdAt: form.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

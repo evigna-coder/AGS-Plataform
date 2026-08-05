@@ -1,4 +1,4 @@
-import type { PresupuestoItem } from '@ags/shared';
+import type { Presupuesto, PresupuestoCuota, PresupuestoItem } from '@ags/shared';
 
 export function fmtNum(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return '—';
@@ -67,10 +67,16 @@ export function groupItems(items: PresupuestoItem[]): SectorGroup[] {
   for (const [sectorNombre, gmap] of sectorMap.entries()) {
     result.push({
       sectorNombre,
-      sistemas: Array.from(gmap.values()).sort((a, b) => a.grupo - b.grupo),
+      // Grupo 0 = items sin sistema (bonificaciones) — van al FINAL, no al
+      // principio (UAT contrato 2026-08-04: "la bonificación aparece primero").
+      sistemas: Array.from(gmap.values()).sort(
+        (a, b) => (a.grupo === 0 ? 1 : 0) - (b.grupo === 0 ? 1 : 0) || a.grupo - b.grupo),
     });
   }
-  return result;
+  // Mismo criterio a nivel sector: un sector compuesto SOLO por grupos sin
+  // sistema (la bonificación suelta) se muestra después de los sectores reales.
+  const soloSinSistema = (s: SectorGroup) => s.sistemas.every(g => g.grupo === 0);
+  return result.sort((a, b) => (soloSinSistema(a) ? 1 : 0) - (soloSinSistema(b) ? 1 : 0));
 }
 
 /** Per-currency totals (excludes S/L items). */
@@ -82,4 +88,52 @@ export function totalsByCurrency(items: PresupuestoItem[]): Record<string, numbe
     m[cur] = (m[cur] || 0) + (it.subtotal || 0);
   }
   return m;
+}
+
+// ── Plan de cuotas (UAT contrato 2026-08-04) ──
+export interface PlanCuotas {
+  /** Cuotas iguales por moneda → resumen "N pagos de $X" (va en la portada).
+   *  `ajusteRedondeo`: una cuota difiere en centavos (reparto del redondeo). */
+  uniformes: { cur: string; n: number; monto: number; ajusteRedondeo: boolean }[];
+  /** Cuotas genuinamente desparejas por moneda (difieren en más de $1). */
+  desparejas: [string, PresupuestoCuota[]][];
+}
+
+/** Resume el plan de cuotas: desde `cuotas[]` si están armadas; si solo hay
+ *  cantidad definida, deriva el monto del total por moneda (sin IVA). */
+export function planCuotas(p: Presupuesto): PlanCuotas {
+  const cuotas = p.cuotas || [];
+  const uniformes: PlanCuotas['uniformes'] = [];
+  const desparejas: PlanCuotas['desparejas'] = [];
+  if (cuotas.length > 0) {
+    const by = new Map<string, PresupuestoCuota[]>();
+    for (const c of cuotas) {
+      if (!by.has(c.moneda)) by.set(c.moneda, []);
+      by.get(c.moneda)!.push(c);
+    }
+    for (const [cur, list] of by.entries()) {
+      // "Iguales" con tolerancia de $1: el generador reparte el redondeo en una
+      // cuota (ej. #1 1.414,63 y el resto 1.414,67) y eso NO es un plan
+      // desparejo (UAT 2026-08-04: listaba las 12 en la carátula).
+      const montos = list.map(c => c.monto);
+      const min = Math.min(...montos);
+      const max = Math.max(...montos);
+      if (max - min <= 1) {
+        // Monto representativo: el más frecuente (la cuota de ajuste es la excepción).
+        const freq = new Map<number, number>();
+        for (const m of montos) freq.set(m, (freq.get(m) ?? 0) + 1);
+        const moda = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+        uniformes.push({ cur, n: list.length, monto: moda, ajusteRedondeo: max - min > 0.001 });
+      } else {
+        desparejas.push([cur, list]);
+      }
+    }
+  } else {
+    const totals = totalsByCurrency(p.items);
+    for (const [cur, tot] of Object.entries(totals)) {
+      const n = p.cantidadCuotasPorMoneda?.[cur] ?? p.cantidadCuotas ?? 0;
+      if (n > 0) uniformes.push({ cur, n, monto: tot / n, ajusteRedondeo: false });
+    }
+  }
+  return { uniformes, desparejas };
 }

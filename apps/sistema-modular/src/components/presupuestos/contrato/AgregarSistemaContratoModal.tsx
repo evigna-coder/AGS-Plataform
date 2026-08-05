@@ -15,12 +15,16 @@ interface Props {
   /** Sectores ya usados en el presupuesto, para autocomplete. */
   sectoresUsados: string[];
   onConfirm: (newItems: PresupuestoItem[]) => void;
+  /** Cola de carga (2026-08-04): sistema FIJO a cargar — el selector queda
+   *  bloqueado en ese sistema (viene de la cola de alcance del contrato). */
+  sistemaFijoId?: string | null;
 }
 
 const labelCls = 'block text-[11px] font-medium text-slate-500 mb-1';
 
 export const AgregarSistemaContratoModal: React.FC<Props> = ({
   open, onClose, sistemas, loadModulos, existingItems, sectoresUsados, onConfirm,
+  sistemaFijoId = null,
 }) => {
   const [plantillas, setPlantillas] = useState<TipoEquipoPlantilla[]>([]);
   const [sistemaId, setSistemaId] = useState('');
@@ -40,21 +44,30 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
       .finally(() => setLoadingPlantillas(false));
   }, [open]);
 
-  // Reset when modal closes
+  // Reset when modal closes; al abrir desde la cola, prefijar el sistema.
   useEffect(() => {
     if (!open) {
       setSistemaId(''); setPlantillaId(''); setSector('');
       setModulos([]); setPreview([]);
+    } else if (sistemaFijoId) {
+      setSistemaId(sistemaFijoId);
     }
-  }, [open]);
+  }, [open, sistemaFijoId]);
 
   const selectedSistema = useMemo(() => sistemas.find(s => s.id === sistemaId) || null, [sistemas, sistemaId]);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
-  const sistemaOptions = useMemo(() => sistemas.map(s => ({
-    value: s.id,
-    label: `${s.nombre}${s.codigoInternoCliente ? ` — ${s.codigoInternoCliente}` : ''}`,
-  })), [sistemas]);
+  // Los sistemas YA cargados al contrato no se ofrecen (2026-08-04: cargarlos
+  // dos veces era el error típico de la carga libre).
+  const sistemaOptions = useMemo(() => {
+    const cargados = new Set(existingItems.map(i => i.sistemaId).filter(Boolean));
+    return sistemas
+      .filter(s => s.id === sistemaId || !cargados.has(s.id))
+      .map(s => ({
+        value: s.id,
+        label: `${s.nombre}${s.codigoInternoCliente ? ` — ${s.codigoInternoCliente}` : ''}`,
+      }));
+  }, [sistemas, existingItems, sistemaId]);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const plantillaOptions = useMemo(() => plantillas.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre })), [plantillas]);
@@ -127,7 +140,11 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
             <label className={labelCls}>Sistema *</label>
             <SearchableSelect value={sistemaId} onChange={setSistemaId}
               options={sistemaOptions}
-              placeholder="Seleccionar..." />
+              placeholder="Seleccionar..."
+              disabled={!!sistemaFijoId} />
+            {sistemaFijoId && (
+              <p className="text-[10px] text-teal-700 mt-0.5">Desde la cola del contrato — al confirmar se consume de la lista.</p>
+            )}
           </div>
           <div>
             <label className={labelCls}>Sector</label>

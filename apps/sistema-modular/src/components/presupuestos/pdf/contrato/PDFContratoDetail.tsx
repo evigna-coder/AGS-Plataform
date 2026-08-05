@@ -1,11 +1,11 @@
 import { View, Text } from '@react-pdf/renderer';
-import { cs, COLS_SINGLE, COLS_MIXTA } from './pdfContratoStyles';
+import { cs, COLS_SINGLE, COLS_MIXTA, COLS_SIN_PRECIOS } from './pdfContratoStyles';
 import { groupItems, totalsByCurrency, fmtNum, type SistemaGroup } from './pdfContratoHelpers';
 import type { PresupuestoItem, ModuloSistema } from '@ags/shared';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
-function ItemRow({ item, isMixta }: { item: PresupuestoItem; isMixta: boolean }) {
-  const COLS = isMixta ? COLS_MIXTA : COLS_SINGLE;
+function ItemRow({ item, isMixta, sinPrecios }: { item: PresupuestoItem; isMixta: boolean; sinPrecios: boolean }) {
+  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
   const isSL = item.esSinCargo === true;
   const isBonif = item.esBonificacion === true;
   const rowStyle = [cs.itemRow, isSL && cs.itemRowSL, isBonif && cs.itemRowBonif].filter(Boolean);
@@ -14,7 +14,10 @@ function ItemRow({ item, isMixta }: { item: PresupuestoItem; isMixta: boolean })
   return (
     <View wrap={false}>
       <View style={rowStyle as any}>
-        <Text style={[...cellStyle, { width: COLS.num }] as any}>{item.subItem || '—'}</Text>
+        <Text style={[...cellStyle, { width: COLS.num }] as any}>
+          {/* Grupo 0 (bonificación / sin sistema): sin numeral — la numeración visible arranca en 1 */}
+          {item.subItem && !item.subItem.startsWith('0') ? item.subItem : '—'}
+        </Text>
         <Text style={[...cellStyle, { width: COLS.codigo }] as any}>
           {item.codigoProducto || '—'}
           {item.servicioCode && (
@@ -25,23 +28,28 @@ function ItemRow({ item, isMixta }: { item: PresupuestoItem; isMixta: boolean })
         <Text style={[...cellStyle, cs.itemCellCenter, { width: COLS.cant }] as any}>
           {isSL ? 'S/L' : (item.cantidad || 0)}
         </Text>
-        {isMixta && (
-          <Text style={[...cellStyle, cs.itemCellCenter, { width: COLS_MIXTA.mon }] as any}>
-            {isSL ? '—' : (item.moneda || 'USD')}
-          </Text>
+        {/* Sin precios por línea (2026-08-04): el precio va solo en los totales */}
+        {!sinPrecios && (
+          <>
+            {isMixta && (
+              <Text style={[...cellStyle, cs.itemCellCenter, { width: COLS_MIXTA.mon }] as any}>
+                {isSL ? '—' : (item.moneda || 'USD')}
+              </Text>
+            )}
+            <Text style={[...cellStyle, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).precio }] as any}>
+              {isSL ? '—' : fmtNum(item.precioUnitario)}
+            </Text>
+            <Text
+              style={[
+                ...cellStyle,
+                cs.itemCellRight,
+                { width: (COLS as typeof COLS_SINGLE).subtotal, fontWeight: 600 },
+              ] as any}
+            >
+              {isSL ? '—' : fmtNum(item.subtotal)}
+            </Text>
+          </>
         )}
-        <Text style={[...cellStyle, cs.itemCellRight, { width: COLS.precio }] as any}>
-          {isSL ? '—' : fmtNum(item.precioUnitario)}
-        </Text>
-        <Text
-          style={[
-            ...cellStyle,
-            cs.itemCellRight,
-            { width: COLS.subtotal, fontWeight: 600 },
-          ] as any}
-        >
-          {isSL ? '—' : fmtNum(item.subtotal)}
-        </Text>
       </View>
       {item.itemNotasAdicionales && (
         <View style={cs.itemNoteRow}>
@@ -52,8 +60,8 @@ function ItemRow({ item, isMixta }: { item: PresupuestoItem; isMixta: boolean })
   );
 }
 
-function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta: boolean; modulos?: ModuloSistema[] }) {
-  const COLS = isMixta ? COLS_MIXTA : COLS_SINGLE;
+function SistemaCard({ group, isMixta, modulos, sinPrecios }: { group: SistemaGroup; isMixta: boolean; modulos?: ModuloSistema[]; sinPrecios: boolean }) {
+  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
   const subtotals = totalsByCurrency(group.items);
 
   // Un equipo NO puede quedar partido entre hojas (pedido 2026-07-31): si la
@@ -74,8 +82,12 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
     <View style={cs.sistemaCard} wrap={!cardEntera}>
       <View wrap={false}>
         <View style={cs.sistemaCardHeader}>
-          <Text style={cs.sistemaCardNum}>{group.grupo}.</Text>
-          <Text style={cs.sistemaCardName}>{group.sistemaNombre}</Text>
+          {group.grupo > 0 && <Text style={cs.sistemaCardNum}>{group.grupo}.</Text>}
+          <Text style={cs.sistemaCardName}>
+            {group.grupo === 0 && group.items.every(i => i.esBonificacion)
+              ? 'Bonificación'
+              : group.sistemaNombre}
+          </Text>
           {group.moduloSeriePrincipal && (
             <Text style={cs.sistemaCardId}>S/N: {group.moduloSeriePrincipal}</Text>
           )}
@@ -110,23 +122,27 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
           <Text style={[cs.itemTableHeadCell, { width: COLS.codigo }]}>Código</Text>
           <Text style={[cs.itemTableHeadCell, { width: COLS.desc }]}>Descripción</Text>
           <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS.cant }]}>Cant.</Text>
-          {isMixta && (
-            <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS_MIXTA.mon }]}>Mon.</Text>
+          {!sinPrecios && (
+            <>
+              {isMixta && (
+                <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS_MIXTA.mon }]}>Mon.</Text>
+              )}
+              <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).precio }]}>Precio</Text>
+              <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).subtotal }]}>Subtotal</Text>
+            </>
           )}
-          <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.precio }]}>Precio</Text>
-          <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.subtotal }]}>Subtotal</Text>
         </View>
       </View>
 
       {group.items.map(item => (
-        <ItemRow key={item.id} item={item} isMixta={isMixta} />
+        <ItemRow key={item.id} item={item} isMixta={isMixta} sinPrecios={sinPrecios} />
       ))}
 
       {Object.keys(subtotals).length > 0 && (
         <View style={cs.sistemaSubtotal} wrap={false}>
           {Object.entries(subtotals).map(([cur, tot]) => (
             <View key={cur} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-              <Text style={cs.sistemaSubtotalLabel}>Subtotal {cur}</Text>
+              <Text style={cs.sistemaSubtotalLabel}>{sinPrecios ? `Total anual equipo ${cur}` : `Subtotal ${cur}`}</Text>
               <Text style={cs.sistemaSubtotalValue}>{fmtNum(tot)}</Text>
             </View>
           ))}
@@ -139,10 +155,19 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
 export function PDFContratoDetail({ data }: { data: PresupuestoPDFData }) {
   const grouped = groupItems(data.presupuesto.items);
   const isMixta = data.presupuesto.moneda === 'MIXTA';
-  const grandTotals = totalsByCurrency(data.presupuesto.items);
+  // Sin precios por línea (2026-08-04): los servicios se listan sin Precio/Subtotal;
+  // el número aparece solo en el total por equipo y en la portada.
+  const sinPrecios = data.presupuesto.ocultarPreciosItems === true;
 
   return (
     <View>
+      {/* Título de la hoja de detalle (UAT contrato 2026-08-04) */}
+      <View style={{ marginBottom: 10 }}>
+        <Text style={cs.sectorLabel}>Anexo técnico</Text>
+        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0f172a' }}>
+          Detalle de equipos y servicios incluidos
+        </Text>
+      </View>
       {grouped.map(sectorGroup => (
         <View key={sectorGroup.sectorNombre || '__none__'}>
           {sectorGroup.sectorNombre && (
@@ -159,26 +184,15 @@ export function PDFContratoDetail({ data }: { data: PresupuestoPDFData }) {
               group={sistema}
               isMixta={isMixta}
               modulos={sistema.sistemaId ? data.modulosBySistema?.[sistema.sistemaId] : undefined}
+              sinPrecios={sinPrecios}
             />
           ))}
         </View>
       ))}
 
-      <View style={cs.grandTotalsWrap} wrap={false}>
-        <Text style={[cs.sectorLabel, { marginBottom: 6 }]}>Total anual del contrato</Text>
-        <View style={cs.grandTotalsRow}>
-          {Object.keys(grandTotals).length === 0 ? (
-            <Text style={cs.grandTotalValue}>—</Text>
-          ) : (
-            Object.entries(grandTotals).map(([cur, tot]) => (
-              <View key={cur} style={cs.grandTotalBox}>
-                <Text style={cs.grandTotalLabel}>Total {cur}</Text>
-                <Text style={cs.grandTotalValue}>{cur} {fmtNum(tot)}</Text>
-              </View>
-            ))
-          )}
-        </View>
-      </View>
+      {/* El "Total anual del contrato" vive en la PORTADA (con IVA) — acá se
+          eliminó porque re-informarlo al final generaba una hoja casi vacía
+          (UAT contrato 2026-08-04). */}
     </View>
   );
 }

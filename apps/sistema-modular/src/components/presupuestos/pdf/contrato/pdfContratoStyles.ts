@@ -132,21 +132,21 @@ export const cs = StyleSheet.create({
     borderBottomWidth: 0.3, borderBottomColor: T.border,
     minHeight: 14, alignItems: 'center',
   },
-  itemRowSL: { backgroundColor: T.bgSubtle },
-  itemRowBonif: { backgroundColor: T.bonifBg },
+  // Sin tintes de color en las filas (UAT contrato 2026-08-04: "sacale los colores")
+  itemRowSL: {},
+  itemRowBonif: {},
   itemCell: { fontSize: 7, color: T.text, paddingRight: 3 },
   itemCellSL: { color: T.slCol },
   itemCellRight: { textAlign: 'right' },
   itemCellCenter: { textAlign: 'center' },
   itemCellMono: { fontSize: 6, color: T.textMuted },
 
+  // Nota inline sin resaltado ámbar (UAT contrato 2026-08-04): gris itálica.
   itemNoteRow: {
     flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 2,
-    backgroundColor: T.bgNote,
-    borderLeftWidth: 2, borderLeftColor: T.noteAccent,
     marginBottom: 1,
   },
-  itemNoteText: { fontSize: 6.5, color: T.noteAccent, fontStyle: 'italic', flex: 1 },
+  itemNoteText: { fontSize: 6.5, color: T.textMuted, fontStyle: 'italic', flex: 1 },
 
   // Módulos del sistema (bloque informativo debajo del header)
   modulosInfo: {
@@ -247,4 +247,9 @@ export const COLS_SINGLE = {
 };
 export const COLS_MIXTA = {
   num: '6%', codigo: '14%', desc: '36%', cant: '7%', mon: '7%', precio: '14%', subtotal: '16%',
+};
+/** Sin precios por línea (2026-08-04): la descripción absorbe las columnas de
+ *  precio/subtotal — el precio va solo en el total por equipo y el del contrato. */
+export const COLS_SIN_PRECIOS = {
+  num: '8%', codigo: '20%', desc: '62%', cant: '10%',
 };

@@ -1,27 +1,21 @@
 import { View, Text } from '@react-pdf/renderer';
 import { cs, T } from './pdfContratoStyles';
-import { fmtDateISO, fmtNum } from './pdfContratoHelpers';
+import { fmtDateISO, fmtNum, planCuotas } from './pdfContratoHelpers';
 import { PDFRichText } from '../PDFRichText';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCuotas({ data }: { data: PresupuestoPDFData }) {
-  const cuotas = data.presupuesto.cuotas || [];
-  if (cuotas.length === 0) return null;
-
-  const byCurrency = new Map<string, typeof cuotas>();
-  for (const c of cuotas) {
-    if (!byCurrency.has(c.moneda)) byCurrency.set(c.moneda, []);
-    byCurrency.get(c.moneda)!.push(c);
-  }
+  // Las cuotas IGUALES se resumen en la PORTADA ("12 pagos de $X"); este bloque
+  // del anexo queda solo para planes DESPAREJOS que necesitan la tabla
+  // (UAT contrato 2026-08-04 — también elimina la hoja casi vacía del cierre).
+  const { desparejas } = planCuotas(data.presupuesto);
+  if (desparejas.length === 0) return null;
 
   return (
     <View style={cs.cuotasWrap} wrap={false}>
       <Text style={cs.cuotasTitle}>Plan de cuotas</Text>
-      <Text style={cs.cuotasTitleSub}>
-        {Array.from(byCurrency.entries()).map(([cur, list]) => `${list.length} en ${cur}`).join(' · ')}
-      </Text>
       <View style={cs.cuotasTablesRow}>
-        {Array.from(byCurrency.entries()).map(([cur, list]) => (
+        {desparejas.map(([cur, list]) => (
           <View key={cur} style={cs.cuotasTable}>
             <View style={cs.cuotasTableHead}>
               <Text style={cs.cuotasTableHeadText}>Cuotas {cur}</Text>
