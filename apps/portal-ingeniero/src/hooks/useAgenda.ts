@@ -38,7 +38,9 @@ export function useAgenda() {
   // Ingenieros list — always loaded, used for both admin grid and resolving my ingenieroId
   const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string; usuarioId: string | null; email: string | null }[]>([]);
   const [ingenierosLoaded, setIngenierosLoaded] = useState(false);
-  const [showMine, setShowMine] = useState(false);
+  // Default MARCADO (2026-08-05): también los admins/ing. de soporte arrancan
+  // viendo SU agenda ("Mis OTs"); destildan para ver la de todos.
+  const [showMine, setShowMine] = useState(true);
   const toggleShowMine = useCallback(() => setShowMine(v => !v), []);
 
   useEffect(() => {

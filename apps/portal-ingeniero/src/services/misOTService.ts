@@ -384,8 +384,11 @@ export const misOTService = {
     });
 
     // budgets[] vive en reportes/{otNumber} (colección canónica de OTs).
+    // ccSoporteEnvio (2026-08-05): OT con ppto autogenerado desde el portal →
+    // el mail final del reporte copia también a soporte@agsanalitica.com.
     await setDoc(doc(db, 'reportes', ot.otNumber), {
       budgets: arrayUnion(numero),
+      ccSoporteEnvio: true,
       updatedAt: Timestamp.now(),
     }, { merge: true });
 

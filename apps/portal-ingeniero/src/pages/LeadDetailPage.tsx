@@ -13,6 +13,7 @@ import LeadAdjuntosSection from '../components/leads/LeadAdjuntosSection';
 import { ContactosTicketSection } from '../components/leads/ContactosTicketSection';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
+import { OTResumenModal } from '../components/ordenes-trabajo/OTResumenModal';
 
 export default function LeadDetailPage() {
   const { leadId } = useParams<{ leadId: string }>();
@@ -40,6 +41,7 @@ export default function LeadDetailPage() {
 
   // Entidades vinculadas (read-only)
   const [linkedOTs, setLinkedOTs] = useState<string[]>([]);
+  const [resumenOt, setResumenOt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!leadId) return;
@@ -355,10 +357,12 @@ export default function LeadDetailPage() {
                 <div className="p-4">
                   <h3 className="text-[11px] font-medium text-slate-400 mb-3">OTs vinculadas</h3>
                   <div className="space-y-2">
+                    {/* Resumen en modal (2026-08-05): consultar la OT sin perder el
+                        contexto del ticket — antes navegaba a la ficha completa. */}
                     {linkedOTs.map(otNum => (
                       <div key={otNum} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
-                        <Link to={`/ordenes-trabajo/${otNum}`} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{otNum}</Link>
+                        <button onClick={() => setResumenOt(otNum)} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{otNum}</button>
                       </div>
                     ))}
                   </div>
@@ -388,6 +392,7 @@ export default function LeadDetailPage() {
 
       {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onSuccess={() => { setShowDerivar(false); load(); }} />}
       {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onSuccess={() => { setShowFinalizar(false); navigate('/leads'); }} />}
+      <OTResumenModal open={!!resumenOt} otNumber={resumenOt} onClose={() => setResumenOt(null)} />
     </div>
   );
 }

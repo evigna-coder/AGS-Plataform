@@ -7,9 +7,13 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  /** Ancho en desktop (default 'md' = max-w-md, retrocompatible). */
+  maxWidth?: 'md' | 'lg' | 'xl';
 }
 
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+const WIDTHS = { md: 'sm:max-w-md', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
+
+export function Modal({ open, onClose, title, children, footer, maxWidth = 'md' }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -33,7 +37,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       onMouseUp={e => { if (backdropMouseDown && e.target === e.currentTarget) onClose(); backdropMouseDown = false; }}
     >
       <div
-        className="w-full sm:max-w-md bg-white sm:rounded-xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh]"
+        className={`w-full ${WIDTHS[maxWidth]} bg-white sm:rounded-xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh]`}
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
