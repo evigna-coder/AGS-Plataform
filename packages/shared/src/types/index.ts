@@ -4893,6 +4893,9 @@ export interface AgendaEntry {
   /** Flag ORTOGONAL al estado (2026-08-04): el cliente tiene pago adelantado.
    *  La celda se parte en diagonal — mitad azul marino, mitad color del estado. */
   pagoAdelantado?: boolean;
+  /** Flag ORTOGONAL al estado (2026-08-05): la planta exige inducción/examen de
+   *  ingreso. Mitad NEGRA (diagonal inferior) — solo en la entrada marcada. */
+  requiereInduccion?: boolean;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;
