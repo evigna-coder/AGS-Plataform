@@ -220,9 +220,18 @@ export interface StockSelection {
   partCodigo: string;
   partDescripcion: string;
   cantidad: number;
-  origenTipo: 'posicion' | 'ingeniero' | 'patron';
+  origenTipo: 'posicion' | 'ingeniero' | 'patron' | 'remito';
   origenId: string;
   origenNombre: string;
+  /**
+   * Descarga desde un REMITO en campo (2026-08-04) — cuando `origenTipo='remito'`:
+   * el material salió con un remito de salida (en poder del ingeniero); al cerrar
+   * la OT se consume desde ahí y el remito se resuelve (se cierra solo si no le
+   * quedan items pendientes).
+   */
+  remitoId?: string | null;
+  remitoNumero?: string | null;
+  remitoItemId?: string | null;
   /** Artículo de catálogo resuelto — driver de la deducción por posición (no-serializados). */
   articuloId?: string | null;
   /** Unidad de stock puntual elegida (artículos con serie/lote). Driver de la deducción al cierre. */
@@ -1659,6 +1668,13 @@ export interface Presupuesto {
   cantidadCuotas?: number | null;
   /** Cantidad de cuotas por moneda. Soporta cuotas asimétricas (ej: {USD: 12, ARS: 10}). Si null, usa cantidadCuotas para todas. */
   cantidadCuotasPorMoneda?: Record<string, number> | null;
+  /** Contrato (2026-08-04): el PDF lista los servicios SIN precio por línea —
+   *  solo el total por equipo y el total del contrato (formato del sistema viejo). */
+  ocultarPreciosItems?: boolean;
+  /** Contrato (2026-08-04): ALCANCE elegido al armar el presupuesto — ids de los
+   *  sistemas que el contrato va a cubrir. La carga los consume de a uno (cola):
+   *  pendiente = está acá y no tiene items; evita duplicar u olvidar equipos. */
+  contratoSistemasPlan?: string[] | null;
   // --- Vigencia del contrato (distinto de validezDias que es la oferta) ---
   /** Fecha de inicio de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
   contratoFechaInicio?: string | null;
@@ -3433,6 +3449,12 @@ export interface RemitoItem {
   tipoItem: TipoRemitoItem;
   devuelto: boolean;
   fechaDevolucion?: string | null;
+  /** Descarga desde el remito (2026-08-04): el item se consumió en campo (total).
+   *  Un item resuelto = devuelto O consumido; con esto el remito puede cerrarse. */
+  consumido?: boolean;
+  fechaConsumo?: string | null;
+  /** Cantidad consumida acumulada (consumos parciales; el resto vuelve o sigue en campo). */
+  cantidadConsumida?: number;
   /** Campos multi-tipo (opcionales, backward-compatible) */
   minikitId?: string | null;
   minikitCodigo?: string | null;
