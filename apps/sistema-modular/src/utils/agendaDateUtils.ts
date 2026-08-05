@@ -242,7 +242,21 @@ export function buildCellOccupationMap(
       else map.set(i, [occ]);
     }
   }
+  // Orden estable por N° de OT ascendente (2026-08-04): define qué entrada se
+  // muestra en la celda y el orden de las cards del detalle.
+  for (const occs of map.values()) {
+    if (occs.length > 1) occs.sort((a, b) => compareByOtNumber(a.entry, b.entry));
+  }
   return map;
+}
+
+/** Orden de entradas dentro de una celda: N° de OT ascendente (numérico);
+ *  las sin OT (tareas/reservas) van al final. */
+export function compareByOtNumber(a: AgendaEntry, b: AgendaEntry): number {
+  if (!a.otNumber && !b.otNumber) return 0;
+  if (!a.otNumber) return 1;
+  if (!b.otNumber) return -1;
+  return a.otNumber.localeCompare(b.otNumber, undefined, { numeric: true });
 }
 
 /** Navigate to previous period. */
@@ -277,7 +291,7 @@ export interface SelectedCell {
   allEntries: AgendaEntry[];
 }
 
-/** Find all entries occupying a specific cell. */
+/** Find all entries occupying a specific cell — ordenadas por N° de OT ascendente. */
 export function findEntriesAtCell(
   entries: AgendaEntry[], ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4,
 ): AgendaEntry[] {
@@ -287,7 +301,7 @@ export function findEntriesAtCell(
     if (fecha === e.fechaInicio && quarter < e.quarterStart) return false;
     if (fecha === e.fechaFin && quarter > e.quarterEnd) return false;
     return true;
-  });
+  }).sort(compareByOtNumber);
 }
 
 /** Range of selected cells for multi-select (same engineer, contiguous quarters). */
