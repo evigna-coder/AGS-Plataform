@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'sistema-modular-v*'
+  # Disparo manual (2026-08-06): a veces el push del tag no genera el run
+  # (degradación de Actions / tags re-pusheados). Correr sobre main con el
+  # package.json ya bumpeado publica la misma versión.
+  workflow_dispatch:
 
 # Permite que el workflow cree releases en este repo.
 permissions:
