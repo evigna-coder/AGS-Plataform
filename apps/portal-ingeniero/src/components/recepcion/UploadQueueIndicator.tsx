@@ -86,7 +86,7 @@ export function UploadQueueIndicator() {
               Sin errores registrados — las fotos están en proceso o esperando red.
             </p>
           )}
-          <div className="px-3 py-2 border-t border-current/20">
+          <div className="px-3 py-2 border-t border-current/20 flex items-center justify-between gap-2">
             <button
               onClick={() => {
                 if (confirm('¿Vaciar TODA la cola? Las fotos pendientes se pierden y hay que volver a tomarlas.')) {
@@ -98,6 +98,9 @@ export function UploadQueueIndicator() {
             >
               Limpiar cola completa
             </button>
+            <span className="text-[9px] opacity-50 font-mono shrink-0" title="Versión del bundle">
+              build {typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : '?'}
+            </span>
           </div>
         </div>
       )}
