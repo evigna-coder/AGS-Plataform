@@ -110,8 +110,10 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   const esBch = !cancelled && !esCapacitacion && /bench|bch/i.test(entryTipoServicio ?? '');
   // Firma de recibos (2026-08-05): evento mensual que reserva agenda — violeta clarito.
   const esFirmaRecibos = !cancelled && /firma de recibos/i.test(entryTitulo ?? '');
-  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : esFirmaRecibos ? 'bg-[#d9c9f2]' : entryEstado ? CELL_BG[entryEstado] : '';
-  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : esFirmaRecibos ? 'text-[#3b2364]' : entryEstado ? CELL_TEXT[entryEstado] : '';
+  // Oficina (2026-08-06): día en oficina — mismo amarillo que bench. El título manda.
+  const esOficina = !cancelled && /\boficina\b/i.test(entryTitulo ?? '');
+  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : esFirmaRecibos ? 'bg-[#d9c9f2]' : esOficina ? 'bg-[#e0c878]' : entryEstado ? CELL_BG[entryEstado] : '';
+  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : esFirmaRecibos ? 'text-[#3b2364]' : esOficina ? 'text-[#4a3c10]' : entryEstado ? CELL_TEXT[entryEstado] : '';
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';

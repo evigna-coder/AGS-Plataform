@@ -727,9 +727,10 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell]);
 
-  /** Firma de recibos (2026-08-05): evento mensual que reserva agenda —
-   *  tarea sin OT con título fijo; la celda se pinta violeta clarito. */
-  const handleAgregarFirmaRecibos = useCallback(() => {
+  /** Eventos fijos de agenda (2026-08-05/06): tarea sin OT con título fijo que
+   *  reserva la celda — el TÍTULO manda el color en AgendaGridCell
+   *  ("Firma de recibos" → violeta; "Oficina" → amarillo bench). */
+  const handleAgregarEventoFijo = useCallback((titulo: string) => {
     if (!contextMenu) return;
     createEntry({
       fechaInicio: contextMenu.fecha,
@@ -745,7 +746,7 @@ export const AgendaPage: FC = () => {
       establecimientoNombre: null,
       estadoAgenda: 'confirmado',
       notas: null,
-      titulo: 'Firma de recibos',
+      titulo,
     });
     setContextMenu(null);
   }, [contextMenu, createEntry]);
@@ -941,13 +942,23 @@ export const AgendaPage: FC = () => {
             </button>
             {/* Firma de recibos (2026-08-05): evento mensual, celda violeta clarito */}
             <button
-              onClick={handleAgregarFirmaRecibos}
+              onClick={() => handleAgregarEventoFijo('Firma de recibos')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.862 4.487Z" />
               </svg>
               Agregar firma de recibos
+            </button>
+            {/* Oficina (2026-08-06): día en oficina — celda amarilla (mismo tono bench) */}
+            <button
+              onClick={() => handleAgregarEventoFijo('Oficina')}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+              </svg>
+              Agregar día de oficina
             </button>
             <button
               onClick={handleOpenNotaInput}
