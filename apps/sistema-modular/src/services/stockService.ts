@@ -823,8 +823,12 @@ export const remitosService = {
    * (la numeración real la define el papel físico). Permite override manual.
    */
   async getProximoNumeroPreimpreso(prefix: string = '0001'): Promise<string> {
+    // Piso del talonario real (2026-08-06): arranque de la numeración seria en
+    // 0001-00017401 — los números de prueba anteriores no cuentan. Si el papel
+    // ya va más adelante, manda el máximo registrado.
+    const FLOOR_PREIMPRESO = 17400;
     const snap = await getDocs(collection(db, 'remitos'));
-    let max = 0;
+    let max = FLOOR_PREIMPRESO;
     for (const d of snap.docs) {
       const numero = d.data().numero as string | undefined;
       if (!numero) continue;
