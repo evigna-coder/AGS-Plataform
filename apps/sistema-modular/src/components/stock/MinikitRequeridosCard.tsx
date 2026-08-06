@@ -10,6 +10,8 @@ interface Props {
   onEdit: () => void;
   /** Si se pasa, muestra "+ Reponer" en cada fila con falta. */
   onReponer?: (req: MinikitRequeridoItem, deficit: number) => void;
+  /** Reposición con buscador de artículos, sin pasar por la lista de requeridos (2026-08-06). */
+  onReponerLibre?: () => void;
   /** Imprimir el listado para el kit físico (2026-08-03). */
   onImprimir?: (orden: OrdenListadoMinikit) => void;
 }
@@ -18,7 +20,7 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${color}`}>{label}</span>
 );
 
-export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer, onImprimir }: Props) => {
+export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer, onReponerLibre, onImprimir }: Props) => {
   const [ordenImpresion, setOrdenImpresion] = useState<OrdenListadoMinikit>('sector');
   const comparison = useMemo(() => {
     const filas = requeridos.map(req => {
@@ -45,9 +47,12 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
   if (requeridos.length === 0) {
     return (
       <Card compact title="Artículos requeridos">
-        <div className="flex items-center justify-between py-2">
+        <div className="flex items-center justify-between py-2 gap-2">
           <p className="text-xs text-slate-500">Este minikit aún no tiene artículos requeridos configurados — no hay alertas de reposición.</p>
-          <Button size="sm" variant="outline" onClick={onEdit}>+ Configurar</Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onReponerLibre && <Button size="sm" variant="outline" onClick={onReponerLibre}>+ Reponer artículo</Button>}
+            <Button size="sm" variant="outline" onClick={onEdit}>+ Configurar</Button>
+          </div>
         </div>
       </Card>
     );
@@ -73,6 +78,9 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
               <button onClick={() => onImprimir(ordenImpresion)}
                 className="text-teal-600 hover:underline font-medium text-[11px]">Imprimir</button>
             </span>
+          )}
+          {onReponerLibre && (
+            <button onClick={onReponerLibre} className="text-teal-600 hover:underline font-medium text-[11px]">+ Reponer artículo</button>
           )}
           <button onClick={onEdit} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
         </div>

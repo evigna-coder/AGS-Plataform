@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useCreateMovimientoForm, TIPO_MOV_OPTIONS, type InitOpts } from '../../hooks/useCreateMovimientoForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { parseDecimal } from '../../utils/parseDecimal';
 import type { TipoOrigenDestino } from '@ags/shared';
 
 interface Props {
@@ -31,6 +32,14 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
   const { usuario, firebaseUser } = useAuth();
   const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
   const h = useCreateMovimientoForm(open, onClose, onCreated, init, creadoPor);
+
+  // Cantidad como string local (2026-08-06): permite decimales con "." o ","
+  // — el type=number rechazaba el punto según locale y Number("0,5") daba NaN.
+  // Se sincroniza cuando el form la cambia por afuera (reset, tildar unidades).
+  const [cantidadStr, setCantidadStr] = useState(String(h.form.cantidad));
+  useEffect(() => {
+    setCantidadStr(prev => parseDecimal(prev) === h.form.cantidad ? prev : String(h.form.cantidad));
+  }, [h.form.cantidad]);
 
   const articuloLockeado = !!init.lockArticulo;
   const tipoLockeado = !!init.lockTipo;
@@ -130,9 +139,10 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
               {TIPO_MOV_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
-          <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'} type="number"
-            value={String(h.form.cantidad)}
-            onChange={e => h.set('cantidad', Number(e.target.value) || 0)}
+          <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'}
+            type="text" inputMode="decimal"
+            value={cantidadStr}
+            onChange={e => { setCantidadStr(e.target.value); h.set('cantidad', parseDecimal(e.target.value)); }}
             disabled={h.form.tipo !== 'ajuste' && h.requiereSerie && h.form.origenUnidadIds.length > 0} />
         </div>
 

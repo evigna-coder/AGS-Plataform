@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { articulosService } from '../../services/firebaseService';
+import { parseDecimal } from '../../utils/parseDecimal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -19,7 +20,9 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [saving, setSaving] = useState(false);
   const [addArticuloId, setAddArticuloId] = useState('');
-  const [addCantidad, setAddCantidad] = useState(1);
+  // String, no number (2026-08-06): permite tipear decimales con "." o ","
+  // sin que el parseo intermedio pise lo escrito ("0," → 0).
+  const [addCantidad, setAddCantidad] = useState('1');
   const [addSector, setAddSector] = useState('');
   const [newSector, setNewSector] = useState('');
   /** Filtro sobre los requeridos ya cargados (pedido 2026-08-03). */
@@ -55,14 +58,15 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
 
   const handleAddItem = () => {
     const art = articulos.find(a => a.id === addArticuloId);
-    if (!art || addCantidad < 1) return;
+    const cant = parseDecimal(addCantidad);
+    if (!art || cant <= 0) return;
     setItems(prev => [...prev, {
       articuloId: art.id, articuloCodigo: art.codigo,
-      articuloDescripcion: art.descripcion, cantidadMinima: addCantidad,
+      articuloDescripcion: art.descripcion, cantidadMinima: cant,
       sector: addSector || null,
     }]);
     setAddArticuloId('');
-    setAddCantidad(1);
+    setAddCantidad('1');
     // Cadena de carga rápida: reabrir el buscador para el próximo artículo.
     setFocusArticuloToken(t => t + 1);
   };
@@ -177,17 +181,19 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
             )}
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Cant.</label>
+              {/* type=text + inputMode decimal (2026-08-06): acepta 0.5 y 0,5 —
+                  el type=number rechazaba el punto según el locale del browser. */}
               <input
                 ref={cantRef}
-                type="number"
-                min={1}
-                value={String(addCantidad)}
-                onChange={e => setAddCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                type="text"
+                inputMode="decimal"
+                value={addCantidad}
+                onChange={e => setAddCantidad(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
                 className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-teal-700"
               />
             </div>
-            <Button size="sm" variant="outline" onClick={handleAddItem} disabled={!addArticuloId}>+</Button>
+            <Button size="sm" variant="outline" onClick={handleAddItem} disabled={!addArticuloId || parseDecimal(addCantidad) <= 0}>+</Button>
           </div>
 
           {/* Buscador sobre los requeridos ya cargados */}
@@ -221,8 +227,16 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
                       </select>
                     )}
                     <span className="text-[10px] text-slate-400 shrink-0">Min:</span>
-                    <input type="number" min={1} value={item.cantidadMinima}
-                      onChange={e => updateItem(idx, { cantidadMinima: Math.max(1, parseInt(e.target.value) || 1) })}
+                    {/* Uncontrolled + commit en blur (2026-08-06): permite tipear
+                        decimales con "." o "," (antes parseInt truncaba 0.5→1). */}
+                    <input type="text" inputMode="decimal"
+                      key={`min-${item.articuloId}`}
+                      defaultValue={String(item.cantidadMinima)}
+                      onBlur={e => {
+                        const n = parseDecimal(e.target.value);
+                        if (n > 0) updateItem(idx, { cantidadMinima: n });
+                        else e.target.value = String(item.cantidadMinima);
+                      }}
                       className="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center" />
                     <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 text-xs shrink-0">✕</button>
                   </div>

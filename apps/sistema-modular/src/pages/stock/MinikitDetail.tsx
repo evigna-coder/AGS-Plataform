@@ -57,7 +57,8 @@ export const MinikitDetail = () => {
 
   const [showRequeridosEditor, setShowRequeridosEditor] = useState(false);
   const [showDuplicate, setShowDuplicate] = useState(false);
-  const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem; deficit: number } | null>(null);
+  // req: null = reposición libre con buscador de artículos (2026-08-06).
+  const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem | null; deficit: number } | null>(null);
   const [consumirUnidad, setConsumirUnidad] = useState<UnidadStock | null>(null);
 
   // Compat: algunos modales llaman loadRelated tras operar — con la suscripción
@@ -242,6 +243,7 @@ export const MinikitDetail = () => {
               unidades={unidades}
               onEdit={() => setShowRequeridosEditor(true)}
               onReponer={canVerify ? (req, deficit) => setReponerFor({ req, deficit }) : undefined}
+              onReponerLibre={canVerify ? () => setReponerFor({ req: null, deficit: 0 }) : undefined}
               onImprimir={orden => imprimirListadoMinikit(minikit, requeridos, unidades, orden)}
             />
 
@@ -323,14 +325,15 @@ export const MinikitDetail = () => {
         <CreateMovimientoModal
           open={true}
           title="Reponer artículo al minikit"
-          subtitle={`${reponerFor.req.articuloCodigo} → ${minikit.codigo} (${minikit.nombre})`}
+          subtitle={`${reponerFor.req ? reponerFor.req.articuloCodigo : 'Buscar artículo'} → ${minikit.codigo} (${minikit.nombre})`}
           init={{
             lockTipo: 'transferencia',
-            lockArticulo: {
+            // Sin req (reposición libre): el modal muestra su buscador de artículos.
+            lockArticulo: reponerFor.req ? {
               id: reponerFor.req.articuloId,
               codigo: reponerFor.req.articuloCodigo,
               descripcion: reponerFor.req.articuloDescripcion,
-            },
+            } : undefined,
             lockDestino: {
               tipo: 'minikit',
               id: minikit.id,
