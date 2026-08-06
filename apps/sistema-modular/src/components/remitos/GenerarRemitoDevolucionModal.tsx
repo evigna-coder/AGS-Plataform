@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { remitosService } from '../../services/stockService';
+import { transportistasService } from '../../services/transportistasService';
 import { imprimirRemitoOverlay } from '../../utils/remitoImprimir';
 import { RemitoItemPicker } from './RemitoItemPicker';
 import { RemitoPartyFields } from './RemitoPartyFields';
@@ -151,6 +152,13 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
         }
       }
 
+      // Declarar y guardar el transportista para reutilizarlo (2026-08-06).
+      // Best-effort: dedupe por razón social, completa campos vacíos del previo.
+      if (f.transportista.razonSocial.trim()) {
+        void transportistasService.guardarSiNuevo(f.transportista)
+          .catch(err => console.warn('[GenerarRemito] guardar transportista falló:', err));
+      }
+
       const fechaFmt = f.fecha.split('-').reverse().join('/');
       // Pipeline calibrado (2026-08-06): triplicado silencioso con los mismos
       // offsets que el resto de los remitos — salía sin calibrar y abría PDF.
@@ -270,6 +278,19 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
           onChange={f.setDestinatario}
         />
 
+        {/* Transportistas guardados (2026-08-06): elegir uno autocompleta los
+            campos; uno nuevo tipeado se guarda solo al generar el remito. */}
+        {f.transportistas.length > 0 && (
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Transportista guardado</p>
+            <SearchableSelect
+              value={f.transportistas.find(t => t.razonSocial === f.transportista.razonSocial)?.id ?? ''}
+              onChange={f.handlePickTransportista}
+              options={f.transportistas.map(t => ({ value: t.id, label: t.razonSocial }))}
+              placeholder="Buscar transportista guardado..."
+            />
+          </div>
+        )}
         <RemitoPartyFields
           title="Transportista (opcional)"
           value={f.transportista}
