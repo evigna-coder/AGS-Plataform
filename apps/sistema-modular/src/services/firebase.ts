@@ -106,6 +106,12 @@ try {
   // en este entorno (Electron + memory cache + sin sesión previa).
   enableNetwork(db).catch(err => console.warn('[Firestore] enableNetwork falló:', err));
   storage = getStorage(app);
+  // Uploads acotados (2026-08-06): el default del SDK reintenta hasta 10 min en
+  // silencio ante red lenta/intervenida (AV) — la UI quedaba "Subiendo…" eterna
+  // (fotos de loaners) hasta morir con "max retry time for operation exceeded".
+  // 2 min alcanza para archivos grandes y devuelve el error real en tiempo humano.
+  storage.maxUploadRetryTime = 120_000;
+  storage.maxOperationRetryTime = 30_000;
 
   if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
     console.log('%c⚡ Electron keyboard router unstick activo', 'color: gray');

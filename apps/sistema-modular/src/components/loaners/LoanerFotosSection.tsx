@@ -45,16 +45,23 @@ export function LoanerFotosSection({ loaner }: Props) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
+    // Por archivo (2026-08-06): antes un fallo abortaba el lote entero y no se
+    // sabía cuáles subieron. Ahora sigue con el resto y reporta las fallidas.
+    const fallidas: string[] = [];
+    let ultimoError = '';
+    for (const file of Array.from(files)) {
+      try {
         await loanersService.agregarFoto(loaner.id, file, { nombre: file.name, contexto: 'general' });
+      } catch (err) {
+        console.error('Error subiendo foto del loaner:', file.name, err);
+        fallidas.push(file.name);
+        ultimoError = err instanceof Error ? err.message : String(err);
       }
-    } catch (err) {
-      console.error('Error subiendo foto del loaner:', err);
-      alert('Error al subir la foto.');
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+    }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = '';
+    if (fallidas.length > 0) {
+      alert(`No se pudieron subir ${fallidas.length} de ${files.length} foto(s):\n- ${fallidas.join('\n- ')}\n\nError: ${ultimoError}\n\nReintentá solo con esas.`);
     }
   };
 

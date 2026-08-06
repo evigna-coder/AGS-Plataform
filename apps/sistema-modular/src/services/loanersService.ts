@@ -338,11 +338,16 @@ export const loanersService = {
     const { storage, uploadBytes, getCurrentUserTrace } = await getFirebaseModules();
     const loaner = await this.getById(loanerId);
     if (!loaner) throw new Error('Loaner no encontrado');
+    // Comprimir antes de subir (2026-08-06): las fotos crudas de varios MB
+    // agotaban los reintentos de Storage (retry-limit-exceeded) y la subida
+    // quedaba "Subiendo…" eterna. Mismo patrón que la cola del portal.
+    const { comprimirFotoParaSubida } = await import('../utils/comprimirFoto');
+    const blob = (file.type || '').startsWith('image/') ? await comprimirFotoParaSubida(file) : file;
     const rawName = meta.nombre || (file instanceof File ? file.name : 'foto.jpg');
     const safeName = rawName.replace(/[^\w.\-]/g, '_');
     const storagePath = `loaners/${loanerId}/fotos/${Date.now()}-${safeName}`;
     const r = storageRef(storage, storagePath);
-    await uploadBytes(r, file, { contentType: file.type || 'image/jpeg' });
+    await uploadBytes(r, blob, { contentType: blob.type || file.type || 'image/jpeg' });
     const url = await getDownloadURL(r);
     const trace = getCurrentUserTrace?.();
     const foto: FotoLoaner = {
