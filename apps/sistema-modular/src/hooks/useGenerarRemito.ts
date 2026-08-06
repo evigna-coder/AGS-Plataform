@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder, Loaner } from '@ags/shared';
 import { fichasService } from '../services/fichasService';
 import { clientesService } from '../services/clientesService';
 import { proveedoresService } from '../services/personalService';
 import { ordenesTrabajoService } from '../services/firebaseService';
+import { loanersService } from '../services/loanersService';
 import { remitosService, type DatosTransportista } from '../services/stockService';
 import type { ElegibleItem, ItemMode, ParteInput } from '../components/remitos/RemitoItemPicker';
 import type { TipoRemito } from '../components/remitos/RemitoTipoToggle';
@@ -53,13 +54,32 @@ interface Args {
    * proveedor, así que mezclar clientes es válido.
    */
   ficha: FichaPropiedad | null;
+  /** Loaner desde el que se abre (2026-08-06): derivación individual del
+   *  módulo AGS, preseleccionado; mismos modos que ficha (completo/partes). */
+  loaner?: Loaner | null;
+}
+
+/** Key con prefijo para distinguir loaners de items de ficha en la selección. */
+export const loanerKey = (id: string) => `loaner:${id}`;
+
+/**
+ * Un loaner presentado como ElegibleItem (2026-08-06): mismo picker, misma
+ * selección y partes que los items de ficha. Solo se leen subId /
+ * articuloDescripcion / serie / numero / clienteNombre — shapes sintéticos.
+ */
+function loanerToElegible(l: Loaner): ElegibleItem {
+  return {
+    key: loanerKey(l.id),
+    ficha: { id: loanerKey(l.id), numero: l.codigo, clienteNombre: 'Loaner AGS' } as unknown as FichaPropiedad,
+    item: { id: l.id, subId: l.codigo, articuloDescripcion: l.descripcion, serie: l.serie ?? null } as unknown as ItemFicha,
+  };
 }
 
 /**
  * Hook con todo el estado, carga inicial y handlers del modal de remito.
  * Mantiene `GenerarRemitoDevolucionModal.tsx` enfocado en presentación.
  */
-export function useGenerarRemito({ open, ficha }: Args) {
+export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
   const [tipo, setTipo] = useState<TipoRemito>('devolucion');
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -80,11 +100,14 @@ export function useGenerarRemito({ open, ficha }: Args) {
   // administrativo) + las ya vinculadas a la ficha, prefill = ficha.otIds.
   const [otsCliente, setOtsCliente] = useState<WorkOrder[]>([]);
   const [otsSeleccionadas, setOtsSeleccionadas] = useState<Set<string>>(new Set());
+  /** Loaners derivables (en base) — solo entran a elegibles en derivación. */
+  const [loanersBase, setLoanersBase] = useState<Loaner[]>([]);
 
   const elegibles = useMemo<ElegibleItem[]>(() => {
     const all = ficha ? [ficha, ...otherFichas] : otherFichas;
     const out: ElegibleItem[] = [];
     for (const f of all) {
+      if (!f.items) continue;
       for (const it of (f.items ?? [])) {
         // Estados terminales / en tránsito de salida: nunca elegibles.
         if (it.estado === 'entregado') continue;
@@ -99,8 +122,13 @@ export function useGenerarRemito({ open, ficha }: Args) {
         out.push({ ficha: f, item: it, key: `${f.id}:${it.id}` });
       }
     }
+    // Loaners (2026-08-06): módulos AGS derivables — solo en derivación a
+    // proveedor (en devolución al cliente no aplican).
+    if (tipo === 'derivacion_proveedor') {
+      for (const l of loanersBase) out.push(loanerToElegible(l));
+    }
     return out;
-  }, [ficha, otherFichas]);
+  }, [ficha, otherFichas, loanersBase, tipo]);
 
   useEffect(() => {
     if (!open) return;
@@ -124,10 +152,22 @@ export function useGenerarRemito({ open, ficha }: Args) {
       }).catch(console.error);
     } else {
       // Modo lote a proveedor: todas las fichas activas, cualquier cliente.
+      // Modo loaner individual: sin fichas, foco en los loaners.
       setCliente(null);
       setDestinatario(EMPTY_DEST);
-      void fichasService.getAll({ activasOnly: true }).then(setOtherFichas);
+      if (loaner) setOtherFichas([]);
+      else void fichasService.getAll({ activasOnly: true }).then(setOtherFichas);
       setOtsCliente([]);
+    }
+    // Loaners derivables: en base y activos (+ el loaner de entrada, siempre).
+    if (!ficha) {
+      void loanersService.getAll({ activoOnly: true }).then(ls => {
+        const base = ls.filter(l => l.estado === 'en_base' || l.id === loaner?.id);
+        if (loaner && !base.some(l => l.id === loaner.id)) base.unshift(loaner);
+        setLoanersBase(base);
+      }).catch(console.error);
+    } else {
+      setLoanersBase([]);
     }
     void proveedoresService.getAll(true).then(setProveedores);
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
@@ -136,6 +176,7 @@ export function useGenerarRemito({ open, ficha }: Args) {
     for (const it of ficha?.items ?? []) {
       if (it.estado === 'listo_para_entrega') preselect.add(`${ficha!.id}:${it.id}`);
     }
+    if (loaner) preselect.add(loanerKey(loaner.id));
     setSelectedKeys(preselect);
     setModeByKey(new Map());
     setPartesByKey(new Map());
@@ -143,7 +184,7 @@ export function useGenerarRemito({ open, ficha }: Args) {
     setTipo(ficha ? 'devolucion' : 'derivacion_proveedor');
     setError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ficha?.id, ficha?.clienteId, ficha?.items]);
+  }, [open, ficha?.id, ficha?.clienteId, ficha?.items, loaner?.id]);
 
   const handleChangeTipo = (next: TipoRemito) => {
     setTipo(next);

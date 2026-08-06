@@ -12,6 +12,7 @@ import { LoanerPrestamoModal } from '../../components/loaners/LoanerPrestamoModa
 import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucionModal';
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
+import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import { iniciarRecalificacion, liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import type { Loaner, VentaLoaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -32,6 +33,9 @@ export function LoanerDetail() {
   const [devolucionOpen, setDevolucionOpen] = useState(false);
   const [extraccionOpen, setExtraccionOpen] = useState(false);
   const [ventaOpen, setVentaOpen] = useState(false);
+  // Derivación a proveedor (2026-08-06): mismos criterios que ficha —
+  // completo o por partes, remito calibrado en triplicado.
+  const [derivacionOpen, setDerivacionOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -185,6 +189,9 @@ export function LoanerDetail() {
             <Button variant="ghost" size="sm" onClick={() => setExtraccionOpen(true)}>Extraer pieza</Button>
           )}
           {loaner.activo && loaner.estado === 'en_base' && (
+            <Button variant="ghost" size="sm" onClick={() => setDerivacionOpen(true)}>Derivar a proveedor</Button>
+          )}
+          {loaner.activo && loaner.estado === 'en_base' && (
             <Button variant="danger" size="sm" onClick={handleBaja}>Dar de baja</Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => navigate(`/loaners/${loaner.id}/editar`)}>Editar</Button>
@@ -214,6 +221,15 @@ export function LoanerDetail() {
         <LoanerDevolucionModal open={devolucionOpen} onClose={() => setDevolucionOpen(false)} clienteNombre={prestamoActivo.clienteNombre} onConfirm={handleDevolucion} />
       )}
       <LoanerExtraccionModal open={extraccionOpen} onClose={() => setExtraccionOpen(false)} onConfirm={handleExtraccion} />
+      {derivacionOpen && (
+        <GenerarRemitoDevolucionModal
+          open={derivacionOpen}
+          onClose={() => setDerivacionOpen(false)}
+          ficha={null}
+          loaner={loaner}
+          onCreated={remitoId => navigate(`/stock/remitos/${remitoId}`)}
+        />
+      )}
       <LoanerVentaModal open={ventaOpen} onClose={() => setVentaOpen(false)} loaner={loaner} onConfirm={handleVenta} />
     </div>
   );

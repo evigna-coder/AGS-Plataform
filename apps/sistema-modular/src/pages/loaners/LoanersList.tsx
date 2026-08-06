@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
+import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { Loaner, EstadoLoaner } from '@ags/shared';
 import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -39,6 +40,8 @@ export function LoanersList() {
   const [loaners, setLoaners] = useState<Loaner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  // Derivación a proveedor en lote (2026-08-06): varios loaners (o partes) en un remito.
+  const [showDerivacion, setShowDerivacion] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
 
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
@@ -105,7 +108,10 @@ export function LoanersList() {
         subtitle="Equipos de la empresa para prestamo y venta"
         count={isInitialLoad ? undefined : filtered.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowDerivacion(true)}>Derivar a proveedor</Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -238,6 +244,13 @@ export function LoanersList() {
       </div>
 
       <CreateLoanerModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {}} />
+      {showDerivacion && (
+        <GenerarRemitoDevolucionModal
+          open={showDerivacion}
+          onClose={() => setShowDerivacion(false)}
+          ficha={null}
+        />
+      )}
     </div>
   );
 }

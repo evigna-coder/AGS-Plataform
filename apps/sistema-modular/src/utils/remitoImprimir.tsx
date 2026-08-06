@@ -28,6 +28,40 @@ import { RemitoOverlayPDF, type RemitoOverlayItem, type RemitoOverlayFieldOffset
 import { printRemitoSilentOrOpen } from './remitoPdfActions';
 import { getRemitoItemCodigo, getRemitoItemDescripcion } from './inventarioToRemitoItem';
 
+/** Destinatario/transportista del overlay (mismo shape que DatosTransportista). */
+interface OverlayParty {
+  razonSocial: string;
+  domicilio: string;
+  localidad: string;
+  provincia: string;
+  iva: string;
+  cuit: string;
+}
+
+/**
+ * Núcleo de impresión calibrada (2026-08-06): triplicado silencioso sobre el
+ * papel preimpreso con LOS offsets calibrados. Único punto — cualquier remito
+ * (stock, ficha, loaner, derivación) imprime por acá para salir igual.
+ */
+export async function imprimirRemitoOverlay(opts: {
+  fecha: string;
+  destinatario: OverlayParty;
+  transportista?: OverlayParty | null;
+  items: RemitoOverlayItem[];
+  observaciones?: string | null;
+}): Promise<void> {
+  await printRemitoSilentOrOpen(
+    <RemitoOverlayPDF
+      fecha={opts.fecha}
+      destinatario={opts.destinatario}
+      transportista={opts.transportista ?? null}
+      items={opts.items}
+      observaciones={opts.observaciones ?? null}
+      globalOffsetX={OFFSET_X} globalOffsetY={OFFSET_Y} fieldOffsets={FIELD_OFFSETS}
+    />,
+  );
+}
+
 /**
  * Imprime (o reimprime) un remito de stock sobre el papel preimpreso en
  * triplicado, resolviendo destinatario desde el cliente (datos fiscales) y el
@@ -81,11 +115,12 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   const now = new Date();
   const fechaFmt = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
-  await printRemitoSilentOrOpen(
-    <RemitoOverlayPDF fecha={fechaFmt} destinatario={destinatario} items={items}
-      observaciones={remito.observaciones}
-      globalOffsetX={OFFSET_X} globalOffsetY={OFFSET_Y} fieldOffsets={FIELD_OFFSETS} />,
-  );
+  await imprimirRemitoOverlay({
+    fecha: fechaFmt,
+    destinatario,
+    items,
+    observaciones: remito.observaciones,
+  });
 
   // Marcar impreso — best-effort (la impresión ya salió; si el update falla,
   // el remito queda editable pero el papel existe: preferible loguear y seguir).

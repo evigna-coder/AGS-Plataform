@@ -3,10 +3,9 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import type { FichaPropiedad } from '@ags/shared';
+import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { remitosService } from '../../services/stockService';
-import { RemitoOverlayPDF } from './pdf/RemitoOverlayPDF';
-import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
+import { imprimirRemitoOverlay } from '../../utils/remitoImprimir';
 import { RemitoItemPicker } from './RemitoItemPicker';
 import { RemitoPartyFields } from './RemitoPartyFields';
 import { RemitoTipoToggle } from './RemitoTipoToggle';
@@ -19,11 +18,13 @@ interface Props {
    *  preseleccionados. `null` = modo LOTE A PROVEEDOR desde el listado:
    *  derivación con items de fichas de CUALQUIER cliente en una tanda. */
   ficha: FichaPropiedad | null;
+  /** Loaner de entrada (2026-08-06): derivación del módulo AGS, preseleccionado. */
+  loaner?: Loaner | null;
   onCreated?: (remitoId: string) => void;
 }
 
-export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }: Props) {
-  const f = useGenerarRemito({ open, ficha });
+export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = null, onCreated }: Props) {
+  const f = useGenerarRemito({ open, ficha, loaner });
   const modoLote = !ficha;
 
   const proveedorOptions = useMemo(
@@ -39,7 +40,11 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
     f.setError(null);
     try {
       const motivo = f.isDerivacion ? 'Derivación a proveedor' : 'Devolución por reparación';
-      const itemsInput = f.selected.map(({ ficha: fi, item }) => {
+      // Split ficha-items vs loaners (2026-08-06): los loaners viajan como
+      // líneas documentales propias, sin update de ficha.
+      const fichaSel = f.selected.filter(e => !e.key.startsWith('loaner:'));
+      const loanerSel = f.selected.filter(e => e.key.startsWith('loaner:'));
+      const itemsInput = fichaSel.map(({ ficha: fi, item }) => {
         const parent = item.parentItemId ? fi.items.find(i => i.id === item.parentItemId) : null;
         const mode = f.modeByKey.get(`${fi.id}:${item.id}`) ?? 'completo';
         const partes = f.partesByKey.get(`${fi.id}:${item.id}`) ?? [];
@@ -67,6 +72,28 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
           })) : undefined,
         };
       });
+      const loanersInput = loanerSel.map(({ item, key }) => {
+        const mode = f.modeByKey.get(key) ?? 'completo';
+        const partes = f.partesByKey.get(key) ?? [];
+        const tienePartes = mode === 'partes' && partes.length > 0;
+        const origenLabel = [
+          item.subId,
+          item.articuloDescripcion || null,
+          item.serie ? `S/N ${item.serie}` : null,
+        ].filter(Boolean).join(' · ');
+        return {
+          loanerId: item.id,
+          loanerCodigo: item.subId,
+          descripcion: [item.articuloDescripcion, item.serie ? `S/N ${item.serie}` : null].filter(Boolean).join(' · ') || item.subId,
+          origenLabel,
+          partes: tienePartes ? partes.map(p => ({
+            articuloId: p.articuloId,
+            articuloCodigo: p.articuloCodigo,
+            descripcion: p.descripcion.trim(),
+            serie: p.serie?.trim() || null,
+          })) : undefined,
+        };
+      });
       // OTs elegidas en el selector (2026-08-06) — antes se heredaban a ciegas.
       const otNumbersUnique = Array.from(f.otsSeleccionadas);
       const proveedor = f.proveedores.find(p => p.id === f.proveedorId) ?? null;
@@ -78,6 +105,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
         transportista: f.transportista.razonSocial ? f.transportista : null,
         fecha: f.fecha,
         items: itemsInput,
+        loaners: loanersInput.length > 0 ? loanersInput : undefined,
         observaciones: f.observaciones || null,
         clienteId: f.isDerivacion ? null : ficha?.clienteId ?? null,
         clienteNombre: f.isDerivacion ? null : ficha?.clienteNombre ?? null,
@@ -107,15 +135,32 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
         }
       }
 
+      // Líneas de loaners al PDF (después de las de fichas).
+      for (const l of loanersInput) {
+        if (l.partes && l.partes.length > 0) {
+          for (const p of l.partes) {
+            pdfLines.push({
+              numero: pdfLines.length + 1,
+              cantidad: 1,
+              producto: l.loanerCodigo,
+              descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${l.origenLabel})`,
+            });
+          }
+        } else {
+          pdfLines.push({ numero: pdfLines.length + 1, cantidad: 1, producto: l.loanerCodigo, descripcion: l.descripcion });
+        }
+      }
+
       const fechaFmt = f.fecha.split('-').reverse().join('/');
-      await openRemitoPdfInNewTab(
-        <RemitoOverlayPDF
-          fecha={fechaFmt}
-          destinatario={f.destinatario}
-          transportista={f.transportista.razonSocial ? f.transportista : null}
-          items={pdfLines}
-        />,
-      );
+      // Pipeline calibrado (2026-08-06): triplicado silencioso con los mismos
+      // offsets que el resto de los remitos — salía sin calibrar y abría PDF.
+      await imprimirRemitoOverlay({
+        fecha: fechaFmt,
+        destinatario: f.destinatario,
+        transportista: f.transportista.razonSocial ? f.transportista : null,
+        items: pdfLines,
+        observaciones: f.observaciones || null,
+      }).catch(err => console.warn('[GenerarRemito] impresión falló:', err));
       onCreated?.(id);
       onClose();
     } catch (err) {
@@ -130,14 +175,14 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
     <Modal
       open={open}
       onClose={onClose}
-      title={modoLote ? 'Derivación a proveedor — lote' : 'Generar remito de salida'}
+      title={loaner ? `Derivación a proveedor — ${loaner.codigo}` : modoLote ? 'Derivación a proveedor — lote' : 'Generar remito de salida'}
       subtitle={subtitle}
       maxWidth="xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={f.submitting}>Cancelar</Button>
           <Button onClick={() => void handleSubmit()} disabled={!f.canSubmit || f.submitting}>
-            {f.submitting ? 'Generando…' : 'Generar y abrir PDF'}
+            {f.submitting ? 'Generando…' : 'Generar e imprimir (triplicado)'}
           </Button>
         </div>
       }
@@ -193,7 +238,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
 
         {/* OTs vinculadas (2026-08-06): abiertas del cliente + las de la ficha.
             Siempre visible (con leyenda si no hay) — oculto parecía "no existe". */}
-        {!modoLote && (
+        {!!ficha && (
           <div>
             <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">
               OTs vinculadas ({f.otsSeleccionadas.size})

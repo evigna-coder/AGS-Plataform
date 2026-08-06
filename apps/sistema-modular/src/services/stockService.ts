@@ -1046,6 +1046,34 @@ export const remitosService = {
       }];
     });
 
+    // Loaners (2026-08-06): módulos AGS derivados al proveedor — líneas
+    // DOCUMENTALES (el loaner no cambia de estado; trazabilidad por loanerId).
+    const loanerLineas: RemitoItem[] = (input.loaners ?? []).flatMap(l => {
+      if (l.partes && l.partes.length > 0) {
+        return l.partes.map(p => ({
+          id: crypto.randomUUID(),
+          cantidad: 1,
+          tipoItem: 'entrega' as const,
+          devuelto: false,
+          tipoEntidad: 'loaner' as const,
+          loanerId: l.loanerId,
+          loanerCodigo: l.loanerCodigo,
+          loanerDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${l.origenLabel ?? l.loanerCodigo})`,
+        }));
+      }
+      return [{
+        id: crypto.randomUUID(),
+        cantidad: 1,
+        tipoItem: 'entrega' as const,
+        devuelto: false,
+        tipoEntidad: 'loaner' as const,
+        loanerId: l.loanerId,
+        loanerCodigo: l.loanerCodigo,
+        loanerDescripcion: l.descripcion,
+      }];
+    });
+    remitoLineas.push(...loanerLineas);
+
     // Agrupar items por fichaId para hacer un solo update por ficha
     const itemsByFicha = new Map<string, typeof input.items>();
     for (const it of input.items) {
@@ -1279,6 +1307,19 @@ export interface CreateRemitoItemsInput {
     /** Módulo de origen para las líneas de partes: "SUB-XX · descripción · S/N ..." */
     origenLabel?: string;
     descripcion: string;
+    partes?: Array<{
+      articuloId?: string | null;
+      articuloCodigo?: string | null;
+      descripcion: string;
+      serie?: string | null;
+    }>;
+  }>;
+  /** Loaners (módulos AGS) a derivar — líneas documentales, completo o por partes (2026-08-06). */
+  loaners?: Array<{
+    loanerId: string;
+    loanerCodigo: string;
+    descripcion: string;
+    origenLabel?: string;
     partes?: Array<{
       articuloId?: string | null;
       articuloCodigo?: string | null;

@@ -99,7 +99,9 @@ export function RemitoItemPicker({
   }
 
   return (
-    <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+    // Compacto (2026-08-06, pedido): letra xs y ritmo apretado — el listado
+    // con selectores ocupaba demasiado en lotes grandes.
+    <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-[340px] overflow-y-auto">
       {elegibles.map(({ ficha: f, item, key }) => {
         const selected = selectedKeys.has(key);
         const mode = modeByKey.get(key) ?? 'completo';
@@ -107,10 +109,10 @@ export function RemitoItemPicker({
         const showPartes = selected && !onlyCompleto && mode === 'partes';
 
         return (
-          <div key={key} className={`px-3 py-2 ${selected ? 'bg-teal-50/30' : ''}`}>
+          <div key={key} className={`px-2.5 py-1.5 ${selected ? 'bg-teal-50/30' : ''}`}>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={selected} onChange={() => onToggleItem(key)} />
-              <div className="flex-1 min-w-0 text-sm">
+              <input type="checkbox" checked={selected} onChange={() => onToggleItem(key)} className="w-3.5 h-3.5" />
+              <div className="flex-1 min-w-0 text-xs">
                 <span className="font-mono text-teal-700">{item.subId}</span>
                 <span className="text-slate-500"> · {item.articuloDescripcion || item.descripcionLibre || 'Item'}</span>
                 {item.serie && <span className="text-slate-400 font-mono"> · S/N {item.serie}</span>}
@@ -141,7 +143,7 @@ export function RemitoItemPicker({
             </label>
 
             {showPartes && (
-              <div className="mt-2 ml-6 space-y-1.5">
+              <div className="mt-1.5 ml-5 space-y-1">
                 {partes.length === 0 && (
                   <p className="text-[11px] text-amber-700">Agregá al menos una parte.</p>
                 )}
