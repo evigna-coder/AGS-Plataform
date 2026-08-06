@@ -24,7 +24,22 @@ export type PresupuestoMetricas = Pick<
   | 'responsableId' | 'responsableNombre' | 'fechaEnvio' | 'fechaAceptacion'
   | 'ordenesCompraIds' | 'otsVinculadasNumbers' | 'anuladoPorId'
   | 'validUntil' | 'validezDias'
->;
+> & Partial<Pick<Presupuesto, 'ordenCompraNumero' | 'adjuntos'>>;
+
+/**
+ * True si el cliente ya entregó su OC por CUALQUIER camino: OC formal
+ * (ordenesCompraIds, FLOW-02 "Cargar OC"), número cargado a mano o adjunto
+ * tipo orden_compra (AdjuntarOCModal). 2026-08-06: el chip "OC ⚠ — trabajo
+ * realizado" seguía prendido con la OC ya cargada por el camino liviano,
+ * que no estampa ordenesCompraIds.
+ */
+export function tieneOCDelCliente(
+  p: Pick<PresupuestoMetricas, 'ordenesCompraIds' | 'ordenCompraNumero' | 'adjuntos'>,
+): boolean {
+  if ((p.ordenesCompraIds || []).length > 0) return true;
+  if (p.ordenCompraNumero?.trim()) return true;
+  return (p.adjuntos || []).some(a => a.tipo === 'orden_compra');
+}
 
 /** Subconjunto de WorkOrder que usa el join de OC adeudada. */
 export type OTMetricas = Pick<
@@ -316,7 +331,7 @@ export function computeOCAdeudada(
     // Candidatos: sin OC del cliente, estado aceptado o posterior, no anulados.
     // (anulado por revisión ⇒ estado 'anulado' ⇒ queda afuera por el mismo check).
     if (!OC_ADEUDADA_ESTADOS.has(p.estado)) continue;
-    if ((p.ordenesCompraIds || []).length > 0) continue;
+    if (tieneOCDelCliente(p)) continue;
 
     // Servicio realizado: OT cerrada con budgets conteniendo el número del ppto,
     // o rescate por otsVinculadasNumbers (budgets mal cargado en la OT).

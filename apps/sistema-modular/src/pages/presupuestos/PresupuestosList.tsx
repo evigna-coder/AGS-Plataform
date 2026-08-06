@@ -37,7 +37,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 import { matchesSearch } from '../../utils/searchTerms';
-import { computeOCAdeudada, OC_ADEUDADA_ESTADOS } from '../../utils/analitica/presupuestosMetrics';
+import { computeOCAdeudada, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
 
@@ -283,7 +283,11 @@ export const PresupuestosList = () => {
       // elegido explícitamente (no el sentinel) sí se respeta.
       const drillDownActivo = !!(filters.kpi || filters.ocPendiente || filters.ocTrabajoRealizado);
       if (filters.estado === 'borrador_enviado') {
-        if (!drillDownActivo && p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc') return false;
+        // faltaAviso (2026-08-06): un cierre administrativo SIN aviso dejaba el
+        // ppto en pendiente_facturacion y la vista default lo hacía desaparecer
+        // — nadie avisaba a facturación. Queda visible con el badge naranja
+        // "OT cerrada — falta aviso" hasta que alguien genere el aviso.
+        if (!drillDownActivo && p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc' && !faltaAviso(p)) return false;
       } else if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
@@ -294,7 +298,9 @@ export const PresupuestosList = () => {
       // drill-down que navega con ?ocPendiente=true.
       if (filters.ocPendiente) {
         if (!OC_ADEUDADA_ESTADOS.has(p.estado)) return false;
-        if ((p.ordenesCompraIds || []).length > 0) return false;
+        // tieneOCDelCliente (2026-08-06): cualquier camino de carga de OC
+        // (formal, número a mano o adjunto) saca al ppto de "OC pendiente".
+        if (tieneOCDelCliente(p)) return false;
       }
       // Solo trabajo realizado: subconjunto sin OC con OT cerrada.
       if (filters.ocTrabajoRealizado && !trabajoRealizadoIds.has(p.id)) return false;
