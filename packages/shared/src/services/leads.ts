@@ -219,6 +219,9 @@ export function parseLeadDoc(d: { id: string; data: () => Record<string, unknown
     prioridad: data.prioridad === 'media' ? 'normal' : ((data.prioridad as Lead['prioridad']) ?? null),
     proximoContacto: (data.proximoContacto as string) ?? null,
     valorEstimado: (data.valorEstimado as number) ?? null,
+    // Pestaña Sistema (2026-08-06): sin esta línea el parser tiraba el flag y
+    // los autogenerados seguían apareciendo en la bandeja (trampa campo-por-campo).
+    esAutogenerado: data.esAutogenerado === true,
     pendienteClienteId: data.pendienteClienteId === true,
     candidatosPropuestos: Array.isArray(data.candidatosPropuestos)
       ? (data.candidatosPropuestos as Lead['candidatosPropuestos'])
