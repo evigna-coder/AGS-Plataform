@@ -525,6 +525,11 @@ export const leadsService = {
   async syncFromOT(leadId: string, otNumber: string, newEstadoAdmin: OTEstadoAdmin) {
     const lead = await this.getById(leadId);
     if (!lead || lead.estado === 'finalizado' || lead.estado === 'no_concretado') return;
+    // El ticket de facturación ("Cargar factura del aviso") arranca DESPUÉS del
+    // cierre de la OT: el barrido de transición OT→FINALIZADO lo finalizaba al
+    // nacer y administración nunca lo veía (P3-005050-01, 2026-08-06). Su ciclo
+    // lo maneja el flujo de facturación, no el estado de la OT.
+    if (lead.accionPendiente === 'Cargar factura del aviso') return;
 
     const nuevoEstadoLead = OT_TO_LEAD_ESTADO[newEstadoAdmin];
     if (!nuevoEstadoLead || nuevoEstadoLead === lead.estado) return;
