@@ -62,8 +62,13 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
     if (!newItemData.tipoServicio.trim()) { alert('El tipo de servicio es obligatorio'); return; }
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
+      const ahoraIso = new Date().toISOString();
       await ordenesTrabajoService.create({
         otNumber: nextNum, status: 'BORRADOR', budgets: [],
+        // Estado inicial explícito (2026-08-06): sin esto el item quedaba sin
+        // estadoAdmin en Firestore (los filtros por estado no lo veían).
+        estadoAdmin: 'CREADA', estadoAdminFecha: ahoraIso,
+        estadoHistorial: [{ estado: 'CREADA', fecha: ahoraIso }],
         tipoServicio: newItemData.tipoServicio,
         esFacturable: newItemData.necesitaPresupuesto,
         tieneContrato: newItemData.tieneContrato || cliente?.tipoServicio === 'contrato',

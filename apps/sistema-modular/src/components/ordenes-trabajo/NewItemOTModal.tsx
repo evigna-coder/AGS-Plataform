@@ -31,12 +31,20 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
     setSaving(true);
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(parentBase);
+      const ahora = new Date().toISOString();
+      // El item nuevo NO hereda el estadoAdmin de la OT origen (2026-08-06):
+      // heredarlo hacía nacer items en CIERRE_TECNICO si la OT ya estaba cerrada.
+      // Mismo criterio que el auto-child de otService: CREADA, o ASIGNADA si
+      // arrastra ingeniero asignado.
+      const estadoInicial = parentOt.ingenieroAsignadoId ? 'ASIGNADA' as const : 'CREADA' as const;
       const itemData: any = {
         otNumber: nextNum,
         status: 'BORRADOR' as const,
-        estadoAdmin: parentOt.estadoAdmin || 'CREADA',
-        estadoAdminFecha: new Date().toISOString(),
-        estadoHistorial: [{ estado: 'CREADA' as const, fecha: new Date().toISOString() }],
+        estadoAdmin: estadoInicial,
+        estadoAdminFecha: ahora,
+        estadoHistorial: estadoInicial === 'ASIGNADA'
+          ? [{ estado: 'CREADA' as const, fecha: ahora }, { estado: 'ASIGNADA' as const, fecha: ahora }]
+          : [{ estado: 'CREADA' as const, fecha: ahora }],
         budgets: parentOt.budgets || [],
         ordenCompra: parentOt.ordenCompra || '',
         tipoServicio: form.tipoServicio,
