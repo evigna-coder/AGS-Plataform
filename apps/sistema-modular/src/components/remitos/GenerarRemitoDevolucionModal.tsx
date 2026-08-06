@@ -44,11 +44,20 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
         const mode = f.modeByKey.get(`${fi.id}:${item.id}`) ?? 'completo';
         const partes = f.partesByKey.get(`${fi.id}:${item.id}`) ?? [];
         const tienePartes = f.isDerivacion && mode === 'partes' && partes.length > 0;
+        // Módulo de origen con nombre y serie (2026-08-06): las líneas de
+        // partes decían solo "(de SUB-XX)" — en el papel no se sabía de qué
+        // módulo salió la placa.
+        const origenLabel = [
+          item.subId,
+          item.articuloDescripcion || item.descripcionLibre || null,
+          item.serie ? `S/N ${item.serie}` : null,
+        ].filter(Boolean).join(' · ');
         return {
           fichaId: fi.id,
           fichaNumero: fi.numero,
           itemId: item.id,
           itemSubId: item.subId,
+          origenLabel,
           descripcion: itemDescripcion(item, motivo, parent?.subId),
           partes: tienePartes ? partes.map(p => ({
             articuloId: p.articuloId,
@@ -85,7 +94,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
               numero: pdfLines.length + 1,
               cantidad: 1,
               producto: it.itemSubId,
-              descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.itemSubId})`,
+              descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.origenLabel ?? it.itemSubId})`,
             });
           }
         } else {

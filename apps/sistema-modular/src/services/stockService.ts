@@ -1026,7 +1026,9 @@ export const remitosService = {
           devuelto: false,
           fichaId: it.fichaId,
           fichaNumero: it.fichaNumero,
-          fichaDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.itemSubId})`,
+          // origenLabel (2026-08-06): módulo de origen con nombre y serie, no
+          // solo el subId — en el papel no se sabía de qué módulo salió la parte.
+          fichaDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.origenLabel ?? it.itemSubId})`,
         }));
       }
       return [{
@@ -1270,6 +1272,8 @@ export interface CreateRemitoItemsInput {
     fichaNumero: string;
     itemId: string;
     itemSubId: string;
+    /** Módulo de origen para las líneas de partes: "SUB-XX · descripción · S/N ..." */
+    origenLabel?: string;
     descripcion: string;
     partes?: Array<{
       articuloId?: string | null;
