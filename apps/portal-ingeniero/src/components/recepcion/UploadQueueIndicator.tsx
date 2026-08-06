@@ -35,7 +35,11 @@ export function UploadQueueIndicator() {
     cls = 'bg-slate-50 text-slate-700 border-slate-200';
   }
 
-  const showRetry = online && conIntentos > 0;
+  // Siempre que haya pendientes (2026-08-06): antes se ocultaba estando
+  // "offline", pero el flag onLine puede quedar en false ESPURIO — la cola
+  // congelada mostraba "esperando red" sin botón para destrabarla. retryAll
+  // además libera un draining atascado.
+  const showRetry = pending.length > 0;
   const conError = pending.filter(p => p.lastError);
 
   return (
