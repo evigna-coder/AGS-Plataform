@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder } from '@ags/shared';
 import { fichasService } from '../services/fichasService';
 import { clientesService } from '../services/clientesService';
 import { proveedoresService } from '../services/personalService';
+import { ordenesTrabajoService } from '../services/firebaseService';
 import { remitosService, type DatosTransportista } from '../services/stockService';
 import type { ElegibleItem, ItemMode, ParteInput } from '../components/remitos/RemitoItemPicker';
 import type { TipoRemito } from '../components/remitos/RemitoTipoToggle';
@@ -68,6 +69,11 @@ export function useGenerarRemito({ open, ficha }: Args) {
   const [observaciones, setObservaciones] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // OTs seleccionables (2026-08-06): antes el remito heredaba ficha.otIds sin
+  // opción de elegir. Se listan las OTs abiertas del cliente (hijas, sin cierre
+  // administrativo) + las ya vinculadas a la ficha, prefill = ficha.otIds.
+  const [otsCliente, setOtsCliente] = useState<WorkOrder[]>([]);
+  const [otsSeleccionadas, setOtsSeleccionadas] = useState<Set<string>>(new Set());
 
   const elegibles = useMemo<ElegibleItem[]>(() => {
     const all = [ficha, ...otherFichas];
@@ -102,6 +108,16 @@ export function useGenerarRemito({ open, ficha }: Args) {
     });
     void proveedoresService.getAll(true).then(setProveedores);
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
+    void ordenesTrabajoService.getAll({ clienteId: ficha.clienteId }).then(ots => {
+      const vinculadas = new Set(ficha.otIds ?? []);
+      const seleccionables = (ots as WorkOrder[]).filter(o =>
+        o.otNumber.includes('.') &&
+        (vinculadas.has(o.otNumber) ||
+          !['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(o.estadoAdmin ?? '')));
+      seleccionables.sort((a, b) => b.otNumber.localeCompare(a.otNumber));
+      setOtsCliente(seleccionables);
+    }).catch(console.error);
+    setOtsSeleccionadas(new Set(ficha.otIds ?? []));
     const preselect = new Set<string>();
     for (const it of ficha.items ?? []) {
       if (it.estado === 'listo_para_entrega') preselect.add(`${ficha.id}:${it.id}`);
@@ -172,6 +188,14 @@ export function useGenerarRemito({ open, ficha }: Args) {
     setPartesByKey(m => { const n = new Map(m); n.set(key, partes); return n; });
   };
 
+  const handleToggleOt = (otNumber: string) => {
+    setOtsSeleccionadas(prev => {
+      const n = new Set(prev);
+      if (n.has(otNumber)) n.delete(otNumber); else n.add(otNumber);
+      return n;
+    });
+  };
+
   const isDerivacion = tipo === 'derivacion_proveedor';
   const numeroValido = NUMERO_REGEX.test(numero.trim());
   const selected = elegibles.filter(e => selectedKeys.has(e.key));
@@ -191,10 +215,12 @@ export function useGenerarRemito({ open, ficha }: Args) {
     // state
     tipo, cliente, proveedores, proveedorId, numero, fecha, destinatario, transportista,
     observaciones, submitting, error, selectedKeys, modeByKey, partesByKey, elegibles, selected,
+    otsCliente, otsSeleccionadas,
     // setters
     setNumero, setFecha, setDestinatario, setTransportista, setObservaciones, setSubmitting, setError,
     // handlers
     handleChangeTipo, handlePickProveedor, handleToggleItem, handleChangeMode, handleChangePartes,
+    handleToggleOt,
     // derived flags
     isDerivacion, numeroValido, canSubmit,
   };

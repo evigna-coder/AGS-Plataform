@@ -55,7 +55,8 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
           })) : undefined,
         };
       });
-      const otNumbersUnique = Array.from(new Set(f.selected.flatMap(e => e.ficha.otIds ?? [])));
+      // OTs elegidas en el selector (2026-08-06) — antes se heredaban a ciegas.
+      const otNumbersUnique = Array.from(f.otsSeleccionadas);
       const proveedor = f.proveedores.find(p => p.id === f.proveedorId) ?? null;
 
       const { id } = await remitosService.createForItems({
@@ -175,6 +176,29 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
             currentFichaId={ficha.id}
           />
         </div>
+
+        {/* OTs vinculadas (2026-08-06): abiertas del cliente + las de la ficha. */}
+        {f.otsCliente.length > 0 && (
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">
+              OTs vinculadas ({f.otsSeleccionadas.size})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {f.otsCliente.map(o => {
+                const on = f.otsSeleccionadas.has(o.otNumber);
+                return (
+                  <button key={o.otNumber} type="button" onClick={() => f.handleToggleOt(o.otNumber)}
+                    title={[o.tipoServicio, o.sistema].filter(Boolean).join(' · ') || undefined}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-mono border transition-colors ${
+                      on ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-500'
+                    }`}>
+                    {o.otNumber}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <RemitoPartyFields
           title={`Destinatario ${f.isDerivacion ? '(proveedor)' : '(cliente)'}`}
