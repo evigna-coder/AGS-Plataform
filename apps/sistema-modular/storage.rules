@@ -37,6 +37,15 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // Fotos de loaners (galería en sistema-modular + salida/retorno desde
+    // portal-ingeniero). Quedó fuera del whitelist desde el hardening Fase 1 —
+    // TODA subida de foto de loaner rebotaba (el SDK lo reportaba como
+    // retry-limit-exceeded, enmascarando el deny). Mismo accidente que
+    // ordenesCompraCliente y facturas.
+    match /loaners/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // Adjuntos de presupuestos (órdenes de compra, autorizaciones, etc.)
     match /presupuestos/{allPaths=**} {
       allow read, write: if request.auth != null;
