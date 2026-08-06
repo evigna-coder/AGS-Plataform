@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { PendingFoto } from '../../services/uploadQueueDB';
+import { pendingFotoBlob, type PendingFoto } from '../../services/uploadQueueDB';
 
 interface Props {
   pending: PendingFoto;
@@ -12,10 +12,14 @@ export function FotoCard({ pending, onRetry, onDiscard }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const url = URL.createObjectURL(pending.blob);
+    // pendingFotoBlob: los items nuevos guardan bytes crudos (data), no Blob.
+    const blob = pendingFotoBlob(pending);
+    if (!blob) { setPreviewUrl(null); return; }
+    const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [pending.blob]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.id, pending.status]);
 
   const showRetry = pending.lastError && pending.status === 'queued';
 

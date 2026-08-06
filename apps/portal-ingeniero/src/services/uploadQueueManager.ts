@@ -11,6 +11,7 @@
  */
 import {
   uploadQueueDB,
+  pendingFotoBlob,
   type PendingFoto,
   type PendingFotoFicha,
   type PendingFotoLoaner,
@@ -93,7 +94,7 @@ class UploadQueueManager {
     // los reintentos de Storage con señal débil; además achica IndexedDB.
     const blob = await comprimirFotoParaSubida(input.blob);
     const item: PendingFotoFicha = {
-      ...this.baseItem(blob, input.filename),
+      ...(await this.baseItem(blob, input.filename)),
       tipo: 'ficha',
       fichaId: input.fichaId,
       fichaNumero: input.fichaNumero,
@@ -112,7 +113,7 @@ class UploadQueueManager {
   }): Promise<void> {
     const blob = await comprimirFotoParaSubida(input.blob);
     const item: PendingFotoLoaner = {
-      ...this.baseItem(blob, input.filename),
+      ...(await this.baseItem(blob, input.filename)),
       tipo: 'loaner',
       loanerId: input.loanerId,
       loanerCodigo: input.loanerCodigo,
@@ -169,11 +170,16 @@ class UploadQueueManager {
     await this.refresh();
   }
 
-  private baseItem(blob: Blob, filename: string) {
+  private async baseItem(blob: Blob, filename: string) {
     const user = getCurrentUser();
+    // ArrayBuffer en vez de Blob (2026-08-06): en iOS/WebKit los Blobs
+    // persistidos en IndexedDB pueden quedar ILEGIBLES al cerrar la PWA — la
+    // foto quedaba en cola pero su subida moría como "error de red" para
+    // siempre. Los bytes crudos sobreviven a cualquier reinicio.
     return {
       id: crypto.randomUUID(),
-      blob,
+      data: await blob.arrayBuffer(),
+      mime: blob.type || 'image/jpeg',
       filename,
       capturaAt: new Date().toISOString(),
       intentos: 0,
@@ -209,12 +215,16 @@ class UploadQueueManager {
 
   /** Sube una foto según su tipo. Upload a Storage + metadata al doc Firestore. */
   private async uploadOne(next: PendingFoto): Promise<void> {
-    // Red de seguridad (2026-08-06): comprimir TAMBIÉN al drenar. Las fotos
-    // encoladas antes de que existiera la compresión (2026-07-29) quedaron
-    // como blobs crudos de varios MB en IndexedDB — imposibles de subir con
-    // señal débil, envenenaban la cola para siempre. Idempotente: una foto ya
+    // Materializar los bytes con verificación de lectura (2026-08-06): los
+    // items legacy guardaban el Blob directo y en iOS puede estar MUERTO
+    // (bug WebKit al cerrar la PWA) — acá lo detectamos con un mensaje claro
+    // en vez de reintentar eternamente un "error de red".
+    const bruto = await this.materializarBlob(next);
+    // Red de seguridad: comprimir TAMBIÉN al drenar. Las fotos encoladas
+    // antes de la compresión (2026-07-29) eran blobs crudos de varios MB —
+    // imposibles de subir con señal débil. Idempotente: una foto ya
     // comprimida pasa casi igual (solo se usa si achica).
-    const blob = await comprimirFotoParaSubida(next.blob);
+    const blob = await comprimirFotoParaSubida(bruto);
     if (next.tipo === 'loaner') {
       // Toda la lógica loaner (path de Storage, shape FotoLoaner, append al
       // array `fotos`) vive en el service — acá solo se invoca.
@@ -243,6 +253,21 @@ class UploadQueueManager {
       momento: next.momento,
     };
     await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
+  }
+
+  /** Blob subible del item, verificando que sus bytes sean legibles. */
+  private async materializarBlob(next: PendingFoto): Promise<Blob> {
+    const b = pendingFotoBlob(next);
+    if (!b) throw new Error('Foto sin datos en la cola — descartala y volvé a sacarla.');
+    if (next.data) return b; // reconstruido de bytes crudos: siempre legible
+    try {
+      // Legacy (Blob directo): forzar la lectura acá. Si el teléfono descartó
+      // los datos (iOS al cerrar la PWA), falla AHORA con mensaje claro.
+      const buf = await b.arrayBuffer();
+      return new Blob([buf], { type: b.type || 'image/jpeg' });
+    } catch {
+      throw new Error('Foto ilegible: el teléfono descartó sus datos al cerrar la app. Descartala de la cola y volvé a sacarla.');
+    }
   }
 
   /** Toma una foto en estado 'queued' y la sube. Reagenda si quedan más.

@@ -24,13 +24,28 @@ export type PendingFotoStatus = 'queued' | 'uploading' | 'error';
 
 interface PendingFotoBase {
   id: string;            // uuid local
-  blob: Blob;
+  /** Legacy (items encolados antes de 2026-08-06). En iOS/WebKit los Blobs
+   *  persistidos en IndexedDB pueden quedar ILEGIBLES tras cerrar la PWA —
+   *  la subida falla como si fuera error de red. Por eso los items nuevos
+   *  guardan `data` (ArrayBuffer, sobrevive siempre) y este campo quedó
+   *  solo para drenar lo ya encolado. */
+  blob?: Blob;
+  /** Bytes crudos de la foto (items 2026-08-06+). */
+  data?: ArrayBuffer;
+  /** MIME de `data` (image/jpeg si falta). */
+  mime?: string;
   filename: string;
   capturaAt: string;     // ISO
   intentos: number;
   status: PendingFotoStatus;
   lastError?: string;
   subidoPor?: string;
+}
+
+/** Blob utilizable del item, venga como venga (data nuevo o blob legacy). */
+export function pendingFotoBlob(p: PendingFoto): Blob | null {
+  if (p.data) return new Blob([p.data], { type: p.mime || 'image/jpeg' });
+  return p.blob ?? null;
 }
 
 export interface PendingFotoFicha extends PendingFotoBase {
