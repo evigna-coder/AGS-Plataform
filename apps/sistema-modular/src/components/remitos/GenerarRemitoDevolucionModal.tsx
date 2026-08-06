@@ -182,26 +182,31 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
           />
         </div>
 
-        {/* OTs vinculadas (2026-08-06): abiertas del cliente + las de la ficha. */}
-        {f.otsCliente.length > 0 && (
+        {/* OTs vinculadas (2026-08-06): abiertas del cliente + las de la ficha.
+            Siempre visible (con leyenda si no hay) — oculto parecía "no existe". */}
+        {!modoLote && (
           <div>
             <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">
               OTs vinculadas ({f.otsSeleccionadas.size})
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {f.otsCliente.map(o => {
-                const on = f.otsSeleccionadas.has(o.otNumber);
-                return (
-                  <button key={o.otNumber} type="button" onClick={() => f.handleToggleOt(o.otNumber)}
-                    title={[o.tipoServicio, o.sistema].filter(Boolean).join(' · ') || undefined}
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-mono border transition-colors ${
-                      on ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-500'
-                    }`}>
-                    {o.otNumber}
-                  </button>
-                );
-              })}
-            </div>
+            {f.otsCliente.length === 0 ? (
+              <p className="text-[11px] text-slate-400">El cliente no tiene OTs abiertas para vincular.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {f.otsCliente.map(o => {
+                  const on = f.otsSeleccionadas.has(o.otNumber);
+                  return (
+                    <button key={o.otNumber} type="button" onClick={() => f.handleToggleOt(o.otNumber)}
+                      title={[o.tipoServicio, o.sistema].filter(Boolean).join(' · ') || undefined}
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono border transition-colors ${
+                        on ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-500'
+                      }`}>
+                      {o.otNumber}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
