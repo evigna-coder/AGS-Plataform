@@ -26,6 +26,7 @@ const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
 import { clientesService, establecimientosService, remitosService } from '../services/firebaseService';
 import { RemitoOverlayPDF, type RemitoOverlayItem, type RemitoOverlayFieldOffsets } from '../components/remitos/pdf/RemitoOverlayPDF';
 import { printRemitoSilentOrOpen } from './remitoPdfActions';
+import { getRemitoItemCodigo, getRemitoItemDescripcion } from './inventarioToRemitoItem';
 
 /**
  * Imprime (o reimprime) un remito de stock sobre el papel preimpreso en
@@ -63,12 +64,15 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
     cuit: cliente?.cuit ?? '',
   };
 
+  // Código/descripción por tipoEntidad (2026-08-06): los items de asignación
+  // (instrumento, dispositivo, minikit) imprimían columnas vacías o el ID —
+  // getRemitoItem* resuelve el campo correcto para cada tipo.
   const items: RemitoOverlayItem[] = remito.items.map((it, i) => ({
     numero: i + 1,
     cantidad: it.cantidad,
-    producto: it.articuloCodigo ?? it.loanerCodigo ?? it.instrumentoCodigo ?? '',
+    producto: getRemitoItemCodigo(it),
     descripcion: [
-      it.articuloDescripcion ?? it.fichaDescripcion ?? it.loanerDescripcion ?? '',
+      getRemitoItemDescripcion(it) || it.fichaDescripcion || '',
       it.serie ? `S/N ${it.serie}` : null,
       it.observaciones || null,
     ].filter(Boolean).join(' · '),

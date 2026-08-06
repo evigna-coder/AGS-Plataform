@@ -25,10 +25,13 @@ export function inventarioToRemitoItem(
     minikitId: item.minikitId ?? null,
     minikitCodigo: item.minikitCodigo ?? null,
     instrumentoId: item.instrumentoId ?? null,
-    instrumentoCodigo: item.instrumentoId ?? null,
+    // Sin código en la asignación: NO estampar el ID (2026-08-06 — el remito
+    // salía impreso con la clave primaria como "código"). El nombre va en la
+    // descripción.
+    instrumentoCodigo: null,
     instrumentoDescripcion: item.instrumentoNombre ?? null,
     dispositivoId: item.dispositivoId ?? null,
-    dispositivoCodigo: item.dispositivoId ?? null,
+    dispositivoCodigo: null,
     dispositivoDescripcion: item.dispositivoDescripcion ?? null,
     vehiculoId: item.vehiculoId ?? null,
     vehiculoCodigo: item.vehiculoPatente ?? null,

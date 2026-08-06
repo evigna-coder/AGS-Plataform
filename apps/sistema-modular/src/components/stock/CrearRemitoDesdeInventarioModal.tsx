@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { remitosService } from '../../services/firebaseService';
 import { inventarioToRemitoItem, getTipoEntidadLabel } from '../../utils/inventarioToRemitoItem';
+import { imprimirRemitoStock } from '../../utils/remitoImprimir';
+import { RemitoDestinatarioPicker, type DestinatarioSeleccion } from '../remitos/RemitoDestinatarioPicker';
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 import type { TipoRemito, TipoRemitoItem, TipoItemAsignacion } from '@ags/shared';
 
@@ -37,6 +39,12 @@ export const CrearRemitoDesdeInventarioModal = ({
   const [tipoRemito, setTipoRemito] = useState<TipoRemito>('salida_campo');
   const [tipoRemitoItem, setTipoRemitoItem] = useState<TipoRemitoItem>('sale_y_vuelve');
   const [observaciones, setObservaciones] = useState('');
+  // Destinatario + impresión (2026-08-06): el caso principal es la ingeniera
+  // entrando materiales de AGS a un cliente que pide el detalle en papel.
+  const [destinatario, setDestinatario] = useState<DestinatarioSeleccion | null>(null);
+  const [imprimir, setImprimir] = useState(true);
+  // Guarda anti doble-click: ref, no state (el disabled llega tarde al 2do click).
+  const creandoRef = useRef(false);
 
   // Solo items asignados con cantidad neta > 0
   const elegibles = useMemo(() =>
@@ -86,12 +94,17 @@ export const CrearRemitoDesdeInventarioModal = ({
     setTipoRemito('salida_campo');
     setTipoRemitoItem('sale_y_vuelve');
     setObservaciones('');
+    setDestinatario(null);
+    setImprimir(true);
   };
 
   const handleCrear = async () => {
+    if (creandoRef.current) return;
     const selected = elegibles.filter(i => selectedIds.has(itemKey(i)));
     if (selected.length === 0) return;
+    if (imprimir && !destinatario) { alert('Para imprimir el remito elegí el cliente destinatario (o destildá "Imprimir").'); return; }
 
+    creandoRef.current = true;
     setSaving(true);
     try {
       const remitoItems = selected.map(i => inventarioToRemitoItem(i, tipoRemitoItem));
@@ -100,16 +113,31 @@ export const CrearRemitoDesdeInventarioModal = ({
         estado: 'borrador',
         ingenieroId,
         ingenieroNombre,
+        clienteId: destinatario?.clienteId ?? null,
+        clienteNombre: destinatario?.clienteNombre ?? null,
+        establecimientoId: destinatario?.establecimientoId ?? null,
+        establecimientoNombre: destinatario?.establecimientoNombre ?? null,
         items: remitoItems,
         observaciones: observaciones.trim() || null,
         fechaSalida: new Date().toISOString().slice(0, 10),
       });
+      // Imprimir por el pipeline calibrado (triplicado sobre papel preimpreso,
+      // domicilio del establecimiento, recuadro de obs, marca impreso). Los
+      // items de asignación son documentales — no mueven stock. Best-effort.
+      if (imprimir) {
+        const remito = await remitosService.getById(newId);
+        if (remito) {
+          await imprimirRemitoStock(remito)
+            .catch(err => console.warn('[CrearRemitoDesdeInventario] impresión falló:', err));
+        }
+      }
       handleClose();
       onRemitoCreado?.(newId);
       navigate(`/stock/remitos/${newId}`);
     } catch {
       alert('Error al crear el remito');
     } finally {
+      creandoRef.current = false;
       setSaving(false);
     }
   };
@@ -197,12 +225,22 @@ export const CrearRemitoDesdeInventarioModal = ({
           </div>
         </div>
 
+        <RemitoDestinatarioPicker value={destinatario} onChange={setDestinatario} requerido={imprimir} />
+
         <div>
           <label className={lbl}>Observaciones</label>
           <textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} rows={2}
-            placeholder="Observaciones del remito..."
+            placeholder="Observaciones del remito... (salen en el recuadro impreso)"
             className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={imprimir} onChange={e => setImprimir(e.target.checked)}
+            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+          <span className="text-xs text-slate-700">
+            Imprimir al crear <span className="text-slate-400">(triplicado sobre papel preimpreso, mismo formato que los demás remitos)</span>
+          </span>
+        </label>
       </div>
     </Modal>
   );
