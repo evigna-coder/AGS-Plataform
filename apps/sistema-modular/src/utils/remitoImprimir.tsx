@@ -68,7 +68,7 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
     cantidad: it.cantidad,
     producto: it.articuloCodigo ?? it.loanerCodigo ?? it.instrumentoCodigo ?? '',
     descripcion: [
-      it.articuloDescripcion ?? it.fichaDescripcion ?? '',
+      it.articuloDescripcion ?? it.fichaDescripcion ?? it.loanerDescripcion ?? '',
       it.serie ? `S/N ${it.serie}` : null,
       it.observaciones || null,
     ].filter(Boolean).join(' · '),

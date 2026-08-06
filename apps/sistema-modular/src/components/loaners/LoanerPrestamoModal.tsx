@@ -6,8 +6,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService, establecimientosService, remitosService, ordenesTrabajoService } from '../../services/firebaseService';
 import type { Cliente, Establecimiento, Loaner, WorkOrder } from '@ags/shared';
 import { establecimientoUnicoId } from '@ags/shared';
-import { RemitoOverlayPDF } from '../remitos/pdf/RemitoOverlayPDF';
-import { printRemitoSilentOrOpen } from '../../utils/remitoPdfActions';
+import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 
 interface Props {
   open: boolean;
@@ -93,6 +92,8 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       const remitoNumero: string | null = null;
 
       if (generarRemito) {
+        // El item del loaner es DOCUMENTAL (sin unidadId, con tipoEntidad):
+        // el remito no mueve stock, pero el papel detalla qué salió.
         remitoId = await remitosService.create({
           tipo: 'loaner_salida',
           estado: 'borrador',
@@ -100,30 +101,36 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
           ingenieroNombre: 'AGS Taller',
           clienteId,
           clienteNombre: selectedCliente?.razonSocial || '',
+          establecimientoId: establecimientoId || null,
+          establecimientoNombre: selectedEstab?.nombre || null,
+          otNumbers: otNumber ? [otNumber] : [],
           loanerId: loaner.id,
           loanerCodigo: loaner.codigo,
-          items: [],
+          items: [{
+            id: crypto.randomUUID(),
+            cantidad: 1,
+            tipoItem: 'sale_y_vuelve',
+            devuelto: false,
+            tipoEntidad: 'loaner',
+            loanerId: loaner.id,
+            loanerCodigo: loaner.codigo,
+            loanerDescripcion: loaner.descripcion,
+            serie: loaner.serie ?? null,
+          }],
           observaciones: `Loaner ${loaner.codigo}${otNumber ? ` · OT ${otNumber}` : ''}`,
         });
 
-        // Imprimir el remito EN SILENCIO (triplicado sobre papel preimpreso) a la
-        // impresora predeterminada. RemitoOverlayPDF ya genera las 3 copias como páginas.
-        // Best-effort: si la impresión falla, el helper abre el PDF para Ctrl+P; no
-        // bloquea el registro del préstamo.
-        const now = new Date();
-        const fechaFmt = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-        const destinatario = {
-          razonSocial: selectedCliente?.razonSocial ?? '',
-          domicilio: selectedCliente?.direccionFiscal ?? selectedCliente?.direccion ?? '',
-          localidad: selectedCliente?.localidadFiscal ?? selectedCliente?.localidad ?? '',
-          provincia: selectedCliente?.provinciaFiscal ?? selectedCliente?.provincia ?? '',
-          iva: selectedCliente?.condicionIva ?? '',
-          cuit: selectedCliente?.cuit ?? '',
-        };
-        const items = [{ numero: 1, cantidad: 1, producto: loaner.codigo, descripcion: loaner.descripcion }];
-        await printRemitoSilentOrOpen(
-          <RemitoOverlayPDF fecha={fechaFmt} destinatario={destinatario} items={items} />,
-        ).catch(err => console.warn('[LoanerPrestamoModal] impresión de remito falló:', err));
+        // Imprimir por el MISMO camino que el resto de los remitos (2026-08-06:
+        // imprimía RemitoOverlayPDF pelado, sin la calibración contra el papel
+        // preimpreso — salía todo corrido). imprimirRemitoStock aplica los
+        // offsets calibrados, resuelve el domicilio de entrega por
+        // establecimiento, imprime el triplicado en silencio (fallback abrir
+        // PDF) y marca el remito como impreso. Best-effort: no bloquea el préstamo.
+        const remitoCreado = await remitosService.getById(remitoId);
+        if (remitoCreado) {
+          await imprimirRemitoStock(remitoCreado)
+            .catch(err => console.warn('[LoanerPrestamoModal] impresión de remito falló:', err));
+        }
       }
 
       await onConfirm({
