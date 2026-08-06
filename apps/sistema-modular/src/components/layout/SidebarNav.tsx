@@ -211,6 +211,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         <nav className="flex-1 px-2 py-4 space-y-0.5">
           {visibleNav.map(item => renderNode(item, 0))}
         </nav>
+        {/* Versión visible (2026-08-06): diagnóstico de "PCs clavadas" sin adivinar. */}
+        {!collapsed && (
+          <p className="px-3 pb-2 text-[9px] font-mono text-slate-600 select-text" title="Versión instalada">
+            v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'}
+          </p>
+        )}
       </aside>
       {menu && (
         <div
