@@ -1,5 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Input } from '../ui/Input';
-import type { Cliente, Establecimiento, Ingeniero, ViaIngreso } from '@ags/shared';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { ordenesTrabajoService } from '../../services/firebaseService';
+import type { Cliente, Establecimiento, Ingeniero, ViaIngreso, WorkOrder } from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
 
 interface Props {
@@ -19,7 +22,6 @@ interface Props {
   otReferencia: string;
   onOtReferenciaChange: (v: string) => void;
   errors: Record<string, string>;
-  otReferenciaPlaceholder?: string;
 }
 
 const sel = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs';
@@ -34,8 +36,37 @@ export function FichaClienteOrigenSection({
   traidoPor, onTraidoPorChange,
   fechaIngreso, onFechaIngresoChange,
   otReferencia, onOtReferenciaChange,
-  errors, otReferenciaPlaceholder,
+  errors,
 }: Props) {
+  // OT de referencia como BUSCADOR (2026-08-06): era texto libre y "no salía
+  // nada" para elegir. Lista las OTs hijas del cliente, abiertas primero; el
+  // valor ya guardado (legacy texto libre u OT cerrada) se conserva como opción.
+  const [otsCliente, setOtsCliente] = useState<WorkOrder[]>([]);
+  useEffect(() => {
+    if (!clienteId) { setOtsCliente([]); return; }
+    let cancelled = false;
+    ordenesTrabajoService.getAll({ clienteId }).then((ots: WorkOrder[]) => {
+      if (cancelled) return;
+      const hijas = ots.filter(o => o.otNumber.includes('.'));
+      hijas.sort((a, b) => b.otNumber.localeCompare(a.otNumber));
+      setOtsCliente(hijas);
+    }).catch(console.error);
+    return () => { cancelled = true; };
+  }, [clienteId]);
+
+  const otOptions = useMemo(() => {
+    const abiertas = otsCliente.filter(o =>
+      !['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(o.estadoAdmin ?? ''));
+    const opts = abiertas.map(o => ({
+      value: o.otNumber,
+      label: `${o.otNumber}${o.tipoServicio ? ` · ${o.tipoServicio}` : ''}${o.sistema ? ` · ${o.sistema}` : ''}`,
+    }));
+    if (otReferencia && !opts.some(x => x.value === otReferencia)) {
+      opts.unshift({ value: otReferencia, label: otReferencia });
+    }
+    return [{ value: '', label: 'Sin OT' }, ...opts];
+  }, [otsCliente, otReferencia]);
+
   return (
     <section>
       <h3 className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Cliente y origen</h3>
@@ -75,7 +106,15 @@ export function FichaClienteOrigenSection({
           <Input label="Traido por *" value={traidoPor} onChange={e => onTraidoPorChange(e.target.value)} error={errors.traidoPor} placeholder={viaIngreso === 'envio' ? 'Empresa de transporte' : 'Quien lo trajo'} />
         )}
         <Input label="Fecha de ingreso *" type="date" value={fechaIngreso} onChange={e => onFechaIngresoChange(e.target.value)} error={errors.fechaIngreso} />
-        <Input label="OT de referencia" value={otReferencia} onChange={e => onOtReferenciaChange(e.target.value)} placeholder={otReferenciaPlaceholder} />
+        <div>
+          <label className={lbl}>OT de referencia</label>
+          <SearchableSelect
+            value={otReferencia}
+            onChange={onOtReferenciaChange}
+            options={otOptions}
+            placeholder={!clienteId ? 'Primero el cliente' : 'Buscar OT del cliente...'}
+          />
+        </div>
       </div>
     </section>
   );

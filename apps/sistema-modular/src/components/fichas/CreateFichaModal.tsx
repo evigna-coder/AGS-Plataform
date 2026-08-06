@@ -198,7 +198,6 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
           otReferencia={otReferencia}
           onOtReferenciaChange={setOtReferencia}
           errors={errors}
-          otReferenciaPlaceholder="Ej: 25660"
         />
 
         {/* Items */}
