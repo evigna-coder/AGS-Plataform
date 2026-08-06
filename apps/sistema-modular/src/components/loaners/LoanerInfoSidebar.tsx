@@ -12,7 +12,7 @@ function LV({ label, value, link, navState }: { label: string; value?: string | 
   return (
     <div>
       <dt className="text-[11px] font-medium text-slate-400 tracking-wider">{label}</dt>
-      <dd className="text-sm text-slate-700 mt-0.5">
+      <dd className="text-xs text-slate-700 mt-0.5">
         {link ? <Link to={link} state={navState} className="text-teal-600 hover:underline">{value}</Link> : value}
       </dd>
     </div>
@@ -29,20 +29,20 @@ export function LoanerInfoSidebar({ loaner }: Props) {
   const prestamoActivo = loaner.prestamos.find(p => p.estado === 'activo');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Estado */}
       <Card compact>
         <div className="text-center">
-          <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${ESTADO_LOANER_COLORS[loaner.estado]}`}>
+          <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${ESTADO_LOANER_COLORS[loaner.estado]}`}>
             {ESTADO_LOANER_LABELS[loaner.estado]}
           </span>
-          <p className="text-xs text-slate-400 mt-2">{loaner.codigo}</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">{loaner.codigo}</p>
         </div>
       </Card>
 
       {/* Equipo */}
       <Card title="Equipo" compact>
-        <dl className="space-y-2">
+        <dl className="space-y-1.5">
           <LV label="Descripcion" value={loaner.descripcion} />
           <LV label="Categoria" value={loaner.categoriaEquipo} />
           <LV label="Categoria de modulo" value={loaner.categoriaModuloNombre} />
@@ -55,7 +55,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {/* Stock link */}
       {loaner.articuloId && (
         <Card title="Vinculacion a stock" compact>
-          <dl className="space-y-2">
+          <dl className="space-y-1.5">
             <LV label="Articulo" value={`${loaner.articuloCodigo} — ${loaner.articuloDescripcion}`} link={`/stock/articulos/${loaner.articuloId}`} navState={fromState} />
           </dl>
         </Card>
@@ -64,7 +64,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {/* Ubicacion actual */}
       {prestamoActivo && (
         <Card title="Prestamo activo" compact>
-          <dl className="space-y-2">
+          <dl className="space-y-1.5">
             <LV label="Cliente" value={prestamoActivo.clienteNombre} link={`/clientes/${prestamoActivo.clienteId}`} navState={fromState} />
             <LV label="Establecimiento" value={prestamoActivo.establecimientoNombre} />
             <LV label="Desde" value={formatDate(prestamoActivo.fechaSalida)} />
@@ -78,7 +78,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {/* Venta */}
       {loaner.venta && (
         <Card title="Vendido" compact>
-          <dl className="space-y-2">
+          <dl className="space-y-1.5">
             <LV label="Cliente" value={loaner.venta.clienteNombre} link={`/clientes/${loaner.venta.clienteId}`} navState={fromState} />
             <LV label="Fecha" value={formatDate(loaner.venta.fecha)} />
             {loaner.venta.precio != null && <LV label="Precio" value={`${loaner.venta.moneda || 'ARS'} ${loaner.venta.precio.toLocaleString()}`} />}

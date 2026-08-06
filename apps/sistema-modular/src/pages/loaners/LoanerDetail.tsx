@@ -194,13 +194,14 @@ export function LoanerDetail() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto bg-slate-50">
         <div className="flex gap-5 px-5 py-4">
-          <div className="w-72 shrink-0">
+          {/* Fotos al costado, como en FichaDetail (pedido 2026-08-06). */}
+          <div className="w-72 shrink-0 space-y-3">
             <LoanerInfoSidebar loaner={loaner} />
+            <LoanerFotosSection loaner={loaner} />
           </div>
           <div className="flex-1 space-y-4">
             <LoanerPrestamosSection prestamos={loaner.prestamos} />
             <LoanerOTsSection otIds={loaner.otIds ?? []} />
-            <LoanerFotosSection loaner={loaner} />
             <LoanerExtraccionesSection extracciones={loaner.extracciones} />
             <LoanerVentaSection loaner={loaner} onVender={() => setVentaOpen(true)} />
           </div>

@@ -79,9 +79,9 @@ export function LoanerFotosSection({ loaner }: Props) {
   };
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-4">
+    <div className="rounded-xl bg-white border border-slate-200 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-xs font-semibold text-slate-700">
           Fotos {fotos.length > 0 && <span className="text-slate-400 font-normal">({fotos.length})</span>}
         </span>
         <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading}>
@@ -92,7 +92,8 @@ export function LoanerFotosSection({ loaner }: Props) {
       {fotos.length === 0 ? (
         <p className="text-xs text-slate-400 mt-2">Sin fotos registradas</p>
       ) : (
-        <div className="grid grid-cols-4 gap-1.5 mt-2">
+        // 3 columnas: ahora vive en la barra lateral (w-72), 4 quedaban mini.
+        <div className="grid grid-cols-3 gap-1.5 mt-2">
           {fotos.map(foto => (
             <div key={foto.id} className="relative group">
               <img
