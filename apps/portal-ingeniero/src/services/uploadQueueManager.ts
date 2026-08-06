@@ -209,10 +209,16 @@ class UploadQueueManager {
 
   /** Sube una foto según su tipo. Upload a Storage + metadata al doc Firestore. */
   private async uploadOne(next: PendingFoto): Promise<void> {
+    // Red de seguridad (2026-08-06): comprimir TAMBIÉN al drenar. Las fotos
+    // encoladas antes de que existiera la compresión (2026-07-29) quedaron
+    // como blobs crudos de varios MB en IndexedDB — imposibles de subir con
+    // señal débil, envenenaban la cola para siempre. Idempotente: una foto ya
+    // comprimida pasa casi igual (solo se usa si achica).
+    const blob = await comprimirFotoParaSubida(next.blob);
     if (next.tipo === 'loaner') {
       // Toda la lógica loaner (path de Storage, shape FotoLoaner, append al
       // array `fotos`) vive en el service — acá solo se invoca.
-      await loanersPortalService.agregarFoto(next.loanerId, next.blob, {
+      await loanersPortalService.agregarFoto(next.loanerId, blob, {
         nombre: next.filename,
         contexto: next.contexto,
         prestamoId: next.prestamoId,
@@ -223,7 +229,7 @@ class UploadQueueManager {
     }
     // 'ficha' — flujo original, sin cambios.
     const { storagePath, url } = await fotoStorageService.upload(
-      next.fichaNumero, next.blob, next.filename,
+      next.fichaNumero, blob, next.filename,
     );
     const fotoMeta: FotoFicha = {
       id: crypto.randomUUID(),
@@ -244,7 +250,16 @@ class UploadQueueManager {
   private async tick(force = false): Promise<void> {
     if (this.state.draining) return;
     if (!this.state.online && !force) return;
-    const next = (await uploadQueueDB.getQueued())[0];
+    // Anti-taponamiento (2026-08-06): antes se subía SIEMPRE la primera de la
+    // cola — una foto que fallaba repetido (blob gigante, señal) bloqueaba a
+    // todas las de atrás (las fotos de fichas nuevas quedaban presas detrás de
+    // loaners envenenados). Ahora va primero la de MENOS intentos (empate:
+    // orden original), así las frescas pasan mientras la problemática espera
+    // su backoff.
+    const queued = await uploadQueueDB.getQueued();
+    const next = queued
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => (a.p.intentos - b.p.intentos) || (a.i - b.i))[0]?.p;
     if (!next) return;
 
     this.setState({ draining: true });
