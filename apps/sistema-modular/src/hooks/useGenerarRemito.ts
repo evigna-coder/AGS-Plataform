@@ -46,7 +46,13 @@ export function itemDescripcion(it: ItemFicha, motivo: string, parentSubId?: str
 
 interface Args {
   open: boolean;
-  ficha: FichaPropiedad;
+  /**
+   * Ficha desde la que se abre el modal. `null` = modo LOTE A PROVEEDOR
+   * (2026-08-06, desde el listado de fichas): derivación con items de todas
+   * las fichas activas, de CUALQUIER cliente — el destinatario es el
+   * proveedor, así que mezclar clientes es válido.
+   */
+  ficha: FichaPropiedad | null;
 }
 
 /**
@@ -76,7 +82,7 @@ export function useGenerarRemito({ open, ficha }: Args) {
   const [otsSeleccionadas, setOtsSeleccionadas] = useState<Set<string>>(new Set());
 
   const elegibles = useMemo<ElegibleItem[]>(() => {
-    const all = [ficha, ...otherFichas];
+    const all = ficha ? [ficha, ...otherFichas] : otherFichas;
     const out: ElegibleItem[] = [];
     for (const f of all) {
       for (const it of (f.items ?? [])) {
@@ -98,37 +104,46 @@ export function useGenerarRemito({ open, ficha }: Args) {
 
   useEffect(() => {
     if (!open) return;
-    void clientesService.getById(ficha.clienteId).then(c => {
-      if (!c) return;
-      setCliente(c);
-      setDestinatario(destFromCliente(c));
-    });
-    void fichasService.getAll({ clienteId: ficha.clienteId, activasOnly: true }).then(items => {
-      setOtherFichas(items.filter(f => f.id !== ficha.id));
-    });
+    if (ficha) {
+      void clientesService.getById(ficha.clienteId).then(c => {
+        if (!c) return;
+        setCliente(c);
+        setDestinatario(destFromCliente(c));
+      });
+      void fichasService.getAll({ clienteId: ficha.clienteId, activasOnly: true }).then(items => {
+        setOtherFichas(items.filter(f => f.id !== ficha.id));
+      });
+      void ordenesTrabajoService.getAll({ clienteId: ficha.clienteId }).then(ots => {
+        const vinculadas = new Set(ficha.otIds ?? []);
+        const seleccionables = (ots as WorkOrder[]).filter(o =>
+          o.otNumber.includes('.') &&
+          (vinculadas.has(o.otNumber) ||
+            !['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(o.estadoAdmin ?? '')));
+        seleccionables.sort((a, b) => b.otNumber.localeCompare(a.otNumber));
+        setOtsCliente(seleccionables);
+      }).catch(console.error);
+    } else {
+      // Modo lote a proveedor: todas las fichas activas, cualquier cliente.
+      setCliente(null);
+      setDestinatario(EMPTY_DEST);
+      void fichasService.getAll({ activasOnly: true }).then(setOtherFichas);
+      setOtsCliente([]);
+    }
     void proveedoresService.getAll(true).then(setProveedores);
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
-    void ordenesTrabajoService.getAll({ clienteId: ficha.clienteId }).then(ots => {
-      const vinculadas = new Set(ficha.otIds ?? []);
-      const seleccionables = (ots as WorkOrder[]).filter(o =>
-        o.otNumber.includes('.') &&
-        (vinculadas.has(o.otNumber) ||
-          !['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(o.estadoAdmin ?? '')));
-      seleccionables.sort((a, b) => b.otNumber.localeCompare(a.otNumber));
-      setOtsCliente(seleccionables);
-    }).catch(console.error);
-    setOtsSeleccionadas(new Set(ficha.otIds ?? []));
+    setOtsSeleccionadas(new Set(ficha?.otIds ?? []));
     const preselect = new Set<string>();
-    for (const it of ficha.items ?? []) {
-      if (it.estado === 'listo_para_entrega') preselect.add(`${ficha.id}:${it.id}`);
+    for (const it of ficha?.items ?? []) {
+      if (it.estado === 'listo_para_entrega') preselect.add(`${ficha!.id}:${it.id}`);
     }
     setSelectedKeys(preselect);
     setModeByKey(new Map());
     setPartesByKey(new Map());
     setProveedorId('');
-    setTipo('devolucion');
+    setTipo(ficha ? 'devolucion' : 'derivacion_proveedor');
     setError(null);
-  }, [open, ficha.id, ficha.clienteId, ficha.items]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ficha?.id, ficha?.clienteId, ficha?.items]);
 
   const handleChangeTipo = (next: TipoRemito) => {
     setTipo(next);

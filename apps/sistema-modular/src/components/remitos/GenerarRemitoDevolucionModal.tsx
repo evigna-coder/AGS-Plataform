@@ -15,13 +15,16 @@ import { useGenerarRemito, itemDescripcion } from '../../hooks/useGenerarRemito'
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Ficha desde la que se disparó el modal — sus items quedan elegibles preseleccionados. */
-  ficha: FichaPropiedad;
+  /** Ficha desde la que se disparó el modal — sus items quedan elegibles
+   *  preseleccionados. `null` = modo LOTE A PROVEEDOR desde el listado:
+   *  derivación con items de fichas de CUALQUIER cliente en una tanda. */
+  ficha: FichaPropiedad | null;
   onCreated?: (remitoId: string) => void;
 }
 
 export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }: Props) {
   const f = useGenerarRemito({ open, ficha });
+  const modoLote = !ficha;
 
   const proveedorOptions = useMemo(
     () => f.proveedores.map(p => ({ value: p.id, label: p.nombre })),
@@ -29,7 +32,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
   );
   const subtitle = f.isDerivacion
     ? (f.proveedores.find(p => p.id === f.proveedorId)?.nombre ?? 'Derivación a proveedor')
-    : (f.cliente?.razonSocial ?? ficha.clienteNombre);
+    : (f.cliente?.razonSocial ?? ficha?.clienteNombre ?? '');
 
   const handleSubmit = async () => {
     f.setSubmitting(true);
@@ -67,8 +70,8 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
         fecha: f.fecha,
         items: itemsInput,
         observaciones: f.observaciones || null,
-        clienteId: f.isDerivacion ? null : ficha.clienteId,
-        clienteNombre: f.isDerivacion ? null : ficha.clienteNombre,
+        clienteId: f.isDerivacion ? null : ficha?.clienteId ?? null,
+        clienteNombre: f.isDerivacion ? null : ficha?.clienteNombre ?? null,
         proveedorId: f.isDerivacion ? f.proveedorId : null,
         proveedorNombre: f.isDerivacion ? (proveedor?.nombre ?? null) : null,
         otNumbers: otNumbersUnique,
@@ -118,7 +121,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
     <Modal
       open={open}
       onClose={onClose}
-      title="Generar remito de salida"
+      title={modoLote ? 'Derivación a proveedor — lote' : 'Generar remito de salida'}
       subtitle={subtitle}
       maxWidth="xl"
       footer={
@@ -135,7 +138,8 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
           <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{f.error}</div>
         )}
 
-        <RemitoTipoToggle value={f.tipo} onChange={f.handleChangeTipo} />
+        {/* En modo lote el tipo está fijo en derivación a proveedor. */}
+        {!modoLote && <RemitoTipoToggle value={f.tipo} onChange={f.handleChangeTipo} />}
 
         <div className="grid grid-cols-2 gap-3">
           <Input
@@ -173,7 +177,8 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
             onChangeMode={f.handleChangeMode}
             partesByKey={f.partesByKey}
             onChangePartes={f.handleChangePartes}
-            currentFichaId={ficha.id}
+            currentFichaId={ficha?.id ?? ''}
+            showCliente={modoLote}
           />
         </div>
 

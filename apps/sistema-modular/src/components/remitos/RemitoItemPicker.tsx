@@ -34,6 +34,8 @@ interface Props {
   onChangePartes: (key: string, partes: ParteInput[]) => void;
   /** ID de la ficha "principal" — los items de otras fichas se etiquetan con su número. */
   currentFichaId: string;
+  /** Modo lote multi-cliente (2026-08-06): la etiqueta suma el cliente de cada ficha. */
+  showCliente?: boolean;
 }
 
 function emptyParte(): ParteInput {
@@ -48,7 +50,7 @@ function emptyParte(): ParteInput {
 
 export function RemitoItemPicker({
   elegibles, onlyCompleto, selectedKeys, onToggleItem, modeByKey, onChangeMode,
-  partesByKey, onChangePartes, currentFichaId,
+  partesByKey, onChangePartes, currentFichaId, showCliente,
 }: Props) {
   const [articulos, setArticulos] = useState<Articulo[]>([]);
 
@@ -113,7 +115,9 @@ export function RemitoItemPicker({
                 <span className="text-slate-500"> · {item.articuloDescripcion || item.descripcionLibre || 'Item'}</span>
                 {item.serie && <span className="text-slate-400 font-mono"> · S/N {item.serie}</span>}
                 {f.id !== currentFichaId && (
-                  <span className="text-[10px] text-slate-400 ml-2">(otra ficha: {f.numero})</span>
+                  <span className="text-[10px] text-slate-400 ml-2">
+                    ({showCliente ? `${f.numero} · ${f.clienteNombre}` : `otra ficha: ${f.numero}`})
+                  </span>
                 )}
               </div>
               {selected && !onlyCompleto && (

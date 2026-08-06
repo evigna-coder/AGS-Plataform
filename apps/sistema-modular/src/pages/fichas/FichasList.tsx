@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateFichaModal } from '../../components/fichas/CreateFichaModal';
+import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { FichaPropiedad, EstadoFicha, Cliente } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -68,6 +69,9 @@ export function FichasList() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  // Derivación a proveedor en lote (2026-08-06): un remito con items de fichas
+  // de CUALQUIER cliente en una misma tanda al proveedor externo.
+  const [showDerivacionLote, setShowDerivacionLote] = useState(false);
   const unsubFichasRef = useRef<(() => void) | null>(null);
 
   const handleSort = (f: string) => {
@@ -123,7 +127,10 @@ export function FichasList() {
         subtitle="Módulos y equipos ingresados para reparación"
         count={isInitialLoad ? undefined : filtered.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva ficha</Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowDerivacionLote(true)}>Derivar a proveedor</Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva ficha</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -261,6 +268,15 @@ export function FichasList() {
       </div>
 
       <CreateFichaModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {}} />
+      {/* Derivación a proveedor en lote — fichas de cualquier cliente en una tanda. */}
+      {showDerivacionLote && (
+        <GenerarRemitoDevolucionModal
+          open={showDerivacionLote}
+          onClose={() => setShowDerivacionLote(false)}
+          ficha={null}
+          onCreated={remitoId => navigate(`/stock/remitos/${remitoId}`)}
+        />
+      )}
     </div>
   );
 }
