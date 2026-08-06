@@ -109,7 +109,16 @@ export function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<s
   const padresConHijas = new Set(
     allOTs.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
   for (const num of [...nums]) {
-    if (!num.includes('.') && padresConHijas.has(num)) nums.delete(num);
+    if (!num.includes('.') && padresConHijas.has(num)) {
+      nums.delete(num);
+      // Heredar el vínculo a las hijas (2026-08-06): si el ppto se vinculó al
+      // PADRE (ej. editándolo después de crear la OT), las hijas no tienen el
+      // budget propio — borrar el padre sin heredar perdía la relación y el
+      // ppto figuraba "sin OT" (caso 29960/29960.01, P1-005046-01).
+      for (const o of allOTs) {
+        if (o.otNumber.startsWith(`${num}.`)) nums.add(o.otNumber);
+      }
+    }
   }
   return nums;
 }
