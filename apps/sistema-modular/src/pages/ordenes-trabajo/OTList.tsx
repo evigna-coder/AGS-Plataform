@@ -164,7 +164,7 @@ export const OTList = () => {
         <div className="flex items-start gap-3 px-5 pb-2">
           <div className="[&>div]:px-0 [&>div]:pb-0"><OTKpiBar kpis={kpis} /></div>
           {/* Pptos aceptados sin OT abierta (pedido coordinadora 2026-08-05) */}
-          <PresupuestosSinOtKpi />
+          <PresupuestosSinOtKpi ots={ordenes} />
         </div>
       )}
 
