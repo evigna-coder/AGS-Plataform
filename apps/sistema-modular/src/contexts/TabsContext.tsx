@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { useLandingPath } from '../components/layout/navigation';
 
@@ -107,20 +107,74 @@ function computeSublabel(path: string): string | undefined {
   return last;
 }
 
+// ── Persistencia de pestañas (2026-08-06) ────────────────────────────────────
+// Las tabs vivían solo en memoria: cada reinicio de la app (en la práctica,
+// cada auto-update — los usuarios no la cierran nunca) las borraba y quedaba
+// una sola tab de landing. Reportado como "el release me pisó las pestañas"
+// en cada corte. Se persisten los paths + tab activa y se restauran al abrir.
+const TABS_STORAGE_KEY = 'ags-tabs-v1';
+
+function mkTab(path: string): Tab {
+  const meta = getNavMeta(path);
+  return { id: generateTabId(), path, label: meta.label, icon: meta.icon, sublabel: computeSublabel(path) };
+}
+
+function buildInitialTabs(landingPath: string): { tabs: Tab[]; activeId: string } {
+  const fromUrl = window.location.pathname + window.location.search;
+  const deepLink = fromUrl && fromUrl !== '/' ? fromUrl : null;
+
+  let stored: { paths: string[]; active: number } | null = null;
+  try {
+    const raw = localStorage.getItem(TABS_STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { paths?: unknown; active?: unknown };
+      if (Array.isArray(p.paths) && p.paths.every(x => typeof x === 'string' && x.startsWith('/'))) {
+        stored = { paths: (p.paths as string[]).slice(0, 12), active: typeof p.active === 'number' ? p.active : 0 };
+      }
+    }
+  } catch { /* storage corrupto/bloqueado → arranque limpio */ }
+
+  const tabs: Tab[] = (stored?.paths ?? []).map(mkTab);
+  let activeIdx = Math.min(Math.max(stored?.active ?? 0, 0), Math.max(tabs.length - 1, 0));
+
+  // Deep-link explícito: activa la tab existente con ese path o abre una nueva.
+  if (deepLink) {
+    const existing = tabs.findIndex(t => t.path === deepLink);
+    if (existing >= 0) activeIdx = existing;
+    else { tabs.push(mkTab(deepLink)); activeIdx = tabs.length - 1; }
+  }
+
+  // Sin nada restaurado ni deep-link → landing por permisos, como siempre.
+  if (tabs.length === 0) { tabs.push(mkTab(landingPath)); activeIdx = 0; }
+
+  return { tabs, activeId: tabs[activeIdx].id };
+}
+
 export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Landing según permisos: arrancar en '/clientes' fijo dejaba a los usuarios
   // sin ese módulo entrando directo a "Acceso denegado".
   const landingPath = useLandingPath();
-  // Use window.location for initial path (read once on mount)
-  const [tabs, setTabs] = useState<Tab[]>(() => {
-    const fromUrl = window.location.pathname + window.location.search;
-    // '/' = arranque sin deep-link → primera pantalla disponible del usuario.
-    const initPath = !fromUrl || fromUrl === '/' ? landingPath : fromUrl;
-    const meta = getNavMeta(initPath);
-    const id = generateTabId();
-    return [{ id, path: initPath, label: meta.label, icon: meta.icon, sublabel: computeSublabel(initPath) }];
-  });
-  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id ?? '');
+  const initialRef = useRef<{ tabs: Tab[]; activeId: string } | null>(null);
+  if (initialRef.current === null) initialRef.current = buildInitialTabs(landingPath);
+  const [tabs, setTabs] = useState<Tab[]>(initialRef.current.tabs);
+  const [activeTabId, setActiveTabId] = useState<string>(initialRef.current.activeId);
+
+  // Persistir en cada cambio (paths + índice activo). Best-effort.
+  useEffect(() => {
+    try {
+      const active = Math.max(0, tabs.findIndex(t => t.id === activeTabId));
+      localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify({ paths: tabs.map(t => t.path), active }));
+    } catch { /* quota/privado: sin persistencia, la app sigue */ }
+  }, [tabs, activeTabId]);
+
+  // Al restaurar, alinear la URL del browser con la tab activa (igual que switchTab).
+  useEffect(() => {
+    const tab = initialRef.current?.tabs.find(t => t.id === initialRef.current?.activeId);
+    if (tab && window.location.pathname + window.location.search !== tab.path) {
+      window.history.replaceState(null, '', tab.path);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Registry of per-tab navigate functions (from MemoryRouters)
   const tabNavigators = useRef(new Map<string, NavigateFunction>());
