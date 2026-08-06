@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -38,8 +38,16 @@ const formatDate = (iso: string | null | undefined) => {
 export const RemitoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+  const { state } = useLocation();
 
-  useDeclareParent('/stock/remitos');
+  // Al remito se llega desde varios contextos (ficha, loaner, movimientos, la
+  // lista): si el Link trae referrer (`state.from`), Volver va AHÍ — el listado
+  // de remitos es solo el fallback (2026-08-06: desde una ficha, Volver caía
+  // siempre al listado).
+  const from = typeof (state as { from?: unknown } | null)?.from === 'string'
+    ? (state as { from: string }).from
+    : null;
+  useDeclareParent(from ?? '/stock/remitos');
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDescarga, setShowDescarga] = useState(false);
@@ -115,7 +123,7 @@ export const RemitoDetail = () => {
                 <Button size="sm" variant="outline" onClick={() => transition('completado_parcial')} disabled={acting}>Parcial</Button>
               </>
             )}
-            <Link to="/stock/remitos"><Button variant="ghost" size="sm">Volver</Button></Link>
+            <Button variant="ghost" size="sm" onClick={goBack}>Volver</Button>
           </div>
         </div>
       </div>
