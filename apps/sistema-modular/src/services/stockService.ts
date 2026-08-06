@@ -1586,6 +1586,7 @@ export const reservasService = {
             derivadoPor: null,
             // Regla de áreas 2026-08-05: reserva de materiales → admin de soporte.
             areaActual: 'admin_soporte',
+            esAutogenerado: true,
             accionPendiente: 'Reservar stock físicamente',
             adjuntos: [],
             presupuestosIds: [params.presupuestoId],

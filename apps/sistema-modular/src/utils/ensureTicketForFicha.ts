@@ -59,6 +59,7 @@ export async function ensureTicketForFicha(ficha: FichaPropiedad): Promise<void>
     asignadoA: null,
     derivadoPor: null,
     areaActual: 'admin_soporte',
+    esAutogenerado: true,
     descripcion: desc,
     prioridad: 'normal',
     otIds: otRef ? [otRef] : [],

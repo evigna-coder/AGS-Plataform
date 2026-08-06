@@ -79,6 +79,8 @@ export default function LeadsPage() {
     fechaHasta: { type: 'string' as const, default: '' },
     sortField: { type: 'string' as const, default: 'createdAt' },
     sortDir: { type: 'string' as const, default: 'desc' },
+    /** '' = bandeja normal (sin autogenerados) | 'sistema' = solo autogenerados (2026-08-06). */
+    vista: { type: 'string' as const, default: '' },
   }), []);
   const [urlF, setUrlF, setUrlFs] = useUrlFilters(FILTER_SCHEMA);
   const search = urlF.search;
@@ -129,6 +131,11 @@ export default function LeadsPage() {
       if (filters.misDerivados) return { derivadoPor: usuario.id };
       return { asignadoA: usuario.id };
     }
+    // Vista Sistema (2026-08-06): los autogenerados suelen estar asignados a
+    // otros — el "solo míos" default no aplica ahí.
+    if (urlF.vista === 'sistema') {
+      return { ...(filters.responsable ? { asignadoA: filters.responsable } : {}) };
+    }
     // Admin o con áreas: soloMios → asignadoA; misCreados/misDerivados → fetch all y filtrar client-side
     const responsableFilter = filters.soloMios && usuario
       ? usuario.id
@@ -138,7 +145,7 @@ export default function LeadsPage() {
     return {
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario, canSeeAll]);
+  }, [filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, urlF.vista, usuario, canSeeAll]);
 
   // Real-time subscription
   useEffect(() => {
@@ -157,6 +164,13 @@ export default function LeadsPage() {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
+    // Pestañas (2026-08-06): autogenerados por flows → pestaña "Sistema";
+    // la bandeja normal los excluye. Legacy sin flag → bandeja.
+    if (urlF.vista === 'sistema') {
+      result = result.filter(l => l.esAutogenerado === true);
+    } else {
+      result = result.filter(l => !l.esAutogenerado);
+    }
     // Visibilidad por rol: no-admin con áreas solo ve sus tickets + tickets de sus áreas
     if (!isAdmin && usuario && extraAreas) {
       result = result.filter(l =>
@@ -200,7 +214,7 @@ export default function LeadsPage() {
         matchesSearch(search, l.numero, l.razonSocial, l.contacto, l.descripcion, l.motivoContacto));
     }
     return sortByField(result, sortField, sortDir);
-  }, [leads, usuario, isAdmin, extraAreas, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search, sortField, sortDir]);
+  }, [leads, usuario, isAdmin, extraAreas, urlF.vista, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search, sortField, sortDir]);
 
   const {
     tableRef, colWidths, colAligns,
@@ -244,6 +258,30 @@ export default function LeadsPage() {
       <PageHeader title="Tickets" count={leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
+        {/* Pestañas (2026-08-06): bandeja normal vs tickets AUTOGENERADOS por flows */}
+        <div className="flex gap-1 mb-2">
+          <button
+            onClick={() => setUrlF('vista', '')}
+            className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-colors ${
+              urlF.vista !== 'sistema'
+                ? 'bg-teal-700 text-white border-teal-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:border-teal-400'
+            }`}
+          >
+            Tickets
+          </button>
+          <button
+            onClick={() => setUrlF('vista', 'sistema')}
+            title="Tickets autogenerados por los flows del sistema"
+            className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-colors ${
+              urlF.vista === 'sistema'
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:border-slate-500'
+            }`}
+          >
+            ⚙ Sistema
+          </button>
+        </div>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
           filters={filters} onFiltersChange={setFilters} usuarios={usuarios} canSeeAll={canSeeAll} />
       </PageHeader>

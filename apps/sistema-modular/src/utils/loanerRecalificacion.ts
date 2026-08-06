@@ -232,6 +232,7 @@ export async function iniciarRecalificacion(
       asignadoNombre: responsable?.nombre ?? null,
       derivadoPor: null,
       areaActual: 'administracion' as TicketArea,
+      esAutogenerado: true,
       descripcion: descTicket,
       accionPendiente: 'Coordinar recalificación del loaner',
       prioridad: 'normal',

@@ -65,6 +65,7 @@ async function crearTicketDescarte(
     asignadoNombre: responsable?.nombre ?? null,
     derivadoPor: null,
     areaActual: 'admin_soporte',
+    esAutogenerado: true,
     descripcion: desc,
     prioridad: 'normal',
     otIds: [],

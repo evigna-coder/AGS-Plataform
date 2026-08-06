@@ -477,6 +477,7 @@ export const ordenesTrabajoService = {
         asignadoNombre: miguel?.nombre ?? null,
         derivadoPor: null,
         areaActual: 'admin_soporte' as TicketArea,
+        esAutogenerado: true,
         accionPendiente: `Preparar y enviar presupuesto${detalleTxt ? `: ${detalleTxt}` : ''}`,
         adjuntos: [],
         presupuestosIds: [],

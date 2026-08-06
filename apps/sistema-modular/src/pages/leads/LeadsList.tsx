@@ -66,6 +66,8 @@ export const LeadsList = () => {
     prioridad: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
+    /** '' = bandeja normal (sin autogenerados) | 'sistema' = solo autogenerados (2026-08-06). */
+    vista: { type: 'string' as const, default: '' },
   }), []);
   const [filters, setFilter, setFilters, _resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const debouncedSearch = useDebounce(filters.search, 300);
@@ -95,18 +97,22 @@ export const LeadsList = () => {
 
   // Build Firestore query filters (stable ref via JSON key)
   const queryFilters = useMemo(() => {
-    const responsableFilter = filters.soloMios && usuario
-      ? usuario.id
-      : (filters.misCreados || filters.misDerivados)
-        ? undefined
-        : (filters.responsable || undefined);
+    // Vista Sistema (2026-08-06): los autogenerados suelen estar asignados a
+    // otros — el "solo míos" default no aplica ahí (se ven todos).
+    const responsableFilter = filters.vista === 'sistema'
+      ? (filters.responsable || undefined)
+      : filters.soloMios && usuario
+        ? usuario.id
+        : (filters.misCreados || filters.misDerivados)
+          ? undefined
+          : (filters.responsable || undefined);
     // Estado se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
     return {
       ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
       ...(filters.area ? { areaActual: filters.area as TicketArea } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario]);
+  }, [filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, filters.vista, usuario]);
 
   // Real-time subscription — auto-updates when any user writes
   useEffect(() => {
@@ -160,6 +166,14 @@ export const LeadsList = () => {
       );
     }
 
+    // Pestañas (2026-08-06): los AUTOGENERADOS por flows viven en la pestaña
+    // "Sistema"; la bandeja normal los excluye. Legacy sin flag → bandeja.
+    if (filters.vista === 'sistema') {
+      result = result.filter(l => l.esAutogenerado === true);
+    } else {
+      result = result.filter(l => !l.esAutogenerado);
+    }
+
     // Ocultar finalizados salvo que el checkbox esté tildado
     if (!filters.mostrarFinalizados) {
       result = result.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
@@ -194,7 +208,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, usuario, isAdmin, extraAreas, filters.estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, usuario, isAdmin, extraAreas, filters.vista, filters.estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const leadsSorted = useMemo(() => {
     const sorted = [...leadsFiltered];
@@ -307,6 +321,30 @@ export const LeadsList = () => {
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>
           </div>
         }>
+        {/* Pestañas (2026-08-06): bandeja normal vs tickets AUTOGENERADOS por flows */}
+        <div className="flex gap-1 mb-2">
+          <button
+            onClick={() => setFilter('vista', '')}
+            className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-colors ${
+              filters.vista !== 'sistema'
+                ? 'bg-teal-700 text-white border-teal-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:border-teal-400'
+            }`}
+          >
+            Tickets
+          </button>
+          <button
+            onClick={() => setFilter('vista', 'sistema')}
+            title="Tickets autogenerados por los flows del sistema (seguimiento, coordinación, reservas, avisos)"
+            className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-colors ${
+              filters.vista === 'sistema'
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:border-slate-500'
+            }`}
+          >
+            ⚙ Sistema
+          </button>
+        </div>
         <LeadFilters search={busq} onSearchChange={setBusq}
           estadoFilter={filters.estadoFilter as 'nuevo' | 'en_proceso' | 'finalizado' | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}

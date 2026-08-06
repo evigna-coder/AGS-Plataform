@@ -899,6 +899,10 @@ export interface Ticket {
   motivoContacto: string;
   sistemaId: string | null;
   moduloId?: string | null;
+  /** 2026-08-06: ticket AUTOGENERADO por un flow (seguimiento de ppto,
+   *  coordinación, reserva/compras, avisos, recordatorios). La lista los
+   *  separa en la pestaña "Sistema". Los creados a mano no llevan el flag. */
+  esAutogenerado?: boolean;
   estado: TicketEstado;
   postas: Posta[];
   asignadoA: string | null;

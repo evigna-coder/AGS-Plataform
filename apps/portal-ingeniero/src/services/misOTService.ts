@@ -415,6 +415,7 @@ export const misOTService = {
       asignadoA: null,
       derivadoPor: null,
       areaActual: 'admin_soporte',
+      esAutogenerado: true,
       prioridad: 'urgente',
       accionPendiente: 'Completar y enviar presupuesto',
       descripcion: `Presupuesto ${numero} creado en borrador desde el portal de ingenieros.\n`

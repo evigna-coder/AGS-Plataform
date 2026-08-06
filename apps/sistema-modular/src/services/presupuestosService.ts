@@ -834,6 +834,7 @@ export const presupuestosService = {
       descripcion: descripcionTicket,
       sistemaId: pres.sistemaId ?? null,
       moduloId: null,
+      esAutogenerado: true,
       estado: 'esperando_oc' as TicketEstado,
       postas: [postaInicial],
       asignadoA: asignadoId,
@@ -1417,6 +1418,7 @@ export const presupuestosService = {
             // Regla de áreas 2026-08-05: reserva de materiales va a ADMIN de
             // soporte técnico (antes 'materiales').
             areaActual: 'admin_soporte',
+            esAutogenerado: true,
             accionPendiente: 'Reservar stock físicamente',
             adjuntos: [],
             presupuestosIds: [presupuestoId],
@@ -1552,6 +1554,7 @@ export const presupuestosService = {
       // Regla de áreas 2026-08-05: compras/importaciones → admin de soporte
       // (Miguel es el encargado de compras; no hay bandeja propia de compras).
       areaActual: 'admin_soporte',
+      esAutogenerado: true,
       accionPendiente: accion,
       adjuntos: [],
       presupuestosIds: [presupuestoId],
@@ -1693,6 +1696,7 @@ export const presupuestosService = {
               descripcion: `Ppto ${pres.numero} (tipo: ${pres.tipo}) aceptado. Coordinar las OTs que correspondan según los items del presupuesto.`,
               sistemaId: pres.sistemaId ?? null,
               moduloId: null,
+              esAutogenerado: true,
               estado: 'en_coordinacion' as TicketEstado,
               postas: [postaCreacion],
               asignadoA: coordId,
@@ -1837,6 +1841,7 @@ export const presupuestosService = {
       descripcion: `OC ${ocNumero} cargada para el presupuesto ${pres.numero}. Coordinar las OT(s) que correspondan.`,
       sistemaId: pres.sistemaId ?? null,
       moduloId: null,
+      esAutogenerado: true,
       estado: 'en_coordinacion' as TicketEstado,
       postas: [postaCreacion],
       asignadoA: coordId,
@@ -2198,6 +2203,7 @@ export const presupuestosService = {
           asignadoNombre: null,
           derivadoPor: actor?.uid ?? null,
           areaActual: 'administracion',
+          esAutogenerado: true,
           accionPendiente: 'Cargar factura del aviso',
           adjuntos: [],
           presupuestosIds: [presupuestoId],
@@ -2368,6 +2374,7 @@ export const presupuestosService = {
         asignadoNombre,
         derivadoPor: actor?.uid ?? null,
         areaActual: 'admin_soporte',
+        esAutogenerado: true,
         accionPendiente: 'Enviar presupuesto al cliente',
         adjuntos: [],
         presupuestosIds: [presupuestoId],
