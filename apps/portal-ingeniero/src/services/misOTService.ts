@@ -62,6 +62,14 @@ function parseReporte(id: string, data: Record<string, unknown>): MisOTDoc {
   } as unknown as MisOTDoc;
 }
 
+/**
+ * Terminador para consultas por prefijo en Firestore (U+F8FF, área de uso
+ * privado: ordena después de cualquier carácter usable en un doc id).
+ * Se construye por código y no como literal para que no dependa del encoding
+ * con que se guarde este archivo.
+ */
+const TOPE_PREFIJO = String.fromCharCode(0xf8ff);
+
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -89,12 +97,15 @@ function sacarPadresConHijasLocal(ots: MisOTDoc[]): MisOTDoc[] {
 
 /**
  * Consulta las hijas reales de los padres candidatos. El doc id ES el número de
- * OT, así que se pide el rango [`29970.`, `29970/`) — '/' es el carácter
- * siguiente a '.', así que abarca .01, .02, etc.
+ * OT, así que se pide el rango de los que empiezan con `29970.`.
  *
- * OJO: hay que usar `documentId()`, no la string '__name__' (2026-08-07): con
- * la string el SDK la trata como un campo común, la query no matchea nada y los
- * padres seguían apareciendo.
+ * Dos trampas ya pisadas (2026-08-07):
+ *  - Hay que usar `documentId()`, no la string '__name__': con la string el SDK
+ *    la trata como un campo común y la query no matchea nada.
+ *  - El límite superior NO puede ser `29970/`: al consultar por documentId,
+ *    Firestore rechaza cualquier valor con '/' porque lo lee como separador de
+ *    path ("must provide a plain document ID"). Se usa TOPE_PREFIJO, el
+ *    estándar para consultas por prefijo.
  */
 async function sacarPadresConHijasRemoto(ots: MisOTDoc[]): Promise<MisOTDoc[]> {
   const padres = ots.filter(ot => !ot.otNumber?.includes('.')).map(ot => ot.otNumber);
@@ -105,7 +116,7 @@ async function sacarPadresConHijasRemoto(ots: MisOTDoc[]): Promise<MisOTDoc[]> {
       const snap = await getDocs(query(
         collection(db, 'reportes'),
         where(documentId(), '>=', `${num}.`),
-        where(documentId(), '<', `${num}/`),
+        where(documentId(), '<=', `${num}.${TOPE_PREFIJO}`),
       ));
       if (!snap.empty) conHijas.add(num);
     } catch (err) {
