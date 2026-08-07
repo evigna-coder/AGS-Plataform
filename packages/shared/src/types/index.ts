@@ -2828,6 +2828,46 @@ export interface CertificadoIngeniero {
 export type TipoProveedor = 'nacional' | 'internacional';
 
 /**
+ * RUBRO del proveedor (2026-08-07). Eje distinto de `tipo` (que es el ORIGEN:
+ * nacional/internacional) — un despachante es nacional, un exportador
+ * internacional, y ambos son proveedores que se contratan y se califican.
+ *
+ * Es multi-valor a propósito: DHL, por ejemplo, es agente de carga Y
+ * despachante de aduanas.
+ *
+ * Unifica catálogos que vivían sueltos (colecciones `agentesCarga` y
+ * `transportistas`, y la lista fija de despachantes): al ser proveedores de
+ * verdad, entran al circuito de calificación (`calificaciones_proveedor`), que
+ * trabaja sobre `proveedorId`.
+ */
+export type CategoriaProveedor =
+  | 'exportador'
+  | 'agente_carga'
+  | 'despachante'
+  | 'transportista'
+  | 'vendedor_local';
+
+export const CATEGORIA_PROVEEDOR_LABELS: Record<CategoriaProveedor, string> = {
+  exportador: 'Exportador',
+  agente_carga: 'Agente de carga',
+  despachante: 'Despachante de aduanas',
+  transportista: 'Transportista',
+  vendedor_local: 'Vendedor local',
+};
+
+export const CATEGORIAS_PROVEEDOR: CategoriaProveedor[] = [
+  'exportador', 'agente_carga', 'despachante', 'transportista', 'vendedor_local',
+];
+
+/** True si el proveedor tiene esa categoría. Los sin categorías cargadas no matchean. */
+export function proveedorEsCategoria(
+  p: { categorias?: CategoriaProveedor[] | null },
+  categoria: CategoriaProveedor,
+): boolean {
+  return (p.categorias ?? []).includes(categoria);
+}
+
+/**
  * Contacto adicional de un proveedor. Un proveedor puede tener varios (ej. Ventas,
  * Comercio exterior). Los campos legacy `contacto/email/telefono` en `Proveedor`
  * siguen representando el contacto PRINCIPAL; `contactos[]` son los adicionales.
@@ -2843,7 +2883,10 @@ export interface ContactoProveedor {
 export interface Proveedor {
   id: string;
   nombre: string;
+  /** ORIGEN: nacional / internacional. El RUBRO va en `categorias`. */
   tipo: TipoProveedor;
+  /** Rubros del proveedor (multi): agente de carga, despachante, etc. */
+  categorias?: CategoriaProveedor[] | null;
   // Prefijo de 3 letras para la numeración de OC de este proveedor (ej. 'JAS').
   // El número de OC resulta PREFIJO + 3 dígitos correlativos por proveedor (JAS027).
   codigoOC?: string | null;
@@ -2855,6 +2898,12 @@ export interface Proveedor {
   // pueden elegir varios destinatarios entre el principal y estos.
   contactos?: ContactoProveedor[];
   direccion?: string | null;
+  /** Localidad y provincia (2026-08-07): las pide el remito impreso —
+   *  destinatario en derivaciones y bloque transportista. */
+  localidad?: string | null;
+  provincia?: string | null;
+  /** Condición frente al IVA, tal como va en el remito ("IVA Responsable Inscripto"). */
+  condicionIva?: string | null;
   pais?: string | null;
   cuit?: string | null;
   condicionesPago?: string | null;

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { importacionesService, ordenesCompraService, articulosService, agentesCargaService } from '../services/firebaseService';
-import type { AgenteCarga } from '../services/agentesCargaService';
+import { importacionesService, ordenesCompraService, articulosService } from '../services/firebaseService';
+import { proveedoresService } from '../services/personalService';
+import { proveedorEsCategoria } from '@ags/shared';
+import type { Proveedor } from '@ags/shared';
 import { cotizacionesService, type CotizacionDolar } from '../services/cotizacionesService';
 import { deepCleanForFirestore } from '../services/firebase';
 import { CONCEPTOS_GASTO_IMPORTACION, derivarEstadoImportacion } from '@ags/shared';
@@ -43,7 +45,13 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [imp, setImp] = useState<Importacion | null>(null);
   const [ocOptions, setOcOptions] = useState<OrdenCompra[]>([]);
   const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
-  const [agentes, setAgentes] = useState<AgenteCarga[]>([]);
+  // Agentes de carga y despachantes salen del catálogo de PROVEEDORES filtrado
+  // por categoría (2026-08-07): son proveedores como cualquier otro y así
+  // entran al circuito de calificación. Antes vivían en la colección suelta
+  // `agentesCarga` y los despachantes en una lista fija en el código.
+  const [proveedoresCat, setProveedoresCat] = useState<Proveedor[]>([]);
+  const agentes = proveedoresCat.filter(p => proveedorEsCategoria(p, 'agente_carga'));
+  const despachantes = proveedoresCat.filter(p => proveedorEsCategoria(p, 'despachante'));
   const [tcInfo, setTcInfo] = useState<CotizacionDolar | null>(null);
   const [tcError, setTcError] = useState(false);
   const [paseSugerido, setPaseSugerido] = useState<number | null>(null);
@@ -70,12 +78,12 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [arts, ags] = await Promise.all([
+      const [arts, provs] = await Promise.all([
         articulosService.getAll().catch(() => [] as Articulo[]),
-        agentesCargaService.getAll().catch(() => [] as AgenteCarga[]),
+        proveedoresService.getAll(true).catch(() => [] as Proveedor[]),
       ]);
       setArticulosById(new Map(arts.map(a => [a.id, a])));
-      setAgentes(ags);
+      setProveedoresCat(provs);
 
       if (impId) {
         const data = await importacionesService.getById(impId);
@@ -181,15 +189,31 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     setGastos(prev => prev.some(g => g.monto > 0) ? prev : gastosPrecargados(m));
   };
 
-  const crearAgente = async (nombre: string) => {
+  /**
+   * Alta rápida de un proveedor con la categoría correspondiente y selección
+   * inmediata. Si ya existe uno con ese nombre, solo le agrega la categoría.
+   */
+  const crearProveedorCategoria = async (nombre: string, categoria: 'agente_carga' | 'despachante') => {
     const n = nombre.trim();
     if (!n) return;
     try {
-      await agentesCargaService.create(n);
-      setAgentes(await agentesCargaService.getAll());
-      setForm(prev => ({ ...prev, agenteCarga: n }));
-    } catch (err) { console.error('Error creando agente de carga:', err); }
+      const existente = proveedoresCat.find(p => p.nombre.trim().toLowerCase() === n.toLowerCase());
+      if (existente) {
+        if (!proveedorEsCategoria(existente, categoria)) {
+          await proveedoresService.update(existente.id, {
+            categorias: [...(existente.categorias ?? []), categoria],
+          });
+        }
+      } else {
+        await proveedoresService.create({
+          nombre: n, tipo: 'nacional', categorias: [categoria], activo: true,
+        } as Omit<Proveedor, 'id' | 'createdAt' | 'updatedAt'>);
+      }
+      setProveedoresCat(await proveedoresService.getAll(true));
+      setForm(prev => ({ ...prev, [categoria === 'agente_carga' ? 'agenteCarga' : 'despachante']: n }));
+    } catch (err) { console.error(`Error creando proveedor (${categoria}):`, err); }
   };
+  const crearAgente = (nombre: string) => crearProveedorCategoria(nombre, 'agente_carga');
 
   const addGasto = () => setGastos(prev => [...prev, { id: uuid(), concepto: '', descripcion: '', monto: 0, moneda: monedaOC, fecha: null, comprobante: null }]);
   const updateGasto = (id: string, patch: Partial<GastoImportacion>) =>
@@ -261,7 +285,8 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   }, [ordenCompraId, ordenCompraNumero, proveedorId, proveedorNombre, form, gastos, items, isEdit, impId, imp]);
 
   return {
-    loading, saving, imp, ocOptions, articulosById, agentes, crearAgente,
+    loading, saving, imp, ocOptions, articulosById,
+    agentes, despachantes, crearAgente, crearProveedorCategoria,
     tcInfo, tcError, fetchTC,
     paseSugerido, fetchPase,
     ordenCompraId, ordenCompraNumero, proveedorNombre, monedaOC,

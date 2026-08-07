@@ -5,7 +5,7 @@ import { clientesService } from '../services/clientesService';
 import { proveedoresService } from '../services/personalService';
 import { ordenesTrabajoService } from '../services/firebaseService';
 import { loanersService } from '../services/loanersService';
-import { transportistasService, type Transportista } from '../services/transportistasService';
+import { proveedorEsCategoria } from '@ags/shared';
 import { remitosService, type DatosTransportista } from '../services/stockService';
 import type { ElegibleItem, ItemMode, ParteInput } from '../components/remitos/RemitoItemPicker';
 import type { TipoRemito } from '../components/remitos/RemitoTipoToggle';
@@ -122,8 +122,12 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
   const [otsSeleccionadas, setOtsSeleccionadas] = useState<Set<string>>(new Set());
   /** Loaners derivables (en base) — solo entran a elegibles en derivación. */
   const [loanersBase, setLoanersBase] = useState<Loaner[]>([]);
-  /** Catálogo de transportistas guardados (2026-08-06). */
-  const [transportistas, setTransportistas] = useState<Transportista[]>([]);
+  /** Transportistas = proveedores con esa categoría (2026-08-07). Antes era una
+   *  colección suelta; ahora son proveedores y entran a la calificación. */
+  const transportistas = useMemo(
+    () => proveedores.filter(p => proveedorEsCategoria(p, 'transportista')),
+    [proveedores],
+  );
 
   const elegibles = useMemo<ElegibleItem[]>(() => {
     const all = ficha ? [ficha, ...otherFichas] : otherFichas;
@@ -192,7 +196,6 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
       setLoanersBase([]);
     }
     void proveedoresService.getAll(true).then(setProveedores);
-    void transportistasService.getAll().then(setTransportistas).catch(console.error);
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
     setOtsSeleccionadas(new Set(ficha?.otIds ?? []));
     const preselect = new Set<string>();
@@ -267,13 +270,13 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     setPartesByKey(m => { const n = new Map(m); n.set(key, partes); return n; });
   };
 
-  /** Autocompletar el transportista desde el catálogo guardado. */
+  /** Autocompletar el transportista desde el proveedor elegido. */
   const handlePickTransportista = (id: string) => {
     const t = transportistas.find(x => x.id === id);
     if (!t) return;
     setTransportista({
-      razonSocial: t.razonSocial, domicilio: t.domicilio ?? '', localidad: t.localidad ?? '',
-      provincia: t.provincia ?? '', iva: t.iva ?? '', cuit: t.cuit ?? '',
+      razonSocial: t.nombre, domicilio: t.direccion ?? '', localidad: t.localidad ?? '',
+      provincia: t.provincia ?? '', iva: t.condicionIva ?? '', cuit: t.cuit ?? '',
     });
   };
 

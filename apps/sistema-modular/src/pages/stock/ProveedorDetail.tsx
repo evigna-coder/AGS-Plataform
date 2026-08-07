@@ -6,7 +6,8 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { ProveedorContactosEditor, normalizeContactos } from '../../components/stock/ProveedorContactosEditor';
-import type { Proveedor, ContactoProveedor } from '@ags/shared';
+import type { Proveedor, ContactoProveedor, CategoriaProveedor } from '@ags/shared';
+import { CATEGORIAS_PROVEEDOR, CATEGORIA_PROVEEDOR_LABELS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -23,8 +24,9 @@ const Field: React.FC<{ label: string; value?: string | null }> = ({ label, valu
 );
 
 interface FormState {
-  nombre: string; tipo: 'nacional' | 'internacional'; codigoOC: string;
+  nombre: string; tipo: 'nacional' | 'internacional'; categorias: CategoriaProveedor[]; codigoOC: string;
   contacto: string; email: string; telefono: string; direccion: string;
+  localidad: string; provincia: string; condicionIva: string;
   pais: string; cuit: string; condicionesPago: string; moneda: string;
   banco: string; cuentaBancaria: string; swift: string; iban: string;
   bancoIntermediario: string; swiftIntermediario: string; abaIntermediario: string;
@@ -32,9 +34,10 @@ interface FormState {
 }
 
 const toForm = (p: Proveedor): FormState => ({
-  nombre: p.nombre, tipo: p.tipo || 'nacional', codigoOC: p.codigoOC || '',
+  nombre: p.nombre, tipo: p.tipo || 'nacional', categorias: p.categorias ?? [], codigoOC: p.codigoOC || '',
   contacto: p.contacto || '', email: p.email || '', telefono: p.telefono || '',
-  direccion: p.direccion || '', pais: p.pais || '', cuit: p.cuit || '',
+  direccion: p.direccion || '', localidad: p.localidad || '', provincia: p.provincia || '',
+  condicionIva: p.condicionIva || '', pais: p.pais || '', cuit: p.cuit || '',
   condicionesPago: p.condicionesPago || '', moneda: p.moneda || '',
   banco: p.banco || '', cuentaBancaria: p.cuentaBancaria || '',
   swift: p.swift || '', iban: p.iban || '',
@@ -75,9 +78,12 @@ export const ProveedorDetail = () => {
     try {
       const dataToSave = {
         nombre: form.nombre.trim(), tipo: form.tipo,
+        categorias: form.categorias,
         codigoOC: form.codigoOC.trim().toUpperCase() || null,
         contacto: form.contacto.trim() || null, email: form.email.trim() || null,
         telefono: form.telefono.trim() || null, direccion: form.direccion.trim() || null,
+        localidad: form.localidad.trim() || null, provincia: form.provincia.trim() || null,
+        condicionIva: form.condicionIva.trim() || null,
         pais: form.pais.trim() || null, cuit: form.cuit.trim() || null,
         condicionesPago: form.condicionesPago.trim() || null,
         moneda: (form.moneda as any) || null,
@@ -122,6 +128,11 @@ export const ProveedorDetail = () => {
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${tipoBadge(proveedor.tipo)}`}>
                   {proveedor.tipo === 'internacional' ? 'Internacional' : 'Nacional'}
                 </span>
+                {(proveedor.categorias ?? []).map(c => (
+                  <span key={c} className="ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700">
+                    {CATEGORIA_PROVEEDOR_LABELS[c]}
+                  </span>
+                ))}
                 {proveedor.activo ? <span className="ml-2 text-green-600">Activo</span> : <span className="ml-2 text-slate-400">Inactivo</span>}
               </p>
             </div>
@@ -159,9 +170,35 @@ export const ProveedorDetail = () => {
                       <option value="internacional">Internacional</option>
                     </select>
                   </div>
+                  {/* Rubros (2026-08-07): multi — DHL es agente de carga Y
+                      despachante. Alimentan los selectores de importación y
+                      remitos, y habilitan la calificación por proveedor. */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-700 mb-1">Categorías</label>
+                    <div className="space-y-1">
+                      {CATEGORIAS_PROVEEDOR.map(c => (
+                        <label key={c} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={form.categorias.includes(c)}
+                            onChange={e => setForm(f => ({
+                              ...f,
+                              categorias: e.target.checked
+                                ? [...f.categorias, c]
+                                : f.categorias.filter(x => x !== c),
+                            }))}
+                            className="w-3.5 h-3.5 accent-teal-600" />
+                          <span className="text-xs text-slate-700">{CATEGORIA_PROVEEDOR_LABELS[c]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                   <Input inputSize="sm" label="Contacto" value={form.contacto} onChange={e => set('contacto', e.target.value)} />
                   <Input inputSize="sm" label="Email" value={form.email} onChange={e => set('email', e.target.value)} />
                   <Input inputSize="sm" label="Telefono" value={form.telefono} onChange={e => set('telefono', e.target.value)} />
+                  <Input inputSize="sm" label="Direccion" value={form.direccion} onChange={e => set('direccion', e.target.value)} />
+                  <Input inputSize="sm" label="Localidad" value={form.localidad} onChange={e => set('localidad', e.target.value)} />
+                  <Input inputSize="sm" label="Provincia" value={form.provincia} onChange={e => set('provincia', e.target.value)} />
+                  <Input inputSize="sm" label="Condicion IVA" value={form.condicionIva}
+                    onChange={e => set('condicionIva', e.target.value)} placeholder="IVA Responsable Inscripto" />
                   <Input inputSize="sm" label="Pais" value={form.pais} onChange={e => set('pais', e.target.value)} />
                   <Input inputSize="sm" label="CUIT" value={form.cuit} onChange={e => set('cuit', e.target.value)} />
                   <Input inputSize="sm" label="Codigo OC (3 letras)" value={form.codigoOC}

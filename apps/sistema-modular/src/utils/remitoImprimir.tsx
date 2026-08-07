@@ -98,13 +98,11 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
 
   const destinatario = esDerivacion
     ? {
-        // Proveedor no modela localidad/provincia por separado — van dentro de
-        // `direccion`. El overlay las deja vacías.
         razonSocial: proveedor?.nombre ?? remito.proveedorNombre ?? '',
         domicilio: proveedor?.direccion ?? '',
-        localidad: '',
-        provincia: '',
-        iva: '',
+        localidad: proveedor?.localidad ?? '',
+        provincia: proveedor?.provincia ?? '',
+        iva: proveedor?.condicionIva ?? '',
         cuit: proveedor?.cuit ?? '',
       }
     : {
