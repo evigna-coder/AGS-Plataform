@@ -100,10 +100,10 @@ export function computeCosteoImportacion(input: {
   /** Régimen courier (puerta a puerta): sin percepciones. Ver `esCourier` abajo. */
   esCourier?: boolean | null;
 }): CosteoImportacion {
-  // Régimen COURIER (2026-08-06, regla del dueño): tributa los derechos de la
-  // posición arancelaria y el IVA, pero NO las percepciones — IVA adicional,
-  // ganancias e ingresos brutos van en cero, sin importar lo que diga el
-  // tratamiento arancelario del artículo.
+  // Régimen COURIER (regla del dueño 2026-08-06/07): SOLO tributa los derechos
+  // de la posición arancelaria y el IVA. NO paga tasa de estadística, IVA
+  // adicional, percepción de ganancias ni ingresos brutos — sin importar lo que
+  // diga el tratamiento arancelario del artículo.
   const esCourier = input.esCourier === true;
   const monedaEmbarque = input.monedaBase || 'USD';
   const tc = input.tipoCambio && input.tipoCambio > 0 ? input.tipoCambio : null; // ARS/USD
@@ -142,7 +142,8 @@ export function computeCosteoImportacion(input: {
     const trat = art?.tratamientoArancelario ?? null;
 
     const derechos = cif * pct(trat?.derechoImportacion, DEFAULTS.derechoImportacion);
-    const estadistica = cif * pct(trat?.estadistica, DEFAULTS.estadistica);
+    // Courier: tampoco paga tasa de estadística (confirmado 2026-08-07).
+    const estadistica = esCourier ? 0 : cif * pct(trat?.estadistica, DEFAULTS.estadistica);
     const baseImponible = cif + derechos + estadistica;
     const iva = baseImponible * pct(trat?.iva, DEFAULTS.iva);
     // Percepciones: no aplican en courier.

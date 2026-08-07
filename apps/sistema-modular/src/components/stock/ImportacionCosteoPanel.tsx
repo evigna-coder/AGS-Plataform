@@ -15,7 +15,7 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
   const lineas: [string, number][] = [
     ['Valor en aduana (CIF)', costeo.cifTotal],
     ['Derechos de importación', costeo.derechos],
-    ['Tasa de estadística', costeo.estadistica],
+    ...(costeo.esCourier ? [] : [['Tasa de estadística', costeo.estadistica] as [string, number]]),
     ['IVA', costeo.iva],
     ...(costeo.esCourier ? [] : [
       ['IVA adicional', costeo.ivaAdicional] as [string, number],
@@ -29,8 +29,8 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
     <div className="space-y-3">
       {costeo.esCourier && (
         <p className="text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-md px-2 py-1.5">
-          <span className="font-semibold">Régimen courier</span> — tributa derechos de la posición arancelaria e IVA.
-          No se calculan IVA adicional, percepción de ganancias ni ingresos brutos.
+          <span className="font-semibold">Régimen courier</span> — tributa solo derechos de la posición arancelaria e IVA.
+          No se calculan tasa de estadística, IVA adicional, percepción de ganancias ni ingresos brutos.
         </p>
       )}
       {/* Detalle por artículo: posición arancelaria + alícuotas (para verificar la definición) */}
@@ -63,7 +63,10 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
                   </div>
                 </td>
                 <td className="px-2 py-1.5 text-center font-mono text-slate-700">{l.derechoPct}%</td>
-                <td className="px-2 py-1.5 text-center font-mono text-slate-700">{l.estadisticaPct}%</td>
+                {/* En courier la estadística no se cobra: el % del artículo no aplica. */}
+                <td className="px-2 py-1.5 text-center font-mono text-slate-700">
+                  {costeo.esCourier ? <span className="text-slate-300">—</span> : `${l.estadisticaPct}%`}
+                </td>
                 <td className="px-2 py-1.5 text-center font-mono text-slate-700">{l.ivaPct}%</td>
                 <td className="px-2 py-1.5 text-center font-mono font-semibold text-teal-700">{l.factor.toFixed(3)}</td>
               </tr>
