@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AgendaEntry, Cliente, CondicionPago, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { esOTCerradaTecnicamente } from '@ags/shared';
+import { tieneOCDelCliente } from '../utils/analitica/presupuestosMetrics';
 import {
   agendaService, clientesService, condicionesPagoService, facturacionService, ordenesTrabajoService, presupuestosService,
 } from '../services/firebaseService';
@@ -278,7 +279,11 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         })
         .sort()
         .map(n => ({ otNumber: n, estadoAdmin: otByNumber.get(n)!.estadoAdmin ?? ('' as const) }));
-      const sinOC = (p.ordenesCompraIds ?? []).length === 0;
+      // tieneOCDelCliente (2026-08-06): la OC puede haber entrado por el camino
+      // liviano (AdjuntarOCModal: número + PDF adjunto), que NO estampa
+      // ordenesCompraIds — mirando solo ese array, un ppto con la OC cargada
+      // seguía figurando "Pendiente OC del cliente" (caso P3-005034-01).
+      const sinOC = !tieneOCDelCliente(p);
       const listoParaAviso = !avisoEnviado && otsPendientes.length === 0 && p.estado === 'pendiente_facturacion';
 
       rows.push({
