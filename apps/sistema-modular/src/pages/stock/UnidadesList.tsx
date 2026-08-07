@@ -23,6 +23,13 @@ import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Pre
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', entregado: 'Entregado', baja: 'Baja' };
+
+/** Días enteros desde una fecha ISO — cuánto hace que la pieza está afuera. */
+const diasDesde = (iso: string) => {
+  const d = new Date(iso).getTime();
+  if (isNaN(d)) return 0;
+  return Math.max(0, Math.floor((Date.now() - d) / 86400000));
+};
 // Estados terminales: la unidad ya SALIÓ del stock (su rastro vive en Movimientos, no acá).
 // Se ocultan de "Unidades" salvo que el usuario filtre explícitamente por uno de ellos.
 const UNIDAD_FUERA_DE_STOCK: EstadoUnidad[] = ['entregado', 'consumido', 'vendido', 'baja'];
@@ -247,6 +254,18 @@ export const UnidadesList = () => {
                         <div className="mt-0.5 text-[10px] text-slate-400 leading-tight">
                           {u.reservadoParaPresupuestoNumero && <span className="font-mono">{u.reservadoParaPresupuestoNumero}</span>}
                           {u.reservadoParaClienteNombre && <span>{u.reservadoParaPresupuestoNumero ? ' · ' : ''}{u.reservadoParaClienteNombre}</span>}
+                        </div>
+                      )}
+                      {/* Salida a proveedor con retorno pendiente (2026-08-07):
+                          sin esto "En transito" no dice dónde está la pieza. */}
+                      {u.enProveedor && (
+                        <div className="mt-0.5 text-[10px] text-purple-600 leading-tight">
+                          {u.enProveedor.fechaEntrega ? 'En' : 'En camino a'} {u.enProveedor.proveedorNombre}
+                          {u.enProveedor.fechaEntrega && (
+                            <span className="text-orange-600 font-medium"> · {diasDesde(u.enProveedor.fechaEntrega)} d</span>
+                          )}
+                          <span className="text-slate-400"> · remito <span className="font-mono">{u.enProveedor.remitoSalidaNumero}</span></span>
+                          {u.enProveedor.motivo && <span className="text-slate-400"> · {u.enProveedor.motivo}</span>}
                         </div>
                       )}
                     </td>

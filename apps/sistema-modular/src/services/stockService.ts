@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
@@ -1031,12 +1031,14 @@ export const remitosService = {
           fichaId: it.fichaId,
           fichaNumero: it.fichaNumero,
           itemSubId: it.itemSubId,
+          otNumber: it.otNumber ?? null,
           // Código de la parte en su columna (2026-08-06) — antes el papel
           // imprimía el subId de la ficha como "código de artículo".
           articuloCodigo: p.articuloCodigo ?? undefined,
-          // origenLabel (2026-08-06): módulo de origen con nombre y serie, no
-          // solo el subId — en el papel no se sabía de qué módulo salió la parte.
-          fichaDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.origenLabel ?? it.itemSubId})`,
+          // origenLabel (2026-08-06): módulo de origen con nombre y serie. Sin
+          // fallback al subId (2026-08-07): el número de ficha no se declara ni
+          // en el papel ni en el dato guardado, que es lo que se reimprime.
+          fichaDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''}${it.origenLabel ? ` (de ${it.origenLabel})` : ''}`,
         }));
       }
       return [{
@@ -1047,6 +1049,7 @@ export const remitosService = {
         fichaId: it.fichaId,
         fichaNumero: it.fichaNumero,
         itemSubId: it.itemSubId,
+        otNumber: it.otNumber ?? null,
         articuloCodigo: it.articuloCodigo ?? undefined,
         fichaDescripcion: it.descripcion,
       }];
@@ -1083,6 +1086,26 @@ export const remitosService = {
     });
     remitoLineas.push(...loanerLineas);
 
+    // Unidades de stock propias (2026-08-07): línea documental + side effect
+    // sobre la unidad (queda en el proveedor, pendiente de retorno).
+    const unidadesInput = isDevolucion ? [] : (input.unidades ?? []);
+    const unidadLineas: RemitoItem[] = unidadesInput.map(u => ({
+      id: crypto.randomUUID(),
+      cantidad: u.cantidad ?? 1,
+      tipoItem: 'entrega' as const,
+      devuelto: false,
+      tipoEntidad: 'articulo' as const,
+      unidadId: u.unidadId,
+      articuloId: u.articuloId,
+      articuloCodigo: u.articuloCodigo,
+      articuloDescripcion: [
+        u.articuloDescripcion,
+        u.serie ? `S/N ${u.serie}` : null,
+        u.motivo?.trim() || null,
+      ].filter(Boolean).join(' · '),
+    }));
+    remitoLineas.push(...unidadLineas);
+
     // Agrupar items por fichaId para hacer un solo update por ficha
     const itemsByFicha = new Map<string, typeof input.items>();
     for (const it of input.items) {
@@ -1093,6 +1116,24 @@ export const remitosService = {
 
     const fichaIds = Array.from(itemsByFicha.keys());
     const fichaNumeros = Array.from(new Set(input.items.map(it => it.fichaNumero)));
+
+    /**
+     * Dueño de la mercadería (2026-08-07): en el listado de remitos la columna
+     * Cliente NUNCA puede quedar vacía — es lo que dice de un vistazo de quién
+     * es lo que salió. En una derivación el destinatario es el proveedor, pero
+     * el dueño sigue siendo el cliente de la ficha; si lo que viaja es material
+     * propio (loaner, patrón, parte de stock), el dueño es AGS.
+     */
+    const clientesDeFichas = Array.from(new Set(
+      (input.clienteNombrePorFicha ? Object.values(input.clienteNombrePorFicha) : [])
+        .filter((n): n is string => !!n && n.trim().length > 0),
+    ));
+    const duenoNombre = isDevolucion
+      ? (input.clienteNombre ?? null)
+      : clientesDeFichas.length === 1 ? clientesDeFichas[0]
+      : clientesDeFichas.length > 1 ? 'Varios clientes'
+      : 'AGS';
+
     const remitoPayload = deepCleanForFirestore({
       numero: input.numero,
       tipo: input.tipo,
@@ -1101,7 +1142,9 @@ export const remitosService = {
       ingenieroNombre: '',
       otNumbers: input.otNumbers ?? [],
       clienteId: isDevolucion ? (input.clienteId ?? null) : null,
-      clienteNombre: isDevolucion ? (input.clienteNombre ?? null) : null,
+      // En derivación el clienteId queda null a propósito (el destinatario del
+      // papel es el proveedor); el nombre es informativo, para el listado.
+      clienteNombre: duenoNombre,
       proveedorId: !isDevolucion ? (input.proveedorId ?? null) : null,
       proveedorNombre: !isDevolucion ? (input.proveedorNombre ?? null) : null,
       items: remitoLineas,
@@ -1219,8 +1262,198 @@ export const remitosService = {
       batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: fichaId, after: fichaPatch });
     }
 
+    // ── Unidades de stock: salen a la ubicación del proveedor ────────────────
+    // No es un egreso definitivo: la unidad sigue siendo patrimonio de AGS y
+    // vuelve con `retornarDeProveedor`. Por eso `en_transito` + `enProveedor`,
+    // y no `entregado`/`consumido` (que la sacarían del ATP para siempre).
+    const movimientosUnidades: Array<Omit<MovimientoStock, 'id' | 'createdAt'>> = [];
+    for (const u of unidadesInput) {
+      const uSnap = await getDoc(doc(db, 'unidades', u.unidadId));
+      if (!uSnap.exists()) continue;
+      const unidad = uSnap.data() as UnidadStock;
+      const ubicacionOrigen: UbicacionStock = unidad.ubicacion ?? {
+        tipo: 'posicion', referenciaId: '', referenciaNombre: '',
+      };
+      const salida: SalidaAProveedor = {
+        proveedorId: input.proveedorId ?? '',
+        proveedorNombre,
+        remitoSalidaId: id,
+        remitoSalidaNumero: input.numero,
+        fechaEnvio: now,
+        motivo: u.motivo?.trim() || null,
+        ubicacionOrigen,
+      };
+      const unidadPatch = deepCleanForFirestore({
+        estado: 'en_transito',
+        ubicacion: {
+          tipo: 'proveedor',
+          referenciaId: input.proveedorId ?? '',
+          referenciaNombre: proveedorNombre,
+        },
+        enProveedor: salida,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+      batch.update(docRef('unidades', u.unidadId), unidadPatch);
+      batchAudit(batch, { action: 'update', collection: 'unidades', documentId: u.unidadId, after: unidadPatch });
+
+      movimientosUnidades.push({
+        tipo: 'egreso',
+        unidadId: u.unidadId,
+        articuloId: u.articuloId,
+        articuloCodigo: u.articuloCodigo,
+        articuloDescripcion: u.articuloDescripcion,
+        cantidad: u.cantidad ?? 1,
+        origenTipo: ubicacionOrigen.tipo === 'transito' ? 'posicion' : (ubicacionOrigen.tipo as TipoOrigenDestino),
+        origenId: ubicacionOrigen.referenciaId,
+        origenNombre: ubicacionOrigen.referenciaNombre,
+        destinoTipo: 'proveedor',
+        destinoId: input.proveedorId ?? '',
+        destinoNombre: proveedorNombre,
+        remitoId: id,
+        motivo: `Salida a proveedor — remito ${input.numero}${u.motivo?.trim() ? ` · ${u.motivo.trim()}` : ''}`,
+        nroSerie: unidad.nroSerie ?? null,
+        nroLote: unidad.nroLote ?? null,
+        creadoPor,
+      });
+    }
+
     await batch.commit();
+
+    // Movimientos después del commit: si alguno falla, la salida ya quedó
+    // registrada en la unidad y el remito (el movimiento es la traza, no la
+    // fuente de verdad).
+    for (const mov of movimientosUnidades) {
+      await movimientosService.create(mov).catch(err =>
+        console.error('[createForItems] movimiento de salida a proveedor falló:', err),
+      );
+    }
+
     return { id };
+  },
+
+  /**
+   * Marca el remito de derivación como entregado en el proveedor externo
+   * (2026-08-07) y estampa la fecha en las unidades propias que viajaban —
+   * una parte de stock sale sola, sin ficha, así que su estado no se actualiza
+   * por ningún otro camino.
+   */
+  async marcarEntregadoEnProveedor(remitoId: string): Promise<void> {
+    const rSnap = await getDoc(doc(db, 'remitos', remitoId));
+    if (!rSnap.exists()) throw new Error('El remito no existe');
+    const remito = rSnap.data() as Remito;
+    const now = new Date().toISOString();
+
+    const batch = createBatch();
+    const remitoPatch = deepCleanForFirestore({
+      estado: 'en_proveedor' as EstadoRemito,
+      fechaEntregaProveedor: now,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    batch.update(docRef('remitos', remitoId), remitoPatch);
+    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: remitoId, after: remitoPatch });
+
+    const unidadIds = Array.from(new Set(
+      (remito.items ?? []).map(i => i.unidadId).filter((x): x is string => !!x),
+    ));
+    for (const unidadId of unidadIds) {
+      const uSnap = await getDoc(doc(db, 'unidades', unidadId));
+      if (!uSnap.exists()) continue;
+      const unidad = uSnap.data() as UnidadStock;
+      if (!unidad.enProveedor) continue;   // no salió por este circuito
+      const patch = deepCleanForFirestore({
+        enProveedor: { ...unidad.enProveedor, fechaEntrega: now },
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+      batch.update(docRef('unidades', unidadId), patch);
+      batchAudit(batch, { action: 'update', collection: 'unidades', documentId: unidadId, after: patch });
+    }
+
+    await batch.commit();
+  },
+
+  /**
+   * Registra el retorno de una unidad que estaba en el proveedor: vuelve a su
+   * ubicación de origen, queda disponible y se marca la línea del remito de
+   * salida como devuelta.
+   *
+   * Idempotente-ish: si la unidad no tiene `enProveedor` tira error en lugar de
+   * inventar una ubicación.
+   */
+  async registrarRetornoUnidad(
+    unidadId: string,
+    opts?: { observaciones?: string | null; condicion?: CondicionUnidad | null },
+  ): Promise<void> {
+    const uSnap = await getDoc(doc(db, 'unidades', unidadId));
+    if (!uSnap.exists()) throw new Error('La unidad no existe');
+    const unidad = uSnap.data() as UnidadStock;
+    const salida = unidad.enProveedor;
+    if (!salida) throw new Error('La unidad no figura en un proveedor');
+
+    const now = new Date().toISOString();
+    const batch = createBatch();
+
+    const unidadPatch = deepCleanForFirestore({
+      estado: 'disponible',
+      ubicacion: salida.ubicacionOrigen,
+      enProveedor: null,
+      condicion: opts?.condicion ?? unidad.condicion,
+      observaciones: opts?.observaciones?.trim()
+        ? [unidad.observaciones, opts.observaciones.trim()].filter(Boolean).join(' · ')
+        : unidad.observaciones ?? null,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    batch.update(docRef('unidades', unidadId), unidadPatch);
+    batchAudit(batch, { action: 'update', collection: 'unidades', documentId: unidadId, after: unidadPatch });
+
+    // Marcar la línea del remito de salida como devuelta, para que el remito
+    // pueda cerrarse y no quede eternamente "en tránsito".
+    const rSnap = await getDoc(doc(db, 'remitos', salida.remitoSalidaId));
+    if (rSnap.exists()) {
+      const remito = rSnap.data() as Remito;
+      const items = (remito.items ?? []).map(it =>
+        it.unidadId === unidadId && !it.devuelto
+          ? { ...it, devuelto: true, fechaDevolucion: now }
+          : it,
+      );
+      const todoDevuelto = items.every(it => it.devuelto || it.consumido);
+      const remitoPatch = deepCleanForFirestore({
+        items,
+        estado: (todoDevuelto ? 'completado' : remito.estado) as EstadoRemito,
+        fechaDevolucion: todoDevuelto ? now : (remito.fechaDevolucion ?? null),
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+      batch.update(docRef('remitos', salida.remitoSalidaId), remitoPatch);
+      batchAudit(batch, { action: 'update', collection: 'remitos', documentId: salida.remitoSalidaId, after: remitoPatch });
+    }
+
+    await batch.commit();
+
+    await movimientosService.create({
+      tipo: 'ingreso',
+      unidadId,
+      articuloId: unidad.articuloId,
+      articuloCodigo: unidad.articuloCodigo,
+      articuloDescripcion: unidad.articuloDescripcion,
+      cantidad: unidad.cantidad ?? 1,
+      origenTipo: 'proveedor',
+      origenId: salida.proveedorId,
+      origenNombre: salida.proveedorNombre,
+      destinoTipo: salida.ubicacionOrigen.tipo === 'transito' ? 'posicion' : (salida.ubicacionOrigen.tipo as TipoOrigenDestino),
+      destinoId: salida.ubicacionOrigen.referenciaId,
+      destinoNombre: salida.ubicacionOrigen.referenciaNombre,
+      remitoId: salida.remitoSalidaId,
+      motivo: `Retorno de proveedor — remito ${salida.remitoSalidaNumero}`,
+      nroSerie: unidad.nroSerie ?? null,
+      nroLote: unidad.nroLote ?? null,
+      creadoPor: getCreateTrace().createdByName ?? 'Sistema',
+    }).catch(err =>
+      console.error('[registrarRetornoUnidad] movimiento de retorno falló:', err),
+    );
   },
 
   /**
@@ -1317,6 +1550,8 @@ export interface CreateRemitoItemsInput {
     articuloCodigo?: string | null;
     /** Módulo de origen para las líneas de partes: "SUB-XX · descripción · S/N ..." */
     origenLabel?: string;
+    /** OT de esta línea, para el desglose del remito (2026-08-07). */
+    otNumber?: string | null;
     descripcion: string;
     partes?: Array<{
       articuloId?: string | null;
@@ -1340,11 +1575,35 @@ export interface CreateRemitoItemsInput {
       serie?: string | null;
     }>;
   }>;
+  /**
+   * Unidades de stock PROPIAS que se mandan al proveedor a que les hagan un
+   * trabajo y tienen que volver (2026-08-07). A diferencia de los loaners, acá
+   * sí hay side effect sobre stock: la unidad queda `en_transito` en el
+   * proveedor, con `enProveedor` marcando el retorno pendiente.
+   *
+   * Solo aplica a `tipo: 'derivacion_proveedor'`.
+   */
+  unidades?: Array<{
+    unidadId: string;
+    articuloId: string;
+    articuloCodigo: string;
+    articuloDescripcion: string;
+    serie?: string | null;
+    cantidad?: number;
+    /** Qué le van a hacer — se concatena a la descripción de la línea. */
+    motivo?: string | null;
+  }>;
   observaciones?: string | null;
   proveedorId?: string | null;
   proveedorNombre?: string | null;
   clienteId?: string | null;
   clienteNombre?: string | null;
+  /**
+   * fichaId → razón social del dueño del equipo (2026-08-07). En una derivación
+   * el remito se emite al proveedor, pero el listado tiene que mostrar de quién
+   * es la mercadería. Sin esto la columna Cliente quedaba vacía.
+   */
+  clienteNombrePorFicha?: Record<string, string>;
   otNumbers?: string[];
 }
 

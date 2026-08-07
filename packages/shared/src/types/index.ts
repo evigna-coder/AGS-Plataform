@@ -2848,6 +2848,12 @@ export type CategoriaProveedor =
   | 'agente_carga'
   | 'despachante'
   | 'transportista'
+  /**
+   * Proveedor local: vendedores y talleres/laboratorios del país a los que se
+   * les compra o se les deriva trabajo — ej. ELS, AZN. El valor se mantiene en
+   * `vendedor_local` para no migrar lo ya cargado; solo cambió la etiqueta
+   * (2026-08-07).
+   */
   | 'vendedor_local';
 
 export const CATEGORIA_PROVEEDOR_LABELS: Record<CategoriaProveedor, string> = {
@@ -2855,7 +2861,7 @@ export const CATEGORIA_PROVEEDOR_LABELS: Record<CategoriaProveedor, string> = {
   agente_carga: 'Agente de carga',
   despachante: 'Despachante de aduanas',
   transportista: 'Transportista',
-  vendedor_local: 'Vendedor local',
+  vendedor_local: 'Proveedor local',
 };
 
 export const CATEGORIAS_PROVEEDOR: CategoriaProveedor[] = [
@@ -3217,6 +3223,32 @@ export interface UbicacionStock {
   referenciaNombre: string;
 }
 
+/**
+ * Unidad de stock propia enviada a un proveedor para que le hagan un trabajo
+ * (reparación, calibración, recambio) y que tiene que volver al inventario.
+ * Se hace seguido y antes no se registraba: la unidad salía como egreso y no
+ * quedaba rastro de que estaba pendiente de retorno.
+ */
+export interface SalidaAProveedor {
+  proveedorId: string;
+  proveedorNombre: string;
+  /** FK → remitos (el remito de derivación con el que salió). */
+  remitoSalidaId: string;
+  remitoSalidaNumero: string;
+  /** ISO */
+  fechaEnvio: string;
+  /**
+   * Fecha en que se entregó efectivamente en el proveedor (2026-08-07). Hasta
+   * que se carga, la pieza está viajando; después, el contador de días afuera
+   * corre desde acá.
+   */
+  fechaEntrega?: string | null;
+  /** Qué le van a hacer — texto libre, va a la descripción del remito. */
+  motivo?: string | null;
+  /** Dónde estaba antes de salir: a ahí vuelve al registrar el retorno. */
+  ubicacionOrigen: UbicacionStock;
+}
+
 export interface UnidadStock {
   id: string;
   /** FK → articulos */
@@ -3262,6 +3294,13 @@ export interface UnidadStock {
    * original. Ausente en unidades reservadas antes del campo → quedan en RESERVAS.
    */
   ubicacionAnterior?: UbicacionStock | null;
+  /**
+   * Salida a proveedor por servicio/reparación con retorno pendiente (2026-08-07).
+   * La unidad NO sale del patrimonio: queda `en_transito` con ubicación tipo
+   * `proveedor`. Mientras esto no sea null, la unidad está afuera y se espera
+   * que vuelva; `retornarDeProveedor` la devuelve a `ubicacionOrigen` y lo limpia.
+   */
+  enProveedor?: SalidaAProveedor | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3328,7 +3367,7 @@ export interface Minikit {
 
 // --- Asignaciones de Stock ---
 
-export type TipoItemAsignacion = 'articulo' | 'minikit' | 'loaner' | 'instrumento' | 'dispositivo' | 'vehiculo';
+export type TipoItemAsignacion = 'articulo' | 'minikit' | 'loaner' | 'instrumento' | 'dispositivo' | 'vehiculo' | 'patron';
 export type EstadoItemAsignacion = 'asignado' | 'devuelto' | 'consumido';
 
 export interface ItemAsignacion {
@@ -3352,6 +3391,18 @@ export interface ItemAsignacion {
   dispositivoDescripcion?: string | null;
   vehiculoId?: string | null;
   vehiculoPatente?: string | null;
+  /**
+   * Patrón (kit/estándar de la colección `patrones`) asignado a un IST
+   * (2026-08-07). Se asigna un LOTE concreto: es la instancia física, con su
+   * vencimiento y su certificado. No confundir con `instrumentoTipo: 'patron'`,
+   * que es un instrumento patrón del catálogo de instrumentos.
+   */
+  patronId?: string | null;
+  patronCodigo?: string | null;
+  patronDescripcion?: string | null;
+  patronLote?: string | null;
+  /** Vencimiento del lote al momento de asignarlo (desnormalizado). */
+  patronVencimiento?: string | null;
   clienteId?: string | null;
   clienteNombre?: string | null;
   otNumber?: string | null;
@@ -3500,6 +3551,13 @@ export type EstadoRemito =
   | 'borrador'
   | 'confirmado'
   | 'en_transito'
+  /**
+   * Entregado al proveedor externo y todavía sin volver (2026-08-07). Antes
+   * todo quedaba "en tránsito" desde que salía hasta que volvía, mezclando la
+   * caja viajando en el flete con el equipo dos semanas en el taller: son
+   * reclamos distintos (transportista vs proveedor) y hacía falta separarlos.
+   */
+  | 'en_proveedor'
   | 'completado'
   | 'completado_parcial'
   | 'cancelado';
@@ -3551,6 +3609,13 @@ export interface RemitoItem {
   /** Trazabilidad a la asignación */
   asignacionId?: string | null;
   asignacionItemId?: string | null;
+  /**
+   * OT a la que corresponde ESTA línea (2026-08-07). El remito lleva
+   * `otNumbers[]` a nivel cabecera, pero cuando viajan equipos de varias OTs
+   * hace falta saber cuál es cuál — es lo primero que se pregunta al mirar el
+   * desglose. Para `servicio` el equivalente histórico es `otNumberOrigen`.
+   */
+  otNumber?: string | null;
   /**
    * Remito de servicio (tipo `'servicio'`): la línea representa un servicio
    * realizado, no un bien físico. No toca stock. Trae las referencias comerciales
@@ -3620,6 +3685,12 @@ export interface Remito {
   fechaFirma?: string | null;
   remitoFirmadoUrl?: string | null;
   remitoFirmadoPath?: string | null;
+  /**
+   * Fecha en que la mercadería se entregó efectivamente en el proveedor
+   * externo (estado `en_proveedor`, 2026-08-07). Es el dato que permite saber
+   * hace cuánto está afuera, que es con lo que se reclama.
+   */
+  fechaEntregaProveedor?: string | null;
   /** Impresión (rework remitos 2026-07-31): un remito impreso ya salió en papel —
    *  no se edita más, solo se reimprime. */
   impreso?: boolean;
