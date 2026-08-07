@@ -59,6 +59,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     fleteDeclarado: '' as string, seguroDeclarado: '' as string,
     vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '',
     giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', giroPagado: false, anticipoPct: '' as string,
+    esCourier: false,
     notas: '',
   });
   const [gastos, setGastos] = useState<GastoImportacion[]>([]);
@@ -100,6 +101,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             giroFechaEstimada: (data.giroFechaEstimada ?? '').slice(0, 10),
             giroPagado: data.giroPagado === true,
             anticipoPct: data.anticipoPct != null ? String(data.anticipoPct) : '',
+            esCourier: data.esCourier === true,
             notas: data.notas ?? '',
           });
           setGastos(data.gastos?.length ? data.gastos : gastosPrecargados('USD'));
@@ -229,6 +231,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         giroMoneda: form.giroMoneda, giroFechaEstimada: form.giroFechaEstimada || null,
         giroPagado: form.giroPagado,
         anticipoPct: form.anticipoPct ? Number(form.anticipoPct) : null,
+        esCourier: form.esCourier,
         notas: form.notas || null,
         gastos, items: items.length ? items : null,
         costoTotalARS,

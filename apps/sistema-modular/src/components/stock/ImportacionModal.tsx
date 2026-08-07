@@ -35,7 +35,8 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     seguroDeclarado: h.form.seguroDeclarado ? Number(h.form.seguroDeclarado) : 0,
     tipoCambio: h.form.tipoCambio ? Number(h.form.tipoCambio) : null,
     paseEurUsd: h.form.paseEurUsd ? Number(h.form.paseEurUsd) : null,
-  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd]);
+    esCourier: h.form.esCourier,
+  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier]);
 
   const handleSave = async () => {
     const id = await h.save(costeo.costoTotalARS, costeo.factorEmbarque);
@@ -211,6 +212,17 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
                 <option value="">—</option>
                 {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
+            </div>
+            {/* Courier (2026-08-06): cambia el costeo — sin percepciones. */}
+            <div>
+              <label className={lbl}>Régimen</label>
+              <label className="flex items-center gap-1.5 cursor-pointer h-[30px]"
+                title="Courier (puerta a puerta): paga derechos de la posición arancelaria e IVA. NO paga IVA adicional, percepción de ganancias ni ingresos brutos.">
+                <input type="checkbox" checked={h.form.esCourier}
+                  onChange={e => h.set('esCourier', e.target.checked)}
+                  className="w-3.5 h-3.5 accent-teal-600" />
+                <span className="text-xs text-slate-700">Es courier</span>
+              </label>
             </div>
             <div>
               <label className={lbl}>Agente de carga</label>

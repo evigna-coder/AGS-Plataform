@@ -4260,6 +4260,12 @@ export interface Importacion {
    * en la moneda del proveedor. Driver de la condición de pago / tipo de transferencia.
    */
   anticipoPct?: number | null;
+  /**
+   * Régimen COURIER (puerta a puerta) — 2026-08-06. Tributa los derechos de la
+   * posición arancelaria y el IVA, pero NO las percepciones: IVA adicional,
+   * ganancias e ingresos brutos quedan en cero. El costeo lo contempla.
+   */
+  esCourier?: boolean | null;
   // Costeo
   gastos: GastoImportacion[];
   /** Tipo de cambio ARS por USD (mayorista BNA / Com. A 3500, del día del despacho). El costeo se hace en USD. */
@@ -4297,6 +4303,34 @@ export interface Importacion {
   /** Faltante asentado al cerrar la recepción incompleta (texto por ítem). */
   notaRecepcionIncompleta?: string | null;
   // Audit
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+/**
+ * Pago al exterior cargado A MANO (2026-08-06). Puente durante el pasaje al
+ * sistema: los giros (y VEPs) de OCs que todavía no están cargadas como
+ * importación se registran acá para que el flujo de fondos del director esté
+ * completo desde el día uno. Cuando la rueda de OCs esté andando, estos pagos
+ * se dejan de cargar — los genera la importación.
+ */
+export interface PagoExterior {
+  id: string;
+  /** 'giro' = pago al proveedor; 'vep' = pago de tributos aduaneros. */
+  tipo: 'giro' | 'vep';
+  /** Fecha estimada o real del pago (YYYY-MM-DD). */
+  fecha: string;
+  proveedorNombre: string;
+  /** OC, factura o texto libre que identifica el pago en el flujo. */
+  referencia?: string | null;
+  monto: number;
+  moneda: 'USD' | 'EUR' | 'ARS';
+  pagado?: boolean | null;
   notas?: string | null;
   createdAt: string;
   updatedAt: string;

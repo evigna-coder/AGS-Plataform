@@ -59,6 +59,7 @@ export interface LineaCosteoItem {
 }
 
 export interface CosteoImportacion {
+  esCourier: boolean;         // régimen courier: sin percepciones (IVA adic./ganancias/IIBB)
   moneda: string;             // moneda del costo: siempre 'USD' (canónica)
   monedaEmbarque: string;     // moneda original del embarque (USD/EUR) — para mostrar el origen
   paseEurUsd: number | null;  // pase USD/EUR aplicado (solo si monedaEmbarque==='EUR')
@@ -96,7 +97,14 @@ export function computeCosteoImportacion(input: {
   seguroDeclarado: number;
   tipoCambio: number | null | undefined;
   paseEurUsd?: number | null;
+  /** Régimen courier (puerta a puerta): sin percepciones. Ver `esCourier` abajo. */
+  esCourier?: boolean | null;
 }): CosteoImportacion {
+  // Régimen COURIER (2026-08-06, regla del dueño): tributa los derechos de la
+  // posición arancelaria y el IVA, pero NO las percepciones — IVA adicional,
+  // ganancias e ingresos brutos van en cero, sin importar lo que diga el
+  // tratamiento arancelario del artículo.
+  const esCourier = input.esCourier === true;
   const monedaEmbarque = input.monedaBase || 'USD';
   const tc = input.tipoCambio && input.tipoCambio > 0 ? input.tipoCambio : null; // ARS/USD
   const pase = input.paseEurUsd && input.paseEurUsd > 0 ? input.paseEurUsd : null; // USD/EUR
@@ -137,9 +145,10 @@ export function computeCosteoImportacion(input: {
     const estadistica = cif * pct(trat?.estadistica, DEFAULTS.estadistica);
     const baseImponible = cif + derechos + estadistica;
     const iva = baseImponible * pct(trat?.iva, DEFAULTS.iva);
-    const ivaAdicional = baseImponible * pct(trat?.ivaAdicional, DEFAULTS.ivaAdicional);
-    const ganancias = baseImponible * pct(trat?.ganancias, DEFAULTS.ganancias);
-    const iibb = baseImponible * pct(trat?.ingresosBrutos, DEFAULTS.ingresosBrutos);
+    // Percepciones: no aplican en courier.
+    const ivaAdicional = esCourier ? 0 : baseImponible * pct(trat?.ivaAdicional, DEFAULTS.ivaAdicional);
+    const ganancias = esCourier ? 0 : baseImponible * pct(trat?.ganancias, DEFAULTS.ganancias);
+    const iibb = esCourier ? 0 : baseImponible * pct(trat?.ingresosBrutos, DEFAULTS.ingresosBrutos);
     const gravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb;
 
     // Costo computable (para stock): no recuperables + IIBB + 3% financiero sobre lo recuperable.
@@ -179,6 +188,7 @@ export function computeCosteoImportacion(input: {
   const factorEmbarque = fobTotal > 0 ? costoComputable / fobTotal : 0;
 
   return {
+    esCourier,
     moneda: 'USD', monedaEmbarque, paseEurUsd: pase, tipoCambio: tc,
     fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
     derechos, estadistica, iva, ivaAdicional, ganancias, iibb,

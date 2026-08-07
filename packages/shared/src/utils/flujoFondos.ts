@@ -1,4 +1,4 @@
-import type { Importacion } from '../types';
+import type { Importacion, PagoExterior } from '../types';
 
 /**
  * Flujo de fondos de comercio exterior (VEP, giro al exterior, arribo).
@@ -18,6 +18,8 @@ export interface EventoFlujo {
   monto: number | null;     // null para arribos
   moneda: string | null;
   pagado: boolean;          // VEP/giro ya cumplido (heurística por estado)
+  /** Cargado a mano (no deriva de una importación) — 2026-08-06. */
+  manual?: boolean;
 }
 
 export const TIPO_LABEL: Record<EventoTipo, string> = { vep: 'VEP', giro: 'Giro', arribo: 'Arribo' };
@@ -44,9 +46,32 @@ function toFecha(v: unknown): string | null {
   return null;
 }
 
-/** Aplana las importaciones en eventos de flujo de fondos (VEP, giro, arribo). */
-export function buildEventos(importaciones: Importacion[]): EventoFlujo[] {
+/**
+ * Aplana las importaciones en eventos de flujo de fondos (VEP, giro, arribo).
+ *
+ * `pagosManuales` (2026-08-06): pagos cargados a mano durante la transición al
+ * sistema — giros al exterior de OCs que todavía no están cargadas. Se mezclan
+ * con los derivados de importaciones para que el flujo del director esté
+ * completo desde el día uno.
+ */
+export function buildEventos(importaciones: Importacion[], pagosManuales: PagoExterior[] = []): EventoFlujo[] {
   const eventos: EventoFlujo[] = [];
+  for (const p of pagosManuales) {
+    const fecha = toFecha(p.fecha);
+    if (!fecha) continue;
+    eventos.push({
+      id: `manual-${p.id}`,
+      fecha,
+      tipo: p.tipo,
+      impId: '',
+      ocNumero: p.referencia || 'Carga manual',
+      proveedor: p.proveedorNombre || '—',
+      monto: p.monto ?? null,
+      moneda: p.moneda ?? 'USD',
+      pagado: p.pagado === true,
+      manual: true,
+    });
+  }
   for (const imp of importaciones) {
     const base = { impId: imp.id, ocNumero: imp.ordenCompraNumero || imp.numero, proveedor: imp.proveedorNombre || '—' };
     const cumplido = RECIBIDO.has(imp.estado);

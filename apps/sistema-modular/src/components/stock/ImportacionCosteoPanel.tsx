@@ -10,19 +10,29 @@ const th = 'text-[9px] font-mono uppercase tracking-wide text-slate-400 py-1.5 p
 /** Detalle por artículo (posición arancelaria + tributos) + desglose total. Todo en la moneda de la importación. */
 export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
   const m = costeo.moneda;
+  // En courier las percepciones no se cobran — se ocultan del desglose en vez
+  // de mostrar tres renglones en cero (2026-08-06).
   const lineas: [string, number][] = [
     ['Valor en aduana (CIF)', costeo.cifTotal],
     ['Derechos de importación', costeo.derechos],
     ['Tasa de estadística', costeo.estadistica],
     ['IVA', costeo.iva],
-    ['IVA adicional', costeo.ivaAdicional],
-    ['Ganancias', costeo.ganancias],
-    ['Ingresos brutos', costeo.iibb],
+    ...(costeo.esCourier ? [] : [
+      ['IVA adicional', costeo.ivaAdicional] as [string, number],
+      ['Ganancias', costeo.ganancias] as [string, number],
+      ['Ingresos brutos', costeo.iibb] as [string, number],
+    ]),
     ['Gastos reales (flete/seguro local, agente, despachante…)', costeo.gastosReales],
   ];
 
   return (
     <div className="space-y-3">
+      {costeo.esCourier && (
+        <p className="text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-md px-2 py-1.5">
+          <span className="font-semibold">Régimen courier</span> — tributa derechos de la posición arancelaria e IVA.
+          No se calculan IVA adicional, percepción de ganancias ni ingresos brutos.
+        </p>
+      )}
       {/* Detalle por artículo: posición arancelaria + alícuotas (para verificar la definición) */}
       <div className="border border-slate-200 rounded-lg overflow-x-auto">
         <table className="w-full text-xs">
