@@ -193,6 +193,8 @@ service cloud.firestore {
     match /remitos/{remitoId}                     { allow read, write: if esStaff(); }
     // Catálogo de transportistas para remitos (2026-08-06).
     match /transportistas/{transportistaId}       { allow read, write: if esStaff(); }
+    // Pagos al exterior cargados a mano (giros/VEP sin importación) — 2026-08-06.
+    match /pagosExterior/{pagoId}                 { allow read, write: if esStaff(); }
     match /certificaciones/{certificacionId}      { allow read, write: if esStaff(); }
     match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
     match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }

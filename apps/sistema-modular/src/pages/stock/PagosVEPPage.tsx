@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Importacion } from '@ags/shared';
+import type { Importacion, PagoExterior } from '@ags/shared';
 import { buildEventos, totalPendiente, proximoPago, groupByMes, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
 import { importacionesService } from '../../services/firebaseService';
+import { pagosExteriorService } from '../../services/pagosExteriorService';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { PagoExteriorModal } from '../../components/stock/PagoExteriorModal';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -42,7 +45,11 @@ function MesCard({ mes, onOpen }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => v
                 <td className="py-1.5 pr-2 w-16">
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLOR[e.tipo]}`}>{TIPO_LABEL[e.tipo]}</span>
                 </td>
-                <td className="py-1.5 pr-2 font-mono text-teal-700 whitespace-nowrap">OC {e.ocNumero}</td>
+                <td className="py-1.5 pr-2 font-mono text-teal-700 whitespace-nowrap">
+                  {e.manual
+                    ? <span title="Cargado a mano">{e.ocNumero} <span className="text-[9px] text-slate-400">manual</span></span>
+                    : `OC ${e.ocNumero}`}
+                </td>
                 <td className="py-1.5 pr-2 text-slate-600 truncate max-w-[220px]">{e.proveedor}</td>
                 <td className="py-1.5 pl-2 text-right font-mono text-slate-800 whitespace-nowrap">
                   {e.monto != null ? `${e.moneda} ${fmt(e.monto)}` : <span className="text-slate-300">arribo</span>}
@@ -59,17 +66,24 @@ function MesCard({ mes, onOpen }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => v
 export const PagosVEPPage = () => {
   const navigate = useNavigate();
   const [importaciones, setImportaciones] = useState<Importacion[]>([]);
+  const [pagosManuales, setPagosManuales] = useState<PagoExterior[]>([]);
   const [loading, setLoading] = useState(true);
+  // Carga manual de pagos (2026-08-06): puente hasta que la rueda de OCs corra sola.
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editando, setEditando] = useState<PagoExterior | null>(null);
 
-  useEffect(() => {
-    importacionesService.getAll()
-      .then(setImportaciones)
-      .catch(err => console.error('Error cargando importaciones:', err))
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([importacionesService.getAll(), pagosExteriorService.getAll()])
+      .then(([imps, pagos]) => { setImportaciones(imps); setPagosManuales(pagos); })
+      .catch(err => console.error('Error cargando flujo de fondos:', err))
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
   const { meses, girosUSD, girosEUR, vepARS, prox, futurosCount } = useMemo(() => {
-    const eventos = buildEventos(importaciones);
+    const eventos = buildEventos(importaciones, pagosManuales);
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const futuros = eventos.filter(e => new Date(e.fecha + 'T00:00:00') >= hoy && !e.pagado);
     return {
@@ -80,15 +94,26 @@ export const PagosVEPPage = () => {
       prox: proximoPago(eventos),
       futurosCount: futuros.length,
     };
-  }, [importaciones]);
+  }, [importaciones, pagosManuales]);
 
   const proxFecha = prox ? new Date(prox.fecha + 'T00:00:00') : null;
-  const openEvento = (e: EventoFlujo) => navigate(`/stock/importaciones/${e.impId}`);
+  // Los manuales abren su modal de edición; los de importación, la importación.
+  const openEvento = (e: EventoFlujo) => {
+    if (e.manual) {
+      const pago = pagosManuales.find(p => `manual-${p.id}` === e.id);
+      if (pago) { setEditando(pago); setModalOpen(true); }
+      return;
+    }
+    navigate(`/stock/importaciones/${e.impId}`);
+  };
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Pagos VEP" subtitle="Flujo de fondos comercio exterior — VEP, giros y arribos por mes"
-        count={loading ? undefined : futurosCount} />
+        count={loading ? undefined : futurosCount}
+        actions={
+          <Button size="sm" onClick={() => { setEditando(null); setModalOpen(true); }}>+ Pago manual</Button>
+        } />
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {loading ? (
@@ -117,6 +142,13 @@ export const PagosVEPPage = () => {
           </>
         )}
       </div>
+
+      <PagoExteriorModal
+        open={modalOpen}
+        pago={editando}
+        onClose={() => { setModalOpen(false); setEditando(null); }}
+        onSaved={load}
+      />
     </div>
   );
 };

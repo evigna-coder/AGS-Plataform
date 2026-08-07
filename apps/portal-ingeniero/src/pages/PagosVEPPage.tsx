@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Importacion } from '@ags/shared';
+import type { Importacion, PagoExterior } from '@ags/shared';
 import { buildEventos, totalPendiente, proximoPago, groupByMes, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
 import { PageHeader } from '../components/ui/PageHeader';
-import { importacionesService } from '../services/importacionesService';
+import { importacionesService, pagosExteriorService } from '../services/importacionesService';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -63,17 +63,19 @@ function MesSection({ mes }: { mes: MesFlujo }) {
 
 export default function PagosVEPPage() {
   const [importaciones, setImportaciones] = useState<Importacion[]>([]);
+  // Pagos cargados a mano en sistema-modular — completan el flujo (2026-08-06).
+  const [pagosManuales, setPagosManuales] = useState<PagoExterior[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    importacionesService.getAll()
-      .then(setImportaciones)
-      .catch(err => console.error('Error cargando importaciones:', err))
+    Promise.all([importacionesService.getAll(), pagosExteriorService.getAll()])
+      .then(([imps, pagos]) => { setImportaciones(imps); setPagosManuales(pagos); })
+      .catch(err => console.error('Error cargando flujo de fondos:', err))
       .finally(() => setLoading(false));
   }, []);
 
   const { meses, girosUSD, vepARS, prox, futurosCount } = useMemo(() => {
-    const eventos = buildEventos(importaciones);
+    const eventos = buildEventos(importaciones, pagosManuales);
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const futuros = eventos.filter(e => new Date(e.fecha + 'T00:00:00') >= hoy && !e.pagado);
     return {
@@ -83,7 +85,7 @@ export default function PagosVEPPage() {
       prox: proximoPago(eventos),
       futurosCount: futuros.length,
     };
-  }, [importaciones]);
+  }, [importaciones, pagosManuales]);
 
   const proxFecha = prox ? new Date(prox.fecha + 'T00:00:00') : null;
 
