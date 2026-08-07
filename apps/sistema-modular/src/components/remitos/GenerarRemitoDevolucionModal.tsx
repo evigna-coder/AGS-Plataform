@@ -40,7 +40,6 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
     f.setSubmitting(true);
     f.setError(null);
     try {
-      const motivo = f.isDerivacion ? 'Derivación a proveedor' : 'Devolución por reparación';
       // Split ficha-items vs loaners (2026-08-06): los loaners viajan como
       // líneas documentales propias, sin update de ficha.
       const fichaSel = f.selected.filter(e => !e.key.startsWith('loaner:'));
@@ -50,14 +49,21 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
         const mode = f.modeByKey.get(`${fi.id}:${item.id}`) ?? 'completo';
         const partes = f.partesByKey.get(`${fi.id}:${item.id}`) ?? [];
         const tienePartes = f.isDerivacion && mode === 'partes' && partes.length > 0;
-        // Módulo de origen con nombre y serie (2026-08-06): las líneas de
-        // partes decían solo "(de SUB-XX)" — en el papel no se sabía de qué
-        // módulo salió la placa.
+        // Módulo de origen con nombre y serie (2026-08-06). SIN el subId de la
+        // ficha (2026-08-07): el número interno de AGS no va al papel.
         const origenLabel = [
-          item.subId,
           item.articuloDescripcion || item.descripcionLibre || null,
           item.serie ? `S/N ${item.serie}` : null,
         ].filter(Boolean).join(' · ');
+        // El cliente dueño del equipo reemplaza al motivo en la descripción:
+        // en una derivación en lote el proveedor necesita saber de quién es
+        // cada equipo (2026-08-07). En devolución el destinatario ES el
+        // cliente, así que no se repite.
+        const sufijo = f.isDerivacion ? fi.clienteNombre : null;
+        const parentDesc = parent
+          ? [parent.articuloDescripcion || parent.descripcionLibre, parent.serie ? `S/N ${parent.serie}` : null]
+              .filter(Boolean).join(' · ')
+          : null;
         return {
           fichaId: fi.id,
           fichaNumero: fi.numero,
@@ -66,7 +72,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
           // Código de artículo / N° de parte para la columna "Producto".
           articuloCodigo: item.articuloCodigo ?? null,
           origenLabel,
-          descripcion: itemDescripcion(item, motivo, parent?.subId),
+          descripcion: itemDescripcion(item, sufijo, parentDesc),
           partes: tienePartes ? partes.map(p => ({
             articuloId: p.articuloId,
             articuloCodigo: p.articuloCodigo,

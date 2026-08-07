@@ -120,14 +120,13 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   // Código/descripción por tipoEntidad (2026-08-06): los items de asignación
   // (instrumento, dispositivo, minikit) imprimían columnas vacías o el ID —
   // getRemitoItem* resuelve el campo correcto para cada tipo.
-  // Fallback de la columna Producto (2026-08-07): los items de ficha sin
-  // articuloCodigo (equipo cargado con descripción libre, o remitos creados
-  // antes de que se persistiera el código) dejaban la columna VACÍA. Cae al
-  // subId del item y, en última instancia, al número de ficha.
+  // Columna Producto = SOLO código de artículo / N° de parte (2026-08-07). Si
+  // el equipo no tiene código, la celda va vacía: el número de ficha es interno
+  // de AGS y no se declara nunca en el papel.
   const items: RemitoOverlayItem[] = remito.items.map((it, i) => ({
     numero: i + 1,
     cantidad: it.cantidad,
-    producto: getRemitoItemCodigo(it) || it.itemSubId || it.fichaNumero || '',
+    producto: getRemitoItemCodigo(it),
     descripcion: [
       getRemitoItemDescripcion(it) || it.fichaDescripcion || '',
       it.serie ? `S/N ${it.serie}` : null,

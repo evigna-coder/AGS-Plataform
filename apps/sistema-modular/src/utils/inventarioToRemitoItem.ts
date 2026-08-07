@@ -62,7 +62,10 @@ export function getRemitoItemDescripcion(item: RemitoItem): string {
   if (item.tipoEntidad === 'vehiculo') return item.vehiculoDescripcion || '';
   if (item.tipoEntidad === 'minikit') return item.minikitCodigo || '';
   if (item.tipoEntidad === 'loaner') return item.loanerDescripcion || item.loanerCodigo || '';
-  return item.articuloDescripcion || '';
+  // Items de ficha (devolución / derivación): su texto vive en fichaDescripcion
+  // — sin este fallback la columna Descripción salía VACÍA en el detalle y en
+  // el listado desplegable de remitos (2026-08-07).
+  return item.articuloDescripcion || item.fichaDescripcion || '';
 }
 
 const TIPO_ENTIDAD_LABELS: Record<string, string> = {

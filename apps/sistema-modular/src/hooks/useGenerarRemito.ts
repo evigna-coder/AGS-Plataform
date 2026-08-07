@@ -34,18 +34,27 @@ function destFromCliente(c: Cliente): DatosTransportista {
   };
 }
 
-export function itemDescripcion(it: ItemFicha, motivo: string, parentSubId?: string | null): string {
-  // El código de artículo NO va acá (2026-08-06): tiene su propia columna en el
-  // remito ("Producto"/N° de parte). Antes se imprimía el subId de la ficha
-  // como código y el código quedaba perdido en la descripción.
+/**
+ * Descripción de la línea del remito: equipo + serie (+ módulo de origen si es
+ * una parte) + a quién pertenece.
+ *
+ * - El código de artículo NO va acá (2026-08-06): tiene su propia columna
+ *   ("Producto" / N° de parte).
+ * - El NÚMERO DE FICHA no se declara nunca (2026-08-07, pedido del dueño): es
+ *   interno de AGS y no le dice nada al destinatario.
+ * - `sufijo` (2026-08-07): antes decía el motivo ("Derivación a proveedor"),
+ *   redundante con el tipo del remito. Ahora se usa para el CLIENTE dueño del
+ *   equipo, que es el dato que falta cuando el remito lleva equipos de varios.
+ */
+export function itemDescripcion(it: ItemFicha, sufijo?: string | null, parentDescripcion?: string | null): string {
   const partes = [
     it.articuloDescripcion || it.descripcionLibre,
     it.serie ? `S/N ${it.serie}` : null,
-    parentSubId ? `(de ${parentSubId})` : null,
+    parentDescripcion ? `(de ${parentDescripcion})` : null,
   ].filter(Boolean) as string[];
-  const equipo = partes.join(' · ') || it.subId;
+  const equipo = partes.join(' · ');
   const qty = (it.cantidad ?? 1) > 1 ? `${it.cantidad} × ` : '';
-  return `${qty}${equipo} · ${motivo}`;
+  return [`${qty}${equipo}`.trim(), sufijo?.trim() || null].filter(Boolean).join(' · ');
 }
 
 interface Args {
