@@ -24,6 +24,7 @@ const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
   colDescripcionX: -45 * MM,         // descripción 4,5 cm izquierda
 };
 import { clientesService, establecimientosService, remitosService } from '../services/firebaseService';
+import { proveedoresService } from '../services/personalService';
 import { RemitoOverlayPDF, type RemitoOverlayItem, type RemitoOverlayFieldOffsets } from '../components/remitos/pdf/RemitoOverlayPDF';
 import { printRemitoSilentOrOpen } from './remitoPdfActions';
 import { getRemitoItemCodigo, getRemitoItemDescripcion } from './inventarioToRemitoItem';
@@ -83,28 +84,50 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
     }
   }
 
-  const [cliente, establecimiento] = await Promise.all([
+  // Destinatario: cliente o PROVEEDOR según el tipo (2026-08-07). Las
+  // derivaciones a proveedor no tienen clienteId — al reimprimirlas el papel
+  // salía SIN razón social (el modal de creación sí resolvía el proveedor).
+  const esDerivacion = remito.tipo === 'derivacion_proveedor' || (!remito.clienteId && !!remito.proveedorId);
+  const [cliente, establecimiento, proveedor] = await Promise.all([
     remito.clienteId ? clientesService.getById(remito.clienteId).catch(() => null) : Promise.resolve(null),
     remito.establecimientoId ? establecimientosService.getById(remito.establecimientoId).catch(() => null) : Promise.resolve(null),
+    esDerivacion && remito.proveedorId
+      ? proveedoresService.getById(remito.proveedorId).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
-  const destinatario = {
-    razonSocial: cliente?.razonSocial ?? remito.clienteNombre ?? '',
-    // Domicilio de ENTREGA: el del establecimiento si está elegido; si no, el fiscal.
-    domicilio: establecimiento?.direccion ?? cliente?.direccionFiscal ?? cliente?.direccion ?? '',
-    localidad: establecimiento?.localidad ?? cliente?.localidadFiscal ?? cliente?.localidad ?? '',
-    provincia: establecimiento?.provincia ?? cliente?.provinciaFiscal ?? cliente?.provincia ?? '',
-    iva: cliente?.condicionIva ?? '',
-    cuit: cliente?.cuit ?? '',
-  };
+  const destinatario = esDerivacion
+    ? {
+        // Proveedor no modela localidad/provincia por separado — van dentro de
+        // `direccion`. El overlay las deja vacías.
+        razonSocial: proveedor?.nombre ?? remito.proveedorNombre ?? '',
+        domicilio: proveedor?.direccion ?? '',
+        localidad: '',
+        provincia: '',
+        iva: '',
+        cuit: proveedor?.cuit ?? '',
+      }
+    : {
+        razonSocial: cliente?.razonSocial ?? remito.clienteNombre ?? '',
+        // Domicilio de ENTREGA: el del establecimiento si está elegido; si no, el fiscal.
+        domicilio: establecimiento?.direccion ?? cliente?.direccionFiscal ?? cliente?.direccion ?? '',
+        localidad: establecimiento?.localidad ?? cliente?.localidadFiscal ?? cliente?.localidad ?? '',
+        provincia: establecimiento?.provincia ?? cliente?.provinciaFiscal ?? cliente?.provincia ?? '',
+        iva: cliente?.condicionIva ?? '',
+        cuit: cliente?.cuit ?? '',
+      };
 
   // Código/descripción por tipoEntidad (2026-08-06): los items de asignación
   // (instrumento, dispositivo, minikit) imprimían columnas vacías o el ID —
   // getRemitoItem* resuelve el campo correcto para cada tipo.
+  // Fallback de la columna Producto (2026-08-07): los items de ficha sin
+  // articuloCodigo (equipo cargado con descripción libre, o remitos creados
+  // antes de que se persistiera el código) dejaban la columna VACÍA. Cae al
+  // subId del item y, en última instancia, al número de ficha.
   const items: RemitoOverlayItem[] = remito.items.map((it, i) => ({
     numero: i + 1,
     cantidad: it.cantidad,
-    producto: getRemitoItemCodigo(it),
+    producto: getRemitoItemCodigo(it) || it.itemSubId || it.fichaNumero || '',
     descripcion: [
       getRemitoItemDescripcion(it) || it.fichaDescripcion || '',
       it.serie ? `S/N ${it.serie}` : null,

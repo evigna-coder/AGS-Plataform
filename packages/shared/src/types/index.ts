@@ -3489,6 +3489,9 @@ export interface RemitoItem {
   /** Ficha propiedad del cliente (remitos de devolución / derivación) */
   fichaId?: string | null;
   fichaNumero?: string | null;
+  /** SubId del item dentro de la ficha (FPC-XXXX-N) — fallback de la columna
+   *  Producto cuando el equipo no tiene código de artículo (2026-08-07). */
+  itemSubId?: string | null;
   /** Descripción libre del equipo: "Sistema · Módulo · Serie · motivo" */
   fichaDescripcion?: string | null;
   /** Tipo de entidad origen (para display genérico) */

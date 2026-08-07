@@ -1030,6 +1030,7 @@ export const remitosService = {
           devuelto: false,
           fichaId: it.fichaId,
           fichaNumero: it.fichaNumero,
+          itemSubId: it.itemSubId,
           // Código de la parte en su columna (2026-08-06) — antes el papel
           // imprimía el subId de la ficha como "código de artículo".
           articuloCodigo: p.articuloCodigo ?? undefined,
@@ -1045,6 +1046,7 @@ export const remitosService = {
         devuelto: false,
         fichaId: it.fichaId,
         fichaNumero: it.fichaNumero,
+        itemSubId: it.itemSubId,
         articuloCodigo: it.articuloCodigo ?? undefined,
         fichaDescripcion: it.descripcion,
       }];
