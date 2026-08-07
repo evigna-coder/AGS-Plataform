@@ -51,7 +51,10 @@ export function getRemitoItemCodigo(item: RemitoItem): string {
   if (item.tipoEntidad === 'dispositivo') return item.dispositivoCodigo || '';
   if (item.tipoEntidad === 'vehiculo') return item.vehiculoCodigo || '';
   if (item.tipoEntidad === 'minikit') return item.minikitCodigo || '';
-  if (item.tipoEntidad === 'loaner') return item.loanerCodigo || '';
+  // Loaner: si la línea trae el modelo del equipo (derivación a proveedor,
+  // 2026-08-07) se prefiere ese; el LNR queda para el remito de préstamo, donde
+  // el destinatario es el cliente y el código interno SÍ identifica el equipo.
+  if (item.tipoEntidad === 'loaner') return item.articuloCodigo || item.loanerCodigo || '';
   return item.articuloCodigo || '';
 }
 

@@ -85,15 +85,22 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
         const mode = f.modeByKey.get(key) ?? 'completo';
         const partes = f.partesByKey.get(key) ?? [];
         const tienePartes = mode === 'partes' && partes.length > 0;
+        // Mismo criterio que fichas (2026-08-07): sin el código interno (LNR) en
+        // el papel; el equipo se identifica por modelo y serie, y el sufijo
+        // aclara que es propiedad de AGS (no de un cliente).
         const origenLabel = [
-          item.subId,
           item.articuloDescripcion || null,
           item.serie ? `S/N ${item.serie}` : null,
         ].filter(Boolean).join(' · ');
         return {
           loanerId: item.id,
           loanerCodigo: item.subId,
-          descripcion: [item.articuloDescripcion, item.serie ? `S/N ${item.serie}` : null].filter(Boolean).join(' · ') || item.subId,
+          articuloCodigo: item.articuloCodigo ?? null,
+          descripcion: [
+            item.articuloDescripcion,
+            item.serie ? `S/N ${item.serie}` : null,
+            'Equipo AGS',
+          ].filter(Boolean).join(' · '),
           origenLabel,
           partes: tienePartes ? partes.map(p => ({
             articuloId: p.articuloId,

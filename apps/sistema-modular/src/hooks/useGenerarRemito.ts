@@ -83,7 +83,15 @@ function loanerToElegible(l: Loaner): ElegibleItem {
   return {
     key: loanerKey(l.id),
     ficha: { id: loanerKey(l.id), numero: l.codigo, clienteNombre: 'Loaner AGS' } as unknown as FichaPropiedad,
-    item: { id: l.id, subId: l.codigo, articuloDescripcion: l.descripcion, serie: l.serie ?? null } as unknown as ItemFicha,
+    item: {
+      id: l.id,
+      subId: l.codigo,
+      // Código para la columna Producto: el MODELO real del equipo, no el LNR
+      // interno (mismo criterio que el número de ficha — 2026-08-07).
+      articuloCodigo: l.articuloCodigo || l.moduloCodigo || null,
+      articuloDescripcion: l.descripcion,
+      serie: l.serie ?? null,
+    } as unknown as ItemFicha,
   };
 }
 

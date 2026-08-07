@@ -1064,6 +1064,8 @@ export const remitosService = {
           tipoEntidad: 'loaner' as const,
           loanerId: l.loanerId,
           loanerCodigo: l.loanerCodigo,
+          // N° de parte en la columna Producto (el LNR no va al papel).
+          articuloCodigo: p.articuloCodigo ?? undefined,
           loanerDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${l.origenLabel ?? l.loanerCodigo})`,
         }));
       }
@@ -1075,6 +1077,7 @@ export const remitosService = {
         tipoEntidad: 'loaner' as const,
         loanerId: l.loanerId,
         loanerCodigo: l.loanerCodigo,
+        articuloCodigo: l.articuloCodigo ?? undefined,
         loanerDescripcion: l.descripcion,
       }];
     });
@@ -1326,6 +1329,8 @@ export interface CreateRemitoItemsInput {
   loaners?: Array<{
     loanerId: string;
     loanerCodigo: string;
+    /** Modelo del equipo para la columna Producto (el LNR no va al papel). */
+    articuloCodigo?: string | null;
     descripcion: string;
     origenLabel?: string;
     partes?: Array<{
