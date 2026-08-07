@@ -291,6 +291,76 @@ export const fichasService = {
     await this.update(fichaId, { items });
   },
 
+  /**
+   * Cancela una derivación a proveedor creada por error.
+   *
+   * Solo aplica a derivaciones en estado `'enviado'` (una ya `'recibido'` es
+   * historia consumada y no se cancela). Saca la derivación del item, le
+   * restaura el estado que tenía ANTES de derivarse (leyendo el
+   * `estadoAnterior` de la entrada de historial que dejó `createForItems`, que
+   * se identifica por el número de remito en la nota) y deja rastro en el
+   * historial. El estado agregado de la ficha se recalcula en `update()` con
+   * `computeFichaEstado`, así la ficha no queda mostrando "derivado a
+   * proveedor" con los items ya revertidos.
+   *
+   * OJO: el remito de salida asociado NO se toca — cancelar/anular el remito es
+   * un flujo aparte que maneja el usuario desde el módulo de remitos.
+   */
+  async cancelarDerivacion(fichaId: string, itemId: string, derivacionId: string): Promise<void> {
+    const ficha = await this.getById(fichaId);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    const item = ficha.items.find(it => it.id === itemId);
+    if (!item) throw new Error('Item no encontrado en la ficha');
+    const deriv = item.derivaciones?.find(d => d.id === derivacionId);
+    if (!deriv) throw new Error('Derivación no encontrada');
+    if (deriv.estado !== 'enviado') {
+      throw new Error('Solo se pueden cancelar derivaciones en estado "enviado"');
+    }
+
+    const now = new Date().toISOString();
+    const creadoPor = getCreateTrace().createdByName ?? 'admin';
+    const remitoNumero = deriv.remitoSalidaNumero ?? null;
+
+    const items = ficha.items.map(it => {
+      if (it.id !== itemId) return it;
+
+      const derivacionesRestantes = (it.derivaciones ?? []).filter(d => d.id !== derivacionId);
+
+      // Derivación por partes: si quedan otras partes todavía en el proveedor,
+      // el item sigue esperando repuesto — no se revierte el estado.
+      const quedanEnviadas = derivacionesRestantes.some(d => d.estado === 'enviado');
+
+      // Estado previo = el `estadoAnterior` de la entrada de historial que creó
+      // esta derivación (se ubica por el número de remito en la nota).
+      const entradaOrigen = remitoNumero
+        ? [...(it.historial ?? [])].reverse().find(h => h.nota?.includes(remitoNumero))
+        : undefined;
+      const estadoRestaurado = quedanEnviadas
+        ? it.estado
+        : (entradaOrigen?.estadoAnterior ?? 'en_reparacion');
+
+      const entry: HistorialFicha = {
+        id: crypto.randomUUID(),
+        fecha: now,
+        estadoAnterior: it.estado,
+        estadoNuevo: estadoRestaurado,
+        nota: `Derivación cancelada${remitoNumero ? ` — remito ${remitoNumero}` : ''}${
+          quedanEnviadas ? ' (quedan partes en el proveedor)' : ''
+        }`,
+        creadoPor,
+      };
+
+      return {
+        ...it,
+        estado: estadoRestaurado,
+        historial: [...(it.historial ?? []), entry],
+        derivaciones: derivacionesRestantes,
+      };
+    });
+
+    await this.update(fichaId, { items });
+  },
+
   /** Agrega una derivación a proveedor a un item específico. */
   async addItemDerivacion(
     fichaId: string,

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { fichasService } from '../../services/firebaseService';
+import { useConfirm } from '../ui/ConfirmDialog';
 import type { FichaPropiedad, ItemFicha } from '@ags/shared';
 
 interface Props {
@@ -16,14 +17,31 @@ interface Props {
  *
  * La creación se hace **siempre por remito** desde "Generar remito" a nivel ficha
  * (`GenerarRemitoDevolucionModal`). Acá solo se listan derivaciones existentes y
- * se permite marcarlas como recibidas cuando el módulo o la parte vuelve.
+ * se permite marcarlas como recibidas cuando el módulo o la parte vuelve, o
+ * cancelarlas si se generaron por error (el item vuelve a su estado anterior).
  */
 export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
+  const confirm = useConfirm();
 
   const handleMarkReceived = async (derivacionId: string) => {
     await fichasService.markDerivacionRecibida(ficha.id, item.id, derivacionId);
+    onUpdate();
+  };
+
+  // Cancelar solo revierte la derivación en la ficha. El remito de salida NO se
+  // toca: anularlo es un flujo aparte, a cargo del usuario desde Remitos.
+  const handleCancel = async (derivacionId: string) => {
+    const ok = await confirm({
+      title: 'Cancelar derivación',
+      message: '¿Cancelar esta derivación? El equipo vuelve a su estado anterior. El remito asociado no se modifica — si también hay que anularlo, hacelo desde el módulo de remitos.',
+      confirmLabel: 'Cancelar derivación',
+      cancelLabel: 'Volver',
+      danger: true,
+    });
+    if (!ok) return;
+    await fichasService.cancelarDerivacion(ficha.id, item.id, derivacionId);
     onUpdate();
   };
 
@@ -65,9 +83,14 @@ export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
                   )}
                 </div>
                 {d.estado === 'enviado' && (
-                  <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleMarkReceived(d.id)}>
-                    Marcar recibido
-                  </Button>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleMarkReceived(d.id)}>
+                      Marcar recibido
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleCancel(d.id)}>
+                      Cancelar derivación
+                    </Button>
+                  </div>
                 )}
               </div>
             );
