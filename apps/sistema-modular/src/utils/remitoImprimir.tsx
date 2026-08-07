@@ -119,12 +119,12 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   // (instrumento, dispositivo, minikit) imprimían columnas vacías o el ID —
   // getRemitoItem* resuelve el campo correcto para cada tipo.
   // Columna Producto = SOLO código de artículo / N° de parte (2026-08-07). Si
-  // el equipo no tiene código, la celda va vacía: el número de ficha es interno
-  // de AGS y no se declara nunca en el papel.
+  // el equipo no tiene código va "S/C": ni el número de ficha ni el LNR del
+  // loaner son códigos de producto, son internos de AGS y no se declaran nunca.
   const items: RemitoOverlayItem[] = remito.items.map((it, i) => ({
     numero: i + 1,
     cantidad: it.cantidad,
-    producto: getRemitoItemCodigo(it),
+    producto: getRemitoItemCodigo(it) || 'S/C',
     descripcion: [
       getRemitoItemDescripcion(it) || it.fichaDescripcion || '',
       it.serie ? `S/N ${it.serie}` : null,

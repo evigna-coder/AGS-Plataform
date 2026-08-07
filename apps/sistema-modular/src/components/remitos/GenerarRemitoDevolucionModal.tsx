@@ -7,6 +7,8 @@ import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { remitosService } from '../../services/stockService';
 import { imprimirRemitoOverlay } from '../../utils/remitoImprimir';
 import { RemitoItemPicker } from './RemitoItemPicker';
+import { RemitoStockPicker } from './RemitoStockPicker';
+import { buildRemitoPdfLines } from '../../utils/remitoPdfLines';
 import { RemitoPartyFields } from './RemitoPartyFields';
 import { RemitoTipoToggle } from './RemitoTipoToggle';
 import { useGenerarRemito, itemDescripcion } from '../../hooks/useGenerarRemito';
@@ -68,6 +70,10 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
           fichaNumero: fi.numero,
           itemId: item.id,
           itemSubId: item.subId,
+          // OT de la línea (2026-08-07): la de la ficha cuando es una sola. Con
+          // varias no se puede saber a cuál corresponde este módulo, y el
+          // desglose muestra "—" antes que inventar.
+          otNumber: (fi.otIds ?? []).length === 1 ? fi.otIds![0] : null,
           // Código de artículo / N° de parte para la columna "Producto".
           articuloCodigo: item.articuloCodigo ?? null,
           origenLabel,
@@ -121,52 +127,30 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
         fecha: f.fecha,
         items: itemsInput,
         loaners: loanersInput.length > 0 ? loanersInput : undefined,
+        unidades: f.unidadesSel.length > 0 ? f.unidadesSel.map(u => ({
+          unidadId: u.unidadId,
+          articuloId: u.articuloId,
+          articuloCodigo: u.articuloCodigo,
+          articuloDescripcion: u.articuloDescripcion,
+          serie: u.serie ?? null,
+          cantidad: u.cantidad,
+          motivo: u.motivo.trim() || null,
+        })) : undefined,
         observaciones: f.observaciones || null,
         clienteId: f.isDerivacion ? null : ficha?.clienteId ?? null,
         clienteNombre: f.isDerivacion ? null : ficha?.clienteNombre ?? null,
+        // Dueño de cada equipo, para que el listado nunca muestre la columna
+        // Cliente vacía (2026-08-07). Solo fichas: los loaners y las partes de
+        // stock son de AGS y el servicio lo resuelve solo.
+        clienteNombrePorFicha: Object.fromEntries(
+          fichaSel.map(({ ficha: fi }) => [fi.id, fi.clienteNombre]).filter(([, n]) => !!n),
+        ) as Record<string, string>,
         proveedorId: f.isDerivacion ? f.proveedorId : null,
         proveedorNombre: f.isDerivacion ? (proveedor?.nombre ?? null) : null,
         otNumbers: otNumbersUnique,
       });
 
-      const pdfLines: { numero: number; cantidad: number; producto: string; descripcion: string }[] = [];
-      for (const it of itemsInput) {
-        // Columna "Producto" = código de artículo / N° de parte (2026-08-06);
-        // el subId de la ficha es el fallback cuando el item no tiene código.
-        if (it.partes && it.partes.length > 0) {
-          for (const p of it.partes) {
-            pdfLines.push({
-              numero: pdfLines.length + 1,
-              cantidad: 1,
-              producto: p.articuloCodigo || '',
-              descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.origenLabel ?? it.itemSubId})`,
-            });
-          }
-        } else {
-          pdfLines.push({
-            numero: pdfLines.length + 1,
-            cantidad: 1,
-            producto: it.articuloCodigo || it.itemSubId,
-            descripcion: it.descripcion,
-          });
-        }
-      }
-
-      // Líneas de loaners al PDF (después de las de fichas).
-      for (const l of loanersInput) {
-        if (l.partes && l.partes.length > 0) {
-          for (const p of l.partes) {
-            pdfLines.push({
-              numero: pdfLines.length + 1,
-              cantidad: 1,
-              producto: l.loanerCodigo,
-              descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${l.origenLabel})`,
-            });
-          }
-        } else {
-          pdfLines.push({ numero: pdfLines.length + 1, cantidad: 1, producto: l.loanerCodigo, descripcion: l.descripcion });
-        }
-      }
+      const pdfLines = buildRemitoPdfLines(itemsInput, loanersInput, f.unidadesSel);
 
       const fechaFmt = f.fecha.split('-').reverse().join('/');
       // Pipeline calibrado (2026-08-06): triplicado silencioso con los mismos
@@ -252,6 +236,18 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
             showCliente={modoLote}
           />
         </div>
+
+        {/* Partes propias de stock (2026-08-07): solo en derivación — se mandan
+            al proveedor a que les hagan un trabajo y vuelven al depósito. */}
+        {f.isDerivacion && (
+          <RemitoStockPicker
+            unidades={f.unidadesStock}
+            seleccionadas={f.unidadesSel}
+            onAdd={f.handleAddUnidad}
+            onUpdate={f.handleUpdateUnidad}
+            onRemove={f.handleRemoveUnidad}
+          />
+        )}
 
         {/* OTs vinculadas (2026-08-06): abiertas del cliente + las de la ficha.
             Siempre visible (con leyenda si no hay) — oculto parecía "no existe". */}

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder, Loaner } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder, Loaner, UnidadStock } from '@ags/shared';
 import { fichasService } from '../services/fichasService';
 import { clientesService } from '../services/clientesService';
 import { proveedoresService } from '../services/personalService';
 import { ordenesTrabajoService } from '../services/firebaseService';
 import { loanersService } from '../services/loanersService';
 import { proveedorEsCategoria } from '@ags/shared';
-import { remitosService, type DatosTransportista } from '../services/stockService';
+import { remitosService, unidadesService, type DatosTransportista } from '../services/stockService';
+import type { UnidadSalida } from '../components/remitos/RemitoStockPicker';
 import type { ElegibleItem, ItemMode, ParteInput } from '../components/remitos/RemitoItemPicker';
 import type { TipoRemito } from '../components/remitos/RemitoTipoToggle';
 
@@ -122,6 +123,9 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
   const [otsSeleccionadas, setOtsSeleccionadas] = useState<Set<string>>(new Set());
   /** Loaners derivables (en base) — solo entran a elegibles en derivación. */
   const [loanersBase, setLoanersBase] = useState<Loaner[]>([]);
+  /** Unidades de stock propias disponibles para mandar al proveedor (2026-08-07). */
+  const [unidadesStock, setUnidadesStock] = useState<UnidadStock[]>([]);
+  const [unidadesSel, setUnidadesSel] = useState<UnidadSalida[]>([]);
   /** Transportistas = proveedores con esa categoría (2026-08-07). Antes era una
    *  colección suelta; ahora son proveedores y entran a la calificación. */
   const transportistas = useMemo(
@@ -197,6 +201,10 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     }
     void proveedoresService.getAll(true).then(setProveedores);
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
+    // Unidades propias que pueden salir al proveedor: disponibles en depósito.
+    void unidadesService.getAll({ estado: 'disponible', activoOnly: true })
+      .then(setUnidadesStock).catch(console.error);
+    setUnidadesSel([]);
     setOtsSeleccionadas(new Set(ficha?.otIds ?? []));
     const preselect = new Set<string>();
     for (const it of ficha?.items ?? []) {
@@ -280,6 +288,27 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     });
   };
 
+  /** Partes de stock (2026-08-07): agregar / editar motivo / quitar. */
+  const handleAddUnidad = (unidadId: string) => {
+    const u = unidadesStock.find(x => x.id === unidadId);
+    if (!u) return;
+    setUnidadesSel(prev => prev.some(s => s.unidadId === unidadId) ? prev : [...prev, {
+      unidadId: u.id,
+      articuloId: u.articuloId,
+      articuloCodigo: u.articuloCodigo,
+      articuloDescripcion: u.articuloDescripcion,
+      serie: u.nroSerie ?? null,
+      cantidad: u.cantidad ?? 1,
+      motivo: '',
+    }]);
+  };
+  const handleUpdateUnidad = (unidadId: string, patch: Partial<UnidadSalida>) => {
+    setUnidadesSel(prev => prev.map(s => s.unidadId === unidadId ? { ...s, ...patch } : s));
+  };
+  const handleRemoveUnidad = (unidadId: string) => {
+    setUnidadesSel(prev => prev.filter(s => s.unidadId !== unidadId));
+  };
+
   const handleToggleOt = (otNumber: string) => {
     setOtsSeleccionadas(prev => {
       const n = new Set(prev);
@@ -297,9 +326,12 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     const partes = partesByKey.get(key) ?? [];
     return partes.length > 0 && partes.every(p => p.descripcion.trim().length > 0);
   });
+  // Un remito puede llevar SOLO partes de stock (sin items de ficha ni loaners):
+  // es el caso "pieza propia que va al proveedor y vuelve".
+  const unidadesEnviadas = isDerivacion ? unidadesSel : [];
   const canSubmit = numeroValido
     && destinatario.razonSocial.trim().length > 0
-    && selected.length > 0
+    && (selected.length > 0 || unidadesEnviadas.length > 0)
     && partesValidas
     && (!isDerivacion || proveedorId !== '');
 
@@ -307,12 +339,13 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     // state
     tipo, cliente, proveedores, proveedorId, numero, fecha, destinatario, transportista,
     observaciones, submitting, error, selectedKeys, modeByKey, partesByKey, elegibles, selected,
-    otsCliente, otsSeleccionadas, transportistas,
+    otsCliente, otsSeleccionadas, transportistas, unidadesStock, unidadesSel: unidadesEnviadas,
     // setters
     setNumero, setFecha, setDestinatario, setTransportista, setObservaciones, setSubmitting, setError,
     // handlers
     handleChangeTipo, handlePickProveedor, handleToggleItem, handleChangeMode, handleChangePartes,
     handleToggleOt, handlePickTransportista,
+    handleAddUnidad, handleUpdateUnidad, handleRemoveUnidad,
     // derived flags
     isDerivacion, numeroValido, canSubmit,
   };

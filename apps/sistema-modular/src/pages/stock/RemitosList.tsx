@@ -1,5 +1,6 @@
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { remitosService, clientesService } from '../../services/firebaseService';
+import { fichasService } from '../../services/fichasService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -18,8 +19,8 @@ import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
-const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
-const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
+const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', en_proveedor: 'En proveedor externo', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
+const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
 const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-teal-50 text-teal-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700', servicio: 'bg-cyan-50 text-cyan-700' };
 
 export const RemitosList = () => {
@@ -53,7 +54,7 @@ export const RemitosList = () => {
 
   /** Tiene items 'sale y vuelve' sin resolver, descargables desde el remito. */
   const esDescargable = (r: Remito) =>
-    ['confirmado', 'en_transito', 'completado_parcial'].includes(r.estado)
+    ['confirmado', 'en_transito', 'en_proveedor', 'completado_parcial'].includes(r.estado)
     && (r.items ?? []).some(it => !it.devuelto && !it.consumido && it.tipoItem === 'sale_y_vuelve'
       && (!!it.asignacionId || itemRemitoConEfectoAplicado(it)));
 
@@ -61,6 +62,15 @@ export const RemitosList = () => {
     setActingId(r.id);
     try { await remitosService.update(r.id, { estado, ...extra }); }
     catch (err) { console.error('Error actualizando remito:', err); alert('Error al actualizar el remito'); }
+    finally { setActingId(null); }
+  };
+
+  /** Entregado en el proveedor: además del remito, estampa la fecha en las
+   *  unidades de stock que viajaban (no pasan por ficha). */
+  const handleEntregado = async (r: Remito) => {
+    setActingId(r.id);
+    try { await remitosService.marcarEntregadoEnProveedor(r.id); }
+    catch (err) { console.error('Error marcando entregado:', err); alert('Error al marcar como entregado'); }
     finally { setActingId(null); }
   };
 
@@ -86,6 +96,34 @@ export const RemitosList = () => {
   // Load reference data (clientes) once
   useEffect(() => { clientesService.getAll(true).then(setClientes); }, []);
 
+  // Dueño de las fichas involucradas (2026-08-07): los remitos de derivación
+  // anteriores a esta fecha se guardaron sin clienteNombre — se resuelve por
+  // fichaId contra el catálogo de fichas (cacheado) en lugar de migrarlos.
+  const [clientePorFicha, setClientePorFicha] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    fichasService.getAll().then(fs => {
+      setClientePorFicha(new Map(fs.map(f => [f.id, f.clienteNombre])));
+    }).catch(() => {});
+  }, []);
+
+  /**
+   * Nunca vacío: cliente del remito → dueño de la ficha que contiene → AGS.
+   * Un remito sin cliente es material propio (loaner, patrón, parte de stock o
+   * salida a campo sin cliente asignado), y su dueño es AGS.
+   */
+  const duenoRemito = (r: Remito): string => {
+    if (r.clienteNombre) return r.clienteNombre;
+    const fichaIds = Array.from(new Set(
+      (r.items ?? []).map(i => i.fichaId).filter((x): x is string => !!x),
+    ));
+    const nombres = Array.from(new Set(
+      fichaIds.map(fid => clientePorFicha.get(fid)).filter((n): n is string => !!n),
+    ));
+    if (nombres.length === 1) return nombres[0];
+    if (nombres.length > 1) return 'Varios clientes';
+    return 'AGS';
+  };
+
   // Subscribe to remitos with current filters
   useEffect(() => {
     unsubRef.current?.();
@@ -101,7 +139,9 @@ export const RemitosList = () => {
       (data) => {
         let filtered = filters.showAll ? data : data.filter(r => r.estado !== 'cancelado');
         if (estadoSel === 'pendientes') {
-          filtered = filtered.filter(r => r.estado === 'borrador' || r.estado === 'confirmado' || r.estado === 'en_transito');
+          // 'en_proveedor' cuenta como pendiente: la mercadería sigue afuera.
+          filtered = filtered.filter(r => r.estado === 'borrador' || r.estado === 'confirmado'
+            || r.estado === 'en_transito' || r.estado === 'en_proveedor');
         }
         setRemitos(filtered);
         setLoading(false);
@@ -285,10 +325,9 @@ export const RemitosList = () => {
                         )}
                       </td>
                       <td className={`px-4 py-2 text-xs text-slate-700 truncate ${getAlignClass(3)}`}
-                        title={r.clienteNombre ? `${r.clienteNombre}${r.establecimientoNombre ? ` (${r.establecimientoNombre})` : ''}` : undefined}>
-                        {r.clienteNombre
-                          ? <>{r.clienteNombre}{r.establecimientoNombre && <span className="text-slate-400"> ({r.establecimientoNombre})</span>}</>
-                          : '-'}
+                        title={`${duenoRemito(r)}${r.establecimientoNombre ? ` (${r.establecimientoNombre})` : ''}`}>
+                        {duenoRemito(r)}
+                        {r.establecimientoNombre && <span className="text-slate-400"> ({r.establecimientoNombre})</span>}
                       </td>
                       <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(4)}`}>{r.ingenieroNombre}</td>
                       <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(5)}`}>{r.items?.length ?? 0}</td>
@@ -323,7 +362,17 @@ export const RemitosList = () => {
                               Descargar
                             </button>
                           )}
-                          {(r.estado === 'en_transito' || r.estado === 'completado_parcial') && !esDescargable(r) && (
+                          {/* Entregado en el proveedor (2026-08-07): sale de
+                              "en tránsito" y arranca el contador de días. */}
+                          {r.tipo === 'derivacion_proveedor' && r.estado === 'en_transito' && (
+                            <button onClick={() => void handleEntregado(r)}
+                              disabled={actingId === r.id}
+                              className="text-xs text-orange-600 hover:underline font-medium disabled:opacity-40"
+                              title="La mercadería ya está en el proveedor externo">
+                              Entregado
+                            </button>
+                          )}
+                          {(r.estado === 'en_transito' || r.estado === 'en_proveedor' || r.estado === 'completado_parcial') && !esDescargable(r) && (
                             <button onClick={() => void handleEstado(r, 'completado', { fechaDevolucion: new Date().toISOString() })}
                               disabled={actingId === r.id}
                               className="text-xs text-green-600 hover:underline font-medium disabled:opacity-40">
@@ -339,7 +388,7 @@ export const RemitosList = () => {
                     {expandedId === r.id && (
                       <tr className="bg-slate-50/60">
                         <td colSpan={9} className="px-6 py-2 border-b border-slate-100">
-                          <RemitoItemsInline remito={r} />
+                          <RemitoItemsInline remito={r} clientePorFicha={clientePorFicha} />
                         </td>
                       </tr>
                     )}
@@ -365,7 +414,7 @@ export const RemitosList = () => {
         />
       )}
       {verRemito && (
-        <RemitoVerModal remito={verRemito} onClose={() => setVerRemito(null)} />
+        <RemitoVerModal remito={verRemito} onClose={() => setVerRemito(null)} clientePorFicha={clientePorFicha} />
       )}
     </div>
   );

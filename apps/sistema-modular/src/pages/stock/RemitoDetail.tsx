@@ -10,12 +10,13 @@ import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAcciones';
 import { RemitoFirmaCard } from '../../components/remitos/RemitoFirmaCard';
 import { RemitoDescargaModal } from '../../components/remitos/RemitoDescargaModal';
+import { RetornoProveedorButton } from '../../components/remitos/RetornoProveedorButton';
 import { RemitoHistorialCard } from '../../components/remitos/RemitoHistorialCard';
 import { itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
-const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
-const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
+const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', en_proveedor: 'En proveedor externo', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
+const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
 const TIPO_ITEM_LABELS: Record<TipoRemitoItem, string> = { sale_y_vuelve: 'Sale y vuelve', entrega: 'Entrega' };
 
 const Badge = ({ label, color }: { label: string; color: string }) => (
@@ -28,6 +29,13 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <p className="text-xs text-slate-700">{value || '--'}</p>
   </div>
 );
+
+/** Días enteros desde una fecha ISO — cuánto hace que está en el proveedor. */
+const diasDesde = (iso: string) => {
+  const d = new Date(iso).getTime();
+  if (isNaN(d)) return 0;
+  return Math.max(0, Math.floor((Date.now() - d) / 86400000));
+};
 
 const formatDate = (iso: string | null | undefined) => {
   if (!iso) return '--';
@@ -72,7 +80,7 @@ export const RemitoDetail = () => {
   // Descarga desde el remito (2026-08-04): items 'sale y vuelve' sin resolver,
   // sea de stock propio (efecto aplicado) o de una asignación vinculada.
   const hayDescargables = remito != null
-    && ['confirmado', 'en_transito', 'completado_parcial'].includes(remito.estado)
+    && ['confirmado', 'en_transito', 'en_proveedor', 'completado_parcial'].includes(remito.estado)
     && remito.items.some(it => !it.devuelto && !it.consumido && it.tipoItem === 'sale_y_vuelve'
       && (!!it.asignacionId || itemRemitoConEfectoAplicado(it)));
 
@@ -115,7 +123,16 @@ export const RemitoDetail = () => {
                 Descargar / cerrar
               </Button>
             )}
-            {remito.estado === 'en_transito' && (
+            {/* Derivación entregada en el proveedor (2026-08-07): deja de estar
+                "en tránsito" y arranca el contador de días afuera. */}
+            {remito.tipo === 'derivacion_proveedor' && remito.estado === 'en_transito' && (
+              <Button size="sm" variant="outline"
+                onClick={() => void remitosService.marcarEntregadoEnProveedor(remito.id)}
+                disabled={acting}>
+                {acting ? 'Procesando...' : 'Entregado al proveedor'}
+              </Button>
+            )}
+            {(remito.estado === 'en_transito' || remito.estado === 'en_proveedor') && (
               <>
                 <Button size="sm" onClick={() => transition('completado', { fechaDevolucion: new Date().toISOString() })} disabled={acting}>
                   {acting ? 'Procesando...' : 'Completar'}
@@ -149,6 +166,18 @@ export const RemitoDetail = () => {
             <Card compact title="Fechas">
               <div className="space-y-2.5">
                 <LV label="Fecha salida" value={formatDate(remito.fechaSalida)} />
+                {remito.fechaEntregaProveedor && (
+                  <LV label="Entregado al proveedor" value={
+                    <>
+                      {formatDate(remito.fechaEntregaProveedor)}
+                      {remito.estado === 'en_proveedor' && (
+                        <span className="ml-1 text-orange-600 font-medium">
+                          ({diasDesde(remito.fechaEntregaProveedor)} d afuera)
+                        </span>
+                      )}
+                    </>
+                  } />
+                )}
                 <LV label="Fecha devolucion" value={formatDate(remito.fechaDevolucion)} />
               </div>
             </Card>
@@ -203,6 +232,9 @@ export const RemitoDetail = () => {
                               <span className="text-[10px] font-medium text-orange-600" title={item.fechaConsumo ? `Consumido el ${formatDate(item.fechaConsumo)}` : 'Consumido en campo'}>
                                 Consumido
                               </span>
+                            ) : remito.tipo === 'derivacion_proveedor' && item.unidadId && !item.devuelto ? (
+                              /* Parte propia de stock en el proveedor (2026-08-07) */
+                              <RetornoProveedorButton item={item} />
                             ) : remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
                               <button onClick={() => toggleDevuelto(item, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>
@@ -232,8 +264,7 @@ export const RemitoDetail = () => {
 
 function resolveItemCodigo(item: RemitoItem): string {
   if (item.servicioDescripcion != null) return item.servicioCode || '';
-  if (item.tipoEntidad) return getRemitoItemCodigo(item);
-  return item.articuloCodigo || '';
+  return getRemitoItemCodigo(item) || 'S/C';
 }
 
 function resolveItemDescripcion(item: RemitoItem): string {
@@ -244,8 +275,9 @@ function resolveItemDescripcion(item: RemitoItem): string {
     ].filter(Boolean).join(' · ');
     return refs ? `${item.servicioDescripcion} — ${refs}` : item.servicioDescripcion;
   }
-  if (item.tipoEntidad) return getRemitoItemDescripcion(item);
-  return item.articuloDescripcion || '';
+  // Sin tipoEntidad (líneas de ficha) hay que caer igual a fichaDescripcion:
+  // con el gate anterior la descripción salía vacía (2026-08-07).
+  return getRemitoItemDescripcion(item) || item.articuloDescripcion || '';
 }
 
 function hasMultipleTypes(items: RemitoItem[]): boolean {

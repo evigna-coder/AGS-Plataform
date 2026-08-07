@@ -5,8 +5,8 @@ import { RemitoItemsInline } from './RemitoItemsInline';
 import { RemitoHistorialCard } from './RemitoHistorialCard';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
-const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
-const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
+const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', en_proveedor: 'En proveedor externo', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
+const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
 
 const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div>
@@ -26,7 +26,12 @@ const fmtFecha = (iso?: string | null) => {
  * modal"): datos, items y historial sin salir del listado. La ficha completa
  * (acciones de firma, descarga, etc.) sigue en /stock/remitos/:id.
  */
-export function RemitoVerModal({ remito, onClose }: { remito: Remito; onClose: () => void }) {
+export function RemitoVerModal({ remito, onClose, clientePorFicha }: {
+  remito: Remito;
+  onClose: () => void;
+  /** Dueño por ficha, para detallar el cliente de cada línea (2026-08-07). */
+  clientePorFicha?: Map<string, string>;
+}) {
   return (
     <Modal open onClose={onClose} title={`Remito ${remito.numero}`} maxWidth="2xl">
       <div className="space-y-4">
@@ -57,7 +62,7 @@ export function RemitoVerModal({ remito, onClose }: { remito: Remito; onClose: (
         <div>
           <p className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">Items ({remito.items?.length ?? 0})</p>
           <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <RemitoItemsInline remito={remito} />
+            <RemitoItemsInline remito={remito} clientePorFicha={clientePorFicha} />
           </div>
         </div>
 
