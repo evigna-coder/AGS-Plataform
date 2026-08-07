@@ -54,7 +54,11 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const permanentes = allItems.filter(i => i.permanente);
 
   const itemLabel = (item: InventarioItem) =>
-    item.articuloCodigo || item.minikitCodigo || item.instrumentoNombre || item.dispositivoDescripcion || item.vehiculoPatente || item.tipo;
+    item.articuloCodigo || item.minikitCodigo || item.instrumentoNombre || item.dispositivoDescripcion
+    || item.vehiculoPatente
+    // Patrón: el lote es lo que identifica la instancia física (2026-08-07).
+    || (item.patronCodigo ? `${item.patronCodigo}${item.patronLote ? ` — Lote ${item.patronLote}` : ''}` : null)
+    || item.tipo;
 
   // ── Devolver: revert entity status + mark asignacion item ──
   const handleDevolver = async (item: InventarioItem) => {
@@ -121,6 +125,9 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
         instrumentoTipo: item.instrumentoTipo,
         dispositivoId: item.dispositivoId, dispositivoDescripcion: item.dispositivoDescripcion,
         vehiculoId: item.vehiculoId, vehiculoPatente: item.vehiculoPatente,
+        patronId: item.patronId, patronCodigo: item.patronCodigo,
+        patronDescripcion: item.patronDescripcion, patronLote: item.patronLote,
+        patronVencimiento: item.patronVencimiento,
         clienteId: item.clienteId, clienteNombre: item.clienteNombre,
         otNumber: null, proposito: null,
         estado: 'asignado', permanente: item.permanente,

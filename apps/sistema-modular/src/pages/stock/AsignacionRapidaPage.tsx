@@ -6,7 +6,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import { InventarioIngenieroInline } from '../../components/stock/InventarioIngenieroInline';
-import { useAsignacionRapida, type DragPayload } from '../../hooks/useAsignacionRapida';
+import { useAsignacionRapida, type DragPayload, type LotePatronDisponible } from '../../hooks/useAsignacionRapida';
 import type { UnidadStock, Minikit, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
 
 export const AsignacionRapidaPage = () => {
@@ -14,6 +14,7 @@ export const AsignacionRapidaPage = () => {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
+    filteredPatrones,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
     removeFromCart, updateCartItem, handleConfirm, loadData,
   } = useAsignacionRapida();
@@ -59,6 +60,7 @@ export const AsignacionRapidaPage = () => {
     { key: 'articulos' as const, label: 'Artículos', count: filteredUnits.length },
     { key: 'minikits' as const, label: 'Minikits', count: filteredMinikits.length },
     { key: 'instrumentos' as const, label: 'Instrumentos', count: filteredInstrumentos.length },
+    { key: 'patrones' as const, label: 'Patrones', count: filteredPatrones.length },
     { key: 'dispositivos' as const, label: 'Dispositivos', count: filteredDispositivos.length },
     { key: 'vehiculos' as const, label: 'Vehículos', count: filteredVehiculos.length },
   ];
@@ -97,6 +99,15 @@ export const AsignacionRapidaPage = () => {
                     code={`${i.marca} ${i.modelo}`} label={i.nombre}
                     badge={i.tipo === 'instrumento' ? 'Instrumento' : 'Patrón'}
                     badgeColor={i.tipo === 'instrumento' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'} />))}
+                {/* Un item por LOTE: es lo que el IST se lleva. El vencimiento
+                    va a la vista porque llevarse un patrón vencido invalida la
+                    calibración (2026-08-07). */}
+                {tab === 'patrones' && (filteredPatrones.length === 0 ? <Empty /> :
+                  filteredPatrones.map(p => <DragRow key={`${p.patronId}:${p.lote}`} onDragStart={startDrag(patronPayload(p))}
+                    code={p.codigo} label={`${p.descripcion} — Lote ${p.lote}`}
+                    extra={`${p.marca} · ${p.cantidad} disp.${p.vencimiento ? ` · vence ${p.vencimiento.slice(0, 10).split('-').reverse().join('/')}` : ''}`}
+                    badge={p.vencido ? 'Vencido' : undefined}
+                    badgeColor="bg-red-50 text-red-700" />))}
                 {tab === 'dispositivos' && (filteredDispositivos.length === 0 ? <Empty /> :
                   filteredDispositivos.map(d => <DragRow key={d.id} onDragStart={startDrag(dispositivoPayload(d))}
                     code={`${d.marca} ${d.modelo}`} label={d.serie ? `S/N: ${d.serie}` : ''} badge={d.tipo} badgeColor="bg-blue-50 text-blue-700" />))}
@@ -279,6 +290,12 @@ const dispositivoPayload = (d: Dispositivo): DragPayload => ({
 const vehiculoPayload = (v: Vehiculo): DragPayload => ({
   tipo: 'vehiculo', label: `${v.marca} ${v.modelo}`, codigo: v.patente,
   vehiculoId: v.id, permanente: true,
+});
+/** Lo asignable es el LOTE del patrón, no el kit (2026-08-07). */
+const patronPayload = (p: LotePatronDisponible): DragPayload => ({
+  tipo: 'patron', label: p.descripcion, codigo: p.codigo,
+  patronId: p.patronId, patronLote: p.lote, patronVencimiento: p.vencimiento,
+  permanente: false,
 });
 
 // ── Sub-components ────────────────────────────────────────────────────

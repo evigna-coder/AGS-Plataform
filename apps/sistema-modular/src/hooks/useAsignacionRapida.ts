@@ -6,7 +6,25 @@ import {
 } from '../services/firebaseService';
 import { useDebounce } from './useDebounce';
 import { matchesSearch } from '../utils/searchTerms';
-import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock } from '@ags/shared';
+import { patronesService } from '../services/patronesService';
+import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron } from '@ags/shared';
+
+/**
+ * Un LOTE de patrón presentado como item asignable (2026-08-07). El patrón es
+ * el kit; el lote es lo que el IST se lleva físicamente, con su vencimiento y
+ * su certificado — por eso la unidad asignable es el lote, no el patrón.
+ */
+export interface LotePatronDisponible {
+  patronId: string;
+  codigo: string;
+  descripcion: string;
+  marca: string;
+  lote: string;
+  vencimiento: string | null;
+  cantidad: number;
+  /** true si el lote ya venció — se puede asignar igual, pero se avisa. */
+  vencido: boolean;
+}
 
 export interface CartItem {
   id: string;
@@ -24,6 +42,10 @@ export interface CartItem {
   vehiculoId?: string;
   articuloId?: string;
   articuloDescripcion?: string;
+  /** Patrón (kit con lote): se asigna un LOTE concreto (2026-08-07). */
+  patronId?: string;
+  patronLote?: string;
+  patronVencimiento?: string | null;
   cantidad: number;
   permanente: boolean;
 }
@@ -42,6 +64,9 @@ export interface DragPayload {
   vehiculoId?: string;
   articuloId?: string;
   articuloDescripcion?: string;
+  patronId?: string;
+  patronLote?: string;
+  patronVencimiento?: string | null;
   permanente: boolean;
 }
 
@@ -55,6 +80,7 @@ export function useAsignacionRapida() {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [minikits, setMinikits] = useState<Minikit[]>([]);
   const [instrumentos, setInstrumentos] = useState<InstrumentoPatron[]>([]);
+  const [patrones, setPatrones] = useState<Patron[]>([]);
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
@@ -65,7 +91,7 @@ export function useAsignacionRapida() {
   const [clienteByIng, setClienteByIng] = useState<Record<string, string>>({});
   const [observaciones, setObservaciones] = useState('');
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'dispositivos' | 'vehiculos'>('articulos');
+  const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'patrones' | 'dispositivos' | 'vehiculos'>('articulos');
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
@@ -79,6 +105,7 @@ export function useAsignacionRapida() {
         vehiculosService.getAll(true),
         ingenierosService.getAll(true),
         clientesService.getAll(),
+        patronesService.getAll({ activoOnly: true }),
       ]);
       const val = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === 'fulfilled' ? r.value : (console.error('Error cargando:', r.reason), fallback);
@@ -89,6 +116,7 @@ export function useAsignacionRapida() {
       setVehiculos(val(results[4], []));
       setIngenieros(val(results[5], []));
       setClientes(val(results[6], []));
+      setPatrones(val(results[7], []));
     } catch (err) { console.error('Error cargando datos:', err); }
     finally { setLoading(false); }
   }, []);
@@ -111,6 +139,33 @@ export function useAsignacionRapida() {
   const availableVehiculos = vehiculos.filter(v =>
     !v.asignadoA && !cart.some(c => c.vehiculoId === v.id)
   );
+  /**
+   * Lotes de patrón disponibles (2026-08-07): un item por lote, no por patrón.
+   * Se listan los lotes con cantidad; los vencidos se muestran marcados en vez
+   * de ocultarse — el IST a veces necesita llevarlos igual y es peor que
+   * "desaparezcan" sin explicación.
+   */
+  const availablePatrones = useMemo<LotePatronDisponible[]>(() => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const out: LotePatronDisponible[] = [];
+    for (const p of patrones) {
+      for (const l of p.lotes ?? []) {
+        if ((l.cantidad ?? 0) <= 0) continue;
+        if (cart.some(c => c.patronId === p.id && c.patronLote === l.lote)) continue;
+        out.push({
+          patronId: p.id,
+          codigo: p.codigoArticulo,
+          descripcion: p.descripcion,
+          marca: p.marca,
+          lote: l.lote,
+          vencimiento: l.fechaVencimiento ?? null,
+          cantidad: l.cantidad ?? 0,
+          vencido: !!l.fechaVencimiento && l.fechaVencimiento.slice(0, 10) < hoy,
+        });
+      }
+    }
+    return out;
+  }, [patrones, cart]);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
   const q = debouncedQuery.toLowerCase();
@@ -129,6 +184,9 @@ export function useAsignacionRapida() {
   const filteredVehiculos = q ? availableVehiculos.filter(v =>
     matchesSearch(debouncedQuery, v.patente, v.marca, v.modelo)
   ) : availableVehiculos;
+  const filteredPatrones = q ? availablePatrones.filter(p =>
+    matchesSearch(debouncedQuery, p.codigo, p.descripcion, p.marca, p.lote)
+  ) : availablePatrones;
 
   // --- Cart grouped by engineer (with per-engineer client) ---
   const cartByIngeniero = useMemo(() => {
@@ -212,6 +270,13 @@ export function useAsignacionRapida() {
           dispositivoDescripcion: c.tipo === 'dispositivo' ? c.label : null,
           vehiculoId: c.vehiculoId ?? null,
           vehiculoPatente: c.tipo === 'vehiculo' ? c.codigo : null,
+          // Patrón: lo que viaja es el LOTE, así que se guarda junto al código
+          // del kit y su vencimiento (2026-08-07).
+          patronId: c.patronId ?? null,
+          patronCodigo: c.tipo === 'patron' ? c.codigo : null,
+          patronDescripcion: c.tipo === 'patron' ? c.label : null,
+          patronLote: c.patronLote ?? null,
+          patronVencimiento: c.patronVencimiento ?? null,
           clienteId,
           clienteNombre,
           otNumber: null, proposito: null,
@@ -226,8 +291,11 @@ export function useAsignacionRapida() {
           id: crypto.randomUUID(),
           unidadId: i.unidadId ?? '',
           articuloId: i.articuloId ?? '',
-          articuloCodigo: i.articuloCodigo ?? i.minikitCodigo ?? i.vehiculoPatente ?? '',
-          articuloDescripcion: i.articuloDescripcion ?? i.instrumentoNombre ?? i.dispositivoDescripcion ?? i.minikitCodigo ?? i.tipo,
+          articuloCodigo: i.articuloCodigo ?? i.minikitCodigo ?? i.vehiculoPatente ?? i.patronCodigo ?? '',
+          articuloDescripcion: [
+            i.articuloDescripcion ?? i.instrumentoNombre ?? i.dispositivoDescripcion ?? i.patronDescripcion ?? i.minikitCodigo ?? i.tipo,
+            i.patronLote ? `Lote ${i.patronLote}` : null,
+          ].filter(Boolean).join(' · '),
           cantidad: i.cantidad,
           tipoItem: 'sale_y_vuelve' as const,
           devuelto: false,
@@ -309,6 +377,7 @@ export function useAsignacionRapida() {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
+    filteredPatrones,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
     removeFromCart, updateCartItem, handleConfirm, loadData,
   };
