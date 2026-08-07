@@ -63,6 +63,8 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
           fichaNumero: fi.numero,
           itemId: item.id,
           itemSubId: item.subId,
+          // Código de artículo / N° de parte para la columna "Producto".
+          articuloCodigo: item.articuloCodigo ?? null,
           origenLabel,
           descripcion: itemDescripcion(item, motivo, parent?.subId),
           partes: tienePartes ? partes.map(p => ({
@@ -117,12 +119,14 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
 
       const pdfLines: { numero: number; cantidad: number; producto: string; descripcion: string }[] = [];
       for (const it of itemsInput) {
+        // Columna "Producto" = código de artículo / N° de parte (2026-08-06);
+        // el subId de la ficha es el fallback cuando el item no tiene código.
         if (it.partes && it.partes.length > 0) {
           for (const p of it.partes) {
             pdfLines.push({
               numero: pdfLines.length + 1,
               cantidad: 1,
-              producto: it.itemSubId,
+              producto: p.articuloCodigo || '',
               descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.origenLabel ?? it.itemSubId})`,
             });
           }
@@ -130,7 +134,7 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, loaner = nu
           pdfLines.push({
             numero: pdfLines.length + 1,
             cantidad: 1,
-            producto: it.itemSubId,
+            producto: it.articuloCodigo || it.itemSubId,
             descripcion: it.descripcion,
           });
         }

@@ -35,9 +35,11 @@ function destFromCliente(c: Cliente): DatosTransportista {
 }
 
 export function itemDescripcion(it: ItemFicha, motivo: string, parentSubId?: string | null): string {
+  // El código de artículo NO va acá (2026-08-06): tiene su propia columna en el
+  // remito ("Producto"/N° de parte). Antes se imprimía el subId de la ficha
+  // como código y el código quedaba perdido en la descripción.
   const partes = [
     it.articuloDescripcion || it.descripcionLibre,
-    it.articuloCodigo,
     it.serie ? `S/N ${it.serie}` : null,
     parentSubId ? `(de ${parentSubId})` : null,
   ].filter(Boolean) as string[];
