@@ -5,6 +5,7 @@ import {
   getDocs,
   query,
   where,
+  documentId,
   onSnapshot,
   runTransaction,
   setDoc,
@@ -86,7 +87,15 @@ function sacarPadresConHijasLocal(ots: MisOTDoc[]): MisOTDoc[] {
   return ots.filter(ot => !conHijas.has(ot.otNumber));
 }
 
-/** Consulta las hijas reales de los padres candidatos (doc id = número de OT). */
+/**
+ * Consulta las hijas reales de los padres candidatos. El doc id ES el número de
+ * OT, así que se pide el rango [`29970.`, `29970/`) — '/' es el carácter
+ * siguiente a '.', así que abarca .01, .02, etc.
+ *
+ * OJO: hay que usar `documentId()`, no la string '__name__' (2026-08-07): con
+ * la string el SDK la trata como un campo común, la query no matchea nada y los
+ * padres seguían apareciendo.
+ */
 async function sacarPadresConHijasRemoto(ots: MisOTDoc[]): Promise<MisOTDoc[]> {
   const padres = ots.filter(ot => !ot.otNumber?.includes('.')).map(ot => ot.otNumber);
   if (padres.length === 0) return ots;
@@ -95,11 +104,14 @@ async function sacarPadresConHijasRemoto(ots: MisOTDoc[]): Promise<MisOTDoc[]> {
     try {
       const snap = await getDocs(query(
         collection(db, 'reportes'),
-        where('__name__', '>=', `${num}.`),
-        where('__name__', '<', `${num}/`),
+        where(documentId(), '>=', `${num}.`),
+        where(documentId(), '<', `${num}/`),
       ));
       if (!snap.empty) conHijas.add(num);
-    } catch { /* si falla, el padre se sigue mostrando */ }
+    } catch (err) {
+      // Se loguea: si esto falla en silencio, los padres vuelven a aparecer.
+      console.warn(`[misOTService] no se pudo verificar hijas de ${num}:`, err);
+    }
   }));
   return ots.filter(ot => !conHijas.has(ot.otNumber));
 }
