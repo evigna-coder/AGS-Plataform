@@ -67,6 +67,43 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Saca las OT PADRE que tienen hijas (2026-08-07). Un padre con items es un
+ * contenedor: la unidad de trabajo es la hija (X.NN) y el padre no debe
+ * aparecer en ninguna vista. Los padres SIN hijas (legacy) sí se muestran, o
+ * desaparecerían OTs enteras.
+ *
+ * Detección en dos pasos: primero con las OTs del propio listado (gratis), y
+ * después consultando la colección para los padres que sobrevivieron — sus
+ * hijas pueden estar cerradas y por eso fuera de este listado (caso real: padre
+ * ASIGNADA con la hija ya en cierre técnico).
+ */
+function sacarPadresConHijasLocal(ots: MisOTDoc[]): MisOTDoc[] {
+  const conHijas = new Set<string>();
+  for (const ot of ots) {
+    if (ot.otNumber?.includes('.')) conHijas.add(ot.otNumber.split('.')[0]);
+  }
+  return ots.filter(ot => !conHijas.has(ot.otNumber));
+}
+
+/** Consulta las hijas reales de los padres candidatos (doc id = número de OT). */
+async function sacarPadresConHijasRemoto(ots: MisOTDoc[]): Promise<MisOTDoc[]> {
+  const padres = ots.filter(ot => !ot.otNumber?.includes('.')).map(ot => ot.otNumber);
+  if (padres.length === 0) return ots;
+  const conHijas = new Set<string>();
+  await Promise.all(padres.map(async num => {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'reportes'),
+        where('__name__', '>=', `${num}.`),
+        where('__name__', '<', `${num}/`),
+      ));
+      if (!snap.empty) conHijas.add(num);
+    } catch { /* si falla, el padre se sigue mostrando */ }
+  }));
+  return ots.filter(ot => !conHijas.has(ot.otNumber));
+}
+
 export const misOTService = {
   /**
    * OTs asignadas al ingeniero (colección `reportes`, doc id = número de OT),
@@ -90,7 +127,12 @@ export const misOTService = {
         .filter(ot => ot.status !== 'FINALIZADO'
           && (!ot.estadoAdmin || !ESTADOS_ADMIN_TERMINALES.includes(ot.estadoAdmin)));
       ots.sort((a, b) => (a.fechaServicioAprox || '9999').localeCompare(b.fechaServicioAprox || '9999'));
-      callback(ots);
+      // Respuesta inmediata sin los padres detectables; después se refina.
+      const locales = sacarPadresConHijasLocal(ots);
+      callback(locales);
+      void sacarPadresConHijasRemoto(locales).then(finales => {
+        if (finales.length !== locales.length) callback(finales);
+      });
     }, err => {
       console.error('[misOTService] reportes subscription error:', err);
       onError?.(err);
@@ -113,7 +155,11 @@ export const misOTService = {
         .map(d => parseReporte(d.id, d.data() as Record<string, unknown>))
         .filter(ot => ot.status !== 'FINALIZADO');
       ots.sort((a, b) => (a.fechaServicioAprox || '9999').localeCompare(b.fechaServicioAprox || '9999'));
-      callback(ots);
+      const locales = sacarPadresConHijasLocal(ots);
+      callback(locales);
+      void sacarPadresConHijasRemoto(locales).then(finales => {
+        if (finales.length !== locales.length) callback(finales);
+      });
     }, err => {
       console.error('[misOTService] reportes (todas) subscription error:', err);
       onError?.(err);

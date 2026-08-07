@@ -27,8 +27,12 @@ const X_FECHA = 535;
 /** Columna izquierda — datos del destinatario (cliente o proveedor) */
 const X_VALUE_LEFT = 130;
 
-/** Columna derecha — datos del transportista */
-const X_VALUE_RIGHT = 525;
+/**
+ * Columna derecha — datos del transportista. Medido sobre el papel preimpreso
+ * (2026-08-07): arranca 8,5 cm a la derecha de donde arranca la razón social
+ * del destinatario. 8,5 cm × 28,3465 pt/cm ≈ 241 pt.
+ */
+const X_VALUE_RIGHT = X_VALUE_LEFT + 241;
 
 /** Y de cada fila del header. La altura entre filas en el papel es ~33pt. */
 const Y_RAZON_SOCIAL = 270;
