@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Presupuesto, WorkOrder } from '@ags/shared';
-import { clientesService, presupuestosService } from '../../services/firebaseService';
+import { clientesService, ordenesTrabajoService, presupuestosService } from '../../services/firebaseService';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { useTabs } from '../../contexts/TabsContext';
 
@@ -20,18 +20,31 @@ const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(
  * control semanal. Click despliega la lista en un popover; click en un ppto
  * lo abre.
  */
-export function PresupuestosSinOtKpi({ ots }: { ots: WorkOrder[] }) {
+export function PresupuestosSinOtKpi() {
   const { navigateInActiveTab } = useTabs();
   const [rows, setRows] = useState<Row[]>([]);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  /** TODAS las OTs, en vivo. Ver comentario del efecto. */
+  const [ots, setOts] = useState<WorkOrder[] | null>(null);
 
-  // Recalcula con las OTs VIVAS del listado (2026-08-06): antes cargaba sus
-  // propias OTs una sola vez al montar — con las pestañas persistentes el tab
-  // nunca se desmonta y el contador quedaba congelado ("abrí 2 OTs y el ppto
-  // sigue figurando sin OT", P1-005046-01). Pptos/clientes van por el cache de
-  // servicios (TTL 2 min), refrescados en cada cambio de OTs.
+  // Suscripción propia SIN filtros (2026-08-06, 2do intento): cargar las OTs
+  // una vez al montar dejaba el contador congelado (las tabs persistentes no
+  // se desmontan), pero tomar la lista de OTList era peor — esa viene filtrada
+  // por cliente/sistema a nivel query, así que con un filtro activo TODOS los
+  // pptos de otros clientes figuraban "sin OT". El KPI necesita el universo
+  // completo y vivo: subscribe(undefined).
   useEffect(() => {
+    const unsub = ordenesTrabajoService.subscribe(
+      undefined,
+      (data: WorkOrder[]) => setOts(data),
+      (err: Error) => console.error('[PresupuestosSinOtKpi] subscribe OTs:', err),
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (ots === null) return; // todavía sin snapshot: no calcular con lista vacía
     let cancelled = false;
     Promise.all([
       presupuestosService.getAll(),
