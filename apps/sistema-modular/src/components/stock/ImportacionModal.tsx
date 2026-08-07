@@ -21,6 +21,8 @@ interface Props {
 }
 
 const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'];
+/** Despachantes de aduana con los que opera AGS (2026-08-07). Ampliar acá. */
+const DESPACHANTES = ['Imex', 'DHL'];
 const lbl = 'block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-0.5';
 const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500';
 
@@ -211,6 +213,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
               <select className={ctrl} value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
                 <option value="">—</option>
                 {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Despachante</label>
+              <select className={ctrl} value={h.form.despachante} onChange={e => h.set('despachante', e.target.value)}>
+                <option value="">—</option>
+                {DESPACHANTES.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             {/* Courier (2026-08-06): cambia el costeo — sin percepciones. */}
