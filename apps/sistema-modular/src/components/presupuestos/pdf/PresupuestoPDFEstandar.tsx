@@ -403,16 +403,49 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-export function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
+/**
+ * ¿Entran las notas técnicas en la primera hoja, después de los items?
+ *
+ * Pedido 2026-08-07: el cliente no las estaba viendo en la hoja 2, así que van
+ * en la primera junto al presupuesto; si NO hay lugar, bajan a la hoja de
+ * condiciones y se juntan con el resto de las notas (en vez de generar una hoja
+ * intermedia con las notas solas).
+ *
+ * react-pdf no permite consultar el espacio restante, así que se estima con el
+ * layout real de la hoja (A4 = 842pt). Constantes conservadoras: si el cálculo
+ * se queda corto el bloque igual va con `wrap`, así que continúa en la hoja
+ * siguiente en lugar de recortarse.
+ */
+const ALTO_A4 = 842;
+const ALTO_BASE_PAGINA1 = 430;   // header + datos del cliente + totales + footer + márgenes
+const ALTO_FILA_ITEM = 18;
+const ALTO_LINEA_NOTA = 10;
+const CHARS_POR_LINEA = 95;
+const ALTO_TITULO_NOTA = 26;     // título + padding del recuadro destacado
+
+export function notasTecnicasEntranEnPagina1(
+  notasHtml: string | null | undefined,
+  cantidadItems: number,
+): boolean {
+  if (!notasHtml) return false;
+  const texto = notasHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!texto) return false;
+  const lineas = Math.ceil(texto.length / CHARS_POR_LINEA);
+  const altoNotas = ALTO_TITULO_NOTA + lineas * ALTO_LINEA_NOTA;
+  const consumido = ALTO_BASE_PAGINA1 + cantidadItems * ALTO_FILA_ITEM;
+  return consumido + altoNotas <= ALTO_A4;
+}
+
+export function PDFCondiciones({ data, omitirNotasTecnicas }: { data: PresupuestoPDFData; omitirNotasTecnicas?: boolean }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
 
   // largo: las secciones de texto extenso pueden CONTINUAR en la página siguiente
   // (wrap) en vez de quedar recortadas al fondo; las cortas van enteras (wrap=false).
   const sections: { key: string; title: string; content: string | null | undefined; largo?: boolean }[] = [
-    // Pedido 2026-07-29: notas técnicas juntas con el resto, todas en la hoja de
-    // condiciones — el presupuesto (items) queda separado de los textos.
-    { key: 'notasTecnicas', title: 'NOTAS TÉCNICAS:', content: presupuesto.notasTecnicas, largo: true },
+    // Notas técnicas: van acá SOLO si no entraron en la primera hoja
+    // (`omitirNotasTecnicas`), para que nunca queden duplicadas.
+    { key: 'notasTecnicas', title: 'NOTAS TÉCNICAS:', content: omitirNotasTecnicas ? null : presupuesto.notasTecnicas, largo: true },
     { key: 'notasAdministrativas', title: 'NOTAS ADMINISTRATIVAS:', content: presupuesto.notasAdministrativas, largo: true },
     { key: 'garantia', title: 'GARANTÍA:', content: presupuesto.garantia },
     { key: 'variacionTipoCambio', title: 'VARIACIÓN DEL TIPO DE CAMBIO:', content: presupuesto.variacionTipoCambio },
@@ -513,7 +546,25 @@ export function PDFFooter() {
   );
 }
 
+/** Bloque de notas técnicas para la primera hoja (mismo recuadro destacado). */
+function PDFNotasTecnicasPagina1({ data }: { data: PresupuestoPDFData }) {
+  const html = data.presupuesto.notasTecnicas;
+  if (!html) return null;
+  return (
+    <View style={S.condicionSectionDestacada} wrap>
+      <Text style={S.condicionTitle}>NOTAS TÉCNICAS:</Text>
+      <PDFRichText html={html} fallbackStyle={S.condicionText} />
+    </View>
+  );
+}
+
 export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
+  // Notas técnicas en la hoja 1 si entran; si no, bajan con el resto (hoja 2).
+  const secciones = data.presupuesto.seccionesVisibles || {};
+  const notasVisibles = secciones.notasTecnicas !== false;
+  const notasEnHoja1 = notasVisibles
+    && notasTecnicasEntranEnPagina1(data.presupuesto.notasTecnicas, data.presupuesto.items?.length ?? 0);
+
   return (
     <Document
       title={`Presupuesto ${data.presupuesto.numero}`}
@@ -542,13 +593,17 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
         )}
 
         <PDFTotals data={data} />
+        {/* Notas técnicas junto al presupuesto (pedido 2026-08-07): en la hoja 2
+            no las estaban leyendo. Si no entran acá, se renderizan con el resto
+            de las notas en la hoja siguiente. */}
+        {notasEnHoja1 && <PDFNotasTecnicasPagina1 data={data} />}
         <PDFFooter />
       </Page>
 
       {/* Página 2: Notas + Condiciones + Conformidad/Firma — SIEMPRE separada de los
           items (arranca en página nueva aunque los items ocupen 1 o 2 hojas). */}
       <Page size="A4" style={S.page}>
-        <PDFCondiciones data={data} />
+        <PDFCondiciones data={data} omitirNotasTecnicas={notasEnHoja1} />
         <PDFConformidad />
         <PDFFooter />
       </Page>
