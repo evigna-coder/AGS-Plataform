@@ -497,6 +497,15 @@ function registerIpcHandlers() {
     flashFailCount: _flashFailCount,
   }));
 
+  // Shell: abrir una URL en el navegador del sistema.
+  // Tiene que pasar por IPC: con sandbox activo (default desde Electron 20) el
+  // preload NO puede requerir `shell`, y llamarlo ahí tiraba
+  // "Cannot read properties of undefined (reading 'openExternal')".
+  ipcMain.handle('shell:open-external', async (_event, url) => {
+    const { shell } = require('electron');
+    return shell.openExternal(url);
+  });
+
   // Shell: abrir archivo con app por defecto del sistema
   ipcMain.handle('shell:open-path', async (_event, filePath) => {
     const { shell } = require('electron');

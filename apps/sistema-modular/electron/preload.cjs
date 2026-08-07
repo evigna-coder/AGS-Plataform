@@ -1,7 +1,10 @@
 // Preload script para Electron
 // Este archivo se ejecuta en el contexto aislado antes de que se cargue la página
 
-const { contextBridge, shell, ipcRenderer } = require('electron');
+// OJO: `shell` NO se puede requerir acá — con sandbox activo (default desde
+// Electron 20) el preload solo ve contextBridge/ipcRenderer/webFrame. Todo lo
+// que necesite shell va por ipcRenderer.invoke a un handler del main.
+const { contextBridge, ipcRenderer } = require('electron');
 
 try {
   // Exponer APIs seguras al renderer process
@@ -12,9 +15,12 @@ try {
       chrome: process.versions.chrome,
       electron: process.versions.electron
     },
-    // API para abrir URLs en el navegador del sistema
+    // API para abrir URLs en el navegador del sistema.
+    // Vía IPC, NO `shell` directo: con sandbox activo (default desde Electron 20)
+    // el preload no tiene acceso a `shell` y la llamada rompía con
+    // "Cannot read properties of undefined (reading 'openExternal')".
     openExternal: (url) => {
-      shell.openExternal(url);
+      return ipcRenderer.invoke('shell:open-external', url);
     },
     // API para abrir un archivo local con la aplicación por defecto del sistema
     openPath: (filePath) => {
