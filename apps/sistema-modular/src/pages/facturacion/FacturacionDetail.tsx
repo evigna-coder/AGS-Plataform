@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { facturacionService } from '../../services/facturacionService';
+import { clientesService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { SolicitudFacturacion } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
@@ -14,6 +15,19 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
 
+/**
+ * % de descuento del item. Los avisos nuevos lo traen copiado del presupuesto;
+ * en los viejos se deriva de la diferencia entre P.Unit × cantidad y el subtotal
+ * (que ya viene con el descuento aplicado). Devuelve 0 si no hay descuento.
+ */
+function descuentoItem(item: { cantidad: number; precioUnitario: number; subtotal: number; descuento?: number | null }): number {
+  if (item.descuento != null) return item.descuento;
+  const bruto = (item.cantidad || 0) * (item.precioUnitario || 0);
+  if (bruto <= 0) return 0;
+  const pct = (1 - (item.subtotal || 0) / bruto) * 100;
+  return pct > 0.01 ? Math.round(pct * 100) / 100 : 0;
+}
+
 export const FacturacionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
@@ -24,6 +38,7 @@ export const FacturacionDetail = () => {
   const actor = { uid: firebaseUser?.uid || '', name: usuario?.displayName || undefined };
 
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
+  const [clienteFallback, setClienteFallback] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -67,6 +82,13 @@ export const FacturacionDetail = () => {
         });
         setFechaCobro(data.fechaCobro?.split('T')[0] || '');
         setNotaDraft(data.observaciones || '');
+        // Avisos anteriores al 2026-08-07 se guardaron sin clienteNombre: se
+        // resuelve por clienteId para no dejar el encabezado colgado.
+        if (!data.clienteNombre && data.clienteId) {
+          clientesService.getById(data.clienteId)
+            .then(c => { if (c?.razonSocial) setClienteFallback(c.razonSocial); })
+            .catch(() => {});
+        }
       }
       setLoading(false);
     });
@@ -177,7 +199,7 @@ export const FacturacionDetail = () => {
             Presupuesto{' '}
             <Link to={`/presupuestos/${solicitud.presupuestoId}`} state={{ from: pathname }}
               className="text-teal-600 hover:underline font-medium">{solicitud.presupuestoNumero}</Link>
-            {' '}— {solicitud.clienteNombre}
+            {' '}— {solicitud.clienteNombre || clienteFallback || '—'}
           </p>
         </div>
         <Button variant="outline" onClick={() => goBack()}>Volver</Button>
@@ -249,23 +271,30 @@ export const FacturacionDetail = () => {
               <th className="py-2 px-2 text-center text-[10px] font-mono text-slate-400 uppercase w-28">Cant. facturar</th>
               <th className="py-2 px-2 text-center text-[10px] font-mono text-slate-400 uppercase w-28">Cant. total pres.</th>
               <th className="py-2 px-2 text-right text-[10px] font-mono text-slate-400 uppercase w-24">P. Unit.</th>
+              <th className="py-2 px-2 text-right text-[10px] font-mono text-slate-400 uppercase w-20">Desc.</th>
               <th className="py-2 px-2 text-right text-[10px] font-mono text-slate-400 uppercase w-28">Subtotal</th>
             </tr>
           </thead>
           <tbody>
-            {solicitud.items.map(item => (
-              <tr key={item.id} className="border-b border-slate-100">
-                <td className="py-2 px-2 text-slate-700">{item.descripcion}</td>
-                <td className="py-2 px-2 text-center font-medium text-slate-700">{item.cantidad}</td>
-                <td className="py-2 px-2 text-center text-slate-400">{item.cantidadTotal}</td>
-                <td className="py-2 px-2 text-right text-slate-600">{fmtMoney(item.precioUnitario)}</td>
-                <td className="py-2 px-2 text-right font-medium text-slate-700">{fmtMoney(item.subtotal)}</td>
-              </tr>
-            ))}
+            {solicitud.items.map(item => {
+              const desc = descuentoItem(item);
+              return (
+                <tr key={item.id} className="border-b border-slate-100">
+                  <td className="py-2 px-2 text-slate-700">{item.descripcion}</td>
+                  <td className="py-2 px-2 text-center font-medium text-slate-700">{item.cantidad}</td>
+                  <td className="py-2 px-2 text-center text-slate-400">{item.cantidadTotal}</td>
+                  <td className="py-2 px-2 text-right text-slate-600">{fmtMoney(item.precioUnitario)}</td>
+                  <td className={`py-2 px-2 text-right font-mono ${desc ? 'text-amber-600' : 'text-slate-300'}`}>
+                    {desc ? `-${desc.toLocaleString('es-AR', { maximumFractionDigits: 2 })}%` : '—'}
+                  </td>
+                  <td className="py-2 px-2 text-right font-medium text-slate-700">{fmtMoney(item.subtotal)}</td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-slate-300">
-              <td colSpan={4} className="py-2 px-2 text-right font-bold text-slate-600 text-[11px] uppercase">Total</td>
+              <td colSpan={5} className="py-2 px-2 text-right font-bold text-slate-600 text-[11px] uppercase">Total</td>
               <td className="py-2 px-2 text-right font-bold text-teal-700">{fmtMoney(solicitud.montoTotal)}</td>
             </tr>
           </tfoot>

@@ -83,6 +83,13 @@ export const FacturacionList = () => {
     return () => { cancelled = true; };
   }, [deepLinkId, navigate]);
 
+  // Los avisos generados antes del 2026-08-07 se guardaron con clienteNombre ''
+  // (el generador no lo hidrataba). Se resuelve por clienteId contra la lista
+  // que esta pantalla ya carga, así no hace falta migrar los documentos.
+  const clienteNombreById = useMemo(() => new Map(clientes.map(c => [c.id, c.razonSocial])), [clientes]);
+  const nombreCliente = (sol: SolicitudFacturacion) =>
+    sol.clienteNombre || clienteNombreById.get(sol.clienteId) || '—';
+
   const filtradas = useMemo(() => {
     let result = solicitudes.filter(s => {
       if (filters.cliente && s.clienteId !== filters.cliente) return false;
@@ -92,10 +99,10 @@ export const FacturacionList = () => {
       return true;
     });
     if (filters.search.trim()) {
-      result = result.filter(s => matchesSearch(filters.search, s.presupuestoNumero, s.clienteNombre, s.numeroFactura));
+      result = result.filter(s => matchesSearch(filters.search, s.presupuestoNumero, s.clienteNombre || clienteNombreById.get(s.clienteId), s.numeroFactura));
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
-  }, [solicitudes, filters]);
+  }, [solicitudes, filters, clienteNombreById]);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
@@ -277,7 +284,7 @@ export const FacturacionList = () => {
                     >
                       <td className={`px-3 py-2 text-slate-500 whitespace-nowrap ${getAlignClass(0)}`}>{fmtDate(sol.createdAt)}</td>
                       <td className={`px-3 py-2 font-medium text-teal-700 ${getAlignClass(1)}`}>{sol.presupuestoNumero}</td>
-                      <td className={`px-3 py-2 text-slate-700 max-w-[200px] truncate ${getAlignClass(2)}`}>{sol.clienteNombre}</td>
+                      <td className={`px-3 py-2 text-slate-700 max-w-[200px] truncate ${getAlignClass(2)}`}>{nombreCliente(sol)}</td>
                       <td className={`px-3 py-2 text-slate-500 ${getAlignClass(3)}`}>{sol.items.length}</td>
                       <td className={`px-3 py-2 text-slate-500 text-[11px] ${getAlignClass(4)}`}>{sol.condicionPago || '—'}</td>
                       <td className={`px-3 py-2 font-mono font-medium text-slate-700 whitespace-nowrap ${getAlignClass(5)}`}>

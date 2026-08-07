@@ -1844,6 +1844,9 @@ export interface FacturaItem {
   cantidad: number;
   cantidadTotal: number;
   precioUnitario: number;
+  /** % de descuento aplicado en el presupuesto (0-100). Ya viene reflejado en
+   *  `subtotal`; se copia para poder mostrarlo en el detalle de facturación. */
+  descuento?: number | null;
   subtotal: number;
 }
 

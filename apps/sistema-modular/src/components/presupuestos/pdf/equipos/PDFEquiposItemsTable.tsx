@@ -51,6 +51,7 @@ function ItemPrincipalRow({ item, numero }: { item: PresupuestoItem; numero: num
 export function PDFEquiposItemsTable({ items, moneda, total, montoEnLetras, impuestos }: {
   items: PresupuestoItem[];
   moneda: string;
+  /** Total FINAL (neto + impuestos) — lo arma generatePresupuestoPDF. */
   total: number;
   montoEnLetras: string;
   impuestos: { iva21: number; iva105: number; ganancias: number; iibb: number };

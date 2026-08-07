@@ -63,7 +63,7 @@ export function PresupuestoPDFEquipos({ data }: { data: PresupuestoPDFData }) {
         <PDFEquiposItemsTable
           items={presupuesto.items}
           moneda={presupuesto.moneda}
-          total={presupuesto.total || 0}
+          total={data.totalesPorMoneda[presupuesto.moneda] ?? presupuesto.total ?? 0}
           montoEnLetras={data.montoEnLetras}
           impuestos={data.impuestos}
         />

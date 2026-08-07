@@ -31,7 +31,14 @@ export interface PresupuestoPDFData {
     iva105: number;
     ganancias: number;
     iibb: number;
+    /** Total de impuestos por moneda — para armar el TOTAL final de cada una. */
+    porMoneda: Record<string, number>;
   };
+  /**
+   * Total FINAL por moneda = neto + impuestos (2026-08-07). `presupuesto.total`
+   * es el neto sin impuestos, así que el recuadro TOTAL usa esto, no aquél.
+   */
+  totalesPorMoneda: Record<string, number>;
   /** Módulos por sistemaId — para mostrar info de equipos en PDF contrato */
   modulosBySistema?: Record<string, ModuloSistema[]>;
   /** Per-currency totals for MIXTA presupuestos */
@@ -340,8 +347,8 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
               <Text style={{ fontSize: 8.5, color: COLORS.text }}>{fmt(value)}</Text>
             </View>
           ))}
-          {(data.totalsByCurrency
-            ? Object.entries(data.totalsByCurrency)
+          {(Object.keys(data.totalesPorMoneda).length > 0
+            ? Object.entries(data.totalesPorMoneda)
             : [[moneda, total] as [string, number]]
           ).map(([m, t]) => (
             <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 6, paddingVertical: 7, paddingHorizontal: 12, marginTop: 5 }}>

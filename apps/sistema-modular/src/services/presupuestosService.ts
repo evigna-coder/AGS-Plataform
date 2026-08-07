@@ -2039,6 +2039,19 @@ export const presupuestosService = {
         }),
     ) as Partial<Record<MonedaCuota, number>>;
 
+    // ── Denormalizados para el listado de facturación (2026-08-07) ────────
+    // Se leen ANTES de la transacción: adentro no se pueden mezclar lecturas
+    // de otras colecciones con los writes. Antes iban en '' y la lista de
+    // facturación mostraba la columna Cliente vacía.
+    const [clienteSnap, condPago] = await Promise.all([
+      pres.clienteId ? getDoc(doc(db, 'clientes', pres.clienteId)).catch(() => null) : Promise.resolve(null),
+      pres.condicionPagoId ? condicionesPagoService.getById(pres.condicionPagoId).catch(() => null) : Promise.resolve(null),
+    ]);
+    const clienteNombre = (clienteSnap?.exists() ? (clienteSnap.data() as any)?.razonSocial : '') || '';
+    const condicionPagoNombre = condPago
+      ? `${condPago.nombre}${condPago.dias > 0 ? ` (${condPago.dias} días)` : ''}`
+      : '';
+
     const nowIso = new Date().toISOString();
     const newSolRef = newDocRef('solicitudesFacturacion');
 
@@ -2074,8 +2087,8 @@ export const presupuestosService = {
         presupuestoId,
         presupuestoNumero: pres.numero,
         clienteId: pres.clienteId,
-        clienteNombre: '',           // se puede hidratar del caller si se necesita
-        condicionPago: '',
+        clienteNombre,
+        condicionPago: condicionPagoNombre,
         items: (pres.items || []).map(it => ({
           id: (typeof crypto !== 'undefined' && crypto.randomUUID)
             ? crypto.randomUUID()
@@ -2085,6 +2098,7 @@ export const presupuestosService = {
           cantidad: it.cantidad,
           cantidadTotal: it.cantidad,
           precioUnitario: it.precioUnitario,
+          descuento: it.descuento ?? null,
           subtotal: it.subtotal,
         })),
         montoTotal: extras?.monto ?? pres.total,

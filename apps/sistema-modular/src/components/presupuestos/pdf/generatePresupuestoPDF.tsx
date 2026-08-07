@@ -21,38 +21,57 @@ import type {
 import { numberToWords } from '@ags/shared';
 import { LOGO_SRC, ISO_LOGO_SRC } from './logos';
 
-/** Calcula impuestos desglosados por categoría */
+/**
+ * Calcula impuestos desglosados por categoría.
+ *
+ * `porMoneda` acumula el total de impuestos de cada moneda (para presupuestos
+ * MIXTA, donde el TOTAL se muestra por moneda). En un presupuesto de una sola
+ * moneda todo cae en `monedaBase`.
+ */
 function calcularImpuestos(
   items: Presupuesto['items'],
   categorias: CategoriaPresupuesto[],
+  monedaBase: string,
 ) {
   const catMap = new Map(categorias.map(c => [c.id, c]));
   let iva21 = 0;
   let iva105 = 0;
   let ganancias = 0;
   let iibb = 0;
+  const porMoneda: Record<string, number> = {};
 
   for (const item of items) {
     const cat = item.categoriaPresupuestoId ? catMap.get(item.categoriaPresupuestoId) : null;
     if (!cat) continue;
     const base = item.subtotal || 0;
+    const m = item.moneda || monedaBase;
+    let delItem = 0;
 
     if (cat.incluyeIva && cat.porcentajeIva) {
-      if (cat.porcentajeIva === 10.5) iva105 += base * 0.105;
-      else iva21 += base * (cat.porcentajeIva / 100);
+      const v = cat.porcentajeIva === 10.5 ? base * 0.105 : base * (cat.porcentajeIva / 100);
+      if (cat.porcentajeIva === 10.5) iva105 += v; else iva21 += v;
+      delItem += v;
     }
     if (cat.ivaReduccion && cat.porcentajeIvaReduccion) {
-      iva105 += base * (cat.porcentajeIvaReduccion / 100);
+      const v = base * (cat.porcentajeIvaReduccion / 100);
+      iva105 += v;
+      delItem += v;
     }
     if (cat.incluyeGanancias && cat.porcentajeGanancias) {
-      ganancias += base * (cat.porcentajeGanancias / 100);
+      const v = base * (cat.porcentajeGanancias / 100);
+      ganancias += v;
+      delItem += v;
     }
     if (cat.incluyeIIBB && cat.porcentajeIIBB) {
-      iibb += base * (cat.porcentajeIIBB / 100);
+      const v = base * (cat.porcentajeIIBB / 100);
+      iibb += v;
+      delItem += v;
     }
+
+    if (delItem) porMoneda[m] = (porMoneda[m] || 0) + delItem;
   }
 
-  return { iva21, iva105, ganancias, iibb };
+  return { iva21, iva105, ganancias, iibb, porMoneda };
 }
 
 export interface GeneratePDFParams {
@@ -71,10 +90,11 @@ export interface GeneratePDFParams {
 export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise<Blob> {
   const { presupuesto, cliente, establecimiento, contacto, condicionPago, categorias } = params;
 
-  const impuestos = calcularImpuestos(presupuesto.items, categorias);
   const isMixta = presupuesto.moneda === 'MIXTA';
+  const impuestos = calcularImpuestos(presupuesto.items, categorias, isMixta ? 'USD' : presupuesto.moneda);
 
-  // Per-currency totals
+  // Per-currency totals — NETOS (sin impuestos). `presupuesto.total` en
+  // Firestore es sin impuestos; el desglose de IVA/percepciones se calcula acá.
   const totalsByCurrency: Record<string, number> = {};
   if (isMixta) {
     presupuesto.items.forEach(i => { const m = i.moneda || 'USD'; totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0); });
@@ -82,9 +102,19 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     totalsByCurrency[presupuesto.moneda] = presupuesto.total || 0;
   }
 
+  /**
+   * Totales FINALES por moneda = neto + impuestos de esa moneda (2026-08-07).
+   * Antes el bloque TOTAL mostraba el neto aunque arriba listara el IVA: el
+   * cliente veía el impuesto discriminado pero sin sumar. Este es el número que
+   * va en el recuadro TOTAL y en el monto en letras.
+   */
+  const totalesPorMoneda: Record<string, number> = Object.fromEntries(
+    Object.entries(totalsByCurrency).map(([m, t]) => [m, t + (impuestos.porMoneda[m] || 0)]),
+  );
+
   const montoEnLetras = isMixta
-    ? Object.entries(totalsByCurrency).map(([m, t]) => `${numberToWords(t, m)} (${m})`).join(' + ')
-    : numberToWords(presupuesto.total || 0, presupuesto.moneda);
+    ? Object.entries(totalesPorMoneda).map(([m, t]) => `${numberToWords(t, m)} (${m})`).join(' + ')
+    : numberToWords(totalesPorMoneda[presupuesto.moneda] ?? presupuesto.total ?? 0, presupuesto.moneda);
 
   // For contrato PDFs, load modules for each linked sistema
   let modulosBySistema: Record<string, ModuloSistema[]> | undefined;
@@ -131,6 +161,7 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     impuestos,
     modulosBySistema,
     totalsByCurrency: isMixta ? totalsByCurrency : undefined,
+    totalesPorMoneda,
     fotosDataUrls,
   };
 
