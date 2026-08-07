@@ -93,12 +93,23 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
   const isMixta = presupuesto.moneda === 'MIXTA';
   const impuestos = calcularImpuestos(presupuesto.items, categorias, isMixta ? 'USD' : presupuesto.moneda);
 
-  // Per-currency totals — NETOS (sin impuestos). `presupuesto.total` en
-  // Firestore es sin impuestos; el desglose de IVA/percepciones se calcula acá.
+  /**
+   * Netos por moneda — SIEMPRE sumando los subtotales de los ítems, nunca
+   * `presupuesto.total` (2026-08-07).
+   *
+   * OJO: `presupuesto.total` NO es un neto. El editor lo guarda como
+   * `subtotal + impuestos` (ver `calculateTotals` en usePresupuestoEdit), así
+   * que usarlo como base y volver a sumarle el IVA lo duplicaba. Los ítems son
+   * la única fuente consistente: presupuestos viejos y nuevos tienen el campo
+   * `total` guardado con criterios distintos.
+   */
   const totalsByCurrency: Record<string, number> = {};
-  if (isMixta) {
-    presupuesto.items.forEach(i => { const m = i.moneda || 'USD'; totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0); });
-  } else {
+  for (const i of presupuesto.items) {
+    const m = isMixta ? (i.moneda || 'USD') : presupuesto.moneda;
+    totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0);
+  }
+  // Presupuesto sin ítems (raro, pero existe): no hay de dónde derivar el neto.
+  if (Object.keys(totalsByCurrency).length === 0 && !isMixta) {
     totalsByCurrency[presupuesto.moneda] = presupuesto.total || 0;
   }
 
@@ -162,6 +173,7 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     modulosBySistema,
     totalsByCurrency: isMixta ? totalsByCurrency : undefined,
     totalesPorMoneda,
+    netoPorMoneda: totalsByCurrency,
     fotosDataUrls,
   };
 

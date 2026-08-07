@@ -35,10 +35,13 @@ export interface PresupuestoPDFData {
     porMoneda: Record<string, number>;
   };
   /**
-   * Total FINAL por moneda = neto + impuestos (2026-08-07). `presupuesto.total`
-   * es el neto sin impuestos, así que el recuadro TOTAL usa esto, no aquél.
+   * Total FINAL por moneda = neto + impuestos (2026-08-07). No se usa
+   * `presupuesto.total`: ese campo se guarda con impuestos incluidos y volver a
+   * sumárselos duplicaba el IVA.
    */
   totalesPorMoneda: Record<string, number>;
+  /** Neto por moneda (suma de subtotales de ítems). Subtotal + IVA = TOTAL. */
+  netoPorMoneda: Record<string, number>;
   /** Módulos por sistemaId — para mostrar info de equipos en PDF contrato */
   modulosBySistema?: Record<string, ModuloSistema[]>;
   /** Per-currency totals for MIXTA presupuestos */
@@ -334,7 +337,9 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
         <View style={{ width: 280 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 }}>
             <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>Subtotal</Text>
-            <Text style={{ fontSize: 8.5, color: COLORS.text }}>{fmt(subtotal)}</Text>
+            <Text style={{ fontSize: 8.5, color: COLORS.text }}>
+              {fmt(data.netoPorMoneda[moneda] ?? subtotal)}
+            </Text>
           </View>
           {([
             impuestos.iva105 > 0 ? ['I.V.A 10,5%', impuestos.iva105] as const : null,
