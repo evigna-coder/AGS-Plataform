@@ -150,15 +150,39 @@ export function useAgenda(): UseAgendaReturn {
       .catch(err => console.error('Error cargando sistemas para agenda:', err));
   }, []);
 
+  // Padres candidatos que SÍ tienen hijas, consultando la colección — no
+  // alcanza con mirar las pendientes (2026-08-07): si la hija ya cerró
+  // técnicamente no está en `allCandidateOTs`, el padre no se detectaba como
+  // contenedor y caía en la cola "a programar" (caso 29970 con 29970.01
+  // asignada y cerrada). Solo se consultan los padres que hoy aparecerían en
+  // la cola, así que son pocas lecturas.
+  const [padresConHijas, setPadresConHijas] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const candidatosPadre = allCandidateOTs
+      .filter(ot => !ot.otNumber.includes('.'))
+      .map(ot => ot.otNumber);
+    if (candidatosPadre.length === 0) { setPadresConHijas(new Set()); return; }
+    let cancelled = false;
+    Promise.all(candidatosPadre.map(async num => {
+      try {
+        const hijas = await ordenesTrabajoService.getItemsByOtPadre(num);
+        return hijas.length > 0 ? num : null;
+      } catch { return null; }
+    })).then(res => {
+      if (!cancelled) setPadresConHijas(new Set(res.filter((n): n is string => !!n)));
+    });
+    return () => { cancelled = true; };
+  }, [allCandidateOTs]);
+
   // Derive pending OTs from candidates minus assigned (no Firestore re-read).
   // Regla 2026-04-22: ocultar OTs parent (sin punto) que tengan al menos 1
-  // child pendiente en la misma lista — el coordinador solo asigna las OTs
-  // "hijas" (X.NN), la parent es un contenedor no-accionable.
+  // child — el coordinador solo asigna las OTs "hijas" (X.NN), la parent es un
+  // contenedor no-accionable.
   const pendingOTs = useMemo(() => {
     // `otsAgendadas` viene de la suscripción GLOBAL (sin rango) — no usar
     // `entries` acá: solo trae el rango visible y una OT agendada en otra
     // semana reaparecía como pendiente (bug UAT 2026-07-30).
-    const parentsWithChildren = new Set<string>();
+    const parentsWithChildren = new Set<string>(padresConHijas);
     for (const ot of allCandidateOTs) {
       if (ot.otNumber.includes('.')) {
         const base = ot.otNumber.split('.')[0];
@@ -169,7 +193,7 @@ export function useAgenda(): UseAgendaReturn {
       !otsAgendadas.has(ot.otNumber) &&
       !parentsWithChildren.has(ot.otNumber),
     );
-  }, [allCandidateOTs, otsAgendadas]);
+  }, [allCandidateOTs, otsAgendadas, padresConHijas]);
 
   // Navigation
   const goToPrev = useCallback(() => setAnchor(prev => navigatePrev(prev, zoomLevel)), [zoomLevel]);
