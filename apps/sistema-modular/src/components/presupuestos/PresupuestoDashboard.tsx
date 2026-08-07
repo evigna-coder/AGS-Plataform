@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import type { Presupuesto, SolicitudFacturacion } from '@ags/shared';
+import type { Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHelpers';
+import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
 export type KpiFilter = '' | 'enviados' | 'aceptados' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
@@ -9,6 +10,8 @@ export type KpiFilter = '' | 'enviados' | 'aceptados' | 'fact_pendientes' | 'pen
 interface Props {
   presupuestos: Presupuesto[];
   solicitudes: SolicitudFacturacion[];
+  /** TODAS las OTs (2026-08-06): necesarias para saber si un ppto ya tiene OT. */
+  ots?: WorkOrder[];
   /** KPI activo como filtro de la lista ('' = ninguno). */
   activeKpi?: KpiFilter;
   /** Click en una tarjeta/indicador — el padre togglea el filtro. */
@@ -18,7 +21,7 @@ interface Props {
   verTodosActivo?: boolean;
 }
 
-export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
+export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
   const metrics = useMemo(() => {
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
     const aceptados = presupuestos.filter(p => p.estado === 'aceptado');
@@ -35,8 +38,12 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       return days !== null && days < 0;
     });
 
-    // Aceptados sin OT creada
-    const aceptadosSinOT = aceptados.filter(p => !p.otVinculadaNumber);
+    // Aceptados sin OT creada. Antes miraba SOLO el campo legacy
+    // `otVinculadaNumber` (2026-08-06): un ppto con OTs creadas desde el propio
+    // presupuesto — que se vinculan por `budgets` — figuraba "sin OT creada"
+    // para siempre (P1-005046-01 con 4 OTs). Ahora usa el mismo join que el
+    // control semanal y el KPI de OTs, con herencia padre→hijas.
+    const aceptadosSinOT = aceptados.filter(p => otsDelPresupuesto(p, ots).size === 0);
 
     // Aceptados sin facturar (no tienen solicitud de facturación)
     const solicitadoIds = new Set(solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));

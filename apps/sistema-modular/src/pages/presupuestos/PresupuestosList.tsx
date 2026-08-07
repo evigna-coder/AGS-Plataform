@@ -59,8 +59,14 @@ export const PresupuestosList = () => {
   const [showCondiciones, setShowCondiciones] = useState(false);
   const [showPlantillas, setShowPlantillas] = useState(false);
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
-  // OTs cerradas (cierre técnico o posterior) — join para "Pend. OC — trabajo realizado".
-  const [otsCerradas, setOtsCerradas] = useState<WorkOrder[]>([]);
+  // Todas las OTs (en vivo). `otsCerradas` se deriva para el join
+  // "Pend. OC — trabajo realizado"; la card de aceptados usa la lista completa.
+  const [todasOts, setTodasOts] = useState<WorkOrder[]>([]);
+  const unsubOtsRef = useRef<(() => void) | null>(null);
+  const otsCerradas = useMemo(
+    () => todasOts.filter(ot => ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(ot.estadoAdmin ?? '')),
+    [todasOts],
+  );
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
   const [descargandoPdfId, setDescargandoPdfId] = useState<string | null>(null);
@@ -175,11 +181,16 @@ export const PresupuestosList = () => {
       setUsuarios(usrs);
     }).catch(err => console.error('Error cargando datos de referencia:', err));
 
-    // Carga única de OTs cerradas para el badge/filtro "Pend. OC — trabajo realizado"
-    // (UAT 2026-07-17 item 1). Sin subscribe: alcanza el snapshot al montar.
-    ordenesTrabajoService.getCerradas()
-      .then(setOtsCerradas)
-      .catch(err => console.error('Error cargando OTs cerradas:', err));
+    // TODAS las OTs en vivo (2026-08-06): las usan el badge "Pend. OC — trabajo
+    // realizado" (subconjunto cerradas) y la card "aceptados sin OT creada" del
+    // dashboard. Antes era un getCerradas único al montar: con las pestañas
+    // persistentes el snapshot quedaba viejo y las cerradas no alcanzaban para
+    // saber si un ppto YA tiene OT abierta.
+    unsubOtsRef.current = ordenesTrabajoService.subscribe(
+      undefined,
+      (data: WorkOrder[]) => setTodasOts(data),
+      (err: Error) => console.error('Error suscribiendo OTs:', err),
+    );
 
     // Real-time subscription for presupuestos
     setLoading(true);
@@ -193,7 +204,7 @@ export const PresupuestosList = () => {
       undefined,
       (data) => setSolicitudes(data),
     );
-    return () => { unsubRef.current?.(); unsubSolRef.current?.(); };
+    return () => { unsubRef.current?.(); unsubSolRef.current?.(); unsubOtsRef.current?.(); };
   }, []);
 
   // No-op: onSnapshot handles real-time updates. Kept for callback compatibility.
@@ -530,6 +541,7 @@ export const PresupuestosList = () => {
           ? presupuestos.filter(p => p.tipo === 'contrato')
           : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')}
         solicitudes={solicitudes}
+        ots={todasOts}
         activeKpi={filters.kpi as any}
         // Exclusión mutua (2026-08-05): activar una card resetea el estado del
         // desplegable al default — antes se SUMABAN y elegir "En ejecución" con
