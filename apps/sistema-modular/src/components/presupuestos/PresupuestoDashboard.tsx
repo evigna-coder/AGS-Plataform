@@ -45,9 +45,17 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
     // control semanal y el KPI de OTs, con herencia padre→hijas.
     const aceptadosSinOT = aceptados.filter(p => otsDelPresupuesto(p, ots).size === 0);
 
-    // Aceptados sin facturar (no tienen solicitud de facturación)
+    // Aceptados CON TRABAJO REALIZADO y sin aviso a facturación (2026-08-06).
+    // Antes contaba todo aceptado sin solicitud: un ppto recién aceptado, con
+    // las OTs sin hacer, figuraba "sin facturar" — ruido, no acción. Ahora pide
+    // al menos una OT cerrada técnicamente: ahí sí falta facturar.
     const solicitadoIds = new Set(solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));
-    const aceptadosSinFacturar = aceptados.filter(p => !solicitadoIds.has(p.id));
+    const estadoPorOt = new Map(ots.map(o => [o.otNumber, o.estadoAdmin ?? '']));
+    const OT_CERRADA = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    const aceptadosSinFacturar = aceptados.filter(p => {
+      if (solicitadoIds.has(p.id)) return false;
+      return [...otsDelPresupuesto(p, ots)].some(n => OT_CERRADA.has(estadoPorOt.get(n) ?? ''));
+    });
 
     // OT cerrada lista para facturar pero SIN aviso a facturación generado
     // (UAT 2026-07-17: el estado dice "pendiente de facturación" pero lo que
