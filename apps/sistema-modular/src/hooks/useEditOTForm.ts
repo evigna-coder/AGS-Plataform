@@ -4,6 +4,7 @@ import {
   tiposServicioService, contactosService, modulosService, presupuestosService,
 } from '../services/firebaseService';
 import { getResponsablesOT } from '../services/personalService';
+import { deepCleanForFirestore } from '../services/firebase';
 import type {
   WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema,
   Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
@@ -389,6 +390,33 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         tiempoViaje: form.tiempoViaje,
         articulos: form.articulos,
       } as Partial<WorkOrder>);
+
+      // Vínculo INVERSO al presupuesto (2026-08-06). Asociar un ppto a una OT
+      // editándola guardaba `budgets` en la OT pero no avisaba al presupuesto:
+      // quedaba sin `otsVinculadasNumbers`, en estado 'aceptado' para siempre y
+      // figurando "sin OT creada" en el dashboard (P1-005046-01). Mismo efecto
+      // que crear la OT desde el presupuesto. Best-effort: no rompe el guardado.
+      const budgetsFinal = form.presupuestos.filter(b => b.trim() !== '');
+      for (const numero of budgetsFinal) {
+        try {
+          const pres = presupuestosCliente.find(p => p.numero === numero)
+            ?? (await presupuestosService.getAll()).find(p => p.numero === numero);
+          if (!pres) continue;
+          const prev = pres.otsVinculadasNumbers ?? [];
+          if (prev.includes(otNumber) && pres.otVinculadaNumber) continue; // ya vinculado
+          const yaAvanzado = !!pres.fechaEnvio
+            || ['enviado', 'aceptado', 'en_ejecucion'].includes(pres.estado);
+          await presupuestosService.update(pres.id, deepCleanForFirestore({
+            otVinculadaNumber: otNumber,
+            otsVinculadasNumbers: prev.includes(otNumber) ? prev : [...prev, otNumber],
+            ...(yaAvanzado && pres.estado !== 'en_ejecucion' && pres.estado !== 'pendiente_facturacion'
+              && pres.estado !== 'finalizado' ? { estado: 'en_ejecucion' } : {}),
+          }) as any);
+        } catch (err) {
+          console.error(`[useEditOTForm] vínculo inverso con ppto ${numero} falló:`, err);
+        }
+      }
+
       onSaved();
       onClose();
     } catch { alert('Error al guardar'); }
