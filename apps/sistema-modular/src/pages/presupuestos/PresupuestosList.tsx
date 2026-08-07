@@ -35,11 +35,12 @@ import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContex
 import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
+import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeOCAdeudada, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
+import { sweepPresupuestosVencidos } from '../../utils/sweepPresupuestosVencidos';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion'];
@@ -191,6 +192,13 @@ export const PresupuestosList = () => {
       (data: WorkOrder[]) => setTodasOts(data),
       (err: Error) => console.error('Error suscribiendo OTs:', err),
     );
+
+    // Auto-anulación de vencidos (2026-08-06): barrido throttled al abrir la
+    // lista. Solo toca presupuestos en etapa de oferta (pre-aceptación) — ver
+    // sweepPresupuestosVencidos. Best-effort: si falla, la lista abre igual.
+    sweepPresupuestosVencidos()
+      .then(r => { if (r.anulados > 0) console.log(`[PresupuestosList] ${r.anulados} vencido(s) anulado(s):`, r.numeros.join(', ')); })
+      .catch(err => console.error('[PresupuestosList] sweep de vencidos falló:', err));
 
     // Real-time subscription for presupuestos
     setLoading(true);
@@ -641,7 +649,11 @@ export const PresupuestosList = () => {
               <tbody className="divide-y divide-slate-100">
                 {presupuestosFiltrados.map((p) => {
                   const sym = MONEDA_SIMBOLO[(p.moneda || 'USD') as keyof typeof MONEDA_SIMBOLO] || '$';
-                  const daysExpiry = getDaysUntilExpiry(p.validUntil, p.fechaEnvio, p.validezDias);
+                  // La validez solo se muestra mientras la oferta está vigente
+                  // (pre-aceptación) — ver ESTADOS_VALIDEZ_APLICA.
+                  const daysExpiry = validezAplica(p)
+                    ? getDaysUntilExpiry(p.validUntil, p.fechaEnvio, p.validezDias)
+                    : null;
                   const daysContact = getDaysUntilContacto(p.proximoContacto);
                   return (
                     <tr key={p.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(p)}`}

@@ -62,8 +62,22 @@ export function formatMoney(value: number | null | undefined, moneda: MonedaPres
   return `${sym} ${value.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 }
 
-/** Whether the presupuesto is expired (sent and past validity). */
+/**
+ * Estados donde la VALIDEZ todavía aplica (2026-08-06): la validez es la
+ * vigencia de la OFERTA. Una vez que el cliente aceptó, el presupuesto no
+ * puede "vencer" — antes un ppto aceptado o en ejecución se pintaba de rojo
+ * como si tuviera un problema comercial.
+ */
+export const ESTADOS_VALIDEZ_APLICA: string[] = ['borrador', 'enviado', 'pendiente_oc'];
+
+/** True si la validez todavía corre para este presupuesto (pre-aceptación). */
+export function validezAplica(p: Pick<Presupuesto, 'estado'>): boolean {
+  return ESTADOS_VALIDEZ_APLICA.includes(p.estado);
+}
+
+/** Whether the presupuesto is expired (past validity AND still pre-aceptación). */
 export function isExpired(p: Presupuesto): boolean {
+  if (!validezAplica(p)) return false;
   const days = getDaysUntilExpiry(p.validUntil, p.fechaEnvio, p.validezDias);
   return days !== null && days < 0;
 }
