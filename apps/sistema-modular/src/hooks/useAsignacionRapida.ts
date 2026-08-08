@@ -268,6 +268,8 @@ export function useAsignacionRapida() {
           instrumentoTipo: c.instrumentoTipo ?? null,
           dispositivoId: c.dispositivoId ?? null,
           dispositivoDescripcion: c.tipo === 'dispositivo' ? c.label : null,
+          // La serie viaja en `codigo` del carrito (ver dispositivoPayload).
+          dispositivoSerie: c.tipo === 'dispositivo' && c.codigo !== '-' ? c.codigo : null,
           vehiculoId: c.vehiculoId ?? null,
           vehiculoPatente: c.tipo === 'vehiculo' ? c.codigo : null,
           // Patrón: lo que viaja es el LOTE, así que se guarda junto al código

@@ -121,6 +121,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
         instrumentoId: item.instrumentoId, instrumentoNombre: item.instrumentoNombre,
         instrumentoTipo: item.instrumentoTipo,
         dispositivoId: item.dispositivoId, dispositivoDescripcion: item.dispositivoDescripcion,
+        dispositivoSerie: item.dispositivoSerie,
         vehiculoId: item.vehiculoId, vehiculoPatente: item.vehiculoPatente,
         patronId: item.patronId, patronCodigo: item.patronCodigo,
         patronDescripcion: item.patronDescripcion, patronLote: item.patronLote,

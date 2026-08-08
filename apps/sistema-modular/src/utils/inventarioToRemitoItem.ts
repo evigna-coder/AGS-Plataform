@@ -37,7 +37,9 @@ export function inventarioToRemitoItem(
     instrumentoCodigo: null,
     instrumentoDescripcion: item.instrumentoNombre ?? null,
     dispositivoId: item.dispositivoId ?? null,
-    dispositivoCodigo: null,
+    // La serie SÍ es un código legible (a diferencia del id interno, que es lo
+    // que no hay que estampar). Sin esto el remito salía sin código (2026-08-08).
+    dispositivoCodigo: item.dispositivoSerie ?? null,
     dispositivoDescripcion: item.dispositivoDescripcion ?? null,
     vehiculoId: item.vehiculoId ?? null,
     vehiculoCodigo: item.vehiculoPatente ?? null,
@@ -76,7 +78,10 @@ export function partirCodigoDescripcion(texto: string | null | undefined): { cod
 
 /** Resuelve código para display según tipoEntidad del RemitoItem */
 export function getRemitoItemCodigo(item: RemitoItem): string {
-  if (item.tipoEntidad === 'instrumento') return item.instrumentoCodigo || '';
+  // El NOMBRE del instrumento es su identificador interno ("TER-03", "FLU-03"),
+  // no una descripción: va a la columna Código (2026-08-08). Antes esta columna
+  // salía vacía y el código aparecía en Descripción.
+  if (item.tipoEntidad === 'instrumento') return item.instrumentoCodigo || item.instrumentoDescripcion || '';
   if (item.tipoEntidad === 'dispositivo') return item.dispositivoCodigo || '';
   if (item.tipoEntidad === 'vehiculo') return item.vehiculoCodigo || '';
   if (item.tipoEntidad === 'minikit') return item.minikitCodigo || '';
@@ -94,12 +99,23 @@ export function getRemitoItemCodigo(item: RemitoItem): string {
     || '';
 }
 
-/** Resuelve descripción para display según tipoEntidad del RemitoItem */
+/**
+ * Resuelve descripción para display según tipoEntidad del RemitoItem.
+ *
+ * Nunca repite lo que ya está en la columna Código (2026-08-08): el minikit
+ * salía con su código en las DOS columnas, y el instrumento con su
+ * identificador en Descripción y el Código vacío.
+ */
 export function getRemitoItemDescripcion(item: RemitoItem): string {
-  if (item.tipoEntidad === 'instrumento') return item.instrumentoDescripcion || '';
-  if (item.tipoEntidad === 'dispositivo') return item.dispositivoDescripcion || '';
-  if (item.tipoEntidad === 'vehiculo') return item.vehiculoDescripcion || '';
-  if (item.tipoEntidad === 'minikit') return item.minikitCodigo || '';
+  const codigo = getRemitoItemCodigo(item);
+  const sinRepetir = (texto: string | null | undefined) => {
+    const t = (texto || '').trim();
+    return t && t.toLowerCase() !== codigo.trim().toLowerCase() ? t : '';
+  };
+  if (item.tipoEntidad === 'instrumento') return sinRepetir(item.instrumentoDescripcion);
+  if (item.tipoEntidad === 'dispositivo') return sinRepetir(item.dispositivoDescripcion);
+  if (item.tipoEntidad === 'vehiculo') return sinRepetir(item.vehiculoDescripcion);
+  if (item.tipoEntidad === 'minikit') return sinRepetir(item.minikitCodigo);
   // Loaner: nunca el LNR como descripción (2026-08-07) — es un identificador
   // interno, no dice qué equipo es. Si no hay descripción, mejor vacío.
   if (item.tipoEntidad === 'loaner') {

@@ -3487,6 +3487,12 @@ export interface ItemAsignacion {
   instrumentoTipo?: 'instrumento' | 'patron' | null;
   dispositivoId?: string | null;
   dispositivoDescripcion?: string | null;
+  /**
+   * N° de serie del dispositivo (2026-08-08). Es lo que identifica la unidad
+   * física —dos notebooks del mismo modelo son indistinguibles sin él— y se
+   * descartaba al asignar, así que el remito salía sin código.
+   */
+  dispositivoSerie?: string | null;
   vehiculoId?: string | null;
   vehiculoPatente?: string | null;
   /**
