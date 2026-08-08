@@ -1050,6 +1050,40 @@ export const ordenesTrabajoService = {
   },
 
   /**
+   * Suma el item recién abierto al vínculo de los presupuestos del trabajo
+   * (2026-08-08).
+   *
+   * La referencia NO se mueve: la OT tiene que poder mostrar siempre a qué
+   * presupuesto corresponde, incluso la de un presupuesto ya facturado (servicio
+   * completo con pago adelantado, que se factura antes de la primera OT y
+   * acompaña a todos los items). Los items anteriores conservan su `budgets`.
+   *
+   * Que un presupuesto ya facturado no vuelva al control semanal lo resuelve el
+   * control por estado, no sacándole la referencia a la OT.
+   *
+   * @param numeros números de presupuesto del trabajo
+   * @param nuevoItem otNumber del item recién creado
+   */
+  async vincularPresupuestosAlItem(numeros: string[], nuevoItem: string): Promise<void> {
+    if (numeros.length === 0) return;
+    try {
+      const todos = await presupuestosService.getAll();
+      for (const numero of numeros) {
+        const p = todos.find(x => x.numero === numero);
+        if (!p) continue;
+        const previas = p.otsVinculadasNumbers ?? [];
+        if (previas.includes(nuevoItem)) continue;
+        await presupuestosService.update(p.id, deepCleanForFirestore({
+          otVinculadaNumber: nuevoItem,          // la última abierta
+          otsVinculadasNumbers: [...previas, nuevoItem],
+        }) as any);
+      }
+    } catch (err) {
+      console.error('[vincularPresupuestosAlItem] no se pudo actualizar el vínculo:', err);
+    }
+  },
+
+  /**
    * Circuito B — libera para facturación una OT retenida por documentación
    * (`retenidaFacturacion`). Hace el trabajo diferido del cierre: registra el
    * otNumber en `otsListasParaFacturar[]` de cada presupuesto vinculado (avanzando
@@ -1402,6 +1436,16 @@ export const ordenesTrabajoService = {
       // Retenida por documentación (circuito B): no entra a otsListasParaFacturar ni
       // avanza el ppto acá — eso ocurre en liberarParaFacturacion cuando la doc esté.
       if (!retenerPorDoc) for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
+        // Un presupuesto que todavía es BORRADOR (ni se envió al cliente) no
+        // puede tener OTs "listas para facturar": no hay nada vendido todavía
+        // (2026-08-08). Pasa cuando el ppto nace en un item, el trabajo sigue por
+        // los items siguientes y este item se cierra antes de que se envíe. Sin
+        // este guard la OT quedaba ofrecida para facturar contra ese ppto y el
+        // generador de avisos la aceptaba.
+        if (estado === 'borrador') {
+          console.log(`[cerrarAdministrativamente] ppto ${pid} en borrador: OT ${otNumber} NO entra a otsListasParaFacturar`);
+          continue;
+        }
         const yaListo = current.includes(otNumber);
         // Item 10: avanzar solo si TODAS las OTs del ppto quedaron cerradas
         // (check pre-tx; default true = comportamiento previo, fail-safe).

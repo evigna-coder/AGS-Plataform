@@ -263,9 +263,20 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           return !!ot && esEntregaOT(ot) && !esOTCerradaTecnicamente(ot);
         })
         .sort();
+      // Trabajo TODAVÍA en curso: hay algún item del ppto sin cerrar
+      // técnicamente. Un presupuesto que nace en el item .04 y sigue por el .05
+      // no es un pendiente de facturación: el trabajo no terminó (2026-08-08).
+      const trabajoEnCurso = [...nums].some(n => {
+        const ot = otByNumber.get(n);
+        if (!ot) return false;
+        return !ot.estadoAdmin || !OT_CERRADA.has(ot.estadoAdmin);
+      });
       // Pre-aceptación: entra SOLO si el trabajo ya se hizo (OT cerrada) o si
-      // tiene una OT agendada esta semana — no todo borrador del sistema.
-      const sinAceptar = esPreAceptacion && !enUniversoTrabajo && tieneTrabajoRealizado;
+      // tiene una OT agendada esta semana — no todo borrador del sistema. Y sale
+      // apenas se abre el item siguiente, hasta que ese también se realice: si
+      // no, el mismo ppto figura como pendiente de facturar mientras el trabajo
+      // continúa (caso 29688.04 → .05).
+      const sinAceptar = esPreAceptacion && !enUniversoTrabajo && tieneTrabajoRealizado && !trabajoEnCurso;
       if (esPreAceptacion && !enUniversoAnticipada && !sinAceptar && otsEnSemana.length === 0) continue;
       if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta
         && otsEnSemana.length === 0 && entregasPpto.length === 0) continue;

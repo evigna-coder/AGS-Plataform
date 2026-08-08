@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordenesTrabajoService, fichasService, leadsService } from '../services/firebaseService';
+import { ordenesTrabajoService, fichasService, leadsService, presupuestosService } from '../services/firebaseService';
+import { presupuestosVivosDeHermanas } from '../utils/presupuestosVivosOT';
 import type { WorkOrder, Cliente } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
 
@@ -63,8 +64,28 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
       const ahoraIso = new Date().toISOString();
+
+      // Los presupuestos VIVOS del trabajo acompañan al item nuevo (2026-08-08).
+      // El ppto nace en un item (ej. el .02, pedido de partes desde el portal) y
+      // el trabajo sigue por la importación, la instalación y las pruebas: recién
+      // se factura varios items después. Antes el item nuevo nacía con
+      // `budgets: []` y había que re-vincularlo a mano en cada uno — si alguien
+      // se olvidaba, el ppto quedaba colgado en el item que ya se cerró.
+      let budgetsHeredados: string[] = [];
+      try {
+        const padre = otNumber.split('.')[0];
+        const [hermanas, presupuestos] = await Promise.all([
+          ordenesTrabajoService.getItemsByOtPadre(padre),
+          presupuestosService.getAll(),
+        ]);
+        budgetsHeredados = presupuestosVivosDeHermanas(hermanas, presupuestos);
+      } catch (err) {
+        // Best-effort: sin el arrastre el item se crea igual y se vincula a mano.
+        console.warn('[handleCreateNewItem] no se pudieron heredar presupuestos:', err);
+      }
+
       await ordenesTrabajoService.create({
-        otNumber: nextNum, status: 'BORRADOR', budgets: [],
+        otNumber: nextNum, status: 'BORRADOR', budgets: budgetsHeredados,
         // Estado inicial explícito (2026-08-06): sin esto el item quedaba sin
         // estadoAdmin en Firestore (los filtros por estado no lo veían).
         estadoAdmin: 'CREADA', estadoAdminFecha: ahoraIso,
@@ -91,7 +112,17 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         clienteId: form.clienteId || null, sistemaId: form.sistemaId || null,
         moduloId: form.moduloId || null,
       } as any);
-      alert(`Item ${nextNum} creado exitosamente`);
+
+      // El item nuevo pasa a ser la OT activa del presupuesto; los anteriores
+      // conservan la referencia (la OT siempre muestra a qué ppto corresponde).
+      if (budgetsHeredados.length > 0) {
+        await ordenesTrabajoService.vincularPresupuestosAlItem(budgetsHeredados, nextNum)
+          .catch(err => console.error('[handleCreateNewItem] vincular presupuestos falló:', err));
+      }
+
+      alert(budgetsHeredados.length > 0
+        ? `Item ${nextNum} creado con los presupuestos del trabajo: ${budgetsHeredados.join(', ')}`
+        : `Item ${nextNum} creado exitosamente`);
       setShowNewItemModal(false);
       setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' });
       if (otNumber && !otNumber.includes('.')) {
