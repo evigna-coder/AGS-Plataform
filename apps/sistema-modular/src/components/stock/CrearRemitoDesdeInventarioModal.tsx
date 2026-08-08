@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
+import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -266,5 +267,5 @@ function getItemCodigo(item: InventarioItem): string {
 }
 
 function getItemDesc(item: InventarioItem): string {
-  return item.articuloDescripcion || item.instrumentoNombre || item.dispositivoDescripcion || item.minikitCodigo || '';
+  return descripcionItemAsignacion(item);
 }

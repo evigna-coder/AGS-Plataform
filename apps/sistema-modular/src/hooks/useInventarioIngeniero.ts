@@ -5,6 +5,7 @@ import {
 } from '../services/firebaseService';
 import { movimientosService } from '../services/stockService';
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
+import { descripcionItemAsignacion } from '../utils/itemAsignacionLabel';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 
@@ -54,11 +55,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const permanentes = allItems.filter(i => i.permanente);
 
   const itemLabel = (item: InventarioItem) =>
-    item.articuloCodigo || item.minikitCodigo || item.instrumentoNombre || item.dispositivoDescripcion
-    || item.vehiculoPatente
-    // Patrón: el lote es lo que identifica la instancia física (2026-08-07).
-    || (item.patronCodigo ? `${item.patronCodigo}${item.patronLote ? ` — Lote ${item.patronLote}` : ''}` : null)
-    || item.tipo;
+    item.articuloCodigo || descripcionItemAsignacion(item, item.tipo);
 
   // ── Devolver: revert entity status + mark asignacion item ──
   const handleDevolver = async (item: InventarioItem) => {

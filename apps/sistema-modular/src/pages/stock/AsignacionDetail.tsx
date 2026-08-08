@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { useParams, Link } from 'react-router-dom';
 import { asignacionesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -145,7 +146,7 @@ const ItemRow = ({ item, onDevolver, onConsumir, saving }: {
   saving: boolean;
 }) => {
   const codigo = item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
-  const desc = item.articuloDescripcion || item.instrumentoNombre || item.dispositivoDescripcion || item.minikitCodigo || item.loanerCodigo || '';
+  const desc = descripcionItemAsignacion(item);
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
   const canAct = item.estado === 'asignado' && remaining > 0;
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { asignacionesService } from '../../services/firebaseService';
 import type { ItemAsignacion } from '@ags/shared';
 
@@ -34,7 +35,7 @@ export function InventarioIngenieroInline({ ingenieroId }: { ingenieroId: string
   const codigo = (i: ItemAsignacion) =>
     i.articuloCodigo || i.minikitCodigo || i.loanerCodigo || i.vehiculoPatente || '';
   const etiqueta = (i: ItemAsignacion) =>
-    i.articuloDescripcion || i.instrumentoNombre || i.dispositivoDescripcion || i.minikitCodigo || i.tipo;
+    descripcionItemAsignacion(i, i.tipo);
   const restante = (i: ItemAsignacion) => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida;
 
   return (
