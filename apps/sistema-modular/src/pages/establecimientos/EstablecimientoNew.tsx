@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { establecimientosService, clientesService, condicionesPagoService } from '../../services/firebaseService';
 import type { Establecimiento, Cliente, TipoServicioCliente } from '@ags/shared';
@@ -190,7 +191,7 @@ export const EstablecimientoNew = () => {
               onSelectAddress={(res: AutocompleteResult) => {
                 setFormData(prev => ({
                   ...prev,
-                  direccion: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                  direccion: direccionDesdeAutocomplete(res, prev.direccion),
                   localidad: res.localidad || prev.localidad,
                   provincia: res.provincia || prev.provincia,
                   pais: res.pais || prev.pais,

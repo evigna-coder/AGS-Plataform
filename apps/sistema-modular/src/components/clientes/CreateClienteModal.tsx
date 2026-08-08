@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -173,7 +174,7 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
                 onSelectAddress={(res: AutocompleteResult) => {
                   setForm(prev => ({
                     ...prev,
-                    direccionFiscal: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                    direccionFiscal: direccionDesdeAutocomplete(res, prev.direccionFiscal),
                     localidadFiscal: res.localidad || prev.localidadFiscal,
                     provinciaFiscal: res.provincia || prev.provinciaFiscal,
                     codigoPostalFiscal: res.codigoPostal || prev.codigoPostalFiscal,

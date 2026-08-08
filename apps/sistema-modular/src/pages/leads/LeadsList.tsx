@@ -97,15 +97,14 @@ export const LeadsList = () => {
 
   // Build Firestore query filters (stable ref via JSON key)
   const queryFilters = useMemo(() => {
-    // Vista Sistema (2026-08-06): los autogenerados suelen estar asignados a
-    // otros — el "solo míos" default no aplica ahí (se ven todos).
-    const responsableFilter = filters.vista === 'sistema'
-      ? (filters.responsable || undefined)
-      : filters.soloMios && usuario
-        ? usuario.id
-        : (filters.misCreados || filters.misDerivados)
-          ? undefined
-          : (filters.responsable || undefined);
+    // "Solo míos" aplica en LAS DOS pestañas (2026-08-07). Antes la vista
+    // Sistema lo ignoraba a propósito y cada uno terminaba viendo los
+    // autogenerados de todos, incluidos los de otro responsable.
+    const responsableFilter = filters.soloMios && usuario
+      ? usuario.id
+      : (filters.misCreados || filters.misDerivados)
+        ? undefined
+        : (filters.responsable || undefined);
     // Estado se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
     return {
       ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),

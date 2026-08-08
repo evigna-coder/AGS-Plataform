@@ -7,6 +7,14 @@ export interface AutocompleteResult {
     number: string;
     localidad: string;
     provincia: string;
+    /**
+     * Lo que el usuario tipeó y Google no devuelve: "km 452", "lote 7", "piso 3".
+     * Los formularios lo anexan a la dirección — sin esto se perdía al elegir
+     * la sugerencia (2026-08-08).
+     */
+    complemento: string;
+    /** Texto tal cual lo tipeó el usuario, antes de que Google pise el input. */
+    tipeado: string;
     pais: string;
     codigoPostal: string;
     lat?: number;
@@ -16,6 +24,46 @@ export interface AutocompleteResult {
 
 function getComponent(components: any[], type: string): string {
     return components.find(c => c.types.includes(type))?.long_name ?? '';
+}
+
+/**
+ * Fragmentos que Google NO devuelve pero identifican el lugar (2026-08-08):
+ * "Ruta 12 km 452" existe como dirección real, pero Google resuelve "Ruta 12" y
+ * el "km 452" —que es lo único que dice DÓNDE— se perdía al elegir la sugerencia.
+ * Lo mismo con lotes, manzanas, parcelas y pisos.
+ */
+const COMPLEMENTO_PATTERNS = [
+    /\bkm\.?\s*\d+(?:[.,]\d+)?\b/gi,          // km 452 / Km. 452,5
+    /\bs\/?n\b/gi,                             // s/n
+    /\b(?:lote|lt)\.?\s*[\w-]+\b/gi,
+    /\b(?:manzana|mza?)\.?\s*[\w-]+\b/gi,
+    /\bparcela\s*[\w-]+\b/gi,
+    /\b(?:piso|p\.)\s*[\w-]+\b/gi,
+    /\b(?:depto|dpto|dto)\.?\s*[\w-]+\b/gi,
+    /\b(?:oficina|of)\.?\s*[\w-]+\b/gi,
+];
+
+/**
+ * Extrae del texto TIPEADO los fragmentos que el resultado de Google no
+ * contiene. Se compara sin acentos ni mayúsculas para no duplicar lo que ya
+ * viene en la dirección formateada.
+ */
+export function extraerComplemento(tipeado: string, formattedAddress: string): string {
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const enResultado = norm(formattedAddress);
+    const encontrados: string[] = [];
+    for (const re of COMPLEMENTO_PATTERNS) {
+        const matches = tipeado.match(re);
+        if (!matches) continue;
+        for (const m of matches) {
+            const limpio = m.trim();
+            // Ya está en la dirección de Google → no repetirlo.
+            if (enResultado.includes(norm(limpio))) continue;
+            if (encontrados.some(e => norm(e) === norm(limpio))) continue;
+            encontrados.push(limpio);
+        }
+    }
+    return encontrados.join(' ');
 }
 
 interface AddressAutocompleteProps {
@@ -73,6 +121,8 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 }) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const autocompleteRef = useRef<any>(null);
+    /** Último texto TIPEADO por el usuario (Google pisa el input al seleccionar). */
+    const tipeadoRef = useRef('');
     const [apiKeyMissing, setApiKeyMissing] = useState(false);
 
     useEffect(() => {
@@ -91,6 +141,9 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             });
 
             autocompleteRef.current.addListener('place_changed', async () => {
+                // Lo tipeado ANTES de que Google reemplace el input — de ahí se
+                // rescata el "km 452" que la sugerencia no trae.
+                const tipeado = tipeadoRef.current;
                 const place = autocompleteRef.current?.getPlace();
                 if (!place || !place.address_components) return;
 
@@ -145,6 +198,8 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                     formattedAddress,
                     street,
                     number,
+                    complemento: extraerComplemento(tipeado, formattedAddress),
+                    tipeado,
                     localidad,
                     provincia,
                     pais,
@@ -171,7 +226,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 ref={inputRef}
                 label={label}
                 value={value}
-                onChange={onChange}
+                onChange={e => { tipeadoRef.current = e.target.value; onChange(e); }}
                 error={error}
                 placeholder={placeholder}
                 required={required}
@@ -179,6 +234,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             {!apiKeyMissing && (
                 <p className="text-xs text-slate-500 mt-1">
                     Busque y seleccione una dirección sugerida para estandarizar los datos (o ingrese manualmente).
+                    {' '}El <strong>km</strong>, lote o piso que escriba se conserva aunque Google no lo reconozca.
                 </p>
             )}
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import { useParams, useNavigate } from 'react-router-dom';
 import { proveedoresService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -230,8 +231,18 @@ export const ProveedorDetail = () => {
                       value={form.direccion}
                       onChange={e => set('direccion', e.target.value)}
                       placeholder="Buscar dirección..."
-                      onSelectAddress={res => set('direccion',
-                        res.formattedAddress || (res.street ? `${res.street}${res.number ? ` ${res.number}` : ''}` : form.direccion))}
+                      // El autocomplete ya devuelve localidad/provincia/país y
+                      // acá se descartaban: la ficha quedaba con la dirección
+                      // completa pero Localidad y Provincia vacías, y el bloque
+                      // transportista del remito salía sin esos datos
+                      // (2026-08-07). No pisa lo ya cargado a mano.
+                      onSelectAddress={res => setForm(prev => ({
+                        ...prev,
+                        direccion: direccionDesdeAutocomplete(res, prev.direccion),
+                        localidad: res.localidad || prev.localidad,
+                        provincia: res.provincia || prev.provincia,
+                        pais: res.pais || prev.pais,
+                      }))}
                     />
                   </div>
                   <Input inputSize="sm" label="Condiciones de pago" value={form.condicionesPago} onChange={e => set('condicionesPago', e.target.value)} />

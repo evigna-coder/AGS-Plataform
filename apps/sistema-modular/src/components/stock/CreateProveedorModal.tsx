@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -16,7 +17,10 @@ interface Props {
 const emptyForm = {
   nombre: '', tipo: 'nacional' as 'nacional' | 'internacional', codigoOC: '',
   contacto: '', email: '', telefono: '', pais: '', cuit: '',
-  direccion: '', notas: '',
+  // Localidad / provincia / condición IVA (2026-08-07): el alta rápida no los
+  // pedía y quedaban vacíos para siempre — el bloque transportista del remito
+  // salía sin localidad ni provincia.
+  direccion: '', localidad: '', provincia: '', condicionIva: '', notas: '',
   banco: '', cuentaBancaria: '', swift: '', iban: '',
   bancoIntermediario: '', swiftIntermediario: '', abaIntermediario: '',
 };
@@ -45,6 +49,9 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
         pais: form.pais.trim() || null,
         cuit: form.cuit.trim() || null,
         direccion: form.direccion.trim() || null,
+        localidad: form.localidad.trim() || null,
+        provincia: form.provincia.trim() || null,
+        condicionIva: form.condicionIva.trim() || null,
         notas: form.notas.trim() || null,
         ...(form.tipo === 'internacional' ? {
           banco: form.banco.trim() || null,
@@ -112,12 +119,23 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
                 onSelectAddress={(res: AutocompleteResult) => {
                   setForm(prev => ({
                     ...prev,
-                    direccion: res.formattedAddress
-                      || (res.street ? `${res.street}${res.number ? ` ${res.number}` : ''}` : prev.direccion),
+                    direccion: direccionDesdeAutocomplete(res, prev.direccion),
+                    // El autocomplete ya traía localidad y provincia; se
+                    // descartaban (2026-08-07).
+                    localidad: res.localidad || prev.localidad,
+                    provincia: res.provincia || prev.provincia,
                     pais: res.pais || prev.pais,
                   }));
                 }}
               />
+            </div>
+            <Input inputSize="sm" label="Localidad" value={form.localidad}
+              onChange={e => set('localidad', e.target.value)} placeholder="Se completa con la dirección" />
+            <Input inputSize="sm" label="Provincia" value={form.provincia}
+              onChange={e => set('provincia', e.target.value)} placeholder="Se completa con la dirección" />
+            <div className="col-span-2">
+              <Input inputSize="sm" label="Condicion IVA" value={form.condicionIva}
+                onChange={e => set('condicionIva', e.target.value)} placeholder="IVA Responsable Inscripto" />
             </div>
           </div>
         </div>

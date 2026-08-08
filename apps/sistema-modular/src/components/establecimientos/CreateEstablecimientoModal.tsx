@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { establecimientosService, clientesService, condicionesPagoService } from '../../services/firebaseService';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import type { Cliente, CondicionPago } from '@ags/shared';
 
 interface Props {
@@ -129,7 +130,7 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
                 onSelectAddress={(res: AutocompleteResult) => {
                   setForm(prev => ({
                     ...prev,
-                    direccion: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                    direccion: direccionDesdeAutocomplete(res, prev.direccion),
                     localidad: res.localidad || prev.localidad,
                     provincia: res.provincia || prev.provincia,
                     pais: res.pais || prev.pais,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import type { Cliente, RequisitoFacturacion } from '@ags/shared';
 import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
@@ -137,7 +138,7 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
               onSelectAddress={(res: AutocompleteResult) => {
                 setFormData({
                   ...formData,
-                  direccionFiscal: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                  direccionFiscal: direccionDesdeAutocomplete(res, formData.direccionFiscal),
                   localidadFiscal: res.localidad || formData.localidadFiscal,
                   provinciaFiscal: res.provincia || formData.provinciaFiscal,
                   codigoPostalFiscal: res.codigoPostal || formData.codigoPostalFiscal,

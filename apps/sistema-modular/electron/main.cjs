@@ -423,6 +423,45 @@ function saveDriveConfig(config) {
   writeFileSync(DRIVE_CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
+/**
+ * Menú contextual (botón derecho) con Cortar / Copiar / Pegar en TODA la app
+ * (2026-08-08). Electron no trae menú contextual por defecto: en los campos de
+ * texto el botón derecho no hacía nada y varios usuarios pegan así, no con
+ * Ctrl+V.
+ *
+ * Se engancha en `web-contents-created` para que valga en todas las ventanas
+ * —principal, módulos en ventana aparte, reportes— sin tocar cada creación.
+ */
+function registerContextMenu() {
+  const { Menu, app: electronApp } = require('electron');
+  electronApp.on('web-contents-created', (_e, contents) => {
+    contents.on('context-menu', (_event, props) => {
+      const { isEditable, editFlags, selectionText } = props;
+      const tieneSeleccion = !!(selectionText && selectionText.trim());
+      const items = [];
+
+      if (isEditable) {
+        items.push(
+          { role: 'undo', label: 'Deshacer', enabled: editFlags.canUndo },
+          { role: 'redo', label: 'Rehacer', enabled: editFlags.canRedo },
+          { type: 'separator' },
+          { role: 'cut', label: 'Cortar', enabled: editFlags.canCut },
+          { role: 'copy', label: 'Copiar', enabled: editFlags.canCopy },
+          { role: 'paste', label: 'Pegar', enabled: editFlags.canPaste },
+          { type: 'separator' },
+          { role: 'selectAll', label: 'Seleccionar todo' },
+        );
+      } else if (tieneSeleccion) {
+        // Fuera de un input: copiar lo seleccionado (tablas, detalles).
+        items.push({ role: 'copy', label: 'Copiar' });
+      }
+
+      if (items.length === 0) return;
+      Menu.buildFromTemplate(items).popup({ window: BrowserWindow.fromWebContents(contents) ?? undefined });
+    });
+  });
+}
+
 function registerIpcHandlers() {
   // IPC: Check if Drive is configured
   ipcMain.handle('drive:is-configured', () => {
@@ -979,6 +1018,7 @@ console.log('[App] requestSingleInstanceLock →', gotTheLock);
   // Cuando Electron esté listo
   app.whenReady().then(async () => {
     registerIpcHandlers();
+    registerContextMenu();
     if (!isDev) {
       const distPath = join(__dirname, '..', 'dist');
       try {
