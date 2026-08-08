@@ -319,6 +319,34 @@ export const misOTService = {
   },
 
   /**
+   * Certificado y vencimiento del LOTE que el ingeniero tiene asignado
+   * (2026-08-08).
+   *
+   * Se busca el lote exacto, no "el primero que tenga certificado": el
+   * ingeniero se llevó un lote concreto y presentar el certificado de otro
+   * invalida la calibración. Si el lote ya no está en el patrón (se dio de
+   * baja), devuelve nulls en vez de caer a otro.
+   */
+  async getPatronLoteInfo(patronId: string, lote: string | null): Promise<{
+    certificadoUrl: string | null;
+    fechaVencimiento: string | null;
+  }> {
+    const vacio = { certificadoUrl: null, fechaVencimiento: null };
+    if (!patronId) return vacio;
+    const snap = await getDoc(doc(db, 'patrones', patronId));
+    if (!snap.exists()) return vacio;
+    const data = snap.data() as {
+      lotes?: { lote?: string; certificadoUrl?: string | null; fechaVencimiento?: string | null }[];
+    };
+    const l = (data.lotes ?? []).find(x => (x.lote || '') === (lote || ''));
+    if (!l) return vacio;
+    return {
+      certificadoUrl: l.certificadoUrl ?? null,
+      fechaVencimiento: l.fechaVencimiento ?? null,
+    };
+  },
+
+  /**
    * Datos del establecimiento para la banda del detalle (la OT solo guarda el id):
    * nombre + geolocalización validada con Google (lat/lng/placeId) para el link a Maps.
    */

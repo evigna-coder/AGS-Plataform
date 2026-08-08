@@ -11,6 +11,13 @@ export interface KitItem {
   /** URL del certificado (instrumentos/patrones) — habilita "Ver certificado ↗". */
   certificadoUrl: string | null;
   tipo: 'instrumento' | 'patron' | 'minikit' | 'articulo' | 'dispositivo';
+  /**
+   * Vencimiento del lote de patrón (2026-08-08). Se muestra al ingeniero
+   * porque usar un patrón vencido invalida la calibración, y en campo no tiene
+   * cómo chequearlo de otra forma.
+   */
+  vencimiento?: string | null;
+  vencido?: boolean;
 }
 
 /**
@@ -67,6 +74,25 @@ export function useKitIngeniero(ingenieroUsuarioId: string | null | undefined) {
               codigo: item.articuloCodigo ?? null,
               certificadoUrl: cert,
               tipo: item.instrumentoTipo === 'patron' ? 'patron' : 'instrumento',
+            });
+          } else if (item.patronId) {
+            // Patrones con LOTE (2026-08-08): antes no existían como asignables,
+            // así que el kit del portal no los mostraba y el ingeniero no tenía
+            // de dónde sacar el certificado estando en el cliente.
+            const info = await misOTService
+              .getPatronLoteInfo(item.patronId, item.patronLote ?? null)
+              .catch(() => ({ certificadoUrl: null, fechaVencimiento: null }));
+            const hoy = new Date().toISOString().slice(0, 10);
+            out.push({
+              nombre: item.patronDescripcion || 'Patrón',
+              // El lote ES la instancia física: sin él, el certificado no
+              // identifica lo que el ingeniero tiene en la mano.
+              codigo: [item.patronCodigo, item.patronLote ? `Lote ${item.patronLote}` : null]
+                .filter(Boolean).join(' · ') || null,
+              certificadoUrl: info.certificadoUrl,
+              tipo: 'patron',
+              vencimiento: info.fechaVencimiento,
+              vencido: !!info.fechaVencimiento && info.fechaVencimiento.slice(0, 10) < hoy,
             });
           } else if (item.dispositivoId) {
             out.push({ nombre: item.dispositivoDescripcion || 'Dispositivo', codigo: null, certificadoUrl: null, tipo: 'dispositivo' });

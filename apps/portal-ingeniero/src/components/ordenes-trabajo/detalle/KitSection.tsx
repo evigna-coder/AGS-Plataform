@@ -25,6 +25,14 @@ export function KitIngenieroCard({ items, loading }: { items: KitItem[]; loading
             <span className="block font-mono text-[11px] text-slate-500 mt-px">
               {[TIPO_LABEL[item.tipo], item.codigo].filter(Boolean).join(' · ')}
             </span>
+            {/* Vencimiento del lote de patrón (2026-08-08): usar uno vencido
+                invalida la calibración y en campo no hay cómo chequearlo. */}
+            {item.vencimiento && (
+              <span className={`block font-mono text-[11px] mt-px ${item.vencido ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                {item.vencido ? '⚠ VENCIDO el ' : 'Vence '}
+                {item.vencimiento.slice(0, 10).split('-').reverse().join('/')}
+              </span>
+            )}
           </div>
           {item.certificadoUrl && (
             <a
