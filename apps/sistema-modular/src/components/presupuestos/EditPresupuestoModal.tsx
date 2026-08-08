@@ -13,6 +13,7 @@ import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSec
 import { PresupuestoReservasSection } from './PresupuestoReservasSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
 import { FactorHistoryButton } from './FactorHistoryButton';
+import { NotasPrecioButton } from './NotasPrecioButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
 import { SubItemsRow } from './equipos/SubItemsRow';
 import { VentasMetadataSection } from './VentasMetadataSection';
@@ -288,10 +289,18 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         />
 
         {form.clienteId && (
-          <div className="flex justify-end -mt-1 mb-1">
+          <div className="flex justify-end gap-2 -mt-1 mb-1">
             <FactorHistoryButton
               clienteId={form.clienteId}
               clienteNombre={cliente?.razonSocial}
+              variant="pill"
+            />
+            {/* Libreta de armado de precio del cliente (2026-08-08). */}
+            <NotasPrecioButton
+              clienteId={form.clienteId}
+              clienteNombre={cliente?.razonSocial}
+              presupuestoId={presupuestoId}
+              presupuestoNumero={form.numero || null}
               variant="pill"
             />
           </div>

@@ -8,124 +8,24 @@ import { PresupuestoPDFEstandar } from './PresupuestoPDFEstandar';
 import { PresupuestoPDFContrato } from './PresupuestoPDFContrato';
 import { PresupuestoPDFEquipos } from './PresupuestoPDFEquipos';
 import { fetchFotosAsDataUrls } from './equipos/fotosDataUrl';
-import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
-import type {
-  Presupuesto,
-  Cliente,
-  Establecimiento,
-  ContactoEstablecimiento,
-  CondicionPago,
-  CategoriaPresupuesto,
-  ModuloSistema,
-} from '@ags/shared';
-import { numberToWords } from '@ags/shared';
-import { LOGO_SRC, ISO_LOGO_SRC } from './logos';
+import type { ModuloSistema } from '@ags/shared';
+// La construcción de datos (impuestos, netos/totales por moneda, monto en letras)
+// vive en presupuestoPdfData — fuente única compartida con el backup (pdf-regen).
+import { buildPresupuestoPDFData, type GeneratePDFParams } from './presupuestoPdfData';
 
-/**
- * Calcula impuestos desglosados por categoría.
- *
- * `porMoneda` acumula el total de impuestos de cada moneda (para presupuestos
- * MIXTA, donde el TOTAL se muestra por moneda). En un presupuesto de una sola
- * moneda todo cae en `monedaBase`.
- */
-function calcularImpuestos(
-  items: Presupuesto['items'],
-  categorias: CategoriaPresupuesto[],
-  monedaBase: string,
-) {
-  const catMap = new Map(categorias.map(c => [c.id, c]));
-  let iva21 = 0;
-  let iva105 = 0;
-  let ganancias = 0;
-  let iibb = 0;
-  const porMoneda: Record<string, number> = {};
-
-  for (const item of items) {
-    const cat = item.categoriaPresupuestoId ? catMap.get(item.categoriaPresupuestoId) : null;
-    if (!cat) continue;
-    const base = item.subtotal || 0;
-    const m = item.moneda || monedaBase;
-    let delItem = 0;
-
-    if (cat.incluyeIva && cat.porcentajeIva) {
-      const v = cat.porcentajeIva === 10.5 ? base * 0.105 : base * (cat.porcentajeIva / 100);
-      if (cat.porcentajeIva === 10.5) iva105 += v; else iva21 += v;
-      delItem += v;
-    }
-    if (cat.ivaReduccion && cat.porcentajeIvaReduccion) {
-      const v = base * (cat.porcentajeIvaReduccion / 100);
-      iva105 += v;
-      delItem += v;
-    }
-    if (cat.incluyeGanancias && cat.porcentajeGanancias) {
-      const v = base * (cat.porcentajeGanancias / 100);
-      ganancias += v;
-      delItem += v;
-    }
-    if (cat.incluyeIIBB && cat.porcentajeIIBB) {
-      const v = base * (cat.porcentajeIIBB / 100);
-      iibb += v;
-      delItem += v;
-    }
-
-    if (delItem) porMoneda[m] = (porMoneda[m] || 0) + delItem;
-  }
-
-  return { iva21, iva105, ganancias, iibb, porMoneda };
-}
-
-export interface GeneratePDFParams {
-  presupuesto: Presupuesto;
-  cliente: Cliente | null;
-  establecimiento: Establecimiento | null;
-  contacto: ContactoEstablecimiento | null;
-  condicionPago: CondicionPago | null;
-  categorias: CategoriaPresupuesto[];
-}
+export type { GeneratePDFParams };
 
 /**
  * Genera el PDF de un presupuesto y devuelve el Blob.
  * Selecciona automáticamente el template según el tipo.
+ *
+ * La construcción de datos (impuestos, totales, monto en letras) está en
+ * `buildPresupuestoPDFData` (presupuestoPdfData) — compartida con el backup.
+ * Acá quedan solo los fetch que requieren browser/Firestore: módulos de
+ * contrato y fotos de equipos.
  */
 export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise<Blob> {
-  const { presupuesto, cliente, establecimiento, contacto, condicionPago, categorias } = params;
-
-  const isMixta = presupuesto.moneda === 'MIXTA';
-  const impuestos = calcularImpuestos(presupuesto.items, categorias, isMixta ? 'USD' : presupuesto.moneda);
-
-  /**
-   * Netos por moneda — SIEMPRE sumando los subtotales de los ítems, nunca
-   * `presupuesto.total` (2026-08-07).
-   *
-   * OJO: `presupuesto.total` NO es un neto. El editor lo guarda como
-   * `subtotal + impuestos` (ver `calculateTotals` en usePresupuestoEdit), así
-   * que usarlo como base y volver a sumarle el IVA lo duplicaba. Los ítems son
-   * la única fuente consistente: presupuestos viejos y nuevos tienen el campo
-   * `total` guardado con criterios distintos.
-   */
-  const totalsByCurrency: Record<string, number> = {};
-  for (const i of presupuesto.items) {
-    const m = isMixta ? (i.moneda || 'USD') : presupuesto.moneda;
-    totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0);
-  }
-  // Presupuesto sin ítems (raro, pero existe): no hay de dónde derivar el neto.
-  if (Object.keys(totalsByCurrency).length === 0 && !isMixta) {
-    totalsByCurrency[presupuesto.moneda] = presupuesto.total || 0;
-  }
-
-  /**
-   * Totales FINALES por moneda = neto + impuestos de esa moneda (2026-08-07).
-   * Antes el bloque TOTAL mostraba el neto aunque arriba listara el IVA: el
-   * cliente veía el impuesto discriminado pero sin sumar. Este es el número que
-   * va en el recuadro TOTAL y en el monto en letras.
-   */
-  const totalesPorMoneda: Record<string, number> = Object.fromEntries(
-    Object.entries(totalsByCurrency).map(([m, t]) => [m, t + (impuestos.porMoneda[m] || 0)]),
-  );
-
-  const montoEnLetras = isMixta
-    ? Object.entries(totalesPorMoneda).map(([m, t]) => `${numberToWords(t, m)} (${m})`).join(' + ')
-    : numberToWords(totalesPorMoneda[presupuesto.moneda] ?? presupuesto.total ?? 0, presupuesto.moneda);
+  const { presupuesto } = params;
 
   // For contrato PDFs, load modules for each linked sistema
   let modulosBySistema: Record<string, ModuloSistema[]> | undefined;
@@ -159,23 +59,7 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     }
   }
 
-  const data: PresupuestoPDFData = {
-    presupuesto,
-    cliente,
-    establecimiento,
-    contacto,
-    condicionPago,
-    categorias,
-    montoEnLetras,
-    logoSrc: LOGO_SRC,
-    isoLogoSrc: ISO_LOGO_SRC,
-    impuestos,
-    modulosBySistema,
-    totalsByCurrency: isMixta ? totalsByCurrency : undefined,
-    totalesPorMoneda,
-    netoPorMoneda: totalsByCurrency,
-    fotosDataUrls,
-  };
+  const data = buildPresupuestoPDFData(params, { modulosBySistema, fotosDataUrls });
 
   const isContrato = presupuesto.tipo === 'contrato';
   const component = isContrato
