@@ -3,6 +3,7 @@ import type { Remito, TipoRemito } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { Input } from '../ui/Input';
 import { RemitoItemsEditor } from './RemitoItemsEditor';
 import { useRemitoForm } from '../../hooks/useRemitoForm';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
@@ -52,7 +53,7 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
   return (
     <Modal open={open} onClose={onClose} maxWidth="xl"
       title={remito ? `Editar remito ${remito.numero}` : 'Nuevo remito'}
-      subtitle={remito ? undefined : 'El número se asigna al guardar'}
+      subtitle={remito ? undefined : 'Verificá que el número coincida con el papel que vas a usar'}
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
         <Button variant="secondary" size="sm" onClick={() => void handleGuardar(false)} disabled={h.saving}>
@@ -65,17 +66,63 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
+            {/* Numeración del talonario preimpreso (2026-08-07): antes este
+                form asignaba un correlativo interno REM-00XX que no coincidía
+                con el papel. */}
+            <label className={lbl}>N° de remito <span className="text-red-500">*</span></label>
+            <Input value={h.form.numero} onChange={e => h.set('numero', e.target.value)}
+              placeholder="0001-00017405" className="font-mono" />
+          </div>
+          <div />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
             <label className={lbl}>Tipo</label>
             <SearchableSelect value={h.form.tipo} onChange={v => h.set('tipo', v as TipoRemito)}
               options={TIPOS} placeholder="Tipo de remito…" />
           </div>
+          {/* Quién lo lleva (2026-08-07): antes solo se ofrecían ingenieros y
+              el transportista no se podía cargar en ningún lado. */}
           <div>
-            <label className={lbl}>Ingeniero / transporta <span className="text-slate-300">(opcional)</span></label>
-            <SearchableSelect value={h.form.ingenieroId} onChange={v => h.set('ingenieroId', v)}
-              options={[{ value: '', label: 'Sin ingeniero (retira transporte / cliente)' },
-                ...h.ingenieros.map(i => ({ value: i.id, label: i.nombre }))]}
-              placeholder="Seleccionar…" />
+            <label className={lbl}>Lo lleva</label>
+            <div className="flex gap-1.5">
+              {([['ingeniero', 'Ingeniero de campo'], ['transportista', 'Transportista']] as const).map(([k, label]) => (
+                <button key={k} type="button"
+                  onClick={() => h.set('quienTransporta', k)}
+                  className={`flex-1 px-2 py-1.5 rounded-lg border text-xs transition-colors ${
+                    h.form.quienTransporta === k
+                      ? 'border-teal-700 bg-teal-50 text-teal-900'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            {h.form.quienTransporta === 'ingeniero' ? (
+              <>
+                <label className={lbl}>Ingeniero <span className="text-slate-300">(opcional)</span></label>
+                <SearchableSelect value={h.form.ingenieroId} onChange={v => h.set('ingenieroId', v)}
+                  options={[{ value: '', label: 'Sin ingeniero (retira transporte / cliente)' },
+                    ...h.ingenieros.map(i => ({ value: i.id, label: i.nombre }))]}
+                  placeholder="Seleccionar…" />
+              </>
+            ) : (
+              <>
+                <label className={lbl}>Transportista</label>
+                <SearchableSelect value={h.form.transportistaId} onChange={v => h.set('transportistaId', v)}
+                  options={[{ value: '', label: 'Sin transportista' },
+                    ...h.transportistas.map(t => ({ value: t.id, label: t.nombre }))]}
+                  placeholder={h.transportistas.length ? 'Seleccionar…' : 'Sin transportistas cargados'} />
+              </>
+            )}
+          </div>
+          <div />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

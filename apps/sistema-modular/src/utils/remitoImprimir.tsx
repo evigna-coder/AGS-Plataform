@@ -88,11 +88,16 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   // derivaciones a proveedor no tienen clienteId — al reimprimirlas el papel
   // salía SIN razón social (el modal de creación sí resolvía el proveedor).
   const esDerivacion = remito.tipo === 'derivacion_proveedor' || (!remito.clienteId && !!remito.proveedorId);
-  const [cliente, establecimiento, proveedor] = await Promise.all([
+  const [cliente, establecimiento, proveedor, transportista] = await Promise.all([
     remito.clienteId ? clientesService.getById(remito.clienteId).catch(() => null) : Promise.resolve(null),
     remito.establecimientoId ? establecimientosService.getById(remito.establecimientoId).catch(() => null) : Promise.resolve(null),
     esDerivacion && remito.proveedorId
       ? proveedoresService.getById(remito.proveedorId).catch(() => null)
+      : Promise.resolve(null),
+    // Bloque transportista del papel (2026-08-07): salía siempre vacío en los
+    // remitos de stock porque no había dónde cargarlo.
+    remito.transportistaId
+      ? proveedoresService.getById(remito.transportistaId).catch(() => null)
       : Promise.resolve(null),
   ]);
 
@@ -138,6 +143,18 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   await imprimirRemitoOverlay({
     fecha: fechaFmt,
     destinatario,
+    transportista: transportista
+      ? {
+          razonSocial: transportista.nombre,
+          domicilio: transportista.direccion ?? '',
+          localidad: transportista.localidad ?? '',
+          provincia: transportista.provincia ?? '',
+          iva: transportista.condicionIva ?? '',
+          cuit: transportista.cuit ?? '',
+        }
+      : (remito.transportistaNombre
+          ? { razonSocial: remito.transportistaNombre, domicilio: '', localidad: '', provincia: '', iva: '', cuit: '' }
+          : null),
     items,
     observaciones: remito.observaciones,
   });

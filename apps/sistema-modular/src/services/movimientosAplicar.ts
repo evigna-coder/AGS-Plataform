@@ -402,7 +402,10 @@ export const movimientosAplicarService = {
         if (!snap.exists()) throw new Error(`${etiqueta}: la unidad ya no existe en stock`);
         const data = snap.data();
         if (data.activo === false) throw new Error(`${etiqueta}: la unidad está dada de baja`);
-        if (data.estado !== 'disponible') {
+        // 'reservado' vale (2026-08-07): entregarle al cliente la pieza que se
+        // le reservó es el caso normal, y la reserva se limpia al pasar a
+        // 'entregado'. El resto de los estados sigue bloqueado.
+        if (data.estado !== 'disponible' && data.estado !== 'reservado') {
           throw new Error(`${etiqueta}: la unidad no está disponible (estado '${data.estado}')`);
         }
         const qty = data.cantidad ?? 1;
@@ -425,7 +428,17 @@ export const movimientosAplicarService = {
 
         if (it.tipoItem === 'entrega') {
           tx.update(unidadRef, deepCleanForFirestore(it.cantidad >= qty
-            ? { estado: 'entregado' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now }
+            ? {
+                estado: 'entregado' as EstadoUnidad,
+                // La reserva se cumplió al entregar: si no se limpia, la unidad
+                // queda 'entregado' arrastrando el presupuesto que la reservaba
+                // (2026-08-07, al permitir remitir piezas reservadas).
+                reservadoParaPresupuestoId: null,
+                reservadoParaPresupuestoNumero: null,
+                reservadoParaClienteId: null,
+                reservadoParaClienteNombre: null,
+                ...getUpdateTrace(), updatedAt: now,
+              }
             : { cantidad: qty - it.cantidad, ...getUpdateTrace(), updatedAt: now }));
         } else {
           const nuevaUbic: UbicacionStock = {
@@ -550,7 +563,9 @@ export const movimientosAplicarService = {
         if (!snap.exists()) throw new Error(`${etiqueta}: la unidad ya no existe en stock`);
         const data = snap.data();
         if (data.activo === false) throw new Error(`${etiqueta}: la unidad está dada de baja`);
-        if (data.estado !== 'disponible') {
+        // Igual que en la salida: una unidad reservada puede estar en poder del
+        // ingeniero y hay que poder descargarla (2026-08-07).
+        if (data.estado !== 'disponible' && data.estado !== 'reservado') {
           throw new Error(`${etiqueta}: la unidad no está disponible (estado '${data.estado}')`);
         }
         if (data.ubicacion?.tipo !== 'ingeniero' || data.ubicacion?.referenciaId !== remito.ingenieroId) {

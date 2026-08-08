@@ -41,11 +41,18 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
     const usadas = new Set(items.map(i => i.unidadId).filter(Boolean));
     return unidades
       .filter(u => !usadas.has(u.id))
-      .map(u => ({
-        value: u.id,
-        label: `${u.articuloCodigo} — ${u.articuloDescripcion}${u.nroSerie ? ` · S/N ${u.nroSerie}` : ''}${u.nroLote ? ` · Lote ${u.nroLote}` : ''} (${u.cantidad ?? 1} disp. · ${u.ubicacion?.referenciaNombre || 'sin ubicación'})`,
-        linkedCode: u.articuloCodigo ?? undefined,
-      }));
+      .map(u => {
+        // Reservadas incluidas (2026-08-07): se marcan con para quién están,
+        // así se entrega la pieza correcta sin tener que liberarla antes.
+        const reserva = u.estado === 'reservado'
+          ? ` · ⚠ RESERVADO${u.reservadoParaClienteNombre ? ` ${u.reservadoParaClienteNombre}` : ''}${u.reservadoParaPresupuestoNumero ? ` (${u.reservadoParaPresupuestoNumero})` : ''}`
+          : '';
+        return {
+          value: u.id,
+          label: `${u.articuloCodigo} — ${u.articuloDescripcion}${u.nroSerie ? ` · S/N ${u.nroSerie}` : ''}${u.nroLote ? ` · Lote ${u.nroLote}` : ''} (${u.cantidad ?? 1} disp. · ${u.ubicacion?.referenciaNombre || 'sin ubicación'})${reserva}`,
+          linkedCode: u.articuloCodigo ?? undefined,
+        };
+      });
   }, [unidades, items]);
 
   return (

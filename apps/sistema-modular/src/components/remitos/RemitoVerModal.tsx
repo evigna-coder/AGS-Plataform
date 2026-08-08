@@ -45,7 +45,8 @@ export function RemitoVerModal({ remito, onClose, clientePorFicha }: {
           <LV label="Cliente" value={remito.clienteNombre
             ? `${remito.clienteNombre}${remito.establecimientoNombre ? ` (${remito.establecimientoNombre})` : ''}`
             : '—'} />
-          <LV label="Ingeniero" value={remito.ingenieroNombre} />
+          <LV label={remito.transportistaNombre && !remito.ingenieroNombre ? 'Transportista' : 'Ingeniero'}
+            value={remito.ingenieroNombre || remito.transportistaNombre} />
           <LV label="OTs" value={remito.otNumbers?.length ? remito.otNumbers.join(', ') : '—'} />
           <LV label="Fecha salida" value={fmtFecha(remito.fechaSalida)} />
           <LV label="Fecha devolución" value={fmtFecha(remito.fechaDevolucion)} />

@@ -154,7 +154,8 @@ export const RemitoDetail = () => {
                 <LV label="Tipo" value={TIPO_LABELS[remito.tipo]} />
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[remito.estado]} color={ESTADO_COLORS[remito.estado]} />} />
                 <LV label="Stock" value={stockRemitoLabel(remito)} />
-                <LV label="Ingeniero" value={remito.ingenieroNombre} />
+                <LV label={remito.transportistaNombre && !remito.ingenieroNombre ? 'Transportista' : 'Ingeniero'}
+                  value={remito.ingenieroNombre || remito.transportistaNombre} />
                 {remito.clienteNombre && (
                   <LV label="Cliente" value={remito.establecimientoNombre
                     ? `${remito.clienteNombre} (${remito.establecimientoNombre})`

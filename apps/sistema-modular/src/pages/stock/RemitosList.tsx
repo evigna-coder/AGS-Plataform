@@ -329,7 +329,12 @@ export const RemitosList = () => {
                         {duenoRemito(r)}
                         {r.establecimientoNombre && <span className="text-slate-400"> ({r.establecimientoNombre})</span>}
                       </td>
-                      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(4)}`}>{r.ingenieroNombre}</td>
+                      {/* Lo lleva un ingeniero o un transportista (2026-08-07). */}
+                      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(4)}`}>
+                        {r.ingenieroNombre || (r.transportistaNombre
+                          ? <>{r.transportistaNombre} <span className="text-slate-400">(transp.)</span></>
+                          : '')}
+                      </td>
                       <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(5)}`}>{r.items?.length ?? 0}</td>
                       <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>{formatDate(r.fechaSalida)}</td>
                       <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(7)}`}>

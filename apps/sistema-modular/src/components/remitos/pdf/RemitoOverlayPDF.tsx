@@ -27,12 +27,30 @@ const X_FECHA = 535;
 /** Columna izquierda — datos del destinatario (cliente o proveedor) */
 const X_VALUE_LEFT = 130;
 
+/** 1 mm en puntos PDF (72 dpi). */
+const MM = 2.83465;
+
 /**
  * Columna derecha — datos del transportista. Medido sobre el papel preimpreso
  * (2026-08-07): arranca 8,5 cm a la derecha de donde arranca la razón social
- * del destinatario. 8,5 cm × 28,3465 pt/cm ≈ 241 pt.
+ * del destinatario, +1 mm del ajuste fino contra impresión real.
  */
-const X_VALUE_RIGHT = X_VALUE_LEFT + 241;
+const X_VALUE_RIGHT = X_VALUE_LEFT + 241 + 1 * MM;
+
+/**
+ * Ajustes verticales POR CAMPO del bloque transportista, medidos contra el
+ * papel impreso (2026-08-07). El papel no tiene las casillas de transportista
+ * a la misma altura que las del destinatario, así que no alcanza con reusar
+ * las Y_* de la izquierda. Positivo = hacia abajo.
+ */
+const DY_TRANSPORTISTA = {
+  razonSocial: 2 * MM,
+  domicilio: -1 * MM,
+  localidad: 0,
+  provincia: 0,
+  iva: 0,
+  cuit: -15 * MM,
+};
 
 /** Y de cada fila del header. La altura entre filas en el papel es ~33pt. */
 const Y_RAZON_SOCIAL = 270;
@@ -184,12 +202,12 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
       {/* Columna derecha — transportista */}
       {transportista && (
         <>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_RAZON_SOCIAL, ox, oy)]}>{transportista.razonSocial}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO,    ox, oy)]}>{transportista.domicilio}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD,    ox, oy)]}>{transportista.localidad}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA,    ox, oy)]}>{transportista.provincia}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_IVA,          ox, oy)]}>{transportista.iva}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_CUIT,         ox, oy)]}>{transportista.cuit}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial, ox, oy)]}>{transportista.razonSocial}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO + DY_TRANSPORTISTA.domicilio,     ox, oy)]}>{transportista.domicilio}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD + DY_TRANSPORTISTA.localidad,     ox, oy)]}>{transportista.localidad}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA + DY_TRANSPORTISTA.provincia,     ox, oy)]}>{transportista.provincia}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_IVA + DY_TRANSPORTISTA.iva,                 ox, oy)]}>{transportista.iva}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_CUIT + DY_TRANSPORTISTA.cuit,               ox, oy)]}>{transportista.cuit}</Text>
         </>
       )}
 

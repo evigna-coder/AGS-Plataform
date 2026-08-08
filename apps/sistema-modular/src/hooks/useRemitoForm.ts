@@ -1,14 +1,27 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Remito, RemitoItem, TipoRemito, Cliente, Establecimiento, Ingeniero, UnidadStock } from '@ags/shared';
-import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
+import type { Remito, RemitoItem, TipoRemito, Cliente, Establecimiento, Ingeniero, UnidadStock, Proveedor } from '@ags/shared';
+import { establecimientoPerteneceACliente, establecimientoUnicoId, proveedorEsCategoria } from '@ags/shared';
 import {
   remitosService, ingenierosService, clientesService, establecimientosService,
   unidadesService, ordenesTrabajoService,
 } from '../services/firebaseService';
+import { proveedoresService } from '../services/personalService';
+
+/** Quién lleva la mercadería (2026-08-07). */
+export type QuienTransporta = 'ingeniero' | 'transportista';
 
 export interface RemitoFormState {
+  /**
+   * Número del papel preimpreso (0001-00017405). Antes este form dejaba que el
+   * sistema asignara un correlativo interno REM-00XX, que no coincidía con el
+   * talonario — el mismo remito tenía dos números (2026-08-07).
+   */
+  numero: string;
   tipo: TipoRemito;
+  /** Determina cuál de los dos selectores se muestra y qué se persiste. */
+  quienTransporta: QuienTransporta;
   ingenieroId: string;
+  transportistaId: string;
   clienteId: string;
   establecimientoId: string;
   otNumbers: string[];
@@ -16,9 +29,14 @@ export interface RemitoFormState {
   observaciones: string;
 }
 
+/** Mismo formato que el modal de derivación: 0001-00017405. */
+export const NUMERO_PREIMPRESO_REGEX = /^\d{4}-\d{8}$/;
+
 const INITIAL: RemitoFormState = {
+  numero: '',
   tipo: 'entrega_cliente',
-  ingenieroId: '', clienteId: '', establecimientoId: '',
+  quienTransporta: 'ingeniero',
+  ingenieroId: '', transportistaId: '', clienteId: '', establecimientoId: '',
   otNumbers: [], fechaSalida: new Date().toISOString().slice(0, 10), observaciones: '',
 };
 
@@ -36,6 +54,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   const [saving, setSaving] = useState(false);
 
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
+  const [transportistas, setTransportistas] = useState<Proveedor[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
@@ -48,9 +67,20 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   useEffect(() => {
     if (!open) return;
     ingenierosService.getAll().then((list: Ingeniero[]) => setIngenieros(list.filter(i => i.activo))).catch(() => setIngenieros([]));
+    // Transportistas = proveedores con esa categoría (mismo criterio que el
+    // modal de derivación, que ya los filtraba así).
+    proveedoresService.getAll(true)
+      .then(list => setTransportistas(list.filter(p => proveedorEsCategoria(p, 'transportista'))))
+      .catch(() => setTransportistas([]));
     clientesService.getAll(true).then(setClientes).catch(() => setClientes([]));
     establecimientosService.getAll().then(setEstablecimientos).catch(() => setEstablecimientos([]));
-    unidadesService.getAll({ estado: 'disponible' }).then(setUnidades).catch(() => setUnidades([]));
+    // Disponibles Y RESERVADAS (2026-08-07): una pieza reservada para un
+    // presupuesto es justamente la que se le entrega a ese cliente. Filtrarla
+    // hacía que "no existiera en stock" al armar el remito, sin explicación.
+    // El buscador la muestra marcada para que se vea que está comprometida.
+    unidadesService.getAll()
+      .then(list => setUnidades(list.filter(u => u.estado === 'disponible' || u.estado === 'reservado')))
+      .catch(() => setUnidades([]));
   }, [open]);
 
   // Prefill en edición / reset en alta
@@ -58,7 +88,12 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     if (!open) return;
     if (remito) {
       setForm({
+        // Los remitos viejos tienen correlativo interno (REM-00XX): se muestra
+        // tal cual y se puede corregir por el número del papel.
+        numero: remito.numero || '',
         tipo: remito.tipo,
+        quienTransporta: remito.transportistaId ? 'transportista' : 'ingeniero',
+        transportistaId: remito.transportistaId || '',
         ingenieroId: remito.ingenieroId || '',
         clienteId: remito.clienteId || '',
         establecimientoId: remito.establecimientoId || '',
@@ -70,6 +105,11 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     } else {
       setForm(INITIAL);
       setItems([]);
+      // Alta: prefill con el próximo número del talonario preimpreso, igual
+      // que el modal de derivación (2026-08-07).
+      remitosService.getProximoNumeroPreimpreso()
+        .then(n => setForm(prev => (prev.numero ? prev : { ...prev, numero: n })))
+        .catch(() => {});
     }
     setMaxCantidad({});
   }, [open, remito]);
@@ -235,12 +275,17 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   }, []);
 
   const validar = useCallback((): string | null => {
+    // El número tiene que ser el del papel. En edición se acepta el correlativo
+    // interno viejo (REM-00XX) para no bloquear remitos ya emitidos.
+    const numeroOk = NUMERO_PREIMPRESO_REGEX.test(form.numero.trim())
+      || (!!remito && form.numero.trim() === (remito.numero || ''));
+    if (!numeroOk) return 'El número del remito debe tener el formato 0001-00017405 (el del papel preimpreso)';
     if (form.tipo === 'entrega_cliente' && !form.clienteId) return 'Seleccioná un cliente para la entrega';
     if (items.length === 0) return 'Agregá al menos un artículo';
     if (items.some(it => (it.cantidad || 0) <= 0)) return 'Hay items con cantidad 0';
     if (items.some(it => !it.unidadId && !(it.articuloDescripcion || '').trim())) return 'Hay ítems manuales sin descripción';
     return null;
-  }, [form, items]);
+  }, [form, items, remito]);
 
   /** Crea o actualiza el remito (borrador). Devuelve el Remito persistido o null. */
   const guardar = useCallback(async (): Promise<Remito | null> => {
@@ -248,7 +293,11 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     if (error) { alert(error); return null; }
     setSaving(true);
     try {
-      const ing = ingenieros.find(i => i.id === form.ingenieroId);
+      // Ingeniero y transportista son excluyentes: se persiste el elegido y se
+      // limpia el otro, para que el papel y el listado no muestren los dos.
+      const esIngeniero = form.quienTransporta === 'ingeniero';
+      const ing = esIngeniero ? ingenieros.find(i => i.id === form.ingenieroId) : undefined;
+      const transp = esIngeniero ? undefined : transportistas.find(t => t.id === form.transportistaId);
       const cliente = clientes.find(c => c.id === form.clienteId);
       const est = establecimientosFiltrados.find(e => e.id === form.establecimientoId);
       // Red de seguridad: si guardan sin blur del campo cantidad, capear a la
@@ -259,10 +308,13 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
           ? { ...it, cantidad: Math.min(Math.max(1, it.cantidad || 1), maxCantidad[it.id]) }
           : { ...it, cantidad: Math.max(1, it.cantidad || 1) });
       const data = {
+        numero: form.numero.trim(),
         tipo: form.tipo,
         // Ingeniero OPCIONAL (2026-07-31): la entrega no siempre la lleva un ingeniero.
         ingenieroId: ing?.id ?? '',
         ingenieroNombre: ing?.nombre ?? '',
+        transportistaId: transp?.id ?? null,
+        transportistaNombre: transp?.nombre ?? null,
         clienteId: form.clienteId || null,
         clienteNombre: cliente?.razonSocial ?? null,
         establecimientoId: form.establecimientoId || null,
@@ -286,11 +338,11 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     } finally {
       setSaving(false);
     }
-  }, [form, items, remito, ingenieros, clientes, establecimientosFiltrados, validar]);
+  }, [form, items, remito, ingenieros, transportistas, clientes, establecimientosFiltrados, validar]);
 
   return {
     form, set, selectCliente, items, maxCantidad, saving,
-    ingenieros, clientes, establecimientosFiltrados, unidades, otsCliente,
+    ingenieros, transportistas, clientes, establecimientosFiltrados, unidades, otsCliente,
     addOt, removeOt, addUnidad, addManual, updateItem, removeItem, normalizarCantidad, guardar,
   };
 }
