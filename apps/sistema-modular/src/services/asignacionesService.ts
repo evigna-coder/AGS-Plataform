@@ -152,12 +152,20 @@ export const asignacionesService = {
           const nowIso = new Date().toISOString();
           const devueltasUnidades = new Set(reciénDevueltos.map(({ item }) => item.unidadId).filter(Boolean));
           const devueltosOtros = new Set(
-            reciénDevueltos.flatMap(({ item }) => [item.instrumentoId, item.minikitId, item.dispositivoId].filter(Boolean)));
+            reciénDevueltos.flatMap(({ item }) => [item.instrumentoId, item.minikitId, item.dispositivoId, item.vehiculoId].filter(Boolean)));
+          // Los patrones se matchean por patrón + LOTE: el mismo kit puede salir
+          // con dos lotes distintos y devolverse uno solo (2026-08-08).
+          const devueltosPatrones = new Set(
+            reciénDevueltos
+              .filter(({ item }) => item.patronId)
+              .map(({ item }) => `${item.patronId}|${item.patronLote ?? ''}`));
           const matchea = (ri: (typeof remito.items)[number]) =>
             (ri.unidadId && devueltasUnidades.has(ri.unidadId))
             || (ri.instrumentoId && devueltosOtros.has(ri.instrumentoId))
             || (ri.minikitId && devueltosOtros.has(ri.minikitId))
-            || (ri.dispositivoId && devueltosOtros.has(ri.dispositivoId));
+            || (ri.dispositivoId && devueltosOtros.has(ri.dispositivoId))
+            || (ri.vehiculoId && devueltosOtros.has(ri.vehiculoId))
+            || (ri.patronId && devueltosPatrones.has(`${ri.patronId}|${ri.patronLote ?? ''}`));
           const itemsRemito = (remito.items ?? []).map(ri =>
             matchea(ri) && !ri.devuelto
               ? { ...ri, devuelto: true, fechaDevolucion: nowIso }

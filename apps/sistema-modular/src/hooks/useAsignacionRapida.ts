@@ -304,6 +304,10 @@ export function useAsignacionRapida() {
           minikitCodigo: i.minikitCodigo ?? null,
           instrumentoId: i.instrumentoId ?? null,
           dispositivoId: i.dispositivoId ?? null,
+          // Sin esto la devolución no podía marcar la línea del patrón y
+          // quedaba "en campo" para siempre (2026-08-08).
+          patronId: i.patronId ?? null,
+          patronLote: i.patronLote ?? null,
         }));
         const remitoId = itemsRemito.length === 0 ? null : await remitosService.create({
           tipo: 'salida_campo', ingenieroId: ing.id, ingenieroNombre: ing.nombre,

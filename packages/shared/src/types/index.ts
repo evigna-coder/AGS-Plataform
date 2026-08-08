@@ -3694,6 +3694,13 @@ export interface RemitoItem {
   loanerId?: string | null;
   loanerCodigo?: string | null;
   loanerDescripcion?: string | null;
+  /**
+   * Patrón con lote asignado a un IST (2026-08-08). Sin estos campos la línea
+   * del remito no tenía con qué identificar el patrón, así que al devolverlo
+   * seguía figurando "en campo".
+   */
+  patronId?: string | null;
+  patronLote?: string | null;
   /** Ficha propiedad del cliente (remitos de devolución / derivación) */
   fichaId?: string | null;
   fichaNumero?: string | null;
