@@ -339,6 +339,29 @@ export const listenReporte = (ot: string, callback: (data: any) => void) => {
   });
 };
 
+/** Una OT agendada del ingeniero para el listado "OT del día". */
+export interface AgendaOTDelDia {
+  otNumber: string;
+  clienteNombre: string;
+  sistemaNombre: string | null;
+  establecimientoNombre: string | null;
+  tipoServicio: string;
+  /** Franja horaria: AM1 | AM2 | PM1 | PM2. */
+  franja: string;
+}
+
+const FRANJAS: Record<number, string> = { 1: 'AM1', 2: 'AM2', 3: 'PM1', 4: 'PM2' };
+
+/** Resta días a una fecha 'YYYY-MM-DD' sin pasar por Date (evita corrimientos de zona). */
+function restarDias(fecha: string, dias: number): string {
+  const [a, m, d] = fecha.split('-').map(Number);
+  const base = new Date(a, (m || 1) - 1, d || 1);
+  base.setDate(base.getDate() - dias);
+  const mm = String(base.getMonth() + 1).padStart(2, '0');
+  const dd = String(base.getDate()).padStart(2, '0');
+  return `${base.getFullYear()}-${mm}-${dd}`;
+}
+
 export class FirebaseService {
   private collectionName = "reportes";
 
@@ -792,6 +815,52 @@ export class FirebaseService {
       const d = snap.docs[0];
       return { id: d.id, nombre: d.data().nombre };
     } catch { return null; }
+  }
+
+  /**
+   * OTs que el ingeniero tiene agendadas para `fecha` ('YYYY-MM-DD').
+   *
+   * `ingenieroIds` va con los DOS identificadores posibles: `agendaEntries`
+   * guarda el uid del usuario cuando la entrada nace de asignar la OT en
+   * sistema-modular, y el doc id de `ingenieros` cuando se crea arrastrando
+   * en la grilla de agenda.
+   *
+   * La query filtra por `fechaInicio` en una ventana de 14 días hacia atrás y
+   * el resto se resuelve en memoria: así usa el índice que ya existe
+   * (ingenieroId + fechaInicio) sin pedir uno nuevo, y no se baja el histórico
+   * entero. Los 14 días cubren las entradas multi-día que arrancaron antes.
+   */
+  async getAgendaDelDia(ingenieroIds: string[], fecha: string): Promise<AgendaOTDelDia[]> {
+    const ids = Array.from(new Set(ingenieroIds.filter(Boolean)));
+    if (ids.length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return [];
+    try {
+      const q = query(
+        collection(db, 'agendaEntries'),
+        ids.length === 1 ? where('ingenieroId', '==', ids[0]) : where('ingenieroId', 'in', ids),
+        where('fechaInicio', '>=', restarDias(fecha, 14)),
+        where('fechaInicio', '<=', fecha),
+        orderBy('fechaInicio', 'asc'),
+      );
+      const snap = await getDocs(q);
+      const items = snap.docs
+        .map(d => d.data() as Record<string, any>)
+        .filter(e => (e.fechaFin ?? e.fechaInicio) >= fecha && !!e.otNumber)
+        .map(e => ({
+          otNumber: String(e.otNumber),
+          clienteNombre: (e.clienteNombre as string) || '',
+          sistemaNombre: (e.sistemaNombre as string) || null,
+          establecimientoNombre: (e.establecimientoNombre as string) || null,
+          tipoServicio: (e.tipoServicio as string) || '',
+          franja: FRANJAS[e.quarterStart as number] || '',
+        }));
+      // AM1 < AM2 < PM1 < PM2 ordena bien alfabéticamente; sin franja al final.
+      return items.sort((a, b) => (a.franja || 'ZZ').localeCompare(b.franja || 'ZZ')
+        || a.otNumber.localeCompare(b.otNumber));
+    } catch (error) {
+      // Nunca romper el reporte por esto: es una ayuda de navegación.
+      console.warn('⚠️ getAgendaDelDia:', error);
+      return [];
+    }
   }
 
   // ── Certificados de ingeniero ──

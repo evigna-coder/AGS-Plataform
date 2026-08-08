@@ -27,8 +27,11 @@ export default function ReportesPage() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // `replace` y no `assign` (2026-08-08): con assign, esta pantalla quedaba en
+  // el historial y el "atrás" del celular volvía acá, que redirigía otra vez a
+  // reportes-ot — el ingeniero quedaba encerrado y no podía volver a Mis OT.
   useEffect(() => {
-    if (!isDesktop) window.location.assign(targetUrl);
+    if (!isDesktop) window.location.replace(targetUrl);
   }, [isDesktop, targetUrl]);
 
   return (

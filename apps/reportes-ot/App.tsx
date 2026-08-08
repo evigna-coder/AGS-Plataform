@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppLogic, CATALOG_SERVICE_TYPES } from './hooks/useAppLogic';
 import { CompanyHeader } from './components/CompanyHeader';
 import { MobileSignatureView } from './components/MobileSignatureView';
@@ -22,7 +22,11 @@ import { createEmptyProtocolDataForTemplate } from './data/sampleProtocol';
 import { signOut } from './services/authService';
 import { Part } from './types';
 import { ProtocolPaginatedPreview } from './components/ProtocolPaginatedPreview';
+import { OTsDelDiaPanel } from './components/OTsDelDiaPanel';
+import { useOTsDelDia } from './hooks/useOTsDelDia';
 import { LOGO_SRC, ISO_LOGO_SRC } from './constants/logos';
+
+const OT_REGEX = /^\d{5}(?:\.\d{2})?$/;
 
 const App: React.FC = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -31,6 +35,64 @@ const App: React.FC = () => {
   const shouldShare = queryParams.get('share') === 'true';
 
   const app = useAppLogic(reportIdFromUrl, isModoFirma, shouldShare);
+
+  // "OT del día" (2026-08-08): el ingeniero suele tener varias visitas
+  // agendadas la misma fecha y para pasar de una a otra tenía que salir del
+  // reporte y volver a entrar desde el portal (Mis OT / Agenda). El ancla del
+  // día es la fecha de inicio del reporte, que es la del servicio.
+  const otsDelDia = useOTsDelDia(app.firebase, app.fechaInicio);
+  const [cambiandoOT, setCambiandoOT] = useState<string | null>(null);
+
+  /**
+   * Salta al reporte de otra OT del día.
+   *
+   * Recarga la app con `?reportId=` (la misma entrada en frío que ya usa el
+   * portal) en vez de rehidratar el formulario en caliente: el estado del
+   * reporte tiene firmas, protocolos y adjuntos, y arrastrar restos de la OT
+   * anterior sería mucho peor que esperar la recarga.
+   *
+   * Antes de salir fuerza el guardado del borrador, porque el autosave tiene
+   * 700 ms de debounce y se perdería lo último que el ingeniero tipeó. Las
+   * condiciones son las mismas que las del autosave.
+   */
+  const cambiarDeOT = async (nuevoOt: string) => {
+    if (cambiandoOT) return;
+    setCambiandoOT(nuevoOt);
+    const puedeGuardar = app.hasInitialized.current
+      && app.hasUserInteracted.current
+      && app.status !== 'FINALIZADO'
+      && !app.blankPreviewMode
+      && OT_REGEX.test(app.otNumber);
+    if (puedeGuardar) {
+      try {
+        await app.firebase.saveReport(app.otNumber, {
+          ...app.reportState,
+          status: 'BORRADOR',
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        // El autosave ya venía guardando cada 700 ms: no bloqueamos el cambio
+        // de OT por un error puntual de red.
+        console.warn('No se pudo forzar el guardado antes de cambiar de OT:', e);
+      }
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('reportId', nuevoOt);
+    url.searchParams.delete('share');
+    window.location.assign(url.toString());
+  };
+
+  // Se monta en los dos layouts (wizard mobile y escritorio). Fuera de vista
+  // previa: ahí el ingeniero está revisando el PDF, no navegando.
+  const panelOTsDelDia = !app.isPreviewMode && !app.blankPreviewMode ? (
+    <OTsDelDiaPanel
+      items={otsDelDia}
+      otActual={app.otNumber}
+      fecha={app.fechaInicio}
+      cambiando={cambiandoOT}
+      onSelect={cambiarDeOT}
+    />
+  ) : null;
 
   // Mobile signature mode
   if (isModoFirma) {
@@ -353,6 +415,7 @@ const App: React.FC = () => {
         pendingFocus={app.pendingFocus}
         extra={
           <>
+            {panelOTsDelDia}
             <PdfHiddenContainers
               protocolSelections={app.protocolSelections}
               instrumentosSeleccionados={app.instrumentosSeleccionados}
@@ -684,6 +747,9 @@ const App: React.FC = () => {
 {/* Botón "Volver a Editar" ahora está integrado en MobileMenu */}
         </>
       )}
+
+      {/* Acceso a las otras OT del día (capa flotante, no-print) */}
+      {panelOTsDelDia}
 
       {/* Floating Buttons */}
       <MobileMenu
