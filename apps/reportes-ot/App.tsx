@@ -40,7 +40,7 @@ const App: React.FC = () => {
   // agendadas la misma fecha y para pasar de una a otra tenía que salir del
   // reporte y volver a entrar desde el portal (Mis OT / Agenda). El ancla del
   // día es la fecha de inicio del reporte, que es la del servicio.
-  const otsDelDia = useOTsDelDia(app.firebase, app.fechaInicio);
+  const { items: otsDelDia, supervision: supervisionOTs } = useOTsDelDia(app.firebase, app.fechaInicio);
   const [cambiandoOT, setCambiandoOT] = useState<string | null>(null);
 
   /**
@@ -90,6 +90,7 @@ const App: React.FC = () => {
       otActual={app.otNumber}
       fecha={app.fechaInicio}
       cambiando={cambiandoOT}
+      supervision={supervisionOTs}
       onSelect={cambiarDeOT}
     />
   ) : null;

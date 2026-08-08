@@ -348,6 +348,8 @@ export interface AgendaOTDelDia {
   tipoServicio: string;
   /** Franja horaria: AM1 | AM2 | PM1 | PM2. */
   franja: string;
+  /** Ingeniero asignado. Solo se muestra en modo supervision (admin). */
+  ingenieroNombre: string;
 }
 
 const FRANJAS: Record<number, string> = { 1: 'AM1', 2: 'AM2', 3: 'PM1', 4: 'PM2' };
@@ -807,6 +809,20 @@ export class FirebaseService {
     } catch { return []; }
   }
 
+  /**
+   * Rol del usuario logueado, desde `usuarios/{uid}` (2026-08-08). Lo usa el
+   * panel de OT del día para decidir si muestra la agenda completa (admin) o
+   * sólo las visitas propias (técnico). Ante cualquier error devuelve null —
+   * sin rol, se comporta como técnico, que es lo restrictivo.
+   */
+  async getRolUsuario(uid: string): Promise<string | null> {
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', uid));
+      if (!snap.exists()) return null;
+      return (snap.data()?.role as string) || null;
+    } catch { return null; }
+  }
+
   async getIngenieroByEmail(email: string): Promise<{ id: string; nombre: string } | null> {
     try {
       const q = query(collection(db, 'ingenieros'), where('email', '==', email), where('activo', '==', true));
@@ -832,9 +848,20 @@ export class FirebaseService {
    */
   async getAgendaDelDia(ingenieroIds: string[], fecha: string): Promise<AgendaOTDelDia[]> {
     const ids = Array.from(new Set(ingenieroIds.filter(Boolean)));
-    if (ids.length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return [];
+    // Modo supervisión (2026-08-08): sin ids se traen TODAS las visitas del día,
+    // de cualquier ingeniero. Lo usa admin/admin_soporte — un técnico siempre
+    // consulta con su id y sigue viendo sólo las suyas.
+    const todos = ids.length === 0;
+    if ((!todos && ids.length === 0) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return [];
     try {
-      const q = query(
+      const q = todos
+        ? query(
+            collection(db, 'agendaEntries'),
+            where('fechaInicio', '>=', restarDias(fecha, 14)),
+            where('fechaInicio', '<=', fecha),
+            orderBy('fechaInicio', 'asc'),
+          )
+        : query(
         collection(db, 'agendaEntries'),
         ids.length === 1 ? where('ingenieroId', '==', ids[0]) : where('ingenieroId', 'in', ids),
         where('fechaInicio', '>=', restarDias(fecha, 14)),
@@ -852,6 +879,7 @@ export class FirebaseService {
           establecimientoNombre: (e.establecimientoNombre as string) || null,
           tipoServicio: (e.tipoServicio as string) || '',
           franja: FRANJAS[e.quarterStart as number] || '',
+          ingenieroNombre: (e.ingenieroNombre as string) || '',
         }));
       // AM1 < AM2 < PM1 < PM2 ordena bien alfabéticamente; sin franja al final.
       return items.sort((a, b) => (a.franja || 'ZZ').localeCompare(b.franja || 'ZZ')

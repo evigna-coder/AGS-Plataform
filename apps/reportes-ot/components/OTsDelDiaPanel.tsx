@@ -9,6 +9,8 @@ interface Props {
   fecha: string;
   /** OT a la que se está cambiando (feedback mientras guarda y recarga). */
   cambiando: string | null;
+  /** true = se ven las visitas de TODOS los ingenieros (usuario admin). */
+  supervision: boolean;
   onSelect: (otNumber: string) => void;
 }
 
@@ -33,7 +35,7 @@ function fechaLabel(fecha: string): string {
  *
  * Si el día no tiene otra OT además de la actual, no se renderiza nada.
  */
-export const OTsDelDiaPanel: React.FC<Props> = ({ items, otActual, fecha, cambiando, onSelect }) => {
+export const OTsDelDiaPanel: React.FC<Props> = ({ items, otActual, fecha, cambiando, supervision, onSelect }) => {
   const [abierto, setAbierto] = useState(false);
   const otras = items.filter(i => i.otNumber !== otActual);
   if (otras.length === 0) return null;
@@ -100,6 +102,13 @@ export const OTsDelDiaPanel: React.FC<Props> = ({ items, otActual, fecha, cambia
                         </span>
                       )}
                       <span className="text-xs font-black text-slate-800">OT {it.otNumber}</span>
+                      {/* En supervisión las visitas son de distintos ingenieros:
+                          sin el nombre, la lista no se entiende (2026-08-08). */}
+                      {supervision && it.ingenieroNombre && (
+                        <span className="text-[10px] font-semibold text-violet-700 bg-violet-50 rounded px-1.5 py-0.5">
+                          {it.ingenieroNombre}
+                        </span>
+                      )}
                       {esActual && (
                         <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-blue-600">
                           Actual
