@@ -810,6 +810,34 @@ export class FirebaseService {
   }
 
   /**
+   * Día en que ESTA OT está agendada, según `agendaEntries` (2026-08-08).
+   *
+   * El panel de OT del día se colgaba del campo INICIO del formulario, que es
+   * la fecha del reporte y no tiene por qué coincidir con el día agendado
+   * (queda la de creación o el default). Resultado: abriendo una OT del 10 se
+   * listaban las visitas del 5, siempre las mismas.
+   *
+   * Devuelve null si la OT no está en la agenda; ahí el caller cae a la fecha
+   * del reporte, que es lo mejor que hay.
+   */
+  async getFechaAgendaDeOT(otNumber: string): Promise<string | null> {
+    if (!otNumber) return null;
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'agendaEntries'),
+        where('otNumber', '==', otNumber),
+      ));
+      if (snap.empty) return null;
+      // Si la OT se agendó más de una vez, vale la entrada más reciente.
+      const fechas = snap.docs
+        .map(d => (d.data()?.fechaInicio as string) || '')
+        .filter(Boolean)
+        .sort();
+      return fechas.length ? fechas[fechas.length - 1] : null;
+    } catch { return null; }
+  }
+
+  /**
    * Rol del usuario logueado, desde `usuarios/{uid}` (2026-08-08). Lo usa el
    * panel de OT del día para decidir si muestra la agenda completa (admin) o
    * sólo las visitas propias (técnico). Ante cualquier error devuelve null —

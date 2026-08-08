@@ -40,7 +40,10 @@ const App: React.FC = () => {
   // agendadas la misma fecha y para pasar de una a otra tenía que salir del
   // reporte y volver a entrar desde el portal (Mis OT / Agenda). El ancla del
   // día es la fecha de inicio del reporte, que es la del servicio.
-  const { items: otsDelDia, supervision: supervisionOTs } = useOTsDelDia(app.firebase, app.fechaInicio);
+  // El día sale de la agenda de ESTA OT; `fechaInicio` del formulario es sólo
+  // el fallback cuando la OT no está agendada (fix 2026-08-08).
+  const { items: otsDelDia, supervision: supervisionOTs, fecha: fechaOTsDelDia } =
+    useOTsDelDia(app.firebase, app.otNumber, app.fechaInicio);
   const [cambiandoOT, setCambiandoOT] = useState<string | null>(null);
 
   /**
@@ -88,7 +91,7 @@ const App: React.FC = () => {
     <OTsDelDiaPanel
       items={otsDelDia}
       otActual={app.otNumber}
-      fecha={app.fechaInicio}
+      fecha={fechaOTsDelDia}
       cambiando={cambiandoOT}
       supervision={supervisionOTs}
       onSelect={cambiarDeOT}
