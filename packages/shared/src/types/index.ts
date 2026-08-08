@@ -1504,6 +1504,32 @@ export const PRESUPUESTO_SECCIONES_DEFAULT: PresupuestoSeccionesVisibles = {
  * El contenido es HTML generado por RichTextEditor (bold/italic/underline/ul/ol/font-size/text-align).
  * No se guarda plantillaId en el presupuesto — solo el contenido final.
  */
+/**
+ * Nota de armado de precio de un cliente (2026-08-08). Libreta compartida: quien
+ * cotiza escribe con qué criterio compuso el valor (costo de qué importación,
+ * factor, margen, con quién compara el cliente) y al preparar el próximo
+ * presupuesto lo tiene a mano.
+ *
+ * Texto libre a propósito: el mismo cuaderno sirve para una nota de un artículo
+ * puntual y para criterios generales del cliente.
+ *
+ * Colección Firestore: `notas_precio_cliente`.
+ */
+export interface NotaPrecioCliente {
+  id: string;
+  clienteId: string;
+  texto: string;
+  /** Presupuesto desde el que se escribió — el contexto de la cotización. */
+  presupuestoId?: string | null;
+  presupuestoNumero?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 export interface PlantillaTextoPresupuesto {
   id: string;
   nombre: string;                                   // "Condiciones Comerciales — Servicio estándar"
@@ -2797,6 +2823,78 @@ export interface Columna {
 
 export type AreaIngeniero = 'campo' | 'taller' | 'electronica' | 'mecanica' | 'ventas' | 'admin';
 
+/**
+ * Jornada de viaje de un ingeniero (2026-08-08).
+ *
+ * La unidad es el DÍA, no la OT: si un día hizo tres servicios en Santa Fe,
+ * salió y llegó una sola vez y cobra un desarraigo, no tres. Por eso hay un
+ * documento por (ingeniero, fecha) y las OTs de ese día se resuelven aparte.
+ *
+ * Sirve para dos cosas: contar los días de desarraigo del mes y saber cuánto
+ * quedó fuera del horario laboral (8 a 17) — salir 5 AM para tomar un vuelo o
+ * llegar 20:30 de vuelta a casa es tiempo que hay que reconocer.
+ *
+ * Colección Firestore: `jornadas_viaje`. Doc id: `{ingenieroId}_{fecha}`, así
+ * cargar dos veces el mismo día actualiza en vez de duplicar.
+ */
+export interface JornadaViaje {
+  id: string;
+  ingenieroId: string;
+  ingenieroNombre: string;
+  /** 'YYYY-MM-DD' */
+  fecha: string;
+  /** 'HH:MM' — salida de la casa/base. */
+  horaSalida?: string | null;
+  /** 'HH:MM' — llegada de vuelta. Puede ser de madrugada del día siguiente. */
+  horaLlegada?: string | null;
+  /**
+   * La llegada cayó al día siguiente (volvió pasada la medianoche). Sin esto,
+   * "salió 16:00, llegó 01:30" daría horas negativas.
+   */
+  llegadaDiaSiguiente?: boolean;
+  /** Notas del ingeniero sobre el viaje (demoras, vuelo, etc.). */
+  observaciones?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+/** Horario laboral: fuera de esta franja el viaje se reconoce aparte. */
+export const HORARIO_LABORAL = { desde: '08:00', hasta: '17:00' } as const;
+
+/** 'HH:MM' → minutos desde medianoche. Devuelve null si no parsea. */
+export function hhmmAMinutos(hhmm: string | null | undefined): number | null {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Minutos de viaje que caen FUERA del horario laboral (antes de las 8 o después
+ * de las 17). Es lo que se reconoce aparte del desarraigo.
+ */
+export function minutosFueraDeHorario(j: Pick<JornadaViaje, 'horaSalida' | 'horaLlegada' | 'llegadaDiaSiguiente'>): number {
+  const desde = hhmmAMinutos(HORARIO_LABORAL.desde)!;
+  const hasta = hhmmAMinutos(HORARIO_LABORAL.hasta)!;
+  const salida = hhmmAMinutos(j.horaSalida);
+  const llegada = hhmmAMinutos(j.horaLlegada);
+  let total = 0;
+  if (salida != null && salida < desde) total += desde - salida;
+  if (llegada != null) {
+    // Volvió después de medianoche: la llegada corre al día siguiente.
+    const llegadaReal = j.llegadaDiaSiguiente ? llegada + 24 * 60 : llegada;
+    if (llegadaReal > hasta) total += llegadaReal - hasta;
+  }
+  return total;
+}
+
 export interface Ingeniero {
   id: string;
   nombre: string;
@@ -3665,6 +3763,14 @@ export interface Remito {
   /** FK → proveedores (para derivaciones a proveedor) */
   proveedorId?: string | null;
   proveedorNombre?: string | null;
+  /**
+   * Quién transporta la mercadería cuando NO la lleva un ingeniero de campo
+   * (2026-08-07): un transportista del catálogo de proveedores. Alimenta el
+   * bloque "Transportista" del papel preimpreso, que hasta ahora salía vacío
+   * en los remitos de stock.
+   */
+  transportistaId?: string | null;
+  transportistaNombre?: string | null;
   /**
    * Remito de servicio (tipo `'servicio'`): equipo al que refieren los servicios
    * (el remito se arma por equipo, consolidando N OTs → 1 remito) y los datos
@@ -5018,8 +5124,15 @@ export interface AuditLogEntry {
  * (ni clienteId en la entrada de agenda) → la coordinadora elige el estado
  * interior a mano. Tentativo pasó al GRIS (mismo que pendiente, pedido user).
  */
-export type EstadoAgenda = 'pendiente' | 'tentativo' | 'tentativo_interior' | 'confirmado' | 'confirmado_interior' | 'en_progreso' | 'completado' | 'cancelado';
+export type EstadoAgenda = 'pendiente' | 'tentativo' | 'tentativo_interior' | 'confirmado' | 'confirmado_interior' | 'en_progreso' | 'en_progreso_interior' | 'completado' | 'completado_interior' | 'cancelado';
 
+/**
+ * Estados del ciclo con su variante INTERIOR (2026-08-08). La familia interior
+ * llega hasta el final del ciclo: antes se cortaba en `confirmado_interior` y al
+ * pasar a en progreso / completado la visita perdía la marca de interior. Como
+ * a fin de mes se liquida el desarraigo mirando visitas ya completadas, sin esto
+ * el reporte no las encontraría.
+ */
 export const ESTADO_AGENDA_LABELS: Record<EstadoAgenda, string> = {
   pendiente: 'Pendiente',
   tentativo: 'Tentativo',
@@ -5027,8 +5140,31 @@ export const ESTADO_AGENDA_LABELS: Record<EstadoAgenda, string> = {
   confirmado: 'Confirmado',
   confirmado_interior: 'Confirmado (interior)',
   en_progreso: 'En progreso',
+  en_progreso_interior: 'En progreso (interior)',
   completado: 'Completado',
+  completado_interior: 'Completado (interior)',
   cancelado: 'Cancelado',
+};
+
+/** ¿La visita es al interior? Única fuente de verdad para el desarraigo. */
+export function esAgendaInterior(estado: EstadoAgenda): boolean {
+  return estado.endsWith('_interior');
+}
+
+/** Variante interior de un estado (o el mismo si no tiene). */
+export const ESTADO_AGENDA_INTERIOR: Partial<Record<EstadoAgenda, EstadoAgenda>> = {
+  tentativo: 'tentativo_interior',
+  confirmado: 'confirmado_interior',
+  en_progreso: 'en_progreso_interior',
+  completado: 'completado_interior',
+};
+
+/** Variante NO interior de un estado interior. */
+export const ESTADO_AGENDA_LOCAL: Partial<Record<EstadoAgenda, EstadoAgenda>> = {
+  tentativo_interior: 'tentativo',
+  confirmado_interior: 'confirmado',
+  en_progreso_interior: 'en_progreso',
+  completado_interior: 'completado',
 };
 
 export const ESTADO_AGENDA_COLORS: Record<EstadoAgenda, string> = {
@@ -5038,7 +5174,11 @@ export const ESTADO_AGENDA_COLORS: Record<EstadoAgenda, string> = {
   confirmado: 'bg-blue-200 text-blue-800',
   confirmado_interior: 'bg-[#cfd8e3] text-[#41546b]',
   en_progreso: 'bg-teal-200 text-teal-800',
+  // Familia interior: misma posición del ciclo, tono apagado/terroso — sigue la
+  // línea de tentativo_interior (#e6e3c2) y confirmado_interior (#cfd8e3).
+  en_progreso_interior: 'bg-[#c3ddd8] text-[#2f5a54]',
   completado: 'bg-emerald-200 text-emerald-800',
+  completado_interior: 'bg-[#c2d9c8] text-[#2f5a3f]',
   cancelado: 'bg-red-100 text-red-600',
 };
 

@@ -1,15 +1,19 @@
 import { type FC } from 'react';
-import type { AgendaEntry } from '@ags/shared';
+import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
 
-const BORDER: Record<string, string> = {
+// Tipado exhaustivo a propósito (2026-08-08): con `Record<string, string>` un
+// estado nuevo quedaba sin borde y sin error de compilación.
+const BORDER: Record<EstadoAgenda, string> = {
   pendiente: 'border-l-slate-400',
   tentativo: 'border-l-slate-400',
   tentativo_interior: 'border-l-[#a09a4e]',
   confirmado: 'border-l-blue-500',
   confirmado_interior: 'border-l-[#6d8ec9]',
   en_progreso: 'border-l-teal-500',
+  en_progreso_interior: 'border-l-[#5a9d94]',
   completado: 'border-l-emerald-500',
+  completado_interior: 'border-l-[#589a70]',
   cancelado: 'border-l-red-400',
 };
 

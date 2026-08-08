@@ -138,6 +138,14 @@ service cloud.firestore {
     match /presupuestos/{presupuestoId}           { allow read, write: if esStaff(); }
     match /categorias_presupuesto/{categoriaId}   { allow read, write: if esStaff(); }
     match /plantillas_texto_presupuesto/{plantillaId} { allow read, write: if esStaff(); }
+    // Libreta de armado de precio por cliente (2026-08-08). Compartida entre
+    // quienes cotizan: criterio interno, nunca visible al cliente.
+    match /notas_precio_cliente/{notaId}          { allow read, write: if esStaff(); }
+    // Jornadas de viaje (2026-08-08): las carga el ingeniero desde el portal.
+    // `esStaff()` alcanza —los IST loguean con @agsanalitica.com— y deja afuera
+    // a los usuarios CLIENTE, que con `signedIn()` habrían entrado.
+    // Alimentan el reporte mensual de desarraigo.
+    match /jornadas_viaje/{jornadaId}             { allow read, write: if esStaff(); }
     match /condiciones_pago/{condicionId}         { allow read, write: if esStaff(); }
     match /tipos_servicio/{tipoId}                { allow read, write: if esStaff(); }
     // Órdenes de compra. Un PROVEEDOR lee las suyas (por proveedorId, requerido y

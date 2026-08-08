@@ -1,8 +1,11 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import type { AgendaEntry, WorkOrder, EstadoAgenda, OTEstadoAdmin } from '@ags/shared';
+import { esAgendaInterior, ESTADO_AGENDA_INTERIOR } from '@ags/shared';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { ordenesTrabajoService } from '../../services/otService';
+import { establecimientosService } from '../../services/firebaseService';
+import { estadoAgendaInicialPorUbicacion } from '../../utils/distanciaInterior';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
@@ -369,7 +372,13 @@ export const AgendaPage: FC = () => {
         });
       } else {
         const ot = cb.ot;
-        resolveEquipoAgsId(ot.sistemaId).then(equipoAgsId => {
+        // El estado nace INTERIOR si el establecimiento está a +200 km
+        // (2026-08-08): de esa marca depende el desarraigo del mes, y hacerla
+        // depender de que la coordinadora la elija a mano garantiza olvidos.
+        Promise.all([
+          resolveEquipoAgsId(ot.sistemaId),
+          estadoAgendaInicialPorUbicacion(ot.establecimientoId, id => establecimientosService.getById(id)),
+        ]).then(([equipoAgsId, estadoAgenda]) => {
           createEntry({
             fechaInicio, fechaFin, quarterStart, quarterEnd,
             ingenieroId: cell.ingenieroId,
@@ -381,7 +390,7 @@ export const AgendaPage: FC = () => {
             establecimientoNombre: null,
             equipoModelo: ot.moduloModelo || null,
             equipoAgsId,
-            estadoAgenda: 'tentativo',
+            estadoAgenda,
             notas: null,
             titulo: null,
           });
@@ -652,13 +661,25 @@ export const AgendaPage: FC = () => {
 
   // ── Info bar actions ──
 
-  const handleChangeEstado = useCallback((entryId: string, estado: EstadoAgenda) => {
+  const handleChangeEstado = useCallback((entryId: string, estadoElegido: EstadoAgenda) => {
     // El estado es DE LA CELDA (pedido 2026-08-03): con varias OTs en la misma
     // celda (nunca se mezclan interior con locales), cambiar el estado de una
     // cambia el de TODAS — antes había que repetirlo servicio por servicio.
     const targets = selectedCell?.allEntries?.some(e => e.id === entryId)
       ? selectedCell.allEntries
       : entries.filter(e => e.id === entryId);
+
+    // Una visita al interior SIGUE siendo al interior en todo el ciclo
+    // (2026-08-08): si la celda ya era interior y se elige un estado común, se
+    // usa su variante interior. Sin esto, completar una visita le borraba la
+    // marca y el desarraigo del mes no la encontraba — y depender de que la
+    // coordinadora se acuerde de elegir "Completado (interior)" es pedir que
+    // no se equivoque nunca.
+    const eraInterior = targets.some(e => esAgendaInterior(e.estadoAgenda));
+    const estado = eraInterior
+      ? (ESTADO_AGENDA_INTERIOR[estadoElegido] ?? estadoElegido)
+      : estadoElegido;
+
     for (const en of targets) updateEntry(en.id, { estadoAgenda: estado });
     // Update selected cell in-place for instant UI feedback
     if (selectedCell?.entry) {

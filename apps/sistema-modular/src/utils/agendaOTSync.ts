@@ -16,7 +16,9 @@ export const AGENDA_TO_OT_ESTADO: Partial<Record<EstadoAgenda, OTEstadoAdmin>> =
   confirmado: 'COORDINADA',
   confirmado_interior: 'COORDINADA',
   en_progreso: 'EN_CURSO',
+  en_progreso_interior: 'EN_CURSO',
   completado: 'CIERRE_TECNICO',
+  completado_interior: 'CIERRE_TECNICO',
 };
 
 /** Orden lineal del workflow de OT — usado para no regresar de estado. */

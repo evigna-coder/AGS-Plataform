@@ -15,7 +15,12 @@ const CELL_BG: Record<EstadoAgenda, string> = {
   // Azul grisáceo más AZUL (2026-08-04: "#7d90a8 parece gris oscuro").
   confirmado_interior: 'bg-[#6d8ec9]',
   en_progreso: 'bg-teal-300',
+  // La familia interior sigue hasta el final del ciclo (2026-08-08): el color no
+  // se pierde al pasar a en progreso / completado, que es cuando se liquida el
+  // desarraigo. Mismo criterio de tono que los interior de arriba.
+  en_progreso_interior: 'bg-[#5a9d94]',
   completado: 'bg-emerald-300',
+  completado_interior: 'bg-[#589a70]',
   cancelado: 'bg-red-200',
 };
 
@@ -26,7 +31,9 @@ const CELL_TEXT: Record<EstadoAgenda, string> = {
   confirmado: 'text-blue-900',
   confirmado_interior: 'text-white',
   en_progreso: 'text-teal-900',
+  en_progreso_interior: 'text-white',
   completado: 'text-emerald-900',
+  completado_interior: 'text-white',
   cancelado: 'text-red-700',
 };
 

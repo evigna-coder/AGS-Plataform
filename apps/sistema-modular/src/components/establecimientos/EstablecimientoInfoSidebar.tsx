@@ -3,6 +3,10 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
+import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
+import {
+  clasificarUbicacion, CLASIFICACION_LABELS, CLASIFICACION_COLORS, UMBRAL_INTERIOR_KM,
+} from '../../utils/distanciaInterior';
 import { Link, useLocation } from 'react-router-dom';
 
 const TIPOS: { value: Establecimiento['tipo']; label: string }[] = [
@@ -38,6 +42,7 @@ export const EstablecimientoInfoSidebar = ({
   est, cliente, condicionesPago, editing, formData, setFormData,
 }: EstablecimientoInfoSidebarProps) => {
   const { pathname } = useLocation();
+  const ubicacion = clasificarUbicacion(est);
   return (
   <div className="w-72 shrink-0 space-y-4">
     {/* Ubicacion */}
@@ -59,7 +64,7 @@ export const EstablecimientoInfoSidebar = ({
             onSelectAddress={(res: AutocompleteResult) => {
               setFormData((prev: any) => ({
                 ...prev,
-                direccion: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                direccion: direccionDesdeAutocomplete(res, formData.direccion),
                 localidad: res.localidad || prev.localidad,
                 provincia: res.provincia || prev.provincia,
                 pais: res.pais || prev.pais,
@@ -103,6 +108,28 @@ export const EstablecimientoInfoSidebar = ({
           <LabelValue label="Provincia" value={est.provincia} />
           {est.pais && <LabelValue label="Pais" value={est.pais} />}
           {est.codigoPostal && <LabelValue label="Codigo postal" value={est.codigoPostal} />}
+          {/* Distancia a CABA (2026-08-08): define si los viajes a este
+              establecimiento pagan desarraigo. Se calcula al vuelo desde las
+              coordenadas — corregir la dirección lo reclasifica solo. */}
+          <div>
+            <p className="text-[11px] font-medium text-slate-400 mb-0.5">Distancia a CABA</p>
+            <p className="text-xs text-slate-700 flex items-center gap-1.5">
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${CLASIFICACION_COLORS[ubicacion.clasificacion]}`}>
+                {CLASIFICACION_LABELS[ubicacion.clasificacion]}
+              </span>
+              {ubicacion.km != null
+                ? <span className="font-mono">{ubicacion.km} km</span>
+                : <span className="text-slate-400">elegí la dirección del buscador para calcularla</span>}
+            </p>
+            {ubicacion.clasificacion === 'revisar' && (
+              <p className="text-[10px] text-amber-600 mt-0.5">
+                Cerca del límite de {UMBRAL_INTERIOR_KM} km. La distancia es en línea recta; por ruta puede superarlo.
+              </p>
+            )}
+            {ubicacion.clasificacion === 'interior' && (
+              <p className="text-[10px] text-slate-400 mt-0.5">Los viajes acá corresponden desarraigo.</p>
+            )}
+          </div>
         </div>
       )}
     </Card>
