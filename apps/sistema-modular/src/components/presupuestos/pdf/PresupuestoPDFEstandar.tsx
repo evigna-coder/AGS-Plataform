@@ -4,6 +4,7 @@ import './pdfFonts';
 import { agruparPorSistemaSimple } from './pdfUtils';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
 import { PDFRichText } from './PDFRichText';
+import { presupuestoTieneValidez } from '@ags/shared';
 import type {
   Presupuesto,
   Cliente,
@@ -376,8 +377,12 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
 
       {/* Tarjeta de condiciones: validez + forma de pago + disclaimer */}
       <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }}>
+        {/* La validez desaparece una vez aceptado (2026-08-09): ya no es una
+            oferta abierta, y en `pendiente_oc` el trabajo incluso ya se hizo. */}
         <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
-          Oferta válida por {presupuesto.validezDias || 15} días desde la fecha de emisión
+          {presupuestoTieneValidez(presupuesto.estado)
+            ? `Oferta válida por ${presupuesto.validezDias || 15} días desde la fecha de emisión`
+            : 'Presupuesto aceptado'}
           {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
           {presupuesto.condicionesComerciales ? `   ·   Ver condiciones comerciales en página 2` : ''}
         </Text>
@@ -442,29 +447,59 @@ const ALTO_LINEA_NOTA = 10;
 const CHARS_POR_LINEA = 95;
 const ALTO_TITULO_NOTA = 26;     // título + padding del recuadro destacado
 
+/**
+ * Cuenta los renglones REALES que ocupa un HTML: los saltos explicitos
+ * (`<br>`, `</p>`, `</div>`, `</li>`) valen una linea cada uno, y ademas cada
+ * bloque se wrappea por ancho.
+ *
+ * Antes se dividia el largo TOTAL del texto por `CHARS_POR_LINEA`, lo que solo
+ * modelaba el wrapping (2026-08-09). Una nota con un equipo por renglon —320
+ * caracteres en 8 lineas— se estimaba en 4, entraba "justo" en la hoja 1 y
+ * terminaba cortada al pie.
+ */
+function contarLineasHtml(html: string): number {
+  const bloques = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .split('\n');
+  let lineas = 0;
+  for (const b of bloques) {
+    const t = b.replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    // Un bloque vacio sigue siendo un renglon en blanco, que ocupa alto.
+    lineas += t ? Math.ceil(t.length / CHARS_POR_LINEA) : 1;
+  }
+  return Math.max(1, lineas);
+}
+
+/** Alto estimado del recuadro de una nota, con titulo. */
+function altoEstimadoNota(html: string | null | undefined): number {
+  if (!html) return 0;
+  const lineas = contarLineasHtml(html);
+  if (lineas === 1 && !html.replace(/<[^>]+>/g, '').trim()) return 0;
+  return ALTO_TITULO_NOTA + lineas * ALTO_LINEA_NOTA;
+}
+
 export function notasTecnicasEntranEnPagina1(
   notasHtml: string | null | undefined,
   cantidadItems: number,
 ): boolean {
   if (!notasHtml) return false;
-  const texto = notasHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!texto) return false;
-  const lineas = Math.ceil(texto.length / CHARS_POR_LINEA);
-  const altoNotas = ALTO_TITULO_NOTA + lineas * ALTO_LINEA_NOTA;
+  const altoNotas = altoEstimadoNota(notasHtml);
+  if (altoNotas === 0) return false;
   const consumido = ALTO_BASE_PAGINA1 + cantidadItems * ALTO_FILA_ITEM;
-  return consumido + altoNotas <= ALTO_A4;
+  // Margen de seguridad: si el calculo se queda corto la nota va con
+  // `wrap={false}` y saltaria ENTERA a una hoja nueva, dejando la 1 a medio
+  // llenar. Preferimos bajarla a la hoja de condiciones antes que arriesgar eso.
+  const MARGEN = 40;
+  return consumido + altoNotas + MARGEN <= ALTO_A4;
 }
 
 /** Alto util de una hoja de condiciones (A4 menos margenes, header y footer). */
 const ALTO_UTIL_CONDICIONES = 680;
 
-/** Alto estimado de un bloque de texto con titulo, con el mismo criterio que arriba. */
-function altoEstimadoSeccion(html: string | null | undefined): number {
-  if (!html) return 0;
-  const texto = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!texto) return 0;
-  return ALTO_TITULO_NOTA + Math.ceil(texto.length / CHARS_POR_LINEA) * ALTO_LINEA_NOTA;
-}
+/** Alto estimado de un bloque de texto con titulo (mismo contador de renglones). */
+const altoEstimadoSeccion = altoEstimadoNota;
 
 export function PDFCondiciones({ data, omitirNotasTecnicas }: { data: PresupuestoPDFData; omitirNotasTecnicas?: boolean }) {
   const { presupuesto } = data;
@@ -585,7 +620,9 @@ function PDFNotasTecnicasPagina1({ data }: { data: PresupuestoPDFData }) {
   const html = data.presupuesto.notasTecnicas;
   if (!html) return null;
   return (
-    <View style={S.condicionSectionDestacada} wrap>
+    // Nunca partido: si no entra, `notasTecnicasEntranEnPagina1` ya decidio
+    // bajarlo a la hoja de condiciones (2026-08-09).
+    <View style={S.condicionSectionDestacada} wrap={false}>
       <Text style={S.condicionTitle}>NOTAS TÉCNICAS:</Text>
       <PDFRichText html={html} fallbackStyle={S.condicionText} />
     </View>
