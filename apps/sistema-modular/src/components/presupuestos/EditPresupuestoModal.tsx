@@ -318,6 +318,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         <PresupuestoOTsVinculadas
           otsVinculadasNumbers={form.otsVinculadasNumbers}
           otVinculadaNumber={form.otVinculadaNumber}
+          presupuestoNumero={form.numero}
         />
 
         {/* Phase 10: Ventas delivery metadata — only shown for tipo 'ventas' */}

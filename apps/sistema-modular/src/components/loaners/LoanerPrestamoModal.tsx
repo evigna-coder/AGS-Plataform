@@ -89,7 +89,9 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     setSaving(true);
     try {
       let remitoId: string | null = null;
-      const remitoNumero: string | null = null;
+      // Se completa con el número real del remito creado: quedaba fijo en null y
+      // el préstamo guardaba `remitoSalidaNumero` vacío (2026-08-09).
+      let remitoNumero: string | null = null;
 
       if (generarRemito) {
         // El item del loaner es DOCUMENTAL (sin unidadId, con tipoEntidad):
@@ -128,6 +130,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
         // PDF) y marca el remito como impreso. Best-effort: no bloquea el préstamo.
         const remitoCreado = await remitosService.getById(remitoId);
         if (remitoCreado) {
+          remitoNumero = remitoCreado.numero;
           await imprimirRemitoStock(remitoCreado)
             .catch(err => console.warn('[LoanerPrestamoModal] impresión de remito falló:', err));
         }

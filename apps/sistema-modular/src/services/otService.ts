@@ -11,7 +11,7 @@ import { getAdminSoporteAssignee } from './personalService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
 import { fichasService } from './fichasService';
-import { reservasService } from './stockService';
+import { reservasService, remitosService } from './stockService';
 import { loanersService } from './loanersService';
 import { OT_ESTADOS_CIERRE_TECNICO_PLUS } from '@ags/shared';
 
@@ -402,6 +402,105 @@ export const ordenesTrabajoService = {
   },
 
   /**
+   * Espeja en el PADRE el estado de sus hijas (2026-08-09).
+   *
+   * El padre (`29994`) es **solo un agrupador visual**: el trabajo, los vínculos
+   * y el ciclo de vida viven en las hijas (`29994.01`). Hasta ahora el padre se
+   * quedaba en `CREADA` para siempre — se veía una OT "sin empezar" con su hija
+   * ya finalizada, y ensuciaba todo listado y filtro por `estadoAdmin`.
+   *
+   * Regla: el padre toma el estado MENOS avanzado de sus hijas — el grupo no
+   * está cerrado hasta que cierra la última. Escribe directo, sin
+   * `isOTTransicionValida`: el padre no tiene ciclo propio que validar, refleja.
+   *
+   * SOLO AVANZA, nunca retrocede. Sin este guard, un padre en COORDINADA con una
+   * hija todavía en CREADA bajaba a CREADA en cuanto se tocaba cualquier hija:
+   * una OT coordinada pasaba a figurar como recién creada, y las listas y filtros
+   * por `estadoAdmin` lo mostraban mal. El objetivo era destrabar el padre que
+   * quedaba en CREADA para siempre, no reescribir OTs en curso.
+   *
+   * No hace nada si `otNumber` no es una hija o si el padre no existe.
+   */
+  async sincronizarPadreConHijas(otNumber: string): Promise<OTEstadoAdmin | null> {
+    if (!otNumber.includes('.')) return null;
+    const padreNum = otNumber.split('.')[0];
+    const padre = await this.getByOtNumber(padreNum);
+    if (!padre) return null;
+    const hijas = await this.getItemsByOtPadre(padreNum);
+    if (hijas.length === 0) return null;
+
+    const ORDEN: OTEstadoAdmin[] = [
+      'CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO',
+      'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
+    ];
+    let menor = ORDEN.length - 1;
+    for (const h of hijas) {
+      const idx = ORDEN.indexOf((h.estadoAdmin ?? 'CREADA') as OTEstadoAdmin);
+      if (idx >= 0 && idx < menor) menor = idx;
+    }
+    const objetivo = ORDEN[menor];
+    const actualIdx = ORDEN.indexOf((padre.estadoAdmin ?? 'CREADA') as OTEstadoAdmin);
+    // Solo hacia adelante: si el padre ya está igual o más avanzado, no se toca.
+    if (actualIdx >= menor) return null;
+
+    await updateDoc(docRef('reportes', padreNum), deepCleanForFirestore({
+      estadoAdmin: objetivo,
+      estadoAdminFecha: new Date().toISOString(),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    }));
+    logBusinessEvent({
+      eventName: 'ot.padre_sincronizado',
+      collection: 'ordenes_trabajo',
+      documentId: padreNum,
+      details: { from: padre.estadoAdmin ?? null, to: objetivo, desdeHija: otNumber },
+      entityLabel: `OT ${padreNum}`,
+    });
+    console.log(`[sincronizarPadreConHijas] OT padre ${padreNum}: ${padre.estadoAdmin} → ${objetivo}`);
+    return objetivo;
+  },
+
+  /**
+   * Remito de SERVICIO → `completado` al cerrar la OT administrativamente
+   * (2026-08-09). Antes el cierre no lo tocaba y el remito quedaba `confirmado`
+   * indefinidamente; la única relación era la inversa (el remito firmado libera
+   * la OT retenida para facturación).
+   *
+   * Ojo con el consolidado: el remito de servicio se arma POR EQUIPO agrupando
+   * N OTs, así que solo se completa cuando TODAS sus OTs ya cerraron — con una
+   * sola cerrada el papel todavía cubre trabajo en curso.
+   *
+   * Idempotente (solo toca remitos en `confirmado`). Devuelve los números
+   * completados.
+   */
+  async completarRemitosServicioDeOT(otNumber: string): Promise<string[]> {
+    const cerrados = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    const remitos = await remitosService.getAll({ tipo: 'servicio' });
+    const completados: string[] = [];
+    for (const r of remitos) {
+      if (r.estado !== 'confirmado' || !(r.otNumbers ?? []).includes(otNumber)) continue;
+      // La OT que se acaba de cerrar cuenta como cerrada sin releerla.
+      const otras = (r.otNumbers ?? []).filter(n => n && n !== otNumber);
+      let todasCerradas = true;
+      for (const n of otras) {
+        const o = await this.getByOtNumber(n);
+        if (!o) {
+          // OT inexistente: no completamos a ciegas, pero dejamos rastro — si no,
+          // el remito nunca cierra y no se entiende por qué.
+          console.warn(`[completarRemitosServicio] remito ${r.numero}: OT ${n} no existe; no se completa`);
+          todasCerradas = false;
+          break;
+        }
+        if (!cerrados.has(o.estadoAdmin as OTEstadoAdmin)) { todasCerradas = false; break; }
+      }
+      if (!todasCerradas) continue;
+      await remitosService.update(r.id, { estado: 'completado' });
+      completados.push(r.numero);
+    }
+    return completados;
+  },
+
+  /**
    * Agrega un N° de OC a la OT y, si es PADRE, a todos sus items (mismo criterio que
    * vincularPresupuesto). Sin duplicar. Mantiene `ordenCompra` (legacy) = primera OC.
    * Usado al propagar la OC del presupuesto: la OC debe verse en el item .01 que se edita,
@@ -746,6 +845,12 @@ export const ordenesTrabajoService = {
         details: { from: previousEstado ?? null, to: data.estadoAdmin },
         entityLabel: `OT ${otNumber}`,
       });
+    }
+
+    // El PADRE es solo el agrupador visual: su estado espeja al de las hijas.
+    if (data.estadoAdmin) {
+      await this.sincronizarPadreConHijas(otNumber)
+        .catch(err => console.error('[otService.update] sincronizarPadreConHijas:', err));
     }
 
     // ── Auto-sync lead when OT estadoAdmin changes ──
@@ -1541,6 +1646,23 @@ export const ordenesTrabajoService = {
           console.warn(`[cerrarAdmin.reclamoOC] ppto ${p.numero}:`, err);
         }
       }
+    }
+
+    // El padre espeja a las hijas. Se llama también acá porque este camino no
+    // pasa por `update()` (el cierre admin escribe el estado en su propia tx).
+    await this.sincronizarPadreConHijas(otNumber)
+      .catch(err => console.error('[cerrarAdministrativamente] sincronizarPadreConHijas:', err));
+
+    // Remito de servicio: se completa al cerrar la ÚLTIMA OT que cubre. Fuera del
+    // guard `!yaCerrada` a propósito — es idempotente, y así un reintento del
+    // cierre repara el remito si la primera pasada falló. Best-effort.
+    try {
+      const completados = await this.completarRemitosServicioDeOT(otNumber);
+      if (completados.length > 0) {
+        console.log(`[cerrarAdmin] remito(s) de servicio completado(s): ${completados.join(', ')}`);
+      }
+    } catch (err) {
+      console.error('[cerrarAdministrativamente] completarRemitosServicioDeOT failed (non-blocking):', err);
     }
 
     // ── Deducción de stock al cierre (idempotente) ─────────────────────────────

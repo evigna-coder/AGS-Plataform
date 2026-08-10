@@ -1,29 +1,48 @@
 import React from 'react';
 import { useTabs } from '../../contexts/TabsContext';
+import { ordenesTrabajoService } from '../../services/firebaseService';
+import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
+import type { Presupuesto, WorkOrder } from '@ags/shared';
 
 interface Props {
   /** Lista de OT numbers vinculadas al presupuesto (array nuevo). */
   otsVinculadasNumbers?: string[] | null;
   /** Campo legacy singular — se muestra si no hay array. */
   otVinculadaNumber?: string | null;
+  /** Número del presupuesto — habilita el join por `budgets` de la OT. */
+  presupuestoNumero?: string | null;
 }
 
 /**
- * Shows a compact chip list of OTs generated from this presupuesto.
- * Reads the new `otsVinculadasNumbers` array and falls back to the legacy
- * singular `otVinculadaNumber` when the array is missing (presupuestos
- * creados antes del refactor bidireccional).
+ * Chips de las OTs de este presupuesto.
+ *
+ * Resuelve con `otsDelPresupuesto` (2026-08-09), el mismo join que usan el
+ * control semanal y los KPIs: campos del presupuesto + OTs cuyo `budgets` lo
+ * mencione, descartando los PADRES que tienen hijas y heredando el vínculo a
+ * ellas. Antes leía solo `otsVinculadasNumbers`/`otVinculadaNumber` y mostraba
+ * el padre (29994, que nunca sale de CREADA) en vez de la hija donde está el
+ * trabajo (29994.01) — el padre es solo un agrupador visual.
  */
-export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers, otVinculadaNumber }) => {
+export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers, otVinculadaNumber, presupuestoNumero }) => {
   const { navigateInActiveTab } = useTabs();
+  const [ots, setOts] = React.useState<WorkOrder[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    ordenesTrabajoService.getAll()
+      .then((data: WorkOrder[]) => { if (!cancelled) setOts(data); })
+      .catch((err: unknown) => console.error('[PresupuestoOTsVinculadas] cargar OTs:', err));
+    return () => { cancelled = true; };
+  }, []);
 
   const numeros = React.useMemo(() => {
-    const list = otsVinculadasNumbers && otsVinculadasNumbers.length > 0
-      ? [...otsVinculadasNumbers]
-      : otVinculadaNumber ? [otVinculadaNumber] : [];
-    // Deduplicate while preserving order
-    return Array.from(new Set(list));
-  }, [otsVinculadasNumbers, otVinculadaNumber]);
+    const pres = {
+      numero: presupuestoNumero ?? '',
+      otsVinculadasNumbers: otsVinculadasNumbers ?? null,
+      otVinculadaNumber: otVinculadaNumber ?? null,
+    } as Presupuesto;
+    return [...otsDelPresupuesto(pres, ots)].sort((a, b) => a.localeCompare(b));
+  }, [otsVinculadasNumbers, otVinculadaNumber, presupuestoNumero, ots]);
 
   if (numeros.length === 0) return null;
 

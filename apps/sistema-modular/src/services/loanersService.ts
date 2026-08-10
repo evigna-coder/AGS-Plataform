@@ -264,6 +264,39 @@ export const loanersService = {
     return newPrestamo.id;
   },
 
+  /**
+   * Cierra la línea del remito de SALIDA al volver el loaner (2026-08-09).
+   * Decisión del user: el retorno no emite papel nuevo — cierra la salida.
+   *
+   * El ítem del loaner es documental (sin unidad de stock), así que no pasa por
+   * `marcarRetornoRemitoItem`: se marca devuelto directo y el remito pasa a
+   * `completado` si no le queda nada pendiente. Nunca `cancelado`: el equipo
+   * salió de verdad y el papel lo respalda.
+   *
+   * Best-effort — nunca bloquea la devolución.
+   */
+  async cerrarRemitoSalidaLoaner(remitoId: string, loanerId: string): Promise<boolean> {
+    const { remitosService } = await import('./stockService');
+    const remito = await remitosService.getById(remitoId);
+    if (!remito) return false;
+    if (!['confirmado', 'en_transito', 'completado_parcial'].includes(remito.estado)) return false;
+    const nowIso = new Date().toISOString();
+    let cambio = false;
+    const items = (remito.items ?? []).map(it => {
+      if (it.loanerId !== loanerId || it.devuelto || it.consumido) return it;
+      cambio = true;
+      return { ...it, devuelto: true, fechaDevolucion: nowIso };
+    });
+    if (!cambio) return false;
+    const pendientes = items.some(it => it.tipoItem === 'sale_y_vuelve' && !it.devuelto && !it.consumido);
+    await remitosService.update(remitoId, {
+      items,
+      estado: pendientes ? 'completado_parcial' : 'completado',
+      ...(pendientes ? {} : { fechaDevolucion: nowIso }),
+    });
+    return true;
+  },
+
   async registrarDevolucion(loanerId: string, prestamoId: string, data: {
     fechaRetornoReal: string;
     condicionRetorno: string;
@@ -287,6 +320,17 @@ export const loanersService = {
       prestamos,
       condicion: data.condicionRetorno,
     });
+
+    // El remito de salida se cierra con el retorno. Hasta ahora nadie lo tocaba:
+    // el loaner volvía a base y su remito seguía mostrándolo en la calle.
+    const remitoSalidaId = loaner.prestamos.find(p => p.id === prestamoId)?.remitoSalidaId;
+    if (remitoSalidaId) {
+      try {
+        await this.cerrarRemitoSalidaLoaner(remitoSalidaId, loanerId);
+      } catch (err) {
+        console.error('[registrarDevolucion] cierre del remito de salida falló (no bloquea):', err);
+      }
+    }
   },
 
   /** Vincula un número de OT al loaner (dedup, no pisa los existentes). */

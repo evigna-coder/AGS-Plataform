@@ -527,14 +527,20 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       // otVinculadaNumber field reflecting the most recent one for compat.
       if (form.presupuestoId) {
         try {
+          // El vínculo va a la HIJA, no al padre (2026-08-09). El padre es solo el
+          // agrupador visual: dejarlo acá hacía que el presupuesto apuntara a un
+          // contenedor que nunca cambia de estado, y las vistas que no heredan
+          // padre→hija mostraban una OT "sin empezar" en vez del trabajo real
+          // (caso P3-005063-01 → 29994 con la 29994.01 ya finalizada).
+          const otHija = `${otNum}.01`;
           const presActual = await presupuestosService.getById(form.presupuestoId);
           const prev = presActual?.otsVinculadasNumbers ?? [];
-          const nextList = prev.includes(otNum) ? prev : [...prev, otNum];
+          const nextList = prev.includes(otHija) ? prev : [...prev, otHija];
           // Auto-vincular a esta OT los items que aún no tengan OT asignada, para
           // que aparezcan en /entregas. No se pisa un otNumeroVinculada ya seteado
           // (manual o por una OT previa) — un presupuesto puede partirse en N OTs.
           const itemsVinculados = (presActual?.items ?? []).map((it: PresupuestoItem) =>
-            it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otNum },
+            it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otHija },
           );
           // Solo avanzar a 'en_ejecucion' si el presupuesto YA fue enviado/aceptado.
           // Si todavía está en borrador (OT adelantada antes de mandarlo), NO se toca el
@@ -544,7 +550,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
           const yaAvanzado = !!presActual?.fechaEnvio
             || estadoActual === 'enviado' || estadoActual === 'aceptado' || estadoActual === 'en_ejecucion';
           await presupuestosService.update(form.presupuestoId, deepCleanForFirestore({
-            otVinculadaNumber: otNum,
+            otVinculadaNumber: otHija,
             otsVinculadasNumbers: nextList,
             ...(yaAvanzado ? { estado: 'en_ejecucion' } : {}),
             items: itemsVinculados,
