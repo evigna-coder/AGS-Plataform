@@ -207,9 +207,22 @@ export const FacturacionDetail = () => {
 
       {/* Metadata */}
       <Card>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <div><p className={lbl}>Fecha solicitud</p><p className="text-xs text-slate-700">{fmtDate(solicitud.createdAt)}</p></div>
           <div><p className={lbl}>Solicitado por</p><p className="text-xs text-slate-700">{solicitud.solicitadoPorNombre || '—'}</p></div>
+          {/* La OT del aviso estaba solo dentro del chip del reporte, así que la
+              solicitud parecía no tener OT (2026-08-09). Va como dato propio. */}
+          <div>
+            <p className={lbl}>OT</p>
+            {solicitud.otNumbers?.length ? (
+              <div className="flex flex-wrap gap-1">
+                {solicitud.otNumbers.map(n => (
+                  <Link key={n} to={`/ordenes-trabajo/${n}`} state={{ from: pathname }}
+                    className="text-xs font-mono text-teal-600 hover:underline">{n}</Link>
+                ))}
+              </div>
+            ) : <p className="text-xs text-slate-400">—</p>}
+          </div>
           <div><p className={lbl}>Condicion de pago</p><p className="text-xs text-slate-700">{solicitud.condicionPago || '—'}</p></div>
           <div><p className={lbl}>Monto total</p><p className="text-sm font-bold text-teal-700">{fmtMoney(solicitud.montoTotal)}</p></div>
         </div>

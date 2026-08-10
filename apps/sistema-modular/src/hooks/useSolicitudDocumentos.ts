@@ -41,15 +41,38 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
       setLoadingDocs(true);
       try {
         // ── OCs del cliente ──────────────────────────────────────────────
+        // Hay DOS formas de cargar la OC y hasta ahora sólo se leía una
+        // (2026-08-09): la colección `ordenesCompraCliente` (FLOW-02) y los
+        // ADJUNTOS del presupuesto con `tipo: 'orden_compra'`. Con la OC subida
+        // como adjunto, el chip decía "OC: sin cargar" aunque el PDF estuviera ahí.
         let ocIds = solicitud.ordenesCompraIds || [];
-        if (ocIds.length === 0 && solicitud.presupuestoId) {
+        const pres = solicitud.presupuestoId
+          ? await presupuestosService.getById(solicitud.presupuestoId).catch(() => null)
+          : null;
+        if (ocIds.length === 0) {
           // Solicitudes viejas sin back-ref: leer del presupuesto.
-          const p = await presupuestosService.getById(solicitud.presupuestoId).catch(() => null);
-          ocIds = p?.ordenesCompraIds || [];
+          ocIds = pres?.ordenesCompraIds || [];
         }
         const ocDocs = await Promise.all(
           ocIds.map(id => ordenesCompraClienteService.getById(id).catch(() => null)),
         );
+
+        // Adjuntos del presupuesto tipo "orden de compra" → se exponen con la
+        // misma forma que una OC de la colección, para que la tarjeta los liste
+        // igual. `id` prefijado para no chocar con ids reales.
+        const adjuntosOC: OrdenCompraCliente[] = (pres?.adjuntos ?? [])
+          .filter(a => a.tipo === 'orden_compra')
+          .map(a => ({
+            id: `adjunto:${a.id}`,
+            numero: pres?.ordenCompraNumero || a.nombre,
+            fecha: a.fechaCarga,
+            clienteId: pres?.clienteId ?? '',
+            presupuestosIds: pres ? [pres.id] : [],
+            adjuntos: [{ id: a.id, url: a.url, tipo: 'pdf', nombre: a.nombre, fechaCarga: a.fechaCarga }],
+            notas: a.notas ?? null,
+            createdAt: a.fechaCarga,
+            updatedAt: a.fechaCarga,
+          }));
 
         // ── Reportes de OT ───────────────────────────────────────────────
         const otNums = solicitud.otNumbers || [];
@@ -61,7 +84,7 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
         );
 
         if (!cancelled) {
-          setOcs(ocDocs.filter((o): o is OrdenCompraCliente => !!o));
+          setOcs([...ocDocs.filter((o): o is OrdenCompraCliente => !!o), ...adjuntosOC]);
           setReportes(reps);
         }
       } catch (err) {
