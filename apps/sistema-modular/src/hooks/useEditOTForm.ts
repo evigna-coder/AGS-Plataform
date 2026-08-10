@@ -1,18 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ordenesTrabajoService, clientesService, sistemasService,
   tiposServicioService, contactosService, modulosService, presupuestosService,
+  establecimientosService,
 } from '../services/firebaseService';
 import { getResponsablesOT } from '../services/personalService';
 import { deepCleanForFirestore } from '../services/firebase';
 import type {
   WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema,
   Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
-  PatronSeleccionado, Presupuesto,
+  PatronSeleccionado, Presupuesto, Establecimiento,
 } from '@ags/shared';
+import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
 export interface EditOTFormState {
   clienteId: string;
+  /** Editable desde 2026-08-09: el modal no tenia el campo, asi que una OT
+   *  abierta con el establecimiento equivocado no se podia corregir por UI. */
+  establecimientoId: string;
   sistemaId: string;
   moduloId: string;
   tipoServicio: string;
@@ -50,7 +55,7 @@ const INITIAL_CIERRE: CierreAdministrativo = {
 };
 
 const INITIAL_FORM: EditOTFormState = {
-  clienteId: '', sistemaId: '', moduloId: '', tipoServicio: '',
+  clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '', tipoServicio: '',
   contactoId: '', ingenieroId: '', presupuestos: [''], ordenesCompra: [''],
   fechaServicioAprox: '', problemaFallaInicial: '', estadoAdmin: 'CREADA',
   esFacturable: true, tieneContrato: false, esGarantia: false,
@@ -74,6 +79,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
   const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [otOriginal, setOtOriginal] = useState<WorkOrder | null>(null);
   const [form, setForm] = useState<EditOTFormState>(INITIAL_FORM);
 
@@ -93,13 +99,15 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       // Phase 14 BOM-05 — best-effort read; empty array si no hay reporte/campo
       // (deja CierrePatronesConsumidosSection en estado "sin BOM en esta OT")
       ordenesTrabajoService.getPatronesSeleccionados(otNumber).catch(() => [] as PatronSeleccionado[]),
-    ]).then(async ([ot, c, s, ts, ings, patronesSel]) => {
+      establecimientosService.getAll().catch(() => [] as Establecimiento[]),
+    ]).then(async ([ot, c, s, ts, ings, patronesSel, ests]) => {
       if (!ot) { alert('OT no encontrada'); onClose(); return; }
       setOtOriginal(ot);
       setClientes(c);
       setSistemas(s);
       setTiposServicio(ts);
       setIngenieros(ings);
+      setEstablecimientos(ests);
 
       if (ot.clienteId) {
         setSistemasFiltrados(s.filter(si => si.clienteId === ot.clienteId));
@@ -120,6 +128,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
       setForm({
         clienteId: ot.clienteId || '',
+        establecimientoId: ot.establecimientoId || '',
         sistemaId: ot.sistemaId || '',
         moduloId: ot.moduloId || '',
         tipoServicio: ot.tipoServicio || '',
@@ -158,6 +167,31 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     if (porDocId) setForm(prev => ({ ...prev, ingenieroId: porDocId.usuarioId || porDocId.id }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ingenieros, form.ingenieroId]);
+
+  /** Establecimientos ACTIVOS del cliente — la misma lista que ve el selector. */
+  const establecimientosFiltrados = useMemo(() => {
+    if (!form.clienteId) return [];
+    return establecimientos.filter(e => establecimientoPerteneceACliente(e, form.clienteId) && e.activo !== false);
+  }, [establecimientos, form.clienteId]);
+
+  /** Cambio de cliente: resetea el establecimiento y autoselecciona si hay uno
+   *  solo (regla del proyecto). No pisa el que ya trae la OT. */
+  const selectCliente = useCallback((clienteId: string) => {
+    setForm(prev => {
+      if (prev.clienteId === clienteId) return prev;
+      const filtrados = establecimientos.filter(
+        e => establecimientoPerteneceACliente(e, clienteId) && e.activo !== false);
+      return { ...prev, clienteId, establecimientoId: establecimientoUnicoId(filtrados) ?? '', sistemaId: '', moduloId: '', contactoId: '' };
+    });
+  }, [establecimientos]);
+
+  // Autoselección de único también al abrir una OT que quedó SIN establecimiento
+  // (items creados antes del fix de herencia, 2026-08-09).
+  useEffect(() => {
+    if (!open || loading || form.establecimientoId) return;
+    const unico = establecimientoUnicoId(establecimientosFiltrados);
+    if (unico) setForm(prev => (prev.establecimientoId ? prev : { ...prev, establecimientoId: unico }));
+  }, [open, loading, form.establecimientoId, establecimientosFiltrados]);
 
   // Cascade: client -> sistemas + contactos
   useEffect(() => {
@@ -367,6 +401,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         moduloSerie: modulo?.serie ?? otOriginal?.moduloSerie ?? '',
         codigoInternoCliente: sistema?.codigoInternoCliente ?? '',
         clienteId: form.clienteId,
+        establecimientoId: form.establecimientoId || null,
         sistemaId: form.sistemaId || null,
         moduloId: form.moduloId || null,
         ingenieroAsignadoId: ingeniero?.usuarioId ?? ingeniero?.id ?? null,
@@ -462,6 +497,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   return {
     loading, saving, form, set, readOnly,
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
+    establecimientosFiltrados, selectCliente,
     otOriginal, handleSave, openInReportesOT, handlePresupuestoChange,
     handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre, handleReabrirOT,
   };

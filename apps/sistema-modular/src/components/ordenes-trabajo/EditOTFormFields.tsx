@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, Presupuesto } from '@ags/shared';
+import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, Presupuesto, Establecimiento } from '@ags/shared';
 import { MONEDA_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { EditOTFormState } from '../../hooks/useEditOTForm';
 
@@ -19,13 +19,16 @@ interface Props {
   contactos: ContactoCliente[];
   ingenieros: Ingeniero[];
   presupuestosCliente: Presupuesto[];
+  establecimientosFiltrados: Establecimiento[];
+  /** Cambiar de cliente resetea el establecimiento y autoselecciona el único. */
+  onClienteChange: (clienteId: string) => void;
   /** Setea el presupuesto de la fila y arrastra la OC del cliente a la OT. */
   onPresupuestoChange: (idx: number, numero: string) => void;
 }
 
 export const EditOTFormFields: React.FC<Props> = ({
   form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
-  onPresupuestoChange,
+  establecimientosFiltrados, onClienteChange, onPresupuestoChange,
 }) => {
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
@@ -40,13 +43,34 @@ export const EditOTFormFields: React.FC<Props> = ({
         placeholder="Seleccionar tipo..." disabled={readOnly} />
     </div>
 
-    {/* Cliente */}
-    <div>
-      <label className={lbl}>Cliente *</label>
-      <SearchableSelect value={form.clienteId}
-        onChange={v => { set('clienteId', v); set('sistemaId', ''); set('moduloId', ''); set('contactoId', ''); }}
-        options={clienteOptions}
-        placeholder="Seleccionar cliente..." disabled={readOnly} />
+    {/* Cliente + Establecimiento */}
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className={lbl}>Cliente *</label>
+        <SearchableSelect value={form.clienteId}
+          onChange={onClienteChange}
+          options={clienteOptions}
+          placeholder="Seleccionar cliente..." disabled={readOnly} />
+      </div>
+      <div>
+        {/* Sin este campo, una OT abierta con el establecimiento equivocado no se
+            podía corregir por UI (2026-08-09). De él dependen la marca de
+            interior en agenda y el domicilio de entrega de los remitos. */}
+        <label className={`${lbl}${!form.establecimientoId && form.clienteId ? ' text-amber-600' : ''}`}>
+          Establecimiento{!form.establecimientoId && form.clienteId ? ' — sin asignar' : ''}
+        </label>
+        <SearchableSelect value={form.establecimientoId}
+          onChange={v => set('establecimientoId', v)}
+          options={[
+            { value: '', label: 'Sin establecimiento' },
+            ...establecimientosFiltrados.map(e => ({
+              value: e.id,
+              label: `${e.nombre}${e.localidad ? ` — ${e.localidad}` : ''}`,
+            })),
+          ]}
+          placeholder={form.clienteId ? 'Seleccionar...' : 'Seleccione cliente primero'}
+          disabled={readOnly || !form.clienteId} />
+      </div>
     </div>
 
     {/* Sistema + Módulo */}
