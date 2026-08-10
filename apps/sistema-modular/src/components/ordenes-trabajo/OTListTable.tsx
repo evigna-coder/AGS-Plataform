@@ -217,10 +217,11 @@ export const OTListTable: React.FC<Props> = ({
                         </svg>
                       </button>
                     )}
+                    {/* Item → se cancela (queda rastro); padre → se elimina. */}
                     <button onClick={() => onDelete(ot)}
                       className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50"
-                      title="Eliminar">
-                      Eliminar
+                      title={ot.otNumber.includes('.') ? 'Cancelar item (pide motivo)' : 'Eliminar'}>
+                      {ot.otNumber.includes('.') ? 'Cancelar' : 'Eliminar'}
                     </button>
                   </div>
                 </td>

@@ -140,6 +140,26 @@ export function useOTDetail(otNumber?: string) {
     catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); } finally { setSaving(false); }
   }, [otNumber, navigate]);
 
+  /**
+   * Baja de un ITEM (2026-08-09): se cancela, no se borra. Borrar consumía el
+   * número igual y dejaba huecos que después había que renombrar a mano.
+   * El motivo es obligatorio — es justamente el rastro que antes se perdía.
+   */
+  const handleCancelarItem = useCallback(async () => {
+    if (!otNumber) return;
+    const motivo = prompt(`Motivo de la baja del item ${otNumber}:`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { alert('El motivo es obligatorio.'); return; }
+    try {
+      setSaving(true);
+      await ordenesTrabajoService.cancelarItem(otNumber, motivo);
+      alert(`Item ${otNumber} cancelado. El número queda ocupado; el próximo item sigue la numeración.`);
+      navigate('/ordenes-trabajo');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al cancelar el item');
+    } finally { setSaving(false); }
+  }, [otNumber, navigate]);
+
   // ── FLOW-04: wrapper that intercepts CIERRE_ADMINISTRATIVO transitions ─
   // When the user moves to CIERRE_ADMINISTRATIVO, run the atomic
   // `cerrarAdministrativamente` (updates OT + creates ticket admin + mailQueue doc
@@ -235,7 +255,7 @@ export function useOTDetail(otNumber?: string) {
 
   return {
     loading, saving, status: form.status, readOnly, readOnlyTecnico, enCierreAdmin,
-    handleSave, handleDelete, handleConfirmarCierre,
+    handleSave, handleDelete, handleCancelarItem, handleConfirmarCierre,
     retenidaFacturacion, requisitoFacturacionPendiente, handleLiberarFacturacion,
     // Field handlers (spread from extracted hook)
     ...fields,

@@ -118,7 +118,7 @@ function aggregateOperacion(ots: WorkOrder[]): OperacionKPIs {
 
   const porEstado: Record<OTEstadoAdmin, number> = {
     CREADA: 0, ASIGNADA: 0, COORDINADA: 0, EN_CURSO: 0,
-    CIERRE_TECNICO: 0, CIERRE_ADMINISTRATIVO: 0, FINALIZADO: 0,
+    CIERRE_TECNICO: 0, CIERRE_ADMINISTRATIVO: 0, FINALIZADO: 0, CANCELADA: 0,
   };
   let cerradasMes = 0;
   let sinIngeniero = 0;

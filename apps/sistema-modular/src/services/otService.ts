@@ -141,6 +141,9 @@ export const ordenesTrabajoService = {
         if (seen.has(d.id)) continue;
         seen.add(d.id);
         const data = d.data();
+        // Un item cancelado sigue con `status: 'BORRADOR'`, así que la segunda
+        // query lo traería de vuelta a la cola de coordinación (2026-08-09).
+        if (data.estadoAdmin === 'CANCELADA') continue;
         const createdIso: string = typeof data.createdAt === 'string'
           ? data.createdAt
           : data.createdAt?.toDate?.()?.toISOString?.() ?? '';
@@ -433,8 +436,12 @@ export const ordenesTrabajoService = {
       'CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO',
       'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
     ];
+    // Las hijas CANCELADAS no cuentan: son bajas, no trabajo pendiente. Si
+    // contaran, un item cancelado dejaría al padre trabado para siempre.
+    const vivas = hijas.filter(h => h.estadoAdmin !== 'CANCELADA');
+    if (vivas.length === 0) return null;
     let menor = ORDEN.length - 1;
-    for (const h of hijas) {
+    for (const h of vivas) {
       const idx = ORDEN.indexOf((h.estadoAdmin ?? 'CREADA') as OTEstadoAdmin);
       if (idx >= 0 && idx < menor) menor = idx;
     }
@@ -1047,6 +1054,70 @@ export const ordenesTrabajoService = {
    * un delete naive deja orphan. Para OTs cerradas, usar baja lógica vía
    * estadoAdmin (no implementada acá).
    */
+  /**
+   * Da de baja un ITEM de OT dejando rastro (2026-08-09), en vez de borrarlo.
+   *
+   * Borrar consumía el número igual: el contador `_counters/otItem_{padre}` nunca
+   * reutiliza huecos, así que cada borrado dejaba un número muerto y obligaba a
+   * renombrar a mano (caso 29468, que terminó con .05 y .06 en blanco y el
+   * trabajo en la .07). Cancelando, el número queda ocupado por un item que
+   * explica por qué se dio de baja.
+   *
+   * Libera la agenda —una visita cancelada no ocupa al ingeniero— pero NO toca
+   * los vínculos a presupuestos ni tickets: ahí el rastro es justamente el valor.
+   */
+  async cancelarItem(otNumber: string, motivo: string, actor?: { name?: string }): Promise<void> {
+    if (!otNumber.includes('.')) {
+      throw new Error('Solo se cancelan items (.NN). El padre es un agrupador — no tiene baja propia.');
+    }
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error(`OT ${otNumber} no existe`);
+    if (ot.estadoAdmin === 'CANCELADA') return;
+    if (!isOTTransicionValida(ot.estadoAdmin, 'CANCELADA')) {
+      throw new Error(
+        `No se puede cancelar el item ${otNumber} en estado ${ot.estadoAdmin}: ya tiene cierre administrativo. Reabrir la OT para corregir.`,
+      );
+    }
+    const nowIso = new Date().toISOString();
+    const patch = {
+      estadoAdmin: 'CANCELADA' as OTEstadoAdmin,
+      estadoAdminFecha: nowIso,
+      motivoCancelacion: motivo.trim() || null,
+      fechaCancelacion: nowIso,
+      canceladaPorNombre: actor?.name ?? getCurrentUserTrace()?.name ?? null,
+      estadoHistorial: [
+        ...(ot.estadoHistorial ?? []),
+        { estado: 'CANCELADA' as OTEstadoAdmin, fecha: nowIso, usuario: actor?.name ?? undefined, nota: motivo.trim() || undefined },
+      ],
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    };
+    const batch = createBatch();
+    batch.update(docRef('reportes', otNumber), deepCleanForFirestore(patch));
+    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: patch });
+    await batch.commit();
+
+    // La agenda se libera: la visita no va a ocurrir. Best-effort.
+    try {
+      const entries = await agendaService.getByOtNumber(otNumber);
+      await Promise.all(entries.map(e => agendaService.delete(e.id)));
+    } catch (err) {
+      console.error(`[cancelarItem] limpiando agenda de ${otNumber}:`, err);
+    }
+
+    logBusinessEvent({
+      eventName: 'ot.item_cancelado',
+      collection: 'ordenes_trabajo',
+      documentId: otNumber,
+      details: { motivo: motivo.trim() || null, estadoPrevio: ot.estadoAdmin ?? null },
+      entityLabel: `OT ${otNumber}`,
+    });
+
+    // El padre se recalcula ignorando las canceladas.
+    await this.sincronizarPadreConHijas(otNumber)
+      .catch(err => console.error('[cancelarItem] sincronizarPadreConHijas:', err));
+  },
+
   async delete(otNumber: string) {
     const otSnap = await getDoc(doc(db, 'reportes', otNumber));
     if (!otSnap.exists()) {
@@ -1057,6 +1128,14 @@ export const ordenesTrabajoService = {
     if (otData.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || otData.estadoAdmin === 'FINALIZADO') {
       throw new Error(
         `No se puede eliminar la OT ${otNumber} en estado ${otData.estadoAdmin}. Tiene solicitudes de facturación o referencias downstream — anular en lugar de eliminar.`,
+      );
+    }
+
+    // Los ITEMS no se borran: se cancelan (2026-08-09). Borrar consumía el número
+    // igual y dejaba huecos que después había que renombrar a mano.
+    if (otNumber.includes('.')) {
+      throw new Error(
+        `El item ${otNumber} no se elimina: se CANCELA, para que quede rastro de que existió y por qué se dio de baja. Usar "Cancelar item".`,
       );
     }
 

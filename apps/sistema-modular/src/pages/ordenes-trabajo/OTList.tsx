@@ -106,6 +106,17 @@ export const OTList = () => {
   const noopReload = useCallback(async () => {}, []);
 
   const handleDelete = async (ot: WorkOrder) => {
+    // Los items se cancelan (queda rastro y el número sigue ocupado); el padre,
+    // que es solo el agrupador, sí se elimina (2026-08-09).
+    if (ot.otNumber.includes('.')) {
+      const motivo = prompt(`Motivo de la baja del item ${ot.otNumber}:`);
+      if (motivo === null) return;
+      if (!motivo.trim()) { alert('El motivo es obligatorio.'); return; }
+      try {
+        await ordenesTrabajoService.cancelarItem(ot.otNumber, motivo);
+      } catch (err) { alert(err instanceof Error ? err.message : 'Error al cancelar el item'); }
+      return;
+    }
     if (!await confirm(`¿Eliminar OT-${ot.otNumber}?`)) return;
     try {
       await ordenesTrabajoService.delete(ot.otNumber);

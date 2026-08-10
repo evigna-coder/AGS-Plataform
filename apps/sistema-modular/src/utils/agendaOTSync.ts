@@ -25,6 +25,8 @@ export const AGENDA_TO_OT_ESTADO: Partial<Record<EstadoAgenda, OTEstadoAdmin>> =
 export const OT_ESTADO_ORDER: Record<OTEstadoAdmin, number> = {
   CREADA: 0, ASIGNADA: 1, COORDINADA: 2, EN_CURSO: 3,
   CIERRE_TECNICO: 4, CIERRE_ADMINISTRATIVO: 5, FINALIZADO: 6,
+  // Baja lateral: -1 para que ningún avance de agenda la 'supere' y la reviva.
+  CANCELADA: -1,
 };
 
 /** In-memory cache for sistemaId → id visible lookups within a session. */

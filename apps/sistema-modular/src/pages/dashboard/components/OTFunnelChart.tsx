@@ -13,6 +13,7 @@ const COLORS: Record<OTEstadoAdmin, string> = {
   CIERRE_TECNICO: '#0D9488',
   CIERRE_ADMINISTRATIVO: '#14B8A6',
   FINALIZADO: '#10B981',
+  CANCELADA: '#DC2626',
 };
 
 export const OTFunnelChart: React.FC<OTFunnelChartProps> = ({ porEstado }) => {

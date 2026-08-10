@@ -10,7 +10,14 @@ export type OTEstadoAdmin =
   | 'EN_CURSO'
   | 'CIERRE_TECNICO'
   | 'CIERRE_ADMINISTRATIVO'
-  | 'FINALIZADO';
+  | 'FINALIZADO'
+  /**
+   * Item dado de baja (2026-08-09). Reemplaza al DELETE: borrar consumia el
+   * numero igual —el contador `otItem_{padre}` nunca reutiliza huecos— y dejaba
+   * agujeros que despues habia que renombrar a mano (caso 29468). Cancelar deja
+   * rastro de que el item existio y por que se dio de baja.
+   */
+  | 'CANCELADA';
 
 /** Entrada del historial de estados */
 export interface OTEstadoHistorial {
@@ -28,12 +35,20 @@ export const OT_ESTADO_LABELS: Record<OTEstadoAdmin, string> = {
   CIERRE_TECNICO: 'Cierre técnico',
   CIERRE_ADMINISTRATIVO: 'Cierre administrativo',
   FINALIZADO: 'Finalizado',
+  CANCELADA: 'Cancelada',
 };
 
 export const OT_ESTADO_ORDER: OTEstadoAdmin[] = [
   'CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO',
   'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
 ];
+
+/**
+ * `CANCELADA` NO entra en `OT_ESTADO_ORDER`: no es un paso del ciclo sino una
+ * salida lateral. Todo lo que recorra el avance de una OT debe ignorarla —
+ * sobre todo `sincronizarPadreConHijas`, que si no arrastraria al padre.
+ */
+export const OT_ESTADO_TERMINAL_BAJA: OTEstadoAdmin = 'CANCELADA';
 
 /**
  * Matriz de transiciones válidas. Para cada estado, los siguientes a los que
@@ -50,17 +65,23 @@ export const OT_ESTADO_ORDER: OTEstadoAdmin[] = [
  * console o script de migración explícito.
  */
 export const OT_TRANSICIONES_VALIDAS: Record<OTEstadoAdmin, OTEstadoAdmin[]> = {
-  CREADA: ['ASIGNADA'],
-  ASIGNADA: ['CREADA', 'COORDINADA'],
-  COORDINADA: ['ASIGNADA', 'EN_CURSO'],
-  EN_CURSO: ['COORDINADA', 'CIERRE_TECNICO'],
-  CIERRE_TECNICO: ['EN_CURSO', 'CIERRE_ADMINISTRATIVO'],
+  // Se puede cancelar desde cualquier estado ANTERIOR al cierre administrativo.
+  // Despues del cierre ya hay solicitud de facturacion y stock deducido: eso se
+  // corrige reabriendo, no cancelando.
+  CREADA: ['ASIGNADA', 'CANCELADA'],
+  ASIGNADA: ['CREADA', 'COORDINADA', 'CANCELADA'],
+  COORDINADA: ['ASIGNADA', 'EN_CURSO', 'CANCELADA'],
+  EN_CURSO: ['COORDINADA', 'CIERRE_TECNICO', 'CANCELADA'],
+  CIERRE_TECNICO: ['EN_CURSO', 'CIERRE_ADMINISTRATIVO', 'CANCELADA'],
   CIERRE_ADMINISTRATIVO: ['FINALIZADO'],
   // Reabrir: FINALIZADO → CIERRE_ADMINISTRATIVO. Antes era terminal ([]) pero el botón
   // "Reabrir OT" lo ofrecía igual y tiraba "transición inválida". Reabrir permite corregir
   // el cierre (ej. materiales/stock que quedaron sin descontar). El re-finalizar re-corre la
   // deducción, que es idempotente (guard stockDeducido).
   FINALIZADO: ['CIERRE_ADMINISTRATIVO'],
+  // Deshacer la baja: vuelve al principio del ciclo. No se restaura el estado
+  // previo porque cancelar puede haber liberado agenda y vinculos.
+  CANCELADA: ['CREADA'],
 };
 
 /** Devuelve true si la transición desde→hacia está permitida. */
@@ -147,6 +168,10 @@ export interface WorkOrder {
   // --- Campos administrativos (sistema-modular) ---
   estadoAdmin?: OTEstadoAdmin;              // Estado del workflow administrativo
   estadoAdminFecha?: string;                // Fecha del último cambio de estado
+  /** Por qué se dio de baja el item (estadoAdmin CANCELADA). El rastro que el DELETE no dejaba. */
+  motivoCancelacion?: string | null;
+  fechaCancelacion?: string | null;
+  canceladaPorNombre?: string | null;
   estadoHistorial?: OTEstadoHistorial[];    // Historial completo de cambios de estado
   ordenCompra?: string;                     // Número de orden de compra del cliente (legacy: 1ra OC; ver ordenesCompra)
   ordenesCompra?: string[];                 // Órdenes de compra del cliente (puede haber más de una)

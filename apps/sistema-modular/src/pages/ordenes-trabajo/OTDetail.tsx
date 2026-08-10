@@ -103,15 +103,19 @@ export const OTDetail = () => {
             <Button variant="outline" size="sm" onClick={() => ot.openInReportesOT()}>
               Abrir reporte
             </Button>
+            {/* Los ITEMS no se borran: se cancelan, para que el número quede
+                ocupado y quede rastro de la baja (2026-08-09). El padre sí se
+                elimina — es solo el agrupador. */}
             {!ot.readOnly && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={ot.handleDelete}
+                onClick={isParent ? ot.handleDelete : ot.handleCancelarItem}
                 disabled={ot.saving}
                 className="text-red-600 border-red-300 hover:bg-red-50"
+                title={isParent ? undefined : 'Da de baja el item dejando registro del motivo'}
               >
-                Eliminar
+                {isParent ? 'Eliminar' : 'Cancelar item'}
               </Button>
             )}
             {isParent && (
