@@ -5,7 +5,7 @@ import type { DragEndEvent, DragOverEvent, DragStartEvent, Modifier } from '@dnd
 import { addDays, differenceInCalendarDays, parseISO } from 'date-fns';
 import { ordenesTrabajoService } from '../services/otService';
 import { findEntriesAtCell, formatDateKey, type SelectedCell } from '../utils/agendaDateUtils';
-import { resolveEquipoAgsId } from '../utils/agendaOTSync';
+import { resolveEquipoAgsId, continuaElRango } from '../utils/agendaOTSync';
 
 /** Keep the drag chip centered on the cursor regardless of grab origin. */
 const CHIP = 13; // half of 26px chip
@@ -164,7 +164,8 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
 
       for (const ot of otsToAssign) {
         const existing = entries.find(e => e.otNumber === ot.otNumber && e.ingenieroId === targetIngenieroId);
-        if (existing) {
+        // Idem: con hueco, jornada nueva en vez de estirar el rango (2026-08-09).
+        if (existing && continuaElRango(existing, targetFecha)) {
           const newEnd = targetFecha > existing.fechaFin ? targetFecha : existing.fechaFin;
           updateEntry(existing.id, {
             fechaFin: newEnd,

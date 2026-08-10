@@ -20,15 +20,11 @@ const BORDER: Record<EstadoAgenda, string> = {
 interface AgendaCellPopoverProps {
   entries: AgendaEntry[];
   cellRect: DOMRect;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
 }
 
 export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
   entries,
   cellRect,
-  onMouseEnter,
-  onMouseLeave,
 }) => {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
@@ -48,6 +44,12 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
     width: w,
     zIndex: 9999,
     maxHeight: maxH,
+    // No captura el mouse (2026-08-09). El popover se dibuja DEBAJO de la celda
+    // y tapaba las de abajo: al bajar, el cursor entraba al popover en vez de a
+    // la celda siguiente, el hover quedaba clavado en el servicio anterior y
+    // habia que pasar por una celda vacia para poder ver otra. Es informativo,
+    // no tiene nada clickeable, asi que deja pasar el mouse.
+    pointerEvents: 'none',
     ...(showAbove
       ? { bottom: vh - cellRect.top + 4 }
       : { top: cellRect.bottom + 4 }),
@@ -59,8 +61,6 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
       // Transparencia leve + blur: la agenda de fondo se sigue viendo (pedido
       // 2026-08-03). overflow-y-auto: si ni arriba entra todo, scrollea.
       className="bg-white/90 backdrop-blur-[2px] border border-slate-200 rounded-lg shadow-xl overflow-y-auto"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
       <div className="p-1.5 space-y-1">
         {entries.map(entry => (

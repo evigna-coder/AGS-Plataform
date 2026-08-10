@@ -1,5 +1,6 @@
 import type { AgendaEntry, EstadoAgenda, OTEstadoAdmin, WorkOrder } from '@ags/shared';
-import { addDays, isWeekend } from 'date-fns';
+import { addDays, isWeekend, parseISO } from 'date-fns';
+import { formatDateKey } from './agendaDateUtils';
 import { sistemasService } from '../services/firebaseService';
 
 /**
@@ -57,6 +58,30 @@ export function addWeekdays(date: Date, n: number): Date {
     if (!isWeekend(current)) remaining--;
   }
   return current;
+}
+
+/**
+ * ¿El día destino CONTINÚA el rango de una entrada existente, o deja un hueco?
+ *
+ * Contiguo = cae dentro del rango, o es el día hábil inmediatamente anterior o
+ * posterior. Con hueco de por medio es otra JORNADA y va como entrada separada
+ * (2026-08-09).
+ *
+ * Antes, pegar o arrastrar una OT que ya tenía entrada SIEMPRE estiraba el
+ * rango: una capacitación de lunes y miércoles obligaba a ocupar también el
+ * martes, porque no había forma de representar dos jornadas sueltas de la misma
+ * OT. El modelo sí las soporta —varias entradas por OT— pero la UI las fusionaba.
+ */
+export function continuaElRango(
+  existing: { fechaInicio: string; fechaFin: string },
+  fecha: string,
+): boolean {
+  if (fecha >= existing.fechaInicio && fecha <= existing.fechaFin) return true;
+  // Día hábil siguiente al final del rango (viernes → lunes cuenta como contiguo).
+  if (fecha === formatDateKey(addWeekdays(parseISO(existing.fechaFin), 1))) return true;
+  // O el hábil anterior al inicio.
+  if (formatDateKey(addWeekdays(parseISO(fecha), 1)) === existing.fechaInicio) return true;
+  return false;
 }
 
 /** What's stored in the agenda internal clipboard. */
