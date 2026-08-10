@@ -77,8 +77,9 @@ export const RemitoDetail = () => {
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remito...</p></div>;
 
-  // Descarga desde el remito (2026-08-04): items 'sale y vuelve' sin resolver,
-  // sea de stock propio (efecto aplicado) o de una asignación vinculada.
+  // Devolución desde el remito: items 'sale y vuelve' sin resolver, sea de stock
+  // propio (efecto aplicado) o de una asignación vinculada. El CONSUMO no pasa
+  // por acá — vive en el cierre administrativo de la OT (2026-08-09).
   const hayDescargables = remito != null
     && ['confirmado', 'en_transito', 'en_proveedor', 'completado_parcial'].includes(remito.estado)
     && remito.items.some(it => !it.devuelto && !it.consumido && it.tipoItem === 'sale_y_vuelve'
@@ -120,7 +121,7 @@ export const RemitoDetail = () => {
             )}
             {hayDescargables && (
               <Button size="sm" variant="outline" onClick={() => setShowDescarga(true)} disabled={acting}>
-                Descargar / cerrar
+                Devolver / cerrar
               </Button>
             )}
             {/* Derivación entregada en el proveedor (2026-08-07): deja de estar
