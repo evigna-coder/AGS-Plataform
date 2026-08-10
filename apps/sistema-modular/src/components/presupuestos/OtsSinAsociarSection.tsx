@@ -133,7 +133,7 @@ export const OtsSinAsociarSection: React.FC<Props> = ({
           </label>
           <input
             type="number"
-            step="0.01"
+            step="any"
             value={monto}
             onChange={e => setMonto(e.target.value)}
             placeholder="Monto (default: total del ppto)"

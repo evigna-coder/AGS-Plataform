@@ -169,7 +169,7 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
         <div className="space-y-3">
           <div>
             <label className={lbl}>Nuevo factor</label>
-            <Input inputSize="sm" type="number" min={0} step={0.01} value={factorGlobal} onChange={e => setFactorGlobal(e.target.value)} placeholder="1.15" />
+            <Input inputSize="sm" type="number" min={0} step="any" value={factorGlobal} onChange={e => setFactorGlobal(e.target.value)} placeholder="1.15" />
           </div>
           <p className="text-[10px] text-slate-400">Actualiza el factor de <strong>todos</strong> los conceptos activos. El valor base no se modifica.</p>
         </div>

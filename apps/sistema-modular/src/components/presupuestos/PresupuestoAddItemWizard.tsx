@@ -204,7 +204,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
             </div>
             <div>
               <label className={lbl}>Factor de venta <span className="text-slate-300 normal-case">(referencia, opcional)</span></label>
-              <input type="number" min={0} step={0.01} className={ctrl} value={factor ?? ''}
+              <input type="number" min={0} step="any" className={ctrl} value={factor ?? ''}
                 placeholder="Ej: 1.45"
                 onChange={e => setFactor(e.target.value === '' ? null : Number(e.target.value))}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void finish(); } if (e.key === 'Escape') onClose(); }} />

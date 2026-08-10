@@ -11,6 +11,8 @@ interface PresupuestoItemRowProps {
   taxes: { totalImpuestos: number };
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onRemoveItem: (itemId: string) => void;
+  /** Se cuelga de la fila para poder scrollear hasta el item recién agregado. */
+  rowRef?: React.Ref<HTMLTableRowElement>;
 }
 
 const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
@@ -19,7 +21,7 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
 ];
 
 export const PresupuestoItemRow = ({
-  item, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem,
+  item, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem, rowRef,
 }: PresupuestoItemRowProps) => {
   // Start expanded if the item already has availability data or a factor set (Phase 16)
   const [showDisp, setShowDisp] = useState(
@@ -30,7 +32,7 @@ export const PresupuestoItemRow = ({
 
   return (
     <>
-      <tr>
+      <tr ref={rowRef}>
         <td className="px-2 py-2">
           <input value={item.codigoProducto || ''} onChange={e => onUpdateItem(item.id, 'codigoProducto', e.target.value || null)}
             className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />
@@ -40,7 +42,7 @@ export const PresupuestoItemRow = ({
             className="w-full outline-none bg-transparent text-xs" placeholder="Descripcion..." />
         </td>
         <td className="px-2 py-2">
-          <input type="number" min="0" step="0.01" value={item.cantidad}
+          <input type="number" min="0" step="any" value={item.cantidad}
             onChange={e => onUpdateItem(item.id, 'cantidad', Number(e.target.value) || 0)}
             className="w-full outline-none text-center bg-transparent text-xs" />
         </td>
@@ -49,7 +51,7 @@ export const PresupuestoItemRow = ({
             className="w-full outline-none bg-transparent text-xs" />
         </td>
         <td className="px-2 py-2">
-          <input type="number" min="0" step="0.01" value={item.precioUnitario}
+          <input type="number" min="0" step="any" value={item.precioUnitario}
             onChange={e => onUpdateItem(item.id, 'precioUnitario', Number(e.target.value) || 0)}
             className="w-full outline-none text-right bg-transparent text-xs" />
         </td>
@@ -99,7 +101,7 @@ export const PresupuestoItemRow = ({
               </div>
               <label className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[10px] uppercase tracking-wide font-mono text-slate-500" title="Multiplicador sobre FOB — referencia interna, no se muestra en el PDF">Factor:</span>
-                <input type="number" min="0" step="0.01" value={item.factor ?? ''} placeholder="1.45"
+                <input type="number" min="0" step="any" value={item.factor ?? ''} placeholder="1.45"
                   onChange={e => onUpdateItem(item.id, 'factor', e.target.value === '' ? null : Number(e.target.value))}
                   className="w-20 border border-slate-200 rounded-md px-2 py-1 text-xs bg-white text-right" />
               </label>

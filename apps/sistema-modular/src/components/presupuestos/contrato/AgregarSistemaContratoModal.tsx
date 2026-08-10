@@ -216,7 +216,7 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
                             className="w-14 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
                         </td>
                         <td className="px-2 py-1 w-24">
-                          <input type="number" min="0" step="0.01" value={item.precioUnitario || ''}
+                          <input type="number" min="0" step="any" value={item.precioUnitario || ''}
                             onChange={e => updateServicio(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
                             className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />

@@ -129,13 +129,13 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
                       className="w-full outline-none bg-transparent text-xs text-slate-700" />
                   </td>
                   <td className="px-1 py-1">
-                    <input type="number" min="0" step="0.01" value={item.cantidad}
+                    <input type="number" min="0" step="any" value={item.cantidad}
                       onChange={e => onUpdate(item.id, 'cantidad', Number(e.target.value) || 0)}
                       className="w-full outline-none bg-transparent text-xs text-center" />
                   </td>
                   {isMixta && <td className="px-2 py-1 text-[10px] text-center font-mono text-slate-500">{item.moneda || 'USD'}</td>}
                   <td className="px-1 py-1">
-                    <input type="number" min="0" step="0.01" value={item.precioUnitario}
+                    <input type="number" min="0" step="any" value={item.precioUnitario}
                       onChange={e => onUpdate(item.id, 'precioUnitario', Number(e.target.value) || 0)}
                       className="w-full outline-none bg-transparent text-xs text-right font-mono" />
                   </td>
@@ -145,7 +145,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
                       className="w-full outline-none bg-transparent text-xs text-center" />
                   </td>
                   <td className="px-1 py-1">
-                    <input type="number" min="0" step="0.01" value={item.factor ?? ''} placeholder="—"
+                    <input type="number" min="0" step="any" value={item.factor ?? ''} placeholder="—"
                       onChange={e => onUpdate(item.id, 'factor', e.target.value === '' ? null : Number(e.target.value))}
                       className="w-full outline-none bg-transparent text-xs text-center text-slate-500" />
                   </td>

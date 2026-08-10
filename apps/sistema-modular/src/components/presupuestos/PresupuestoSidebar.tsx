@@ -238,7 +238,7 @@ export const PresupuestoSidebar = ({
         <div className="space-y-3">
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Tipo de cambio</label>
-            <input type="number" min="0" step="0.01" value={tipoCambio || ''} onChange={(e) => onTipoCambioChange(e.target.value ? Number(e.target.value) : undefined)} placeholder="Ej: 1.0" className="w-full border rounded-lg px-2.5 py-1.5 text-xs bg-white border-slate-200" />
+            <input type="number" min="0" step="any" value={tipoCambio || ''} onChange={(e) => onTipoCambioChange(e.target.value ? Number(e.target.value) : undefined)} placeholder="Ej: 1.0" className="w-full border rounded-lg px-2.5 py-1.5 text-xs bg-white border-slate-200" />
             <BnaTipoCambioHint current={tipoCambio} onApply={onTipoCambioChange} />
           </div>
           <div>

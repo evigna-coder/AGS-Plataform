@@ -60,7 +60,7 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
         </div>
         <div>
           <label className={lbl}>Tipo cambio</label>
-          <input type="number" min="0" step="0.01" value={form.tipoCambio || ''}
+          <input type="number" min="0" step="any" value={form.tipoCambio || ''}
             onChange={e => setField('tipoCambio', e.target.value ? Number(e.target.value) : undefined)}
             className="w-full border rounded-lg px-2 py-1 text-xs bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="—" />
         </div>

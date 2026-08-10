@@ -61,7 +61,7 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
       </div>
       <div>
         <label className={lbl}>T. Cambio</label>
-        <input type="number" min="0" step="0.01" value={form.tipoCambio} onChange={e => setForm(prev => ({ ...prev, tipoCambio: e.target.value }))} className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs text-center" placeholder="1.0" />
+        <input type="number" min="0" step="any" value={form.tipoCambio} onChange={e => setForm(prev => ({ ...prev, tipoCambio: e.target.value }))} className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs text-center" placeholder="1.0" />
         <BnaTipoCambioHint
           current={Number(form.tipoCambio) || undefined}
           onApply={v => setForm(prev => ({ ...prev, tipoCambio: String(v) }))}

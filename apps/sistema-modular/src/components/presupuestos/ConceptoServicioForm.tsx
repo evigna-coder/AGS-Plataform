@@ -56,7 +56,7 @@ export function ConceptoServicioForm({ initial, categorias, saving, onSave, onCa
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className={lbl}>Valor base *</label>
-          <Input inputSize="sm" type="number" min={0} step={0.01} value={String(valorBase)} onFocus={e => e.currentTarget.select()}
+          <Input inputSize="sm" type="number" min={0} step="any" value={String(valorBase)} onFocus={e => e.currentTarget.select()}
             onChange={e => setValorBase(Number(e.target.value) || 0)} />
         </div>
         <div>
@@ -68,7 +68,7 @@ export function ConceptoServicioForm({ initial, categorias, saving, onSave, onCa
         </div>
         <div>
           <label className={lbl}>Factor</label>
-          <Input inputSize="sm" type="number" min={0} step={0.01} value={String(factor)} onFocus={e => e.currentTarget.select()}
+          <Input inputSize="sm" type="number" min={0} step="any" value={String(factor)} onFocus={e => e.currentTarget.select()}
             onChange={e => setFactor(Number(e.target.value) || 1)} />
         </div>
       </div>

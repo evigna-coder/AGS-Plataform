@@ -135,7 +135,7 @@ export const ContratoItemRow: React.FC<Props> = ({
         {isSL ? (
           <span className="text-[10px] text-slate-400">—</span>
         ) : (
-          <input type="number" min="0" step="0.01" className={inputRight}
+          <input type="number" min="0" step="any" className={inputRight}
             value={item.precioUnitario || ''} onChange={handleNum('precioUnitario')}
             placeholder="0.00" />
         )}

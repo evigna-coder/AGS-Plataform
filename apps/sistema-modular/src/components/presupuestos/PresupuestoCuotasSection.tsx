@@ -164,7 +164,7 @@ export const PresupuestoCuotasSection: React.FC<Props> = ({
                         </select>
                       </td>
                       <td className="px-2 py-1 text-center">
-                        <input type="number" min="0" step="0.01" value={c.monto}
+                        <input type="number" min="0" step="any" value={c.monto}
                           onChange={e => handleCuotaChange(idx, 'monto', Number(e.target.value) || 0)}
                           className="w-full border border-slate-200 rounded px-2 py-0.5 text-xs text-right font-mono" />
                       </td>

@@ -109,7 +109,7 @@ export const EsquemaCuotaRow: React.FC<Props> = ({
               type="number"
               min={0}
               max={100}
-              step={0.01}
+              step="any"
               value={pct ?? ''}
               disabled={readOnly}
               onChange={e => handlePorcentajeChange(m, e.target.value)}

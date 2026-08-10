@@ -10,6 +10,7 @@ import { PresupuestoItemRow } from './PresupuestoItemRow';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import { GroupRows, TotalsFooter } from './PresupuestoItemsTableParts';
 import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
+import { useScrollToNewItem } from '../../hooks/useScrollToNewItem';
 
 interface PresupuestoTotals {
   subtotal: number;
@@ -110,10 +111,15 @@ export const PresupuestoItemsTable = ({
     }
   };
 
+  // Al agregar un item, la vista va sola hasta él (2026-08-09).
+  const lastRowRef = useScrollToNewItem<HTMLTableRowElement>(items.length);
+  const ultimoItemId = items[items.length - 1]?.id;
+
   const renderRows = (rowItems: PresupuestoItem[]) =>
     rowItems.map(item => (
       <Fragment key={item.id}>
         <PresupuestoItemRow item={item} categoriasPresupuesto={categoriasPresupuesto}
+          rowRef={item.id === ultimoItemId ? lastRowRef : undefined}
           fmtMoney={fmtMoney} taxes={calculateItemTaxes(item)} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
         {renderSubRow?.(item, items.findIndex(i => i.id === item.id) + 1)}
       </Fragment>

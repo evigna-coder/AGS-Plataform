@@ -51,7 +51,7 @@ export const SubItemEquipoRow = ({
         placeholder="Descripción corta..."
         className={inputCls} />
 
-      <input type="number" min="0" step="0.01"
+      <input type="number" min="0" step="any"
         value={sub.precioUnitario ?? ''}
         placeholder="—"
         title="Precio unitario opcional — vacío = sin precio (va incluido en el item)"

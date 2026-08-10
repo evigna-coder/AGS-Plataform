@@ -47,7 +47,7 @@ export const GenerarSolicitudCuotaInputs: React.FC<Props> = ({
             </label>
             <input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
               value={montos[m] ?? ''}
               onChange={e => setMonto(m, e.target.value)}

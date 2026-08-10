@@ -183,7 +183,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
         : 'grid grid-cols-4 gap-3'}>
         <div>
           <label className={lbl}>Cantidad *</label>
-          <input ref={cantidadRef} type="number" min="0" step="0.01" value={item.cantidad || ''} onFocus={e => e.currentTarget.select()}
+          <input ref={cantidadRef} type="number" min="0" step="any" value={item.cantidad || ''} onFocus={e => e.currentTarget.select()}
             onChange={e => setItem(prev => ({ ...prev, cantidad: Number(e.target.value) || 0 }))} className={inp} />
         </div>
         <div>
@@ -192,7 +192,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
         </div>
         <div>
           <label className={lbl}>Precio unit. *</label>
-          <input type="number" min="0" step="0.01" value={item.precioUnitario || ''} onFocus={e => e.currentTarget.select()}
+          <input type="number" min="0" step="any" value={item.precioUnitario || ''} onFocus={e => e.currentTarget.select()}
             onChange={e => setItem(prev => ({ ...prev, precioUnitario: Number(e.target.value) || 0 }))} className={inp} />
         </div>
         <div>
@@ -204,7 +204,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
           <>
             <div>
               <label className={lbl} title="Referencia interna, no va al PDF">Factor</label>
-              <input type="number" min="0" step="0.01" value={item.factor ?? ''}
+              <input type="number" min="0" step="any" value={item.factor ?? ''}
                 onChange={e => setItem(prev => ({ ...prev, factor: e.target.value === '' ? null : Number(e.target.value) }))}
                 className={inp} placeholder="Ej: 1.45" />
             </div>
@@ -221,7 +221,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
         <div className="space-y-3">
           <div>
             <label className={lbl}>Factor de venta <span className="text-slate-300">(referencia interna, no va al PDF)</span></label>
-            <input type="number" min="0" step="0.01" value={item.factor ?? ''}
+            <input type="number" min="0" step="any" value={item.factor ?? ''}
               onChange={e => setItem(prev => ({ ...prev, factor: e.target.value === '' ? null : Number(e.target.value) }))}
               className={inp} placeholder="Ej: 1.45 (multiplicador sobre FOB)" />
           </div>
