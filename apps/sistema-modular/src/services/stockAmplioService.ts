@@ -107,7 +107,13 @@ export const UNIDAD_ATP_ESTADOS = new Set<string>(['disponible', 'reservado', 'e
 /** Suma de `cantidad` (default 1) de las unidades activas en un estado dado. */
 export function sumCantidadUnidades(unidades: UnidadStockRow[], estado: string): number {
   return unidades.reduce(
-    (acc, u) => acc + (u.activo !== false && u.estado === estado ? (u.cantidad ?? 1) : 0),
+    (acc, u) => {
+      if (u.activo === false || u.estado !== estado) return acc;
+      // Lo que está parado en la posición provisoria de un remito ya salió del
+      // depósito: no cuenta como disponible (2026-08-09).
+      if (estado === 'disponible' && (u as { ubicacion?: { tipo?: string } }).ubicacion?.tipo === 'remito') return acc;
+      return acc + (u.cantidad ?? 1);
+    },
     0,
   );
 }

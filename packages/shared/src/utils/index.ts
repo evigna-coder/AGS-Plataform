@@ -286,3 +286,29 @@ export function findClienteCandidatesByRazonSocial<T extends { razonSocial: stri
     return n.includes(key) || key.includes(n);
   });
 }
+
+/**
+ * Ubicación provisoria de un remito "sale y vuelve" (2026-08-09). La unidad ya
+ * salió del depósito pero todavía no se resolvió: se consume en el cierre de la
+ * OT o vuelve a su origen.
+ */
+export function ubicacionDeRemito(remitoId: string, remitoNumero: string) {
+  return { tipo: 'remito' as const, referenciaId: remitoId, referenciaNombre: `Remito ${remitoNumero}` };
+}
+
+/**
+ * Una unidad cuenta como stock DISPONIBLE solo si está en estado `disponible` y
+ * NO está parada en la posición provisoria de un remito.
+ *
+ * Por qué (2026-08-09): lo que salió por un remito está físicamente en lo del
+ * cliente. Contarlo como disponible tapaba la alerta de stock mínimo —no se
+ * generaba el requerimiento de compra— y lo ofrecía en el cierre de OT como si
+ * estuviera en el depósito.
+ */
+export function unidadCuentaComoDisponible(u: {
+  estado?: string | null;
+  activo?: boolean;
+  ubicacion?: { tipo?: string | null } | null;
+}): boolean {
+  return u.activo !== false && u.estado === 'disponible' && u.ubicacion?.tipo !== 'remito';
+}

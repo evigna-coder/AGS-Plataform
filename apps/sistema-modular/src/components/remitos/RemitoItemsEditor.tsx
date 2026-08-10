@@ -85,6 +85,7 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
               <tr>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase">Artículo</th>
                 <th className="px-2 py-1.5 text-center text-[10px] font-mono text-slate-500 uppercase w-16">Cant.</th>
+                <th className="px-2 py-1.5 text-center text-[10px] font-mono text-slate-500 uppercase w-24" title="Si el artículo vuelve, queda pendiente de retorno y puede descargarse al cerrar la OT">Destino</th>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase w-32">N° serie</th>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase">Observaciones</th>
                 <th className="px-2 py-1.5 w-8" />
@@ -132,6 +133,18 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
                           {max} en esta unidad
                         </span>
                       )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {/* Por ÍTEM, no por tipo de remito (2026-08-09): una misma
+                          entrega puede llevar una lámpara que vuelve y un filtro
+                          que no. Solo lo que "vuelve" queda pendiente de retorno
+                          y aparece como origen en el cierre administrativo. */}
+                      <select value={it.tipoItem}
+                        onChange={e => onUpdate(it.id, { tipoItem: e.target.value as RemitoItem['tipoItem'] })}
+                        className={`${inp} text-center`}>
+                        <option value="sale_y_vuelve">Vuelve</option>
+                        <option value="entrega">Queda</option>
+                      </select>
                     </td>
                     <td className="px-2 py-1.5">
                       <input value={it.serie ?? ''} onChange={e => onUpdate(it.id, { serie: e.target.value || null })}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { unidadCuentaComoDisponible } from '@ags/shared';
 import type { Part, Articulo, Patron, Remito, UnidadStock, TipoUbicacionStock } from '@ags/shared';
 import { articulosService, remitosService, unidadesService } from '../services/stockService';
 import { patronesService } from '../services/patronesService';
@@ -164,7 +165,9 @@ export function useCierreStockUnits(articulos: Part[]): {
         let unidades: UnidadStock[] = [];
         if (articulo) {
           const todas = await unidadesService.getByArticulo(articulo.id).catch(() => []);
-          unidades = todas.filter(u => u.estado === 'disponible');
+          // Lo que está en un remito NO se ofrece como stock de depósito: se elige
+          // por la opción "Remito N° …" de abajo, que descuenta del remito.
+          unidades = todas.filter(unidadCuentaComoDisponible);
         }
         const patron = patronPorCodigo.get(normCodigo(part.codigo)) ?? null;
         result[part.id] = {

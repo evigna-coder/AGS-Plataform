@@ -2,6 +2,7 @@ import { articulosService, unidadesService } from '../services/stockService';
 import { ordenesCompraService } from '../services/presupuestosService';
 import { requerimientosService } from '../services/importacionesService';
 import { OC_OPEN_STATES } from '../services/stockAmplioService';
+import { unidadCuentaComoDisponible } from '@ags/shared';
 import type { Articulo, OrdenCompra, UnidadStock } from '@ags/shared';
 
 /** Estados de requerimiento que ya no bloquean generar uno nuevo (cerrados). */
@@ -18,7 +19,9 @@ let lastSweep = 0;
 export function disponiblePorArticulo(unidades: UnidadStock[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const u of unidades) {
-    if (u.estado !== 'disponible') continue;
+    // Excluye lo parado en un remito: si contara, tapaba la alerta de mínimo y no
+    // se generaba el requerimiento de compra por algo que ya no está (2026-08-09).
+    if (!unidadCuentaComoDisponible(u)) continue;
     map.set(u.articuloId, (map.get(u.articuloId) ?? 0) + (u.cantidad ?? 1));
   }
   return map;

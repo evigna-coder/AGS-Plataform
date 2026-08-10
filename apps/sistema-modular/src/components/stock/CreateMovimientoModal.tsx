@@ -25,7 +25,7 @@ const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-
 
 const TIPO_ICON: Record<TipoOrigenDestino, string> = {
   posicion: '📦', minikit: '🧰', ingeniero: '👷', proveedor: '🏭', cliente: '👤',
-  consumo_ot: '🔧', baja: '🗑️', ajuste: '⚖️',
+  remito: '📄', consumo_ot: '🔧', baja: '🗑️', ajuste: '⚖️',
 };
 
 export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreated, init = {}, title, subtitle, onRequestIngreso }) => {

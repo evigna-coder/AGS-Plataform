@@ -19,8 +19,11 @@ const CONDICION_LABELS: Record<CondicionUnidad, string> = {
   nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap',
 };
 const TIPOS_UBICACION: TipoUbicacionStock[] = ['posicion', 'minikit', 'ingeniero', 'cliente', 'proveedor', 'transito'];
+// 'remito' NO está en TIPOS_UBICACION a propósito: es una posición que genera el
+// sistema al confirmar un remito, no algo que se elija al dar de alta stock.
 const TIPO_UBICACION_LABELS: Record<TipoUbicacionStock, string> = {
-  posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito',
+  posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente',
+  proveedor: 'Proveedor', transito: 'En transito', remito: 'Remito',
 };
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide';

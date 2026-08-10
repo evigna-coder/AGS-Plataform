@@ -3313,7 +3313,17 @@ export type EstadoUnidad =
   | 'entregado'   // Salió del inventario hacia el cliente al cerrar la OT (deducción definitiva). Fuera de ATP.
   | 'baja';
 
-export type TipoUbicacionStock = 'posicion' | 'minikit' | 'ingeniero' | 'cliente' | 'proveedor' | 'transito';
+/**
+ * `remito` (2026-08-09) = posición PROVISORIA de un remito "sale y vuelve": la
+ * mercadería ya salió pero todavía no se resolvió (se consume en el cierre de la
+ * OT o vuelve). Antes iba a la posición del ingeniero, lo que dejaba sin lugar a
+ * las entregas que no lleva un ingeniero (transportista) y mezclaba "lo que el
+ * ingeniero tiene" con "lo que está pendiente de un remito".
+ *
+ * Una unidad en posición `remito` NO cuenta como stock disponible — ver
+ * `unidadCuentaComoDisponible`.
+ */
+export type TipoUbicacionStock = 'posicion' | 'minikit' | 'ingeniero' | 'cliente' | 'proveedor' | 'transito' | 'remito';
 
 export interface UbicacionStock {
   tipo: TipoUbicacionStock;
@@ -3554,6 +3564,8 @@ export type TipoOrigenDestino =
   | 'ingeniero'
   | 'proveedor'
   | 'cliente'
+  /** Posición provisoria de un remito "sale y vuelve" (2026-08-09). */
+  | 'remito'
   | 'consumo_ot'
   | 'baja'
   | 'ajuste';

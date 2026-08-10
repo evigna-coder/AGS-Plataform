@@ -17,7 +17,7 @@ export const InventarioIngenieroPage = () => {
   // el botón "Reponer" de cada fila ahora lleva al detalle del minikit, cuyo
   // modal aplica el efecto real vía movimientosAplicar.
   const {
-    ingeniero, ingenieros, clientes, unidades,
+    ingeniero, ingenieros, clientes, unidades, unidadesRemito,
     loading, saving, allItems, temporales, permanentes,
     handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
   } = useInventarioIngeniero(id);
@@ -71,7 +71,7 @@ export const InventarioIngenieroPage = () => {
               <h2 className="text-base font-semibold text-slate-900 tracking-tight">Inventario de {ingeniero.nombre}</h2>
               <p className="text-xs text-slate-400">
                 {ingeniero.area && `${ingeniero.area} · `}
-                {allItems.length} items activos · {unidades.length} unidades en poder
+                {allItems.length} items activos · {unidades.length + unidadesRemito.length} unidades en poder
               </p>
             </div>
           </div>
@@ -89,8 +89,8 @@ export const InventarioIngenieroPage = () => {
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* Summary */}
-        <div className="grid grid-cols-4 gap-3">
-          {[['Total items', allItems.length], ['Temporales', temporales.length], ['Permanentes', permanentes.length], ['Unidades físicas', unidades.length]].map(([label, value]) => (
+        <div className="grid grid-cols-5 gap-3">
+          {[['Total items', allItems.length], ['Temporales', temporales.length], ['Permanentes', permanentes.length], ['Unidades físicas', unidades.length + unidadesRemito.length], ['En remitos', unidadesRemito.length]].map(([label, value]) => (
             <div key={label as string} className="bg-white rounded-lg border border-slate-100 px-4 py-3">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
               <p className="text-lg font-semibold text-slate-900 mt-0.5">{value}</p>
@@ -120,6 +120,36 @@ export const InventarioIngenieroPage = () => {
                   onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                   onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}
                 />
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Salido por remito (2026-08-09): la unidad está en la posición del
+            remito, no en la del ingeniero — pero la tiene él, así que se lista
+            acá con el N° de remito. Se resuelve en el cierre de la OT. */}
+        {unidadesRemito.length > 0 && (
+          <Card compact>
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+              En remitos
+              <span className="ml-2 text-xs font-normal text-slate-500">({unidadesRemito.length})</span>
+            </h3>
+            <div className="space-y-1">
+              {unidadesRemito.map(({ unidad, remitoId, remitoNumero }) => (
+                <Link key={unidad.id} to={`/stock/remitos/${remitoId}`}
+                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-slate-50">
+                  <div className="min-w-0">
+                    <span className="block font-mono text-xs font-semibold text-teal-800">{unidad.articuloCodigo || '—'}</span>
+                    <span className="block text-[10px] text-slate-500 truncate max-w-[420px]">
+                      {unidad.articuloDescripcion}
+                      {unidad.nroSerie ? ` · S/N ${unidad.nroSerie}` : ''}
+                      {unidad.nroLote ? ` · Lote ${unidad.nroLote}` : ''}
+                    </span>
+                  </div>
+                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                    {remitoNumero} · ×{unidad.cantidad ?? 1}
+                  </span>
+                </Link>
               ))}
             </div>
           </Card>

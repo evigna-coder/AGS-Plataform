@@ -3,7 +3,7 @@ import {
   ingenierosService, asignacionesService, unidadesService, clientesService,
   instrumentosService, dispositivosService, vehiculosService, minikitsService,
 } from '../services/firebaseService';
-import { movimientosService } from '../services/stockService';
+import { movimientosService, remitosService } from '../services/stockService';
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 import { descripcionItemAsignacion } from '../utils/itemAsignacionLabel';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
@@ -14,6 +14,16 @@ export interface InventarioItem extends ItemAsignacion {
   asignacionNumero: string;
 }
 
+/** Unidad parada en la posición provisoria de un remito del ingeniero. */
+export interface UnidadEnRemito {
+  unidad: UnidadStock;
+  remitoId: string;
+  remitoNumero: string;
+}
+
+/** Estados de remito cuya mercadería todavía está afuera. */
+const REMITO_ESTADOS_EN_CAMPO = new Set(['confirmado', 'en_transito', 'en_proveedor', 'completado_parcial']);
+
 export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const confirm = useConfirm();
   const [ingeniero, setIngeniero] = useState<Ingeniero | null>(null);
@@ -21,6 +31,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
+  const [unidadesRemito, setUnidadesRemito] = useState<UnidadEnRemito[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +51,17 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       setClientes(cls);
       setAsignaciones(asg);
       setUnidades(units);
+
+      // Lo que salió por remito ya no está en la posición del ingeniero sino en la
+      // del REMITO (2026-08-09). El ingeniero igual lo tiene físicamente, así que
+      // su inventario lo sigue mostrando — con el N° de remito al lado.
+      const remitos = (await remitosService.getAll({ ingenieroId }).catch(() => []))
+        .filter(r => REMITO_ESTADOS_EN_CAMPO.has(r.estado));
+      const porRemito = await Promise.all(remitos.map(async r => {
+        const us = await unidadesService.getByUbicacion('remito', r.id).catch(() => []);
+        return us.map(u => ({ unidad: u, remitoId: r.id, remitoNumero: r.numero }));
+      }));
+      setUnidadesRemito(porRemito.flat());
     } catch (err) { console.error('Error:', err); }
     finally { if (!silent) setLoading(false); }
   }, [ingenieroId]);
@@ -191,7 +213,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   // efecto real vía movimientosAplicarService (fix B4).
 
   return {
-    ingeniero, ingenieros, clientes, unidades,
+    ingeniero, ingenieros, clientes, unidades, unidadesRemito,
     loading, saving, allItems, temporales, permanentes,
     handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
   };

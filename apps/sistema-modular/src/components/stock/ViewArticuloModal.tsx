@@ -32,7 +32,7 @@ const ESTADO_COLORS: Record<string, string> = {
   consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700',
 };
 const TIPO_UBICACION_LABELS: Record<string, string> = {
-  posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito',
+  posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito', remito: 'Remito',
 };
 
 const lbl = "text-[10px] font-mono font-medium text-slate-400 uppercase tracking-wide";

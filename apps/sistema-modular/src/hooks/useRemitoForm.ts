@@ -189,8 +189,10 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       articuloCodigo: u.articuloCodigo,
       articuloDescripcion: u.articuloDescripcion,
       cantidad: 1,
-      // Entrega a cliente / devolución: el bien queda allá. Salida a campo / interno: vuelve.
-      tipoItem: (form.tipo === 'entrega_cliente' || form.tipo === 'devolucion') ? 'entrega' : 'sale_y_vuelve',
+      // Default "Vuelve" (2026-08-09): la mercadería para en la posición del
+      // remito y se resuelve en el cierre de la OT. 'entrega' pasa a ser la
+      // excepción — venta directa, sin OT que descargue. Editable por línea.
+      tipoItem: form.tipo === 'devolucion' ? 'entrega' : 'sale_y_vuelve',
       devuelto: false,
       serie: u.nroSerie ?? null,
       observaciones: null,
@@ -206,7 +208,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       articuloCodigo: '',
       articuloDescripcion: '',
       cantidad: 1,
-      tipoItem: (form.tipo === 'entrega_cliente' || form.tipo === 'devolucion') ? 'entrega' : 'sale_y_vuelve',
+      tipoItem: form.tipo === 'devolucion' ? 'entrega' : 'sale_y_vuelve',
       devuelto: false,
       serie: null,
       observaciones: null,

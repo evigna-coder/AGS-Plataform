@@ -3,6 +3,7 @@ import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, logAudit, runTransaction,
 } from './firebase';
+import { ubicacionDeRemito } from '@ags/shared';
 import type {
   Articulo, EstadoUnidad, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
   TipoUbicacionStock, UbicacionStock, UnidadStock,
@@ -375,18 +376,19 @@ export const movimientosAplicarService = {
       }
       vistos.add(it.unidadId!);
     }
-    if (!remito.ingenieroId && stockItems.some(i => i.tipoItem === 'sale_y_vuelve')) {
-      throw new Error('Los items "sale y vuelve" requieren un ingeniero asignado al remito');
-    }
+    // Ya NO se exige ingeniero para "sale y vuelve" (2026-08-09): la mercadería
+    // para en la posición del REMITO, no en la del ingeniero, así que una entrega
+    // que lleva un transportista —o que sale sin ingeniero— también puede salir.
 
     const now = Timestamp.now();
     const otNumber = remito.otNumbers?.length === 1 ? remito.otNumbers[0] : null;
-    const destinoIngeniero: PuntoMovimiento = {
-      tipo: 'ingeniero', id: remito.ingenieroId, nombre: remito.ingenieroNombre || 'Ingeniero',
+    const ubicRemito = ubicacionDeRemito(remito.id, remito.numero);
+    const destinoRemito: PuntoMovimiento = {
+      tipo: 'remito', id: ubicRemito.referenciaId, nombre: ubicRemito.referenciaNombre,
     };
     const destinoEntrega: PuntoMovimiento = remito.tipo === 'entrega_cliente'
       ? { tipo: 'cliente', id: remito.clienteId ?? '', nombre: remito.clienteNombre ?? 'Cliente' }
-      : destinoIngeniero;
+      : { tipo: 'ingeniero', id: remito.ingenieroId, nombre: remito.ingenieroNombre || 'Ingeniero' };
 
     const unidadesAfectadas = await runTransaction(db, async (tx) => {
       // 1) READS — todos antes de cualquier write (regla de tx Firestore).
@@ -441,11 +443,8 @@ export const movimientosAplicarService = {
               }
             : { cantidad: qty - it.cantidad, ...getUpdateTrace(), updatedAt: now }));
         } else {
-          const nuevaUbic: UbicacionStock = {
-            tipo: 'ingeniero' as TipoUbicacionStock,
-            referenciaId: destinoIngeniero.id,
-            referenciaNombre: destinoIngeniero.nombre,
-          };
+          // "Sale y vuelve" → posición provisoria del remito (2026-08-09).
+          const nuevaUbic: UbicacionStock = { ...ubicRemito };
           if (it.cantidad < qty) {
             // Split de lote: la porción que sale viaja en un doc nuevo.
             const { id: _id, ...rest } = data as Record<string, unknown>;
@@ -461,7 +460,7 @@ export const movimientosAplicarService = {
           }
         }
 
-        const destino = it.tipoItem === 'entrega' ? destinoEntrega : destinoIngeniero;
+        const destino = it.tipoItem === 'entrega' ? destinoEntrega : destinoRemito;
         tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
           tipo: (it.tipoItem === 'entrega' ? 'egreso' : 'transferencia') as TipoMovimiento,
           unidadId: unidadMovidaId,
@@ -568,8 +567,14 @@ export const movimientosAplicarService = {
         if (data.estado !== 'disponible' && data.estado !== 'reservado') {
           throw new Error(`${etiqueta}: la unidad no está disponible (estado '${data.estado}')`);
         }
-        if (data.ubicacion?.tipo !== 'ingeniero' || data.ubicacion?.referenciaId !== remito.ingenieroId) {
-          throw new Error(`${etiqueta}: la unidad ya no figura en poder del ingeniero del remito — verificar su ubicación en Stock`);
+        // La unidad tiene que estar en la posición del remito. Los remitos abiertos
+        // ANTES del 2026-08-09 dejaron la unidad en la posición del ingeniero: se
+        // aceptan también, así se descargan sin necesidad de migrar nada.
+        const enRemito = data.ubicacion?.tipo === 'remito' && data.ubicacion?.referenciaId === remito.id;
+        const enIngenieroLegacy = data.ubicacion?.tipo === 'ingeniero'
+          && !!remito.ingenieroId && data.ubicacion?.referenciaId === remito.ingenieroId;
+        if (!enRemito && !enIngenieroLegacy) {
+          throw new Error(`${etiqueta}: la unidad ya no figura en el remito — verificar su ubicación en Stock`);
         }
         const qty = data.cantidad ?? 1;
         const res = porItem.get(it.id)!;
@@ -603,9 +608,19 @@ export const movimientosAplicarService = {
           articuloDescripcion: data.articuloDescripcion ?? '',
           nroSerie: data.nroSerie ?? null,
           nroLote: data.nroLote ?? null,
-          origenTipo: 'ingeniero' as TipoOrigenDestino,
-          origenId: remito.ingenieroId,
-          origenNombre: remito.ingenieroNombre || 'Ingeniero',
+          // Origen = de dónde sale al descargarse. Para remitos abiertos antes del
+          // 2026-08-09 la unidad todavía está en la posición del ingeniero.
+          ...(data.ubicacion?.tipo === 'ingeniero'
+            ? {
+                origenTipo: 'ingeniero' as TipoOrigenDestino,
+                origenId: remito.ingenieroId,
+                origenNombre: remito.ingenieroNombre || 'Ingeniero',
+              }
+            : {
+                origenTipo: 'remito' as TipoOrigenDestino,
+                origenId: remito.id,
+                origenNombre: `Remito ${remito.numero}`,
+              }),
           remitoId: remito.id,
           creadoPor,
           ...getCreateTrace(),
@@ -723,8 +738,13 @@ export const movimientosAplicarService = {
       };
 
       if (devuelto) {
-        if (ubic?.tipo !== 'ingeniero' || ubic.referenciaId !== remito.ingenieroId) {
-          throw new Error('La unidad ya no figura en poder del ingeniero del remito — verificar su ubicación en Stock antes de marcarla devuelta');
+        // Posición del remito, o la del ingeniero para remitos abiertos antes del
+        // 2026-08-09 (no se migran: se aceptan las dos).
+        const enRemito = ubic?.tipo === 'remito' && ubic.referenciaId === remito.id;
+        const enIngenieroLegacy = ubic?.tipo === 'ingeniero'
+          && !!remito.ingenieroId && ubic.referenciaId === remito.ingenieroId;
+        if (!enRemito && !enIngenieroLegacy) {
+          throw new Error('La unidad ya no figura en el remito — verificar su ubicación en Stock antes de marcarla devuelta');
         }
         tx.update(docRef('unidades', unidadId), deepCleanForFirestore({
           ubicacion: origen, ...getUpdateTrace(), updatedAt: now,
@@ -732,9 +752,17 @@ export const movimientosAplicarService = {
         tx.set(movRef, deepCleanForFirestore({
           ...movBase,
           tipo: 'devolucion' as TipoMovimiento,
-          origenTipo: 'ingeniero' as TipoOrigenDestino,
-          origenId: remito.ingenieroId,
-          origenNombre: remito.ingenieroNombre || 'Ingeniero',
+          ...(enIngenieroLegacy
+            ? {
+                origenTipo: 'ingeniero' as TipoOrigenDestino,
+                origenId: remito.ingenieroId,
+                origenNombre: remito.ingenieroNombre || 'Ingeniero',
+              }
+            : {
+                origenTipo: 'remito' as TipoOrigenDestino,
+                origenId: remito.id,
+                origenNombre: `Remito ${remito.numero}`,
+              }),
           destinoTipo: origen.tipo as TipoOrigenDestino,
           destinoId: origen.referenciaId,
           destinoNombre: origen.referenciaNombre,
@@ -744,12 +772,10 @@ export const movimientosAplicarService = {
         if (ubic?.tipo !== origen.tipo || ubic.referenciaId !== origen.referenciaId) {
           throw new Error('La unidad no está en la ubicación a la que había vuelto — corregir el stock con un movimiento manual');
         }
+        // Deshacer la devolución: la unidad vuelve a la posición del REMITO
+        // (2026-08-09), no a la del ingeniero.
         tx.update(docRef('unidades', unidadId), deepCleanForFirestore({
-          ubicacion: {
-            tipo: 'ingeniero' as TipoUbicacionStock,
-            referenciaId: remito.ingenieroId,
-            referenciaNombre: remito.ingenieroNombre || 'Ingeniero',
-          },
+          ubicacion: ubicacionDeRemito(remito.id, remito.numero),
           ...getUpdateTrace(), updatedAt: now,
         }));
         tx.set(movRef, deepCleanForFirestore({
@@ -758,9 +784,9 @@ export const movimientosAplicarService = {
           origenTipo: origen.tipo as TipoOrigenDestino,
           origenId: origen.referenciaId,
           origenNombre: origen.referenciaNombre,
-          destinoTipo: 'ingeniero' as TipoOrigenDestino,
-          destinoId: remito.ingenieroId,
-          destinoNombre: remito.ingenieroNombre || 'Ingeniero',
+          destinoTipo: 'remito' as TipoOrigenDestino,
+          destinoId: remito.id,
+          destinoNombre: `Remito ${remito.numero}`,
           motivo: `Remito ${remito.numero} — reversa del retorno`,
         }));
       }
