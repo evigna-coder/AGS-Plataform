@@ -8,7 +8,7 @@ import { getResponsablesOT } from '../services/personalService';
 import { pendientesService } from '../services/pendientesService';
 import { deepCleanForFirestore } from '../services/firebase';
 import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT, Loaner } from '@ags/shared';
-import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
+import { presupuestoEstaAceptado, establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
 export interface CreateOTFormState {
   tipoOT: TipoOT;
@@ -548,7 +548,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
           // Pasar a en_ejecución sin haberlo enviado era incoherente.
           const estadoActual = presActual?.estado;
           const yaAvanzado = !!presActual?.fechaEnvio
-            || estadoActual === 'enviado' || estadoActual === 'aceptado' || estadoActual === 'en_ejecucion';
+            || estadoActual === 'enviado' || presupuestoEstaAceptado(estadoActual);
           await presupuestosService.update(form.presupuestoId, deepCleanForFirestore({
             otVinculadaNumber: otHija,
             otsVinculadasNumbers: nextList,

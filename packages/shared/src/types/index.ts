@@ -1101,7 +1101,11 @@ export type PresupuestoEstado =
 export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
-  pendiente_oc: 'Pendiente de OC',
+  // Es un ACEPTADO diferenciado, no un paso previo (2026-08-09): el trabajo ya
+  // se hizo (repuesto instalado, visita realizada) y solo falta la OC del
+  // cliente para poder facturar. El label lo dice explicito para que nadie lo
+  // lea como "todavia no aceptado".
+  pendiente_oc: 'Aceptado — pendiente OC',
   aceptado: 'Aceptado',
   en_ejecucion: 'En ejecución',
   pendiente_facturacion: 'Pendiente de facturación',
@@ -1119,6 +1123,46 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   anulado: 'bg-slate-200 text-slate-500',
   finalizado: 'bg-teal-100 text-teal-700',
 };
+
+/**
+ * Estados en los que el presupuesto YA esta aceptado. `pendiente_oc` es un
+ * aceptado con la OC del cliente pendiente — cuenta como aceptado en todo
+ * calculo, KPI y accion; lo unico que lo diferencia es que no se puede facturar
+ * hasta que llegue el papel.
+ */
+export const PRESUPUESTO_ESTADOS_ACEPTADOS: readonly PresupuestoEstado[] = [
+  'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion', 'finalizado',
+];
+
+/**
+ * Aceptado y TODAVIA en esa etapa — no avanzo a ejecucion/facturacion/cierre.
+ * Es el bucket de la card "ACEPTADOS": usar `PRESUPUESTO_ESTADOS_ACEPTADOS`
+ * ahi inflaba el numero con estados que ya tienen su propia card (2026-08-09).
+ */
+export const PRESUPUESTO_ESTADOS_ACEPTADO_VIGENTE: readonly PresupuestoEstado[] = [
+  'pendiente_oc', 'aceptado',
+];
+
+/** True si el presupuesto esta aceptado y todavia no avanzo de etapa. */
+export function presupuestoAceptadoVigente(estado: PresupuestoEstado | undefined | null): boolean {
+  return !!estado && PRESUPUESTO_ESTADOS_ACEPTADO_VIGENTE.includes(estado);
+}
+
+/** True si el presupuesto ya fue aceptado ALGUNA VEZ (incluye `pendiente_oc` y
+ *  los estados posteriores). Para gatear acciones, no para contar. */
+export function presupuestoEstaAceptado(estado: PresupuestoEstado | undefined | null): boolean {
+  return !!estado && PRESUPUESTO_ESTADOS_ACEPTADOS.includes(estado);
+}
+
+/**
+ * La VALIDEZ (oferta valida por N dias) solo tiene sentido mientras el
+ * presupuesto sigue siendo una oferta abierta. Una vez aceptado —`pendiente_oc`
+ * incluido— desaparece: no se imprime en el PDF ni se calcula vencimiento
+ * (2026-08-09).
+ */
+export function presupuestoTieneValidez(estado: PresupuestoEstado | undefined | null): boolean {
+  return !presupuestoEstaAceptado(estado) && estado !== 'anulado';
+}
 
 /** Mapeo de estados legacy a nuevos estados simplificados */
 export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {

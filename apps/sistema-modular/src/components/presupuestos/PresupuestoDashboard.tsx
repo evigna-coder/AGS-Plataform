@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
-import { MONEDA_SIMBOLO } from '@ags/shared';
+import { presupuestoAceptadoVigente, MONEDA_SIMBOLO } from '@ags/shared';
 import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 
@@ -24,7 +24,9 @@ interface Props {
 export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
   const metrics = useMemo(() => {
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
-    const aceptados = presupuestos.filter(p => p.estado === 'aceptado');
+    // Solo los que siguen EN la etapa aceptado — en_ejecucion / facturacion /
+    // finalizado tienen su propia card y contarlos aca duplicaba (2026-08-09).
+    const aceptados = presupuestos.filter(p => presupuestoAceptadoVigente(p.estado));
 
     // Enviados sin respuesta (> 7 días)
     const enviadosSinRespuesta = enviados.filter(p => {

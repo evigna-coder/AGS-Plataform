@@ -1,3 +1,4 @@
+import { presupuestoAceptadoVigente } from '@ags/shared';
 import type { Presupuesto, WorkOrder, Ticket, Contrato, OTEstadoAdmin, TicketEstado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { presupuestosService } from './presupuestosService';
 import { ordenesTrabajoService } from './otService';
@@ -84,14 +85,14 @@ function aggregatePipeline(presupuestos: Presupuesto[], contratos: Contrato[]): 
       else if (p.moneda === 'ARS') abiertos.montoARS += total;
     }
 
-    if (p.estado === 'aceptado' && updatedAt >= monthStart) {
+    if (presupuestoAceptadoVigente(p.estado) && updatedAt >= monthStart) {
       aceptadosMes.count += 1;
       if (p.moneda === 'USD' || p.moneda === 'MIXTA') aceptadosMes.montoUSD += total;
       else if (p.moneda === 'ARS') aceptadosMes.montoARS += total;
     }
 
     if (fechaEnvio >= ninetyAgo) enviados90 += 1;
-    if (p.estado === 'aceptado' && updatedAt >= ninetyAgo) aceptados90 += 1;
+    if (presupuestoAceptadoVigente(p.estado) && updatedAt >= ninetyAgo) aceptados90 += 1;
   }
 
   const ventana60d = contratos.filter(c => {

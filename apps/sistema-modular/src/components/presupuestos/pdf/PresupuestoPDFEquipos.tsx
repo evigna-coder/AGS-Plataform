@@ -1,6 +1,7 @@
 import { Document, Page, View, Text } from '@react-pdf/renderer';
 import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
+import { presupuestoTieneValidez } from '@ags/shared';
 import {
   PDFHeader,
   PDFClienteInfo,
@@ -22,7 +23,9 @@ function ValidezCard({ data }: { data: PresupuestoPDFData }) {
   return (
     <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }} wrap={false}>
       <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
-        Oferta válida por {presupuesto.validezDias || 15} días desde la fecha de emisión
+        {presupuestoTieneValidez(presupuesto.estado)
+          ? `Oferta válida por ${presupuesto.validezDias || 15} días desde la fecha de emisión`
+          : 'Presupuesto aceptado'}
         {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
       </Text>
       <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>

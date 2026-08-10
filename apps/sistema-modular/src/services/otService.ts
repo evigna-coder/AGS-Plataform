@@ -1335,7 +1335,7 @@ export const ordenesTrabajoService = {
       // Registrar en otsListasParaFacturar + avanzar estado (idéntico a Write 4+ del cierre).
       for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
         const yaListo = current.includes(otNumber);
-        const avanzaEstado = estado === 'aceptado' || estado === 'en_ejecucion';
+        const avanzaEstado = estado === 'pendiente_oc' || estado === 'aceptado' || estado === 'en_ejecucion';
         if (!yaListo || avanzaEstado) {
           tx.update(pRef, deepCleanForFirestore({
             ...(yaListo ? {} : { otsListasParaFacturar: [...current, otNumber] }),
@@ -1633,7 +1633,7 @@ export const ordenesTrabajoService = {
         const yaListo = current.includes(otNumber);
         // Item 10: avanzar solo si TODAS las OTs del ppto quedaron cerradas
         // (check pre-tx; default true = comportamiento previo, fail-safe).
-        const avanzaEstado = (estado === 'aceptado' || estado === 'en_ejecucion')
+        const avanzaEstado = (estado === 'pendiente_oc' || estado === 'aceptado' || estado === 'en_ejecucion')
           && (avanzaEstadoPorPpto.get(pid) ?? true);
         if (!yaListo || avanzaEstado) {
           tx.update(pRef, deepCleanForFirestore({

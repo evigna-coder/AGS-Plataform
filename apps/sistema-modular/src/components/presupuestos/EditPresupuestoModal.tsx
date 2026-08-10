@@ -34,7 +34,7 @@ import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
-import { MONEDA_SIMBOLO } from '@ags/shared';
+import { presupuestoEstaAceptado, MONEDA_SIMBOLO } from '@ags/shared';
 
 interface Props {
   presupuestoId: string;
@@ -174,7 +174,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         setOtrosPresupuestosParaOC(
           todosDelCliente.filter(p =>
             p.id !== presupuestoId &&
-            p.estado === 'aceptado' &&
+            presupuestoEstaAceptado(p.estado) &&
             (!p.ordenesCompraIds || p.ordenesCompraIds.length === 0)
           ),
         );
@@ -240,7 +240,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               ) : null}
             </div>
             <div className="flex gap-2 flex-wrap">
-              {form.estado === 'aceptado' && (
+              {presupuestoEstaAceptado(form.estado) && (
                 <Button variant="outline" size="sm" onClick={() => setShowCargarOC(true)} title="Cargar OC del cliente (FLOW-02)">
                   Cargar OC
                 </Button>

@@ -8,7 +8,7 @@ import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import type { Presupuesto, PresupuestoEstado, Cliente, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente, WorkOrder } from '@ags/shared';
-import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
+import { presupuestoEstaAceptado, presupuestoAceptadoVigente, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { exportPresupuestosExcel, exportPresupuestosPDF, type PresupuestoExportRow } from '../../utils/exports/exportPresupuestos';
 import { exportOCsPendientesExcel, exportOCsPendientesPDF, type OCPendienteExportRow } from '../../utils/exports/exportOCsPendientes';
 import { Button } from '../../components/ui/Button';
@@ -242,7 +242,7 @@ export const PresupuestosList = () => {
     return presupuestos.filter(p =>
       p.id !== cargarOCTarget.id &&
       p.clienteId === cargarOCTarget.clienteId &&
-      p.estado === 'aceptado' &&
+      presupuestoEstaAceptado(p.estado) &&
       (!p.ordenesCompraIds || p.ordenesCompraIds.length === 0)
     );
   }, [presupuestos, cargarOCTarget]);
@@ -325,7 +325,8 @@ export const PresupuestosList = () => {
       if (filters.ocTrabajoRealizado && !trabajoRealizadoIds.has(p.id)) return false;
       // KPI del dashboard como filtro (UAT 2026-07-17).
       if (filters.kpi === 'enviados' && p.estado !== 'enviado') return false;
-      if (filters.kpi === 'aceptados' && p.estado !== 'aceptado') return false;
+      // Mismo bucket que la card, o el numero no coincide con lo listado.
+      if (filters.kpi === 'aceptados' && !presupuestoAceptadoVigente(p.estado)) return false;
       if (filters.kpi === 'fact_pendientes' && !solicitudSets.pendientes.has(p.id)) return false;
       if (filters.kpi === 'pend_cobro' && !solicitudSets.facturadas.has(p.id)) return false;
       if (filters.kpi === 'pendiente_aviso' && !faltaAviso(p)) return false;
@@ -734,7 +735,7 @@ export const PresupuestosList = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
                                 </svg>
                               </button>
-                              {p.estado === 'aceptado' && (
+                              {presupuestoEstaAceptado(p.estado) && (
                                 <button onClick={() => setCargarOCTarget(p)}
                                   title="Cargar OC del cliente (FLOW-02)"
                                   className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50 border border-teal-100">
@@ -759,7 +760,7 @@ export const PresupuestosList = () => {
                                   </svg>
                                 </button>
                               )}
-                              {p.estado === 'aceptado' && (
+                              {presupuestoEstaAceptado(p.estado) && (
                                 <button onClick={() => setFacturaTarget(p)} title="Solicitar facturación"
                                   className="text-[10px] font-medium text-amber-500 hover:text-amber-700 px-1 py-0.5 rounded hover:bg-amber-50">
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
