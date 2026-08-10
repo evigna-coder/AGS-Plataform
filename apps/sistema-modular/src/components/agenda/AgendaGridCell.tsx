@@ -3,39 +3,7 @@ import { createPortal } from 'react-dom';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { AgendaCellPopover } from './AgendaCellPopover';
-
-// Colores 2026-07-30: tentativo pasó al GRIS (igual a pendiente, pedido user);
-// los estados "interior" (clientes a +200 km de CABA) se diferencian con
-// marrón verdoso (tentativo) y azul grisáceo (confirmado).
-const CELL_BG: Record<EstadoAgenda, string> = {
-  pendiente: 'bg-slate-300',
-  tentativo: 'bg-slate-300',
-  tentativo_interior: 'bg-[#a09a4e]',
-  confirmado: 'bg-blue-300',
-  // Azul grisáceo más AZUL (2026-08-04: "#7d90a8 parece gris oscuro").
-  confirmado_interior: 'bg-[#6d8ec9]',
-  en_progreso: 'bg-teal-300',
-  // La familia interior sigue hasta el final del ciclo (2026-08-08): el color no
-  // se pierde al pasar a en progreso / completado, que es cuando se liquida el
-  // desarraigo. Mismo criterio de tono que los interior de arriba.
-  en_progreso_interior: 'bg-[#5a9d94]',
-  completado: 'bg-emerald-300',
-  completado_interior: 'bg-[#589a70]',
-  cancelado: 'bg-red-200',
-};
-
-const CELL_TEXT: Record<EstadoAgenda, string> = {
-  pendiente: 'text-slate-800',
-  tentativo: 'text-slate-800',
-  tentativo_interior: 'text-[#26240c]',
-  confirmado: 'text-blue-900',
-  confirmado_interior: 'text-white',
-  en_progreso: 'text-teal-900',
-  en_progreso_interior: 'text-white',
-  completado: 'text-emerald-900',
-  completado_interior: 'text-white',
-  cancelado: 'text-red-700',
-};
+import { colorDeCeldaAgenda } from '../../utils/agendaCellColor';
 
 interface AgendaGridCellProps {
   ingenieroId: string;
@@ -106,21 +74,13 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
 
   const hasMultiple = entryCount > 1;
   const cancelled = entryEstado === 'cancelado';
-  // CAPACITACIÓN va SIEMPRE en rosa oscuro, sea cual sea el estado (pedido
-  // 2026-08-03) — el color identifica al tipo de servicio. Cancelado mantiene
-  // su look (rojo + tachado) para que se note la baja.
-  const esCapacitacion = !cancelled && !!entryTipoServicio?.toLowerCase().includes('capacitaci');
-  // BCH (2026-08-05): "Trabajo en BCH" y "Reparación en BCH" van SIEMPRE en
-  // amarillo opaco — mismo criterio que capacitación (el color = tipo de servicio).
-  // El catálogo dice "bench" ("Trabajo en bench" / "Reparación en bench");
-  // se acepta también la abreviatura "bch".
-  const esBch = !cancelled && !esCapacitacion && /bench|bch/i.test(entryTipoServicio ?? '');
-  // Firma de recibos (2026-08-05): evento mensual que reserva agenda — violeta clarito.
-  const esFirmaRecibos = !cancelled && /firma de recibos/i.test(entryTitulo ?? '');
-  // Oficina (2026-08-06): día en oficina — mismo amarillo que bench. El título manda.
-  const esOficina = !cancelled && /\boficina\b/i.test(entryTitulo ?? '');
-  const bg = esCapacitacion ? 'bg-[#e59a8e]' : esBch ? 'bg-[#e0c878]' : esFirmaRecibos ? 'bg-[#d9c9f2]' : esOficina ? 'bg-[#e0c878]' : entryEstado ? CELL_BG[entryEstado] : '';
-  const text = esCapacitacion ? 'text-[#4a1710]' : esBch ? 'text-[#4a3c10]' : esFirmaRecibos ? 'text-[#3b2364]' : esOficina ? 'text-[#4a3c10]' : entryEstado ? CELL_TEXT[entryEstado] : '';
+  // El color de la celda lo puede mandar el tipo de servicio o el título por
+  // encima del estado — la tabla de reglas vive en utils/agendaCellColor.
+  const { bg, text } = colorDeCeldaAgenda({
+    estado: entryEstado,
+    tipoServicio: entryTipoServicio,
+    titulo: entryTitulo,
+  });
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
