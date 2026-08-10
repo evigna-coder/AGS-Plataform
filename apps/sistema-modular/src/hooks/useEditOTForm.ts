@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ordenesTrabajoService, clientesService, sistemasService,
   tiposServicioService, contactosService, modulosService, presupuestosService,
@@ -423,6 +423,35 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     finally { setSaving(false); }
   };
 
+  /**
+   * Selección de un presupuesto en la fila `idx`. Además de setear el número,
+   * ARRASTRA la OC del cliente a la OT — igual que `useCreateOTForm` (2026-08-09).
+   * Antes solo lo hacía el alta: al abrir un item y elegir un presupuesto
+   * aprobado, la OC no venía y había que copiarla a mano.
+   *
+   * La OC del cliente vive en `ordenCompraNumero` (lo escribe el modal "Adjuntar
+   * OC"); `ordenesCompraIds` son las OCs de compra, otra cosa.
+   */
+  const handlePresupuestoChange = useCallback((idx: number, numero: string) => {
+    setForm(prev => {
+      const presupuestos = [...prev.presupuestos];
+      presupuestos[idx] = numero;
+      const pres = presupuestosCliente.find(p => p.numero === numero);
+      const ocCliente = pres
+        ? ((pres as { ordenCompraNumero?: string | null }).ordenCompraNumero || pres.ordenesCompraIds?.[0])
+        : null;
+      // No pisar una OC ya cargada a mano: solo completa los slots vacíos.
+      if (!ocCliente || prev.ordenesCompra.some(o => o.trim() === ocCliente)) {
+        return { ...prev, presupuestos };
+      }
+      const ordenesCompra = [...prev.ordenesCompra];
+      const libre = ordenesCompra.findIndex(o => o.trim() === '');
+      if (libre >= 0) ordenesCompra[libre] = ocCliente;
+      else ordenesCompra.push(ocCliente);
+      return { ...prev, presupuestos, ordenesCompra };
+    });
+  }, [presupuestosCliente]);
+
   const openInReportesOT = () => {
     const url = `http://localhost:3000?reportId=${otNumber}`;
     if ((window as any).electronAPI?.openWindow) (window as any).electronAPI.openWindow(url);
@@ -433,7 +462,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   return {
     loading, saving, form, set, readOnly,
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
-    otOriginal, handleSave, openInReportesOT,
+    otOriginal, handleSave, openInReportesOT, handlePresupuestoChange,
     handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre, handleReabrirOT,
   };
 }

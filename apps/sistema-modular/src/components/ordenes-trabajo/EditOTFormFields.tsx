@@ -19,10 +19,13 @@ interface Props {
   contactos: ContactoCliente[];
   ingenieros: Ingeniero[];
   presupuestosCliente: Presupuesto[];
+  /** Setea el presupuesto de la fila y arrastra la OC del cliente a la OT. */
+  onPresupuestoChange: (idx: number, numero: string) => void;
 }
 
 export const EditOTFormFields: React.FC<Props> = ({
   form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
+  onPresupuestoChange,
 }) => {
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
@@ -117,11 +120,7 @@ export const EditOTFormFields: React.FC<Props> = ({
           <div key={idx} className="flex gap-1 mb-1 items-center">
             <div className="flex-1">
               <SearchableSelect value={b}
-                onChange={v => {
-                  const u = [...form.presupuestos];
-                  u[idx] = v;
-                  set('presupuestos', u);
-                }}
+                onChange={v => onPresupuestoChange(idx, v)}
                 options={[
                   { value: '', label: 'Sin presupuesto' },
                   ...presupuestosCliente.map(p => ({

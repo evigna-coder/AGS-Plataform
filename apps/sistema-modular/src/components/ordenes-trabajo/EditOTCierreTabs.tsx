@@ -106,6 +106,7 @@ export const EditOTCierreTabs: React.FC<Props> = ({ h, otNumber }) => {
           sistemasFiltrados={h.sistemasFiltrados} modulos={h.modulos}
           contactos={h.contactos} ingenieros={h.ingenieros}
           presupuestosCliente={h.presupuestosCliente}
+          onPresupuestoChange={h.handlePresupuestoChange}
         />
         <OTHistorialEstados historial={h.otOriginal?.estadoHistorial} />
       </div>
