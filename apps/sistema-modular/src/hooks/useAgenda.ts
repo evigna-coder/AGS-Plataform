@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
-import { ingenierosService, agendaService, agendaNotasService, feriadosService, diasAgsService, ordenesTrabajoService, sistemasService } from '../services/firebaseService';
+import { ingenierosService, agendaService, agendaNotasService, feriadosService, diasAgsService, ordenesTrabajoService, sistemasService, establecimientosService } from '../services/firebaseService';
+import { esInteriorPorDistancia } from '../utils/distanciaInterior';
 import {
   getMonday,
   getVisibleDays,
@@ -42,6 +43,33 @@ export interface UseAgendaReturn {
   diasAgs: Set<string>;
   toggleDiaAgs: (ingenieroId: string, ingenieroNombre: string, fecha: string) => Promise<void>;
   primerDiaAgsEnRango: (ingenieroId: string, inicio: string, fin: string) => string | null;
+}
+
+type NuevaEntrada = Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>;
+
+/**
+ * Sube el estado a su variante `_interior` cuando el establecimiento de la OT
+ * está a más de 200 km. Solo toca los estados en los que nace una entrada nueva
+ * (`tentativo` / `confirmado`): lo que ya viene marcado interior, o está en otro
+ * punto del ciclo, se respeta tal cual. Best-effort — si la lectura falla, la
+ * entrada se crea con el estado que le pasaron.
+ */
+async function conMarcaInterior(data: NuevaEntrada): Promise<NuevaEntrada> {
+  if (data.estadoAgenda !== 'tentativo' && data.estadoAgenda !== 'confirmado') return data;
+  if (!data.otNumber) return data;
+  try {
+    const ot = await ordenesTrabajoService.getByOtNumber(data.otNumber);
+    if (!ot?.establecimientoId) return data;
+    const est = await establecimientosService.getById(ot.establecimientoId);
+    if (!esInteriorPorDistancia(est)) return data;
+    return {
+      ...data,
+      estadoAgenda: data.estadoAgenda === 'confirmado' ? 'confirmado_interior' : 'tentativo_interior',
+    };
+  } catch (err) {
+    console.error('[useAgenda] marca de interior:', err);
+    return data;
+  }
 }
 
 export function useAgenda(): UseAgendaReturn {
@@ -242,11 +270,17 @@ export function useAgenda(): UseAgendaReturn {
       alert(`El ${diaAgs} es día AGS de ${data.ingenieroNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return '';
     }
+    // La marca de INTERIOR se resuelve ACÁ y no en cada llamador (2026-08-09).
+    // Estaba solo en la vía de arrastrar una OT suelta desde la cola: el
+    // arrastre múltiple y el pegado de entradas copiadas hardcodeaban
+    // 'tentativo', así que la misma OT quedaba interior o no según cómo se
+    // hubiera agendado. De esta marca depende el desarraigo del mes.
+    const entryData = await conMarcaInterior(data);
     const tempId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
-    const optimistic: AgendaEntry = { ...data, id: tempId, createdAt: now, updatedAt: now, createdBy: null, createdByName: null, updatedBy: null, updatedByName: null };
+    const optimistic: AgendaEntry = { ...entryData, id: tempId, createdAt: now, updatedAt: now, createdBy: null, createdByName: null, updatedBy: null, updatedByName: null };
     setEntries(prev => [...prev, optimistic]);
-    const realId = await agendaService.create(data);
+    const realId = await agendaService.create(entryData);
     // Replace temp entry with real ID (snapshot will arrive shortly but this avoids flicker)
     setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
     return realId;

@@ -64,6 +64,12 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
       const ahoraIso = new Date().toISOString();
+      // El item HEREDA el establecimiento de la OT (2026-08-09). El payload
+      // copiaba clienteId/sistemaId/moduloId pero NO establecimientoId, asi que
+      // cada item creado con "+ Item" nacia sin establecimiento. De ese campo
+      // depende la marca de INTERIOR de la agenda: la OT 30019.02 quedaba en
+      // `tentativo` mientras sus hermanas del mismo cliente iban a interior.
+      const otActual = await ordenesTrabajoService.getByOtNumber(otNumber).catch(() => null);
 
       // Los presupuestos VIVOS del trabajo acompañan al item nuevo (2026-08-08).
       // El ppto nace en un item (ej. el .02, pedido de partes desde el portal) y
@@ -93,7 +99,10 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         tipoServicio: newItemData.tipoServicio,
         esFacturable: newItemData.necesitaPresupuesto,
         tieneContrato: newItemData.tieneContrato || cliente?.tipoServicio === 'contrato',
-        esGarantia: false, razonSocial: form.razonSocial, contacto: form.contacto,
+        // Hereda la GARANTIA del trabajo: estaba hardcodeado en false y no hay
+        // campo en el modal, asi que un item de una OT en garantia nacia facturable.
+        esGarantia: otActual?.esGarantia ?? false,
+        razonSocial: form.razonSocial, contacto: form.contacto,
         sector: form.sector,
         direccion: form.direccion, localidad: form.localidad, provincia: form.provincia,
         sistema: form.sistemaNombre, moduloModelo: form.moduloModelo,
@@ -111,6 +120,20 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         updatedAt: new Date().toISOString(),
         clienteId: form.clienteId || null, sistemaId: form.sistemaId || null,
         moduloId: form.moduloId || null,
+        // ── Contexto que el item HEREDA del trabajo (2026-08-09) ──────────────
+        // El payload copiaba cliente/sistema/modulo y nada mas: cada item creado
+        // con "+ Item" nacia sin establecimiento (rompia la marca de INTERIOR de
+        // la agenda y el domicilio de entrega de los remitos), sin contrato, sin
+        // OC del cliente y desvinculado del ticket de origen.
+        establecimientoId: otActual?.establecimientoId || null,
+        tipoOT: otActual?.tipoOT ?? 'servicio',
+        contratoId: otActual?.contratoId ?? null,
+        loanerId: otActual?.loanerId ?? null,
+        leadId: otActual?.leadId ?? null,
+        presupuestoOrigenId: otActual?.presupuestoOrigenId ?? null,
+        ordenCompra: otActual?.ordenCompra ?? null,
+        ordenesCompra: otActual?.ordenesCompra ?? [],
+        moduloMarca: otActual?.moduloMarca ?? null,
       } as any);
 
       // El item nuevo pasa a ser la OT activa del presupuesto; los anteriores
