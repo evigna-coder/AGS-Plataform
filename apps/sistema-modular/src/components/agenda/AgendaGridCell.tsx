@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useRef, useEffect } from 'react';
+import { memo, useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
@@ -19,6 +19,8 @@ interface AgendaGridCellProps {
   entryPagoAdelantado?: boolean;
   /** Requiere inducción (2026-08-05): diagonal inferior NEGRA. */
   entryRequiereInduccion?: boolean;
+  /** Venta concretada (2026-08-09): pinta la celda ENTERA de verde agua. */
+  entryVentaConcretada?: boolean;
   entrySistemaNombre?: string | null;
   entryNotas?: string | null;
   isStart?: boolean;
@@ -48,6 +50,7 @@ interface AgendaGridCellProps {
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
   entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado, entryRequiereInduccion,
+  entryVentaConcretada,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -80,6 +83,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     estado: entryEstado,
     tipoServicio: entryTipoServicio,
     titulo: entryTitulo,
+    ventaConcretada: entryVentaConcretada,
   });
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
@@ -91,8 +95,6 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   // con el popover de servicios, que se despliega hacia abajo (2026-07-30).
   const [showNota, setShowNota] = useState(false);
   const cellElementRef = useRef<HTMLElement | null>(null);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }, []);
 
   const isDayEnd = quarter === 4;
   const borderClass = compact
@@ -132,14 +134,11 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
           onContextMenu?.(e);
         }}
         onMouseEnter={() => {
-          if (hasEntry && allEntriesRef && allEntriesRef.length > 0) {
-            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-            setShowPopover(true);
-          }
+          if (hasEntry && allEntriesRef && allEntriesRef.length > 0) setShowPopover(true);
           if (notaTexto) setShowNota(true);
         }}
         onMouseLeave={() => {
-          if (showPopover) hideTimerRef.current = setTimeout(() => setShowPopover(false), 150);
+          setShowPopover(false);
           setShowNota(false);
         }}
       >
@@ -161,7 +160,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         )}
         {isStart && hasEntry && showText && (
           <span
-            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
+            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion || entryVentaConcretada) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
             style={{ lineHeight: rowHeight }}
           >
             {entryOtNumber || entryTitulo || '—'}
@@ -219,8 +218,6 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         <AgendaCellPopover
           entries={allEntriesRef}
           cellRect={cellElementRef.current.getBoundingClientRect()}
-          onMouseEnter={() => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }}
-          onMouseLeave={() => setShowPopover(false)}
         />,
         document.body,
       )}
@@ -235,6 +232,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryTipoServicio === next.entryTipoServicio &&
     prev.entryPagoAdelantado === next.entryPagoAdelantado &&
     prev.entryRequiereInduccion === next.entryRequiereInduccion &&
+    prev.entryVentaConcretada === next.entryVentaConcretada &&
     prev.entryTitulo === next.entryTitulo &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&

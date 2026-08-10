@@ -5297,6 +5297,10 @@ export interface AgendaEntry {
   /** Flag ORTOGONAL al estado (2026-08-05): la planta exige inducción/examen de
    *  ingreso. Mitad NEGRA (diagonal inferior) — solo en la entrada marcada. */
   requiereInduccion?: boolean;
+  /** Flag ORTOGONAL al estado (2026-08-09): la visita es una venta concretada.
+   *  A diferencia de los otros dos flags, pinta la celda ENTERA con el verde
+   *  agua institucional — no una diagonal. */
+  ventaConcretada?: boolean;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;

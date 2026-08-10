@@ -18,6 +18,7 @@ interface AgendaInfoBarProps {
   onTogglePagoAdelantado?: (entryId: string, valor: boolean) => void;
   /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada. */
   onToggleRequiereInduccion?: (entryId: string, valor: boolean) => void;
+  onToggleVentaConcretada?: (entryId: string, valor: boolean) => void;
 }
 
 function EntryRange({ entry }: { entry: AgendaEntry }) {
@@ -37,6 +38,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onChangeEstado,
   onTogglePagoAdelantado,
   onToggleRequiereInduccion,
+  onToggleVentaConcretada,
 }) => {
   const entry = selectedCell?.entry ?? null;
   const allEntries = selectedCell?.allEntries ?? [];
@@ -121,6 +123,21 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
                   className="w-3 h-3 accent-black"
                 />
                 <span className={entry.requiereInduccion ? 'text-black font-semibold' : ''}>Requiere inducción</span>
+              </label>
+            )}
+
+            {/* Venta concretada (2026-08-09): pinta la celda ENTERA de verde
+                agua — a diferencia de los otros dos flags, que son diagonales. */}
+            {onToggleVentaConcretada && (
+              <label className="flex items-center gap-1 text-[10px] font-medium text-slate-500 cursor-pointer shrink-0 select-none"
+                title="La visita corresponde a una venta concretada — la celda entera se pinta de verde agua">
+                <input
+                  type="checkbox"
+                  checked={!!entry.ventaConcretada}
+                  onChange={e => onToggleVentaConcretada(entry.id, e.target.checked)}
+                  className="w-3 h-3 accent-[#0D6E6E]"
+                />
+                <span className={entry.ventaConcretada ? 'text-[#0D6E6E] font-semibold' : ''}>Venta concretada</span>
               </label>
             )}
 

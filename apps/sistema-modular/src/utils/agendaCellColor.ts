@@ -66,7 +66,13 @@ const REGLAS: ReglaColor[] = [
   { campo: 'titulo', test: /permisos?\s+especial/i, bg: 'bg-[#5c4033]', text: 'text-[#f2e8e2]' },
   // Día por enfermedad (2026-08-09) — verde chillón, para que salte en la grilla.
   { campo: 'titulo', test: /enfermedad/i, bg: 'bg-[#7cfc00]', text: 'text-[#1a3300]' },
+  // Estudios médicos (2026-08-09) — amarillo fuerte. Distinto del amarillo
+  // opaco de bench/oficina, que es mucho más apagado.
+  { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#f5c518]', text: 'text-[#3d2f00]' },
 ];
+
+/** Verde agua institucional (teal-700) — el mismo de los botones. */
+const VENTA_CONCRETADA = { bg: 'bg-[#0D6E6E]', text: 'text-white' };
 
 /**
  * Resuelve el fondo y el color de texto de una celda de agenda. Devuelve strings
@@ -76,9 +82,13 @@ export function colorDeCeldaAgenda(params: {
   estado?: EstadoAgenda;
   tipoServicio?: string | null;
   titulo?: string | null;
+  /** Flag manual: gana sobre todo lo demás salvo `cancelado`. */
+  ventaConcretada?: boolean;
 }): { bg: string; text: string } {
-  const { estado, tipoServicio, titulo } = params;
+  const { estado, tipoServicio, titulo, ventaConcretada } = params;
   if (estado !== 'cancelado') {
+    // Marca explícita del usuario: pisa las reglas derivadas de tipo/título.
+    if (ventaConcretada) return { ...VENTA_CONCRETADA };
     for (const r of REGLAS) {
       const valor = r.campo === 'tipoServicio' ? tipoServicio : titulo;
       if (valor && r.test.test(valor)) return { bg: r.bg, text: r.text };

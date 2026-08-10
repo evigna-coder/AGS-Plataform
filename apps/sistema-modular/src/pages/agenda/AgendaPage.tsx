@@ -18,7 +18,7 @@ import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/
 import { previsionesService } from '../../services/previsionesService';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
 import {
-  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
+  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId, continuaElRango,
   type ClipboardData,
 } from '../../utils/agendaOTSync';
 
@@ -279,6 +279,7 @@ export const AgendaPage: FC = () => {
           estadoAgenda: src.estadoAgenda,
           pagoAdelantado: src.pagoAdelantado ?? false,
           requiereInduccion: src.requiereInduccion ?? false,
+          ventaConcretada: src.ventaConcretada ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
@@ -336,7 +337,9 @@ export const AgendaPage: FC = () => {
         const existing = src.otNumber
           ? entries.find(e => e.otNumber === src.otNumber && e.ingenieroId === cell.ingenieroId)
           : null;
-        if (existing) {
+        // Solo estira si el dia CONTINUA el rango; con hueco de por medio es
+        // otra jornada de la misma OT y va como entrada aparte (2026-08-09).
+        if (existing && continuaElRango(existing, fechaInicio)) {
           const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
           updateEntry(existing.id, {
             fechaFin: newEnd,
@@ -357,6 +360,7 @@ export const AgendaPage: FC = () => {
             estadoAgenda: 'tentativo',
             pagoAdelantado: src.pagoAdelantado ?? false,
             requiereInduccion: src.requiereInduccion ?? false,
+            ventaConcretada: src.ventaConcretada ?? false,
             notas: null,
             titulo: src.titulo || null,
           });
@@ -732,6 +736,22 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell, entries]);
 
+  /** Venta concretada (2026-08-09): flag ortogonal que pinta la celda ENTERA
+   *  de verde agua institucional. */
+  const handleToggleVentaConcretada = useCallback((entryId: string, valor: boolean) => {
+    updateEntry(entryId, { ventaConcretada: valor });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: selectedCell.entry.id === entryId
+          ? { ...selectedCell.entry, ventaConcretada: valor }
+          : selectedCell.entry,
+        allEntries: selectedCell.allEntries.map(e =>
+          e.id === entryId ? { ...e, ventaConcretada: valor } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
   /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada
    *  (a diferencia del pago adelantado, que aplica a toda la celda). */
   const handleToggleRequiereInduccion = useCallback((entryId: string, valor: boolean) => {
@@ -862,6 +882,7 @@ export const AgendaPage: FC = () => {
         onChangeEstado={handleChangeEstado}
         onTogglePagoAdelantado={handleTogglePagoAdelantado}
         onToggleRequiereInduccion={handleToggleRequiereInduccion}
+        onToggleVentaConcretada={handleToggleVentaConcretada}
       />
 
       <DndContext
@@ -990,6 +1011,16 @@ export const AgendaPage: FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
               </svg>
               Agregar permisos especiales
+            </button>
+            {/* Estudios médicos (2026-08-09): celda amarillo fuerte */}
+            <button
+              onClick={() => handleAgregarEventoFijo('Estudios médicos')}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+              </svg>
+              Agregar estudios médicos
             </button>
             {/* Día por enfermedad (2026-08-09): celda verde chillón */}
             <button
