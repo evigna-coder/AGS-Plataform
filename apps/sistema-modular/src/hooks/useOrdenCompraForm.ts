@@ -49,6 +49,10 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
           setIncoterm(data.incoterm || '');
           setFechaEntregaEstimada(data.fechaEntregaEstimada ? data.fechaEntregaEstimada.split('T')[0] : '');
           setNotas(data.notas || ''); setItems(data.items || []);
+          // En EDICIÓN el número se carga COMPLETO y editable (2026-08-09): hay
+          // OCs que salieron con el prefijo de fallback 'OC' porque el proveedor
+          // no tenía `codigoOC` cargado, y no había forma de corregirlas.
+          setNumeroManual(data.numero || '');
           if (data.tipo === 'importacion') {
             importacionesService.getAll({ ordenCompraId: data.id }).then(setImportaciones).catch(() => {});
           }
@@ -120,13 +124,19 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
   const save = useCallback(async (): Promise<string | null> => {
     if (!proveedorId) { alert('Seleccione un proveedor'); return null; }
     if (items.length === 0) { alert('Agregue al menos un item'); return null; }
-    // Número manual solo para OC nueva. Vacío → el service asigna el correlativo (comportamiento actual).
-    const numeroFinal = (!isEdit && numeroManual.trim()) ? `${prefijoOC}${numeroManual.trim()}` : undefined;
+    // ALTA: se escribe solo la parte numérica y el prefijo del proveedor va
+    // adelante. Vacío → el service asigna el correlativo.
+    // EDICIÓN (2026-08-09): se escribe el número COMPLETO, sin anteponer nada —
+    // si no, corregir una OC que salió con el fallback 'OC' era imposible.
+    const numeroFinal = numeroManual.trim()
+      ? (isEdit ? numeroManual.trim().toUpperCase() : `${prefijoOC}${numeroManual.trim()}`)
+      : undefined;
     setSaving(true);
     try {
-      if (numeroFinal) {
+      // Duplicados: al editar, la propia OC no cuenta.
+      if (numeroFinal && numeroFinal.toUpperCase() !== (oc?.numero || '').toUpperCase()) {
         const existentes = await ordenesCompraService.getAll();
-        if (existentes.some(o => (o.numero || '').toUpperCase() === numeroFinal.toUpperCase())) {
+        if (existentes.some(o => o.id !== ocId && (o.numero || '').toUpperCase() === numeroFinal.toUpperCase())) {
           alert(`Ya existe una orden de compra con el número ${numeroFinal}.`);
           return null;
         }
@@ -150,7 +160,13 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
         presupuestoIds: oc?.presupuestoIds ?? [], fechaRecepcion: null, importacionId: null,
         archivoUrl: null, archivoNombre: null,
       };
-      if (isEdit && ocId) { await ordenesCompraService.update(ocId, payload); return ocId; }
+      if (isEdit && ocId) {
+        // El número solo se persiste si cambió; si el campo quedó vacío se
+        // conserva el actual (nunca se borra el número de una OC existente).
+        const cambioNumero = !!numeroFinal && numeroFinal !== (oc?.numero || '');
+        await ordenesCompraService.update(ocId, cambioNumero ? { ...payload, numero: numeroFinal } : payload);
+        return ocId;
+      }
       return await ordenesCompraService.create(numeroFinal ? { ...payload, numero: numeroFinal } : payload);
     } catch (err) {
       console.error('Error guardando OC:', err);
