@@ -7,9 +7,10 @@ import { proveedoresService } from '../../services/personalService';
 import { remitosService, type DatosTransportista } from '../../services/stockService';
 import { instrumentosService } from '../../services/firebaseService';
 import { useInstrumentos } from '../../hooks/useInstrumentos';
-import { RemitoOverlayPDF } from '../remitos/pdf/RemitoOverlayPDF';
+import { RemitoPartyFields } from '../remitos/RemitoPartyFields';
+import { RemitoTransportistaPicker, EMPTY_PARTY, partyFromProveedor } from '../remitos/RemitoTransportistaPicker';
 import { DerivarInstrumentosPicker, instrumentoResumen } from './DerivarInstrumentosPicker';
-import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
+import { imprimirRemitoOverlay } from '../../utils/remitoImprimir';
 import { formatFechaAR } from '../../utils/formatFecha';
 import type { InstrumentoPatron, Proveedor } from '@ags/shared';
 
@@ -21,20 +22,6 @@ interface Props {
 }
 
 const NUMERO_REGEX = /^\d{4}-\d{8}$/;
-const EMPTY_PARTY: DatosTransportista = {
-  razonSocial: '', domicilio: '', localidad: '', provincia: '', iva: '', cuit: '',
-};
-
-function fromProveedor(p: Proveedor): DatosTransportista {
-  return {
-    razonSocial: p.nombre,
-    domicilio: p.direccion ?? '',
-    localidad: '',
-    provincia: p.pais ?? '',
-    iva: p.tipo === 'internacional' ? 'Exterior' : '',
-    cuit: p.cuit ?? '',
-  };
-}
 
 export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado }: Props) {
   const { derivarACalibracion } = useInstrumentos();
@@ -43,6 +30,11 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
   const [numero, setNumero] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [destinatario, setDestinatario] = useState<DatosTransportista>(EMPTY_PARTY);
+  // Transportista (2026-08-09): el bloque del papel preimpreso salía vacío en las
+  // derivaciones. Mismo criterio que el resto de los remitos — proveedores con la
+  // categoría "transportista"; elegir uno autocompleta los campos.
+  const [transportista, setTransportista] = useState<DatosTransportista>(EMPTY_PARTY);
+  const [transportistaId, setTransportistaId] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [disponibles, setDisponibles] = useState<InstrumentoPatron[]>([]);
   const [seleccionados, setSeleccionados] = useState<InstrumentoPatron[]>([instrumento]);
@@ -68,13 +60,14 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
   const handlePickProveedor = (id: string) => {
     setProveedorId(id);
     const p = proveedores.find(x => x.id === id);
-    if (p) setDestinatario(fromProveedor(p));
+    if (p) setDestinatario(partyFromProveedor(p));
   };
 
   const proveedorOptions = useMemo(
     () => proveedores.map(p => ({ value: p.id, label: p.nombre })),
     [proveedores],
   );
+
 
   const numeroValido = NUMERO_REGEX.test(numero);
   const canSubmit = !!proveedorId && numeroValido && !!destinatario.razonSocial.trim();
@@ -109,6 +102,8 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         fechaSalida: fecha,
         proveedorId: proveedor.id,
         proveedorNombre: proveedor.nombre,
+        transportistaId: transportistaId || null,
+        transportistaNombre: transportista.razonSocial.trim() || null,
       });
 
       await Promise.all(seleccionados.map(i => derivarACalibracion(i.id, {
@@ -120,18 +115,22 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         observaciones: observaciones.trim() || null,
       })));
 
-      await openRemitoPdfInNewTab(
-        <RemitoOverlayPDF
-          fecha={formatFechaAR(fecha)}
-          destinatario={destinatario}
-          items={seleccionados.map((i, idx) => ({
-            numero: idx + 1,
-            cantidad: 1,
-            producto: i.nombre,
-            descripcion: `${instrumentoResumen(i)} · ${motivo}`,
-          }))}
-        />,
-      );
+      // Pipeline calibrado, igual que ficha y loaner (2026-08-09): triplicado
+      // silencioso con los offsets del papel preimpreso. Antes usaba
+      // `openRemitoPdfInNewTab`, que abría/descargaba el PDF SIN los offsets —
+      // no imprimía solo y encima salía corrido sobre el papel.
+      await imprimirRemitoOverlay({
+        fecha: formatFechaAR(fecha),
+        destinatario,
+        transportista: transportista.razonSocial.trim() ? transportista : null,
+        items: seleccionados.map((i, idx) => ({
+          numero: idx + 1,
+          cantidad: 1,
+          producto: i.nombre,
+          descripcion: `${instrumentoResumen(i)} · ${motivo}`,
+        })),
+        observaciones: observaciones.trim() || null,
+      }).catch(err => console.warn('[DerivarCalibracion] impresión falló:', err));
       onDerivado();
       onClose();
     } catch (err) {
@@ -193,23 +192,16 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
           <Input inputSize="sm" label="Fecha *" type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
         </div>
 
-        <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50 space-y-2">
-          <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500">Destinatario (proveedor)</p>
-          <Input inputSize="sm" label="Razón social" value={destinatario.razonSocial}
-            onChange={e => setDestinatario({ ...destinatario, razonSocial: e.target.value })} />
-          <div className="grid grid-cols-2 gap-2">
-            <Input inputSize="sm" label="Domicilio" value={destinatario.domicilio}
-              onChange={e => setDestinatario({ ...destinatario, domicilio: e.target.value })} />
-            <Input inputSize="sm" label="Localidad" value={destinatario.localidad}
-              onChange={e => setDestinatario({ ...destinatario, localidad: e.target.value })} />
-            <Input inputSize="sm" label="Provincia" value={destinatario.provincia}
-              onChange={e => setDestinatario({ ...destinatario, provincia: e.target.value })} />
-            <Input inputSize="sm" label="IVA" value={destinatario.iva}
-              onChange={e => setDestinatario({ ...destinatario, iva: e.target.value })} />
-            <Input inputSize="sm" label="CUIT" value={destinatario.cuit}
-              onChange={e => setDestinatario({ ...destinatario, cuit: e.target.value })} />
-          </div>
+        <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+          <RemitoPartyFields title="Destinatario (proveedor)" value={destinatario} onChange={setDestinatario} />
         </div>
+
+        <RemitoTransportistaPicker
+          proveedores={proveedores}
+          selectedId={transportistaId}
+          value={transportista}
+          onChange={({ id, datos }) => { setTransportistaId(id); setTransportista(datos); }}
+        />
 
         <div>
           <label className="block text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Observaciones</label>
@@ -223,7 +215,7 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         </div>
 
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          Se generará un remito tipo «derivación a proveedor» con {seleccionados.length === 1 ? 'el instrumento' : `los ${seleccionados.length} instrumentos`} como items «sale y vuelve», se marcarán como <strong>En calibración</strong>, y se abrirá el PDF para imprimir sobre el papel preimpreso.
+          Se generará un remito tipo «derivación a proveedor» con {seleccionados.length === 1 ? 'el instrumento' : `los ${seleccionados.length} instrumentos`} como items «sale y vuelve», se marcarán como <strong>En calibración</strong>, y el remito se imprimirá por triplicado sobre el papel preimpreso.
         </p>
       </div>
     </Modal>
