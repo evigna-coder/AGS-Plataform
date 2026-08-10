@@ -79,12 +79,25 @@ export function groupItems(items: PresupuestoItem[]): SectorGroup[] {
   return result.sort((a, b) => (soloSinSistema(a) ? 1 : 0) - (soloSinSistema(b) ? 1 : 0));
 }
 
-/** Per-currency totals (excludes S/L items). */
-export function totalsByCurrency(items: PresupuestoItem[]): Record<string, number> {
+/**
+ * Totales por moneda (excluye items S/L).
+ *
+ * `monedaBase` = la del presupuesto, y es el fallback para los items que no
+ * traen moneda propia. Antes el fallback era `'USD'` hardcodeado (2026-08-09):
+ * un contrato en PESOS cuyos items no tenían `moneda` salía rotulado en dólares
+ * en la portada y en el total por equipo. Solo un presupuesto MIXTA obliga a que
+ * cada item declare su moneda; en los de moneda única los items suelen venir sin
+ * el campo, que es justo el caso que se rompía.
+ */
+export function totalsByCurrency(
+  items: PresupuestoItem[],
+  monedaBase?: string,
+): Record<string, number> {
+  const fallback = monedaBase && monedaBase !== 'MIXTA' ? monedaBase : 'USD';
   const m: Record<string, number> = {};
   for (const it of items) {
     if (it.esSinCargo) continue;
-    const cur = it.moneda || 'USD';
+    const cur = it.moneda || fallback;
     m[cur] = (m[cur] || 0) + (it.subtotal || 0);
   }
   return m;
@@ -129,7 +142,7 @@ export function planCuotas(p: Presupuesto): PlanCuotas {
       }
     }
   } else {
-    const totals = totalsByCurrency(p.items);
+    const totals = totalsByCurrency(p.items, p.moneda);
     for (const [cur, tot] of Object.entries(totals)) {
       const n = p.cantidadCuotasPorMoneda?.[cur] ?? p.cantidadCuotas ?? 0;
       if (n > 0) uniformes.push({ cur, n, monto: tot / n, ajusteRedondeo: false });

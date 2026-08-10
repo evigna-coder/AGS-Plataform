@@ -5,7 +5,7 @@ import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto, cliente, establecimiento, contacto, condicionPago } = data;
-  const totals = totalsByCurrency(presupuesto.items);
+  const totals = totalsByCurrency(presupuesto.items, presupuesto.moneda);
   const plan = planCuotas(presupuesto);
 
   return (

@@ -4,7 +4,7 @@ import { groupItems, totalsByCurrency, fmtNum, type SistemaGroup } from './pdfCo
 import type { PresupuestoItem, ModuloSistema } from '@ags/shared';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
-function ItemRow({ item, isMixta, sinPrecios }: { item: PresupuestoItem; isMixta: boolean; sinPrecios: boolean }) {
+function ItemRow({ item, isMixta, sinPrecios, monedaFallback }: { item: PresupuestoItem; isMixta: boolean; sinPrecios: boolean; monedaFallback: string }) {
   const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
   const isSL = item.esSinCargo === true;
   const isBonif = item.esBonificacion === true;
@@ -33,7 +33,7 @@ function ItemRow({ item, isMixta, sinPrecios }: { item: PresupuestoItem; isMixta
           <>
             {isMixta && (
               <Text style={[...cellStyle, cs.itemCellCenter, { width: COLS_MIXTA.mon }] as any}>
-                {isSL ? '—' : (item.moneda || 'USD')}
+                {isSL ? '—' : (item.moneda || monedaFallback)}
               </Text>
             )}
             <Text style={[...cellStyle, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).precio }] as any}>
@@ -60,9 +60,9 @@ function ItemRow({ item, isMixta, sinPrecios }: { item: PresupuestoItem; isMixta
   );
 }
 
-function SistemaCard({ group, isMixta, modulos, sinPrecios }: { group: SistemaGroup; isMixta: boolean; modulos?: ModuloSistema[]; sinPrecios: boolean }) {
+function SistemaCard({ group, isMixta, modulos, sinPrecios, monedaBase }: { group: SistemaGroup; isMixta: boolean; modulos?: ModuloSistema[]; sinPrecios: boolean; monedaBase: string }) {
   const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
-  const subtotals = totalsByCurrency(group.items);
+  const subtotals = totalsByCurrency(group.items, monedaBase);
 
   // Un equipo NO puede quedar partido entre hojas (pedido 2026-07-31): si la
   // card estimada entra en una página, wrap={false} → pasa ENTERA a la hoja
@@ -135,7 +135,7 @@ function SistemaCard({ group, isMixta, modulos, sinPrecios }: { group: SistemaGr
       </View>
 
       {group.items.map(item => (
-        <ItemRow key={item.id} item={item} isMixta={isMixta} sinPrecios={sinPrecios} />
+        <ItemRow key={item.id} item={item} isMixta={isMixta} sinPrecios={sinPrecios} monedaFallback={monedaBase} />
       ))}
 
       {Object.keys(subtotals).length > 0 && (
@@ -185,6 +185,7 @@ export function PDFContratoDetail({ data }: { data: PresupuestoPDFData }) {
               isMixta={isMixta}
               modulos={sistema.sistemaId ? data.modulosBySistema?.[sistema.sistemaId] : undefined}
               sinPrecios={sinPrecios}
+              monedaBase={data.presupuesto.moneda}
             />
           ))}
         </View>

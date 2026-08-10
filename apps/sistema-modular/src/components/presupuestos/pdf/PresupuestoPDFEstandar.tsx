@@ -85,21 +85,28 @@ const itemCols = {
 /** Anchos fijos de columnas numéricas (estilo Odoo); la descripción toma el resto con flex:1. */
 const odooCols = { cantidad: 56, precio: 86, descuento: 44, total: 96 };
 
+/**
+ * Fila de item. Compactada 2026-08-09: era `fontSize: 8.5` con `paddingVertical: 7`
+ * (~24pt por fila), y con 5 items el presupuesto ya se iba a dos hojas. Ahora
+ * ~18pt, que es lo que asume `ALTO_FILA_ITEM` en el calculo de las notas.
+ */
+const ITEM_FS = 7.5;
+
 function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento?: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
       <View style={{ flex: 1, paddingRight: 8 }}>
-        <Text style={{ fontSize: 8.5, color: COLORS.text }}>{item.descripcion}</Text>
+        <Text style={{ fontSize: ITEM_FS, color: COLORS.text }}>{item.descripcion}</Text>
         {item.codigoProducto ? (
-          <Text style={{ fontSize: 7, color: COLORS.textMuted, marginTop: 1 }}>{item.codigoProducto}</Text>
+          <Text style={{ fontSize: 6.5, color: COLORS.textMuted }}>{item.codigoProducto}</Text>
         ) : null}
       </View>
-      <Text style={{ width: odooCols.cantidad, fontSize: 8.5, color: COLORS.text, textAlign: 'center' }}>{fmt(item.cantidad)}</Text>
-      <Text style={{ width: odooCols.precio, fontSize: 8.5, color: COLORS.textMuted, textAlign: 'right' }}>{fmt(item.precioUnitario)}</Text>
+      <Text style={{ width: odooCols.cantidad, fontSize: ITEM_FS, color: COLORS.text, textAlign: 'center' }}>{fmt(item.cantidad)}</Text>
+      <Text style={{ width: odooCols.precio, fontSize: ITEM_FS, color: COLORS.textMuted, textAlign: 'right' }}>{fmt(item.precioUnitario)}</Text>
       {showDescuento ? (
-        <Text style={{ width: odooCols.descuento, fontSize: 8.5, color: COLORS.textMuted, textAlign: 'center' }}>{item.descuento ? `${fmt(item.descuento)}%` : '—'}</Text>
+        <Text style={{ width: odooCols.descuento, fontSize: ITEM_FS, color: COLORS.textMuted, textAlign: 'center' }}>{item.descuento ? `${fmt(item.descuento)}%` : '—'}</Text>
       ) : null}
-      <Text style={{ width: odooCols.total, fontSize: 8.5, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
+      <Text style={{ width: odooCols.total, fontSize: ITEM_FS, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
     </View>
   );
 }
@@ -448,6 +455,17 @@ export function notasTecnicasEntranEnPagina1(
   return consumido + altoNotas <= ALTO_A4;
 }
 
+/** Alto util de una hoja de condiciones (A4 menos margenes, header y footer). */
+const ALTO_UTIL_CONDICIONES = 680;
+
+/** Alto estimado de un bloque de texto con titulo, con el mismo criterio que arriba. */
+function altoEstimadoSeccion(html: string | null | undefined): number {
+  if (!html) return 0;
+  const texto = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!texto) return 0;
+  return ALTO_TITULO_NOTA + Math.ceil(texto.length / CHARS_POR_LINEA) * ALTO_LINEA_NOTA;
+}
+
 export function PDFCondiciones({ data, omitirNotasTecnicas }: { data: PresupuestoPDFData; omitirNotasTecnicas?: boolean }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
@@ -479,7 +497,11 @@ export function PDFCondiciones({ data, omitirNotasTecnicas }: { data: Presupuest
           // Notas técnicas en recuadro destacado (pedido 2026-07-31) — el resto
           // conserva el filete izquierdo.
           style={section.key === 'notasTecnicas' ? S.condicionSectionDestacada : S.condicionSection}
-          wrap={!!section.largo}>
+          // Partir un bloque de notas al medio entre dos hojas se ve como un
+          // error (2026-08-09). Ahora solo se permite `wrap` cuando el bloque es
+          // MAS ALTO que una hoja: ahi es inevitable, y sin wrap react-pdf lo
+          // saltearia entero. Si entra en una hoja, va completo a la siguiente.
+          wrap={!!section.largo && altoEstimadoSeccion(section.content) > ALTO_UTIL_CONDICIONES}>
           <Text style={S.condicionTitle}>{section.title}</Text>
           <PDFRichText html={section.content} fallbackStyle={S.condicionText} />
         </View>
