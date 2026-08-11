@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, documentId, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
@@ -144,6 +144,10 @@ export const ordenesTrabajoService = {
         // Un item cancelado sigue con `status: 'BORRADOR'`, así que la segunda
         // query lo traería de vuelta a la cola de coordinación (2026-08-09).
         if (data.estadoAdmin === 'CANCELADA') continue;
+        // Ídem cualquier estado posterior a la coordinación (2026-08-11): una OT
+        // en CIERRE_TECNICO+ con status BORRADOR aparecía como "para coordinar"
+        // (caso 30021.01, ya cerrada técnica y todavía ofrecida en la cola).
+        if (data.estadoAdmin && !PENDING_ESTADOS.includes(data.estadoAdmin)) continue;
         const createdIso: string = typeof data.createdAt === 'string'
           ? data.createdAt
           : data.createdAt?.toDate?.()?.toISOString?.() ?? '';
@@ -700,8 +704,16 @@ export const ordenesTrabajoService = {
     // commit 2b264e2). El parent queda oculto, solo visible al buscar por número.
     // Best-effort — si el auto-child falla, el parent queda creado y el user
     // puede agregar items manualmente con "+ Item".
+    let hijaAutoCreada: string | null = null;
     if (isParent) {
       try {
+        // OT nueva = items desde .01 SIEMPRE. Si quedó un contador otItem_<n>
+        // de una OT anterior borrada con el mismo número (o de un intento
+        // previo fallido), la hija nacía .02 y el caller —que espera .01—
+        // moría con "No document to update" (copiar OT, 2026-08-11). El parent
+        // recién pasó el guard anti-overwrite, así que no existía: cualquier
+        // contador previo es basura y se resetea.
+        await setDoc(doc(db, '_counters', `otItem_${otData.otNumber}`), { value: 0, updatedAt: Timestamp.now() });
         const childNumber = await this.getNextItemNumber(otData.otNumber);
         const ahora = new Date().toISOString();
         // La hija HEREDA el estado inicial del padre (2026-07-31): estaba
@@ -723,6 +735,7 @@ export const ordenesTrabajoService = {
         };
         // Recursive call — el child entra con dot, no se re-auto-creará.
         await this.create(childData as any);
+        hijaAutoCreada = childNumber;
         console.log(`✅ Auto-creado item .01 del parent ${otData.otNumber}: ${childNumber}`);
       } catch (err) {
         console.error('[otService] Auto-create .01 failed (parent queda sin child):', err);
@@ -778,7 +791,10 @@ export const ordenesTrabajoService = {
       }
     }
 
-    return otData.otNumber;
+    // Devuelve la UNIDAD DE TRABAJO creada: la hija auto-creada si el número
+    // era de padre (el caller nunca debe asumir ".01" — un contador reciclado
+    // puede correr la numeración), o el propio número si ya era item.
+    return hijaAutoCreada ?? otData.otNumber;
   },
 
   // Actualizar OT

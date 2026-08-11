@@ -504,13 +504,23 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         // Bidirectional link to presupuesto origen (audit/traceability)
         presupuestoOrigenId: form.presupuestoId || null,
       };
-      await ordenesTrabajoService.create(otData);
-      // El parent auto-crea el child .01 copiando su data. Override solo las
-      // fechas — el parent queda con fechas vacías (es contenedor), el child
+      // create() devuelve el número de la hija auto-creada — NO asumir ".01":
+      // un contador reciclado (OT borrada con el mismo número) corría la
+      // numeración y el update contra .01 moría con "No document to update"
+      // (copiar OT, 2026-08-11).
+      const otHija = await ordenesTrabajoService.create(otData);
+      if (!otHija.includes('.')) {
+        throw new Error(
+          `La OT ${otNum} se creó pero su primer item no pudo generarse. ` +
+          `Abrila desde la lista y usá "+ Item" para crearlo.`,
+        );
+      }
+      // El parent auto-crea la hija copiando su data. Override solo las
+      // fechas — el parent queda con fechas vacías (es contenedor), la hija
       // arranca con fechas de hoy. Antes era un segundo create() que pisaba
       // todo y desincronizaba el counter.
       const today = new Date().toISOString().split('T')[0];
-      await ordenesTrabajoService.update(`${otNum}.01`, {
+      await ordenesTrabajoService.update(otHija, {
         fechaInicio: today,
         fechaFin: today,
       });
@@ -532,7 +542,6 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
           // contenedor que nunca cambia de estado, y las vistas que no heredan
           // padre→hija mostraban una OT "sin empezar" en vez del trabajo real
           // (caso P3-005063-01 → 29994 con la 29994.01 ya finalizada).
-          const otHija = `${otNum}.01`;
           const presActual = await presupuestosService.getById(form.presupuestoId);
           const prev = presActual?.otsVinculadasNumbers ?? [];
           const nextList = prev.includes(otHija) ? prev : [...prev, otHija];

@@ -173,14 +173,18 @@ export async function iniciarRecalificacion(
         loanerId: loaner.id,
         loanerCodigo: loaner.codigo,
       };
-      await ordenesTrabajoService.create(otData);
-      // Igual que useCreateOTForm: el parent auto-crea la hija .01; solo se
-      // overridean las fechas de la hija (el parent es contenedor, queda vacío).
+      // create() devuelve la hija auto-creada — no asumir ".01" (un contador
+      // reciclado puede correr la numeración; ver otService.create 2026-08-11).
+      const otHija = await ordenesTrabajoService.create(otData);
+      // Igual que useCreateOTForm: solo se overridean las fechas de la hija
+      // (el parent es contenedor, queda vacío).
       const today = ahora.split('T')[0];
-      await ordenesTrabajoService.update(`${otNum}.01`, {
-        fechaInicio: today,
-        fechaFin: today,
-      }).catch(err => console.warn('[loanerRecalificacion] fechas de la hija .01 fallaron:', err));
+      if (otHija.includes('.')) {
+        await ordenesTrabajoService.update(otHija, {
+          fechaInicio: today,
+          fechaFin: today,
+        }).catch(err => console.warn('[loanerRecalificacion] fechas de la hija fallaron:', err));
+      }
       otNumber = otNum;
 
       // 4. Vincular OT (padre e hija) al loaner + anotar el número en el préstamo.
