@@ -7,12 +7,14 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import { InventarioIngenieroInline } from '../../components/stock/InventarioIngenieroInline';
 import { useAsignacionRapida, type DragPayload, type LotePatronDisponible } from '../../hooks/useAsignacionRapida';
+import { RemitoTransportistaPicker } from '../../components/remitos/RemitoTransportistaPicker';
 import type { UnidadStock, Minikit, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
 
 export const AsignacionRapidaPage = () => {
   const {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
+    proveedores, transportistaId, transportista, setTransportistaSeleccion,
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
     filteredPatrones,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
@@ -155,6 +157,14 @@ export const AsignacionRapidaPage = () => {
               <div className="shrink-0 space-y-2 pt-2 mt-2 border-t border-slate-100">
                 <Input inputSize="sm" label="Observaciones" value={observaciones}
                   onChange={e => setObservaciones(e.target.value)} placeholder="Notas opcionales..." />
+                {/* Transportista del remito de salida (2026-08-10): faltaba, y el
+                    recuadro del papel preimpreso salía vacío. */}
+                <RemitoTransportistaPicker
+                  proveedores={proveedores}
+                  selectedId={transportistaId}
+                  value={transportista}
+                  onChange={setTransportistaSeleccion}
+                />
                 <Button className="w-full" size="sm" onClick={handleConfirm}
                   disabled={saving || cart.length === 0}>
                   {saving ? 'Procesando...' : `Confirmar ${cart.length} items → ${ingenieroCount} IST`}

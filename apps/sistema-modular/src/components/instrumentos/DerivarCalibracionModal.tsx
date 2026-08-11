@@ -9,7 +9,7 @@ import { instrumentosService } from '../../services/firebaseService';
 import { useInstrumentos } from '../../hooks/useInstrumentos';
 import { RemitoPartyFields } from '../remitos/RemitoPartyFields';
 import { RemitoTransportistaPicker, EMPTY_PARTY, partyFromProveedor } from '../remitos/RemitoTransportistaPicker';
-import { DerivarInstrumentosPicker, instrumentoResumen } from './DerivarInstrumentosPicker';
+import { DerivarInstrumentosPicker, instrumentoDescripcionRemito } from './DerivarInstrumentosPicker';
 import { imprimirRemitoOverlay } from '../../utils/remitoImprimir';
 import { formatFechaAR } from '../../utils/formatFecha';
 import type { InstrumentoPatron, Proveedor } from '@ags/shared';
@@ -95,8 +95,10 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
           tipoItem: 'sale_y_vuelve' as const,
           devuelto: false,
           instrumentoId: i.id,
+          // `nombre` ES el identificador del instrumento (TER-01, FLO-08): va
+          // como código. La descripción dice qué es, sin repetirlo.
           instrumentoCodigo: i.nombre,
-          instrumentoDescripcion: instrumentoResumen(i),
+          instrumentoDescripcion: instrumentoDescripcionRemito(i),
         })),
         observaciones: observaciones.trim() || null,
         fechaSalida: fecha,
@@ -127,7 +129,8 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
           numero: idx + 1,
           cantidad: 1,
           producto: i.nombre,
-          descripcion: `${instrumentoResumen(i)} · ${motivo}`,
+          // Producto ya lleva el identificador (TER-01): acá va QUÉ es el equipo.
+          descripcion: `${instrumentoDescripcionRemito(i)} · ${motivo}`,
         })),
         observaciones: observaciones.trim() || null,
       }).catch(err => console.warn('[DerivarCalibracion] impresión falló:', err));

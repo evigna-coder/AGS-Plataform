@@ -9,14 +9,27 @@ export const EMPTY_PARTY: DatosTransportista = {
   razonSocial: '', domicilio: '', localidad: '', provincia: '', iva: '', cuit: '',
 };
 
-/** Datos de remito a partir de un proveedor del catálogo. */
+/**
+ * Datos de remito a partir de un proveedor del catálogo.
+ *
+ * Usa los campos reales de dirección (2026-08-10). Antes dejaba `localidad`
+ * VACÍA y metía el PAÍS en `provincia`, así que el papel salía con Localidad en
+ * blanco, "Argentina" en Provincia y la dirección entera —calle, código postal,
+ * ciudad y país— apretada en Domicilio, desbordando sobre el recuadro del
+ * transportista. `Proveedor` tiene `localidad`, `provincia` y `condicionIva`
+ * desde el 2026-08-07, agregados justamente para este papel.
+ *
+ * `pais` solo se usa como provincia para proveedores del exterior, donde no hay
+ * provincia argentina que poner.
+ */
 export function partyFromProveedor(p: Proveedor): DatosTransportista {
+  const esExterior = p.tipo === 'internacional';
   return {
     razonSocial: p.nombre,
     domicilio: p.direccion ?? '',
-    localidad: '',
-    provincia: p.pais ?? '',
-    iva: p.tipo === 'internacional' ? 'Exterior' : '',
+    localidad: p.localidad ?? '',
+    provincia: p.provincia || (esExterior ? (p.pais ?? '') : ''),
+    iva: p.condicionIva || (esExterior ? 'Exterior' : ''),
     cuit: p.cuit ?? '',
   };
 }

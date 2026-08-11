@@ -31,6 +31,10 @@ export const RemitosList = () => {
     // Default 'pendientes' (2026-08-04): borrador + confirmado + en tránsito.
     // Los devueltos/finalizados salen de la vista salvo elección explícita.
     estado: { type: 'string' as const, default: 'pendientes' },
+    // Pestañas (2026-08-10): el talonario preimpreso —los que van al cliente y
+    // llevan numeración fiscal— aparte de los internos REM-, que son
+    // comprobantes de movimiento y ensuciaban la vista principal.
+    tab: { type: 'string' as const, default: 'talonario' },
     tipo: { type: 'string' as const, default: '' },
     showAll: { type: 'boolean' as const, default: false },
     clienteId: { type: 'string' as const, default: '' },
@@ -170,11 +174,23 @@ export const RemitosList = () => {
     }
   };
 
+  /** Numeración del talonario preimpreso: 0001-00017405. */
+  const esTalonario = (r: Remito) => /^\d{4}-\d{8}$/.test(r.numero || '');
+
+  const porTab = useMemo(
+    () => remitos.filter(r => (filters.tab === 'internos' ? !esTalonario(r) : esTalonario(r))),
+    [remitos, filters.tab],
+  );
+  const conteoTab = useMemo(() => ({
+    talonario: remitos.filter(esTalonario).length,
+    internos: remitos.filter(r => !esTalonario(r)).length,
+  }), [remitos]);
+
   const sorted = useMemo(() => {
-    let result = remitos;
+    let result = porTab;
     if (filters.clienteId) result = result.filter(r => r.clienteId === filters.clienteId);
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
-  }, [remitos, filters.clienteId, filters.sortField, filters.sortDir]);
+  }, [porTab, filters.clienteId, filters.sortField, filters.sortDir]);
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
@@ -193,6 +209,15 @@ export const RemitosList = () => {
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo remito</Button>
         }
       >
+        {/* Pestañas: talonario (numeración fiscal) vs internos REM- */}
+        <div className="flex gap-2 mb-3">
+          {([['talonario', 'Talonario'], ['internos', 'Internos (REM)']] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setFilter('tab', k)}
+              className={`px-3 py-1.5 rounded text-xs font-medium ${filters.tab === k ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {label} ({conteoTab[k]})
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filters.estado || 'pendientes'} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">

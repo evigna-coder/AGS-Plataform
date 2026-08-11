@@ -1,8 +1,28 @@
 import { useMemo } from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shared';
 import type { InstrumentoPatron } from '@ags/shared';
 
 /** Resumen de una línea: "Nombre · Marca Modelo · S/N 123". */
+/**
+ * Descripción para el PAPEL del remito (2026-08-10). La columna Producto ya
+ * lleva el identificador (`nombre` = TER-01, FLO-08), así que repetirlo acá
+ * dejaba las dos columnas diciendo lo mismo y el papel sin decir QUÉ es el
+ * equipo. Va la categoría legible —Termómetro, Flujímetro de gases— y la serie.
+ */
+export function instrumentoDescripcionRemito(i: InstrumentoPatron): string {
+  const cats = (i.categorias ?? [])
+    .map(c => (CATEGORIA_INSTRUMENTO_LABELS as Record<string, string>)[c]
+      ?? (CATEGORIA_PATRON_LABELS as Record<string, string>)[c])
+    .filter(Boolean)
+    .join(' / ');
+  return [
+    cats || null,
+    [i.marca, i.modelo].filter(Boolean).join(' ') || null,
+    i.serie ? `S/N ${i.serie}` : null,
+  ].filter(Boolean).join(' · ');
+}
+
 export function instrumentoResumen(i: InstrumentoPatron): string {
   return [
     i.nombre,

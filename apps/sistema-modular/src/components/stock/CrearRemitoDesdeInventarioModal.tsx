@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { remitosService } from '../../services/firebaseService';
 import { inventarioToRemitoItem, getTipoEntidadLabel } from '../../utils/inventarioToRemitoItem';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
+import { NUMERO_PREIMPRESO_REGEX } from '../../hooks/useRemitoForm';
 import { RemitoDestinatarioPicker, type DestinatarioSeleccion } from '../remitos/RemitoDestinatarioPicker';
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 import type { TipoRemito, TipoRemitoItem, TipoItemAsignacion } from '@ags/shared';
@@ -44,6 +45,16 @@ export const CrearRemitoDesdeInventarioModal = ({
   // entrando materiales de AGS a un cliente que pide el detalle en papel.
   const [destinatario, setDestinatario] = useState<DestinatarioSeleccion | null>(null);
   const [imprimir, setImprimir] = useState(true);
+  /** Número del papel preimpreso. Si se imprime, el remito TIENE que salir con
+   *  el número del talonario — no con el correlativo interno REM- (2026-08-10):
+   *  se imprimía "REM-0032" sobre un papel que en la esquina decía 0001-000174xx. */
+  const [numero, setNumero] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    remitosService.getProximoNumeroPreimpreso()
+      .then((n: string) => setNumero(prev => prev || n))
+      .catch(() => { /* el usuario lo carga a mano */ });
+  }, [open]);
   // Guarda anti doble-click: ref, no state (el disabled llega tarde al 2do click).
   const creandoRef = useRef(false);
 
@@ -104,12 +115,19 @@ export const CrearRemitoDesdeInventarioModal = ({
     const selected = elegibles.filter(i => selectedIds.has(itemKey(i)));
     if (selected.length === 0) return;
     if (imprimir && !destinatario) { alert('Para imprimir el remito elegí el cliente destinatario (o destildá "Imprimir").'); return; }
+    if (imprimir && !NUMERO_PREIMPRESO_REGEX.test(numero.trim())) {
+      alert('Para imprimir, cargá el número del papel preimpreso (formato 0001-00017405).');
+      return;
+    }
 
     creandoRef.current = true;
     setSaving(true);
     try {
       const remitoItems = selected.map(i => inventarioToRemitoItem(i, tipoRemitoItem));
       const newId = await remitosService.create({
+        // Con impresión va el número del TALONARIO; sin imprimir, el service
+        // asigna el correlativo interno REM-.
+        ...(imprimir ? { numero: numero.trim() } : {}),
         tipo: tipoRemito,
         estado: 'borrador',
         ingenieroId,
@@ -234,6 +252,17 @@ export const CrearRemitoDesdeInventarioModal = ({
             placeholder="Observaciones del remito... (salen en el recuadro impreso)"
             className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
+
+        {imprimir && (
+          <div>
+            <label className={lbl}>N° Remito (preimpreso) *</label>
+            <input value={numero} onChange={e => setNumero(e.target.value)}
+              placeholder="0001-00017405"
+              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                numero && !NUMERO_PREIMPRESO_REGEX.test(numero.trim()) ? 'border-red-300' : 'border-slate-200'}`} />
+            <p className="text-[10px] text-slate-400 mt-0.5">El número del papel que vas a usar. Sugerido desde el último cargado.</p>
+          </div>
+        )}
 
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={imprimir} onChange={e => setImprimir(e.target.checked)}

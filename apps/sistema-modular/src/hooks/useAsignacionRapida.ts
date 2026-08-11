@@ -7,7 +7,10 @@ import {
 import { useDebounce } from './useDebounce';
 import { matchesSearch } from '../utils/searchTerms';
 import { patronesService } from '../services/patronesService';
-import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron } from '@ags/shared';
+import { proveedoresService } from '../services/personalService';
+import { EMPTY_PARTY } from '../components/remitos/RemitoTransportistaPicker';
+import type { DatosTransportista } from '../services/stockService';
+import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Proveedor } from '@ags/shared';
 
 /**
  * Un LOTE de patrón presentado como item asignable (2026-08-07). El patrón es
@@ -90,6 +93,12 @@ export function useAsignacionRapida() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [clienteByIng, setClienteByIng] = useState<Record<string, string>>({});
   const [observaciones, setObservaciones] = useState('');
+  /** Quién transporta la mercadería del remito de salida (2026-08-10). Faltaba:
+   *  el remito de asignación se creaba sin transportista y el recuadro salía
+   *  vacío en el papel. Mismo criterio que derivación y el form de remitos. */
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [transportistaId, setTransportistaId] = useState('');
+  const [transportista, setTransportista] = useState<DatosTransportista>(EMPTY_PARTY);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'patrones' | 'dispositivos' | 'vehiculos'>('articulos');
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,6 +115,7 @@ export function useAsignacionRapida() {
         ingenierosService.getAll(true),
         clientesService.getAll(),
         patronesService.getAll({ activoOnly: true }),
+        proveedoresService.getAll(true),
       ]);
       const val = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === 'fulfilled' ? r.value : (console.error('Error cargando:', r.reason), fallback);
@@ -117,6 +127,7 @@ export function useAsignacionRapida() {
       setIngenieros(val(results[5], []));
       setClientes(val(results[6], []));
       setPatrones(val(results[7], []));
+      setProveedores(val(results[8], []));
     } catch (err) { console.error('Error cargando datos:', err); }
     finally { setLoading(false); }
   }, []);
@@ -313,6 +324,8 @@ export function useAsignacionRapida() {
         }));
         const remitoId = itemsRemito.length === 0 ? null : await remitosService.create({
           tipo: 'salida_campo', ingenieroId: ing.id, ingenieroNombre: ing.nombre,
+          transportistaId: transportistaId || null,
+          transportistaNombre: transportista.razonSocial.trim() || null,
           clienteId, clienteNombre,
           estado: 'en_transito',
           items: itemsRemito,
@@ -382,6 +395,10 @@ export function useAsignacionRapida() {
   return {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
+    proveedores, transportistaId, transportista,
+    setTransportistaSeleccion: (next: { id: string; datos: DatosTransportista }) => {
+      setTransportistaId(next.id); setTransportista(next.datos);
+    },
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
     filteredPatrones,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
