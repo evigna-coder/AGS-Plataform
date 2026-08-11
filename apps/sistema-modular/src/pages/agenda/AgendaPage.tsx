@@ -19,15 +19,10 @@ import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/
 import { previsionesService } from '../../services/previsionesService';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
 import {
-  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId, continuaElRango,
+  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
   type ClipboardData,
 } from '../../utils/agendaOTSync';
 
-/**
- * Muestra del color que va a tomar la celda, como referencia en el menú
- * contextual (2026-08-09). El color sale de la tabla de reglas — no se repite
- * el hexadecimal acá, para que un retoque de color no deje el menú mintiendo.
- */
 /**
  * Posición del menú contextual. Abría SIEMPRE hacia arriba
  * (`bottom: innerHeight - y`), así que en la primera fila de celdas se salía por
@@ -50,6 +45,11 @@ function estiloMenuContextual(x: number, y: number): React.CSSProperties {
     : { left, top: Math.max(8, y), maxHeight: Math.max(120, espacioAbajo - 8), overflowY: 'auto' };
 }
 
+/**
+ * Muestra del color que va a tomar la celda, como referencia en el menú
+ * contextual (2026-08-09). El color sale de la tabla de reglas — no se repite
+ * el hexadecimal acá, para que un retoque de color no deje el menú mintiendo.
+ */
 const ColorRef: FC<{ titulo: string }> = ({ titulo }) => {
   const bg = colorDeTituloFijo(titulo);
   if (!bg) return null;
@@ -370,18 +370,14 @@ export const AgendaPage: FC = () => {
       // Entradas viejas en el clipboard pueden no traer `entries` — fallback.
       const copiadas = cb.entries && cb.entries.length > 0 ? cb.entries : [cb.entry];
       for (const src of copiadas) {
-        const existing = src.otNumber
-          ? entries.find(e => e.otNumber === src.otNumber && e.ingenieroId === cell.ingenieroId)
-          : null;
-        // Solo estira si el dia CONTINUA el rango; con hueco de por medio es
-        // otra jornada de la misma OT y va como entrada aparte (2026-08-09).
-        if (existing && continuaElRango(existing, fechaInicio)) {
-          const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
-          updateEntry(existing.id, {
-            fechaFin: newEnd,
-            quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
-          });
-        } else {
+        // PEGAR crea SIEMPRE una entrada nueva en la celda destino (2026-08-11).
+        // Antes, si el dia continuaba el rango de la misma OT, ESTIRABA la barra
+        // — y la barra estirada pasaba por encima de los cuartos intermedios,
+        // tapando otros eventos (caso 30022.01: pegarla en vie q3 para que
+        // siguiera DESPUES de la firma de recibos y los estudios medicos pintaba
+        // vie q1-q3 encima de ellos). Copiar es "quiero el servicio ACA", no
+        // "alarga el bloque"; para alargar esta el arrastre del borde.
+        {
           createEntry({
             fechaInicio, fechaFin, quarterStart, quarterEnd,
             ingenieroId: cell.ingenieroId,

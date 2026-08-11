@@ -84,6 +84,27 @@ export function continuaElRango(
   return false;
 }
 
+/**
+ * Patch para EXTENDER una entrada hacia el destino, en la dirección que
+ * corresponda (2026-08-11). El estirado solo movía `quarterEnd`: soltar la
+ * misma OT en un cuarto ANTERIOR del mismo día dejaba quarterStart=3 →
+ * quarterEnd=1 — rango invertido, que la grilla no dibuja (caso 30022.01,
+ * "la OT desapareció de agenda"). Destino dentro del rango → sin cambios.
+ */
+export function extenderRangoHacia(
+  existing: { fechaInicio: string; fechaFin: string; quarterStart: number; quarterEnd: number },
+  fecha: string,
+  quarter: number,
+): Partial<{ fechaInicio: string; quarterStart: 1 | 2 | 3 | 4; fechaFin: string; quarterEnd: 1 | 2 | 3 | 4 }> {
+  const antesDelInicio = fecha < existing.fechaInicio
+    || (fecha === existing.fechaInicio && quarter < existing.quarterStart);
+  const despuesDelFin = fecha > existing.fechaFin
+    || (fecha === existing.fechaFin && quarter > existing.quarterEnd);
+  if (antesDelInicio) return { fechaInicio: fecha, quarterStart: quarter as 1 | 2 | 3 | 4 };
+  if (despuesDelFin) return { fechaFin: fecha, quarterEnd: quarter as 1 | 2 | 3 | 4 };
+  return {};
+}
+
 /** What's stored in the agenda internal clipboard. */
 export interface ClipboardData {
   type: 'entry' | 'pending' | 'cut';

@@ -342,10 +342,20 @@ export function useAgenda(): UseAgendaReturn {
     // regresamos estados avanzados como EN_CURSO, CIERRE_TECNICO, etc).
     // El sync del OT a ticket se encarga automaticamente en otService.update.
     if (otNumber) {
-      ordenesTrabajoService.getByOtNumber(otNumber).then(ot => {
+      ordenesTrabajoService.getByOtNumber(otNumber).then(async ot => {
         if (!ot) return;
         const REVERTIBLE: string[] = ['ASIGNADA', 'COORDINADA'];
         const shouldRevertEstado = REVERTIBLE.includes(ot.estadoAdmin || '');
+        // La matriz solo retrocede DE A UN PASO: COORDINADA → CREADA directo
+        // tiraba "Transición OT inválida" y el revert moría entero — la entrada
+        // se borraba pero la OT quedaba COORDINADA con ingeniero y fecha
+        // (2026-08-11). Se baja escalonado: COORDINADA → ASIGNADA → CREADA.
+        if (ot.estadoAdmin === 'COORDINADA') {
+          await ordenesTrabajoService.update(otNumber, {
+            estadoAdmin: 'ASIGNADA' as any,
+            estadoAdminFecha: new Date().toISOString(),
+          }, { skipAgendaSync: true });
+        }
         // skipAgendaSync (2026-08-03): la entrada ya se borró ACÁ. Sin el flag,
         // el rebote OT→agenda (ingeniero null → borrar entrada) podía llegar
         // DESPUÉS de un pegado rápido y borrarle la entrada recién creada.
