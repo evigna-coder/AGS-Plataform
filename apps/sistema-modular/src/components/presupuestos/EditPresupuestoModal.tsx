@@ -67,7 +67,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
-    clienteSistemas, loadModulosBySistema,
+    clienteSistemas, clienteEstablecimientos, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
     save, load, updateItem, addItem, addItems, removeItem, removeItemsByGrupo, addAdjunto, removeAdjunto,
     handleEstadoChange: rawEstadoChange,
@@ -115,6 +115,19 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
 
   const totals = calculateTotals();
   const isMixta = form.moneda === 'MIXTA';
+
+  /**
+   * El esquema de facturación se podía editar SOLO en borrador (2026-08-10),
+   * pero las condiciones de pago se acuerdan al ACEPTAR, no al redactar: un
+   * presupuesto ya aceptado que se cobra 50% anticipado y 50% diferido no tenía
+   * dónde declararlo, y "Solicitar facturación" solo ofrece el 100% por ítems.
+   *
+   * Ahora bloquea por lo que de verdad importa: que ninguna cuota se haya
+   * emitido. Cambiar porcentajes con solicitudes ya generadas las desincroniza.
+   */
+  const esquemaReadOnly = form.estado === 'anulado' || form.estado === 'finalizado'
+    || (form.esquemaFacturacion ?? []).some(
+      c => c.estado === 'solicitada' || c.estado === 'facturada' || c.estado === 'cobrada');
 
   const totalsByCurrency = useMemo(() => {
     const map: Record<string, number> = {};
@@ -307,6 +320,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         )}
 
         <PresupuestoMetadataStrip
+          establecimientos={clienteEstablecimientos}
           form={form}
           setField={setField}
           contactos={contactos}
@@ -395,7 +409,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             esquema={form.esquemaFacturacion ?? []}
             moneda={form.moneda}
             itemsForTotals={form.items}
-            readOnly={form.estado !== 'borrador'}
+            readOnly={esquemaReadOnly}
             onChange={(next) => setField('esquemaFacturacion', next)}
             contratoFechaInicio={form.contratoFechaInicio ?? undefined}
           />

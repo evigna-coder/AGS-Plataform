@@ -11,7 +11,7 @@
  */
 
 import type { Presupuesto, WorkOrder, MonedaCuota } from '@ags/shared';
-import { computeTotalsByCurrency } from '../cuotasFacturacion';
+import { computeTotalsByCurrency, tieneOCDelCliente } from '../cuotasFacturacion';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -33,13 +33,8 @@ export type PresupuestoMetricas = Pick<
  * realizado" seguía prendido con la OC ya cargada por el camino liviano,
  * que no estampa ordenesCompraIds.
  */
-export function tieneOCDelCliente(
-  p: Pick<PresupuestoMetricas, 'ordenesCompraIds' | 'ordenCompraNumero' | 'adjuntos'>,
-): boolean {
-  if ((p.ordenesCompraIds || []).length > 0) return true;
-  if (p.ordenCompraNumero?.trim()) return true;
-  return (p.adjuntos || []).some(a => a.tipo === 'orden_compra');
-}
+// Implementación única en `cuotasFacturacion` — el hito `oc_recibida` la comparte.
+export { tieneOCDelCliente };
 
 /** Subconjunto de WorkOrder que usa el join de OC adeudada. */
 export type OTMetricas = Pick<

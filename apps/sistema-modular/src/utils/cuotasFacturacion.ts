@@ -168,7 +168,8 @@ export function computeTotalsByCurrency(
  *   4. facturacionService.marcarFacturada() / marcarCobrada() post-write
  */
 export function recomputeCuotaEstados(
-  ppto: Pick<Presupuesto, 'estado' | 'ordenesCompraIds' | 'preEmbarque' | 'esquemaFacturacion'>,
+  ppto: Pick<Presupuesto, 'estado' | 'ordenesCompraIds' | 'preEmbarque' | 'esquemaFacturacion'>
+    & { ordenCompraNumero?: string | null; adjuntos?: Array<{ tipo: string }> | null },
   ots: Array<Pick<WorkOrder, 'otNumber' | 'estadoAdmin' | 'budgets'>>,
   solicitudes: Array<Pick<SolicitudFacturacion, 'id' | 'cuotaId' | 'estado'>>,
 ): PresupuestoCuotaFacturacion[] {
@@ -203,15 +204,36 @@ export function recomputeCuotaEstados(
   });
 }
 
+/**
+ * ¿El cliente ya mandó la OC? Hay TRES caminos de carga y los tres cuentan
+ * (2026-08-10): la colección formal `ordenesCompraCliente` (back-ref en
+ * `ordenesCompraIds`), el número tipeado a mano en `ordenCompraNumero`, y el
+ * PDF subido como adjunto del presupuesto.
+ *
+ * Vive acá —y `presupuestosMetrics` lo reexporta— para que haya UNA sola
+ * implementación: el hito `oc_recibida` miraba solo `ordenesCompraIds` y las
+ * cuotas quedaban en "Esperando hito" con la OC cargada como adjunto.
+ */
+export function tieneOCDelCliente(p: {
+  ordenesCompraIds?: string[] | null;
+  ordenCompraNumero?: string | null;
+  adjuntos?: Array<{ tipo: string }> | null;
+}): boolean {
+  if ((p.ordenesCompraIds || []).length > 0) return true;
+  if (p.ordenCompraNumero?.trim()) return true;
+  return (p.adjuntos || []).some(a => a.tipo === 'orden_compra');
+}
+
 function evaluateHito(
   hito: PresupuestoCuotaFacturacion['hito'],
-  ppto: Pick<Presupuesto, 'estado' | 'ordenesCompraIds' | 'preEmbarque'>,
+  ppto: Pick<Presupuesto, 'estado' | 'ordenesCompraIds' | 'preEmbarque'>
+    & { ordenCompraNumero?: string | null; adjuntos?: Array<{ tipo: string }> | null },
   allOTsCerradas: boolean,
 ): boolean {
   switch (hito) {
     case 'manual':             return true;
     case 'ppto_aceptado':     return ['aceptado', 'en_ejecucion'].includes(ppto.estado as string);
-    case 'oc_recibida':       return (ppto.ordenesCompraIds?.length ?? 0) > 0;
+    case 'oc_recibida':       return tieneOCDelCliente(ppto);
     case 'pre_embarque':      return ppto.preEmbarque === true;
     case 'todas_ots_cerradas': return allOTsCerradas;
   }

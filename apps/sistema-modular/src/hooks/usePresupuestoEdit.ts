@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
-import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal } from '@ags/shared';
+import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 import { renumerarGrupos } from '../components/presupuestos/contrato/contratoItemHelpers';
 import { hoyLocalISODate } from '../utils/formatFecha';
@@ -170,6 +170,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   const [conceptosServicio, setConceptosServicio] = useState<ConceptoServicio[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [clienteSistemas, setClienteSistemas] = useState<Sistema[]>([]);
+  const [clienteEstablecimientos, setClienteEstablecimientos] = useState<Establecimiento[]>([]);
 
   const dirty = useRef(false);
   const initialLoadDone = useRef(false);
@@ -196,12 +197,17 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
     // Helper: load related entities (cliente, establecimiento, sistema) once
     const loadRelated = async (p: Presupuesto) => {
       if (p.clienteId) {
-        const [c, ct, ss] = await Promise.all([
+        const { establecimientosService } = await import('../services/firebaseService');
+        const [c, ct, ss, ests] = await Promise.all([
           clientesService.getById(p.clienteId),
           contactosService.getByCliente(p.clienteId).catch(() => []),
           sistemasService.getAll({ clienteId: p.clienteId }).catch(() => [] as Sistema[]),
+          establecimientosService.getAll().catch(() => [] as Establecimiento[]),
         ]);
         setCliente(c); setContactos(ct); setClienteSistemas(ss);
+        // Activos del cliente — la lista que ve el selector (regla del proyecto).
+        setClienteEstablecimientos(ests.filter(
+          (e: Establecimiento) => establecimientoPerteneceACliente(e, p.clienteId) && e.activo !== false));
       }
       if (p.establecimientoId) {
         try {
@@ -334,6 +340,9 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
 
       await presupuestosService.update(presupuestoId, {
         estado: form.estado, tipo: form.tipo, moneda: form.moneda, items: itemsWithGrupos,
+        // FALTABA (2026-08-11): estaba en el form pero no en el payload — el
+        // establecimiento del presupuesto era inmutable de facto.
+        establecimientoId: form.establecimientoId,
         // `total` en Firestore = SIN impuestos (mismo criterio que la creación,
         // que guarda total: subtotal). El save del modal sumaba impuestos y los
         // contratos (items con categoría IVA) quedaban "con IVA" en la lista
@@ -480,7 +489,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   return {
     form, setField, loading, saving, dirty,
     cliente, establecimiento, sistema, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
-    clienteSistemas, loadModulosBySistema,
+    clienteSistemas, clienteEstablecimientos, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
     save, load,
     updateItem, addItem, addItems, removeItem, removeItemsByGrupo,

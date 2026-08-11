@@ -22,6 +22,10 @@ const monedaOptions = [
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 
 interface Props {
+  /** Establecimientos ACTIVOS del cliente (2026-08-11): sin este selector, un
+   *  presupuesto creado con el establecimiento equivocado no se podia corregir
+   *  por UI — mismo agujero que tuvo el modal de edicion de OT. */
+  establecimientos: { id: string; nombre: string; localidad?: string | null }[];
   form: PresupuestoFormState;
   setField: (key: keyof PresupuestoFormState, value: any) => void;
   contactos: (ContactoCliente | ContactoEstablecimiento)[];
@@ -31,7 +35,7 @@ interface Props {
 }
 
 export const PresupuestoMetadataStrip: React.FC<Props> = ({
-  form, setField, contactos, condicionesPago, usuarios, onEstadoChange,
+  form, setField, contactos, condicionesPago, usuarios, onEstadoChange, establecimientos,
 }) => {
   return (
     <div className="bg-slate-50 -mx-5 px-5 py-3 mb-4 border-b border-slate-100 space-y-2">
@@ -90,6 +94,12 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
             setField('responsableNombre', usr?.displayName || '');
           }}
             options={[{ value: '', label: 'Sin asignar' }, ...usuarios.filter(u => u.status === 'activo').map(u => ({ value: u.id, label: u.displayName }))]}
+            size="sm" />
+        </div>
+        <div>
+          <label className={lbl}>Establecimiento</label>
+          <SearchableSelect value={form.establecimientoId || ''} onChange={(v) => setField('establecimientoId', v || null)}
+            options={[{ value: '', label: 'Sin establecimiento' }, ...establecimientos.map(e => ({ value: e.id, label: `${e.nombre}${e.localidad ? ` — ${e.localidad}` : ''}` }))]}
             size="sm" />
         </div>
         <div>

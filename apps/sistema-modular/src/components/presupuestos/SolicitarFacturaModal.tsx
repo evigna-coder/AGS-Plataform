@@ -6,6 +6,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { facturacionService } from '../../services/facturacionService';
 import { presupuestosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
+import { SolicitarFacturaPorcentajePanel, pctDisponibleDe } from './SolicitarFacturaPorcentajePanel';
 
 interface Props {
   open: boolean;
@@ -31,6 +32,10 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
   const [solicitudesPrevias, setSolicitudesPrevias] = useState<SolicitudFacturacion[]>([]);
   const [observaciones, setObservaciones] = useState('');
   const [saving, setSaving] = useState(false);
+  /** Modo por % (anticipo 2026-08-11): factura un porcentaje del total como
+   *  línea única, para pptos mitad adelantado / mitad diferido. */
+  const [modo, setModo] = useState<'items' | 'porcentaje'>('items');
+  const [pct, setPct] = useState('50');
   const sym = MONEDA_SIMBOLO[presupuesto.moneda] || '$';
 
   useEffect(() => {
@@ -68,21 +73,42 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
   };
 
   const selectedItems = selections.filter(s => s.selected && s.cantidad > 0);
-  const montoTotal = selectedItems.reduce((sum, s) => sum + s.cantidad * s.item.precioUnitario, 0);
+  const totalPpto = presupuesto.items.reduce((s, i) => s + i.subtotal, 0);
+  const yaSolicitado = solicitudesPrevias.reduce((s, sol) => s + sol.montoTotal, 0);
+  const pctNum = Number(pct) || 0;
+  const montoTotal = modo === 'porcentaje'
+    ? Math.round(totalPpto * pctNum) / 100
+    : selectedItems.reduce((sum, s) => sum + s.cantidad * s.item.precioUnitario, 0);
+
+  const puedeEnviar = modo === 'porcentaje'
+    ? pctNum > 0 && pctNum <= pctDisponibleDe(totalPpto, yaSolicitado) + 0.01
+    : selectedItems.length > 0;
 
   const handleSubmit = async () => {
-    if (selectedItems.length === 0) { alert('Seleccione al menos un item'); return; }
+    if (!puedeEnviar) { alert(modo === 'porcentaje' ? 'Ingresá un porcentaje válido' : 'Seleccione al menos un item'); return; }
     try {
       setSaving(true);
-      const facturaItems: FacturaItem[] = selectedItems.map(s => ({
-        id: crypto.randomUUID(),
-        presupuestoItemId: s.item.id,
-        descripcion: s.item.descripcion,
-        cantidad: s.cantidad,
-        cantidadTotal: s.item.cantidad,
-        precioUnitario: s.item.precioUnitario,
-        subtotal: s.cantidad * s.item.precioUnitario,
-      }));
+      // Modo %: línea única — no descuenta cantidades de ítems (el saldo se
+      // solicita también por %, y "Ya solicitado" lo capea por monto).
+      const facturaItems: FacturaItem[] = modo === 'porcentaje'
+        ? [{
+            id: crypto.randomUUID(),
+            presupuestoItemId: '__porcentaje__',
+            descripcion: `Anticipo ${pctNum}% — Presupuesto ${presupuesto.numero}`,
+            cantidad: 1,
+            cantidadTotal: 1,
+            precioUnitario: montoTotal,
+            subtotal: montoTotal,
+          }]
+        : selectedItems.map(s => ({
+            id: crypto.randomUUID(),
+            presupuestoItemId: s.item.id,
+            descripcion: s.item.descripcion,
+            cantidad: s.cantidad,
+            cantidadTotal: s.item.cantidad,
+            precioUnitario: s.item.precioUnitario,
+            subtotal: s.cantidad * s.item.precioUnitario,
+          }));
 
       await facturacionService.create({
         presupuestoId: presupuesto.id,
@@ -95,6 +121,9 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         moneda: presupuesto.moneda,
         estado: 'pendiente',
         observaciones: observaciones || null,
+        ...(modo === 'porcentaje' && presupuesto.moneda !== 'MIXTA'
+          ? { porcentajeCoberturaPorMoneda: { [presupuesto.moneda]: pctNum } }
+          : {}),
         solicitadoPor: usuario?.id || null,
         solicitadoPorNombre: usuario?.displayName || null,
       });
@@ -120,6 +149,16 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
   return (
     <Modal open={open} onClose={onClose} title="Solicitar facturacion" subtitle={`${presupuesto.numero} — ${clienteNombre}`} maxWidth="xl">
       <div className="space-y-4">
+        {/* Modo: por ítems (default) o anticipo por % del total */}
+        <div className="flex gap-2">
+          {([['items', 'Por ítems'], ['porcentaje', 'Anticipo por %']] as const).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setModo(k)}
+              className={`px-3 py-1.5 rounded text-xs font-medium ${modo === k ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {solicitudesPrevias.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
             <p className="text-[11px] font-medium text-blue-700">
@@ -129,6 +168,17 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
           </div>
         )}
 
+        {modo === 'porcentaje' && (
+          <SolicitarFacturaPorcentajePanel
+            totalPpto={totalPpto}
+            yaSolicitado={yaSolicitado}
+            pct={pct}
+            onPctChange={setPct}
+            fmtMoney={fmtMoney}
+          />
+        )}
+
+        {modo === 'items' && (
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-200">
@@ -173,6 +223,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
             ))}
           </tbody>
         </table>
+        )}
 
         <div>
           <label className="block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide">
@@ -190,13 +241,15 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
 
       <div className="flex items-center justify-between px-5 py-3 border-t border-[#E5E5E5] bg-[#F0F0F0] rounded-b-xl -mx-5 -mb-4 mt-3">
         <div className="text-xs font-mono text-slate-500">
-          {selectedItems.length > 0 && (
-            <span>Items: <strong>{selectedItems.length}</strong> — Total: <strong className="text-teal-700">{fmtMoney(montoTotal)}</strong></span>
-          )}
+          {modo === 'porcentaje'
+            ? <span>Anticipo <strong>{pctNum}%</strong> — Total: <strong className="text-teal-700">{fmtMoney(montoTotal)}</strong></span>
+            : selectedItems.length > 0 && (
+              <span>Items: <strong>{selectedItems.length}</strong> — Total: <strong className="text-teal-700">{fmtMoney(montoTotal)}</strong></span>
+            )}
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={saving || selectedItems.length === 0}>
+          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={saving || !puedeEnviar}>
             {saving ? 'Enviando...' : 'Solicitar facturacion'}
           </Button>
         </div>

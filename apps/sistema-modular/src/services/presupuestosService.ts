@@ -356,7 +356,10 @@ export const presupuestosService = {
     // BILL-02 because borrador→enviado and borrador→aceptado are the very transitions
     // that flip cuota.estado for hito='ppto_aceptado'.
     // Guard: skip recompute when caller is explicitly setting esquemaFacturacion (avoid double-write loop).
-    const fieldsThatTriggerRecompute = ['estado', 'ordenesCompraIds', 'preEmbarque', 'esquemaFacturacion'];
+    // `ordenCompraNumero` y `adjuntos` entran acá (2026-08-10): son los otros dos
+    // caminos de carga de la OC, y sin ellos el hito `oc_recibida` nunca se
+    // reevaluaba — la cuota quedaba en "Esperando hito" con la OC ya cargada.
+    const fieldsThatTriggerRecompute = ['estado', 'ordenesCompraIds', 'preEmbarque', 'esquemaFacturacion', 'ordenCompraNumero', 'adjuntos'];
     const triggers = Object.keys(data as Record<string, unknown>);
     const shouldRecompute = triggers.some(k => fieldsThatTriggerRecompute.includes(k))
       && !('esquemaFacturacion' in data); // Avoid infinite loop: authoritative esquema write does not need a round-trip.
