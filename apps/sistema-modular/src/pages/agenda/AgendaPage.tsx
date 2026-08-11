@@ -378,6 +378,14 @@ export const AgendaPage: FC = () => {
         // vie q1-q3 encima de ellos). Copiar es "quiero el servicio ACA", no
         // "alarga el bloque"; para alargar esta el arrastre del borde.
         {
+          // Duplicado EXACTO no: si la misma OT del mismo ingeniero ya arranca
+          // en esta celda, el pegado se saltea — Ctrl+V sostenido/repetido dejó
+          // la 30021.01 pegada 8 veces en una celda (2026-08-11). Pegar en OTRA
+          // celda (días sueltos) sigue permitido.
+          if (src.otNumber && entries.some(e =>
+            e.otNumber === src.otNumber && e.ingenieroId === cell.ingenieroId
+            && e.fechaInicio === fechaInicio && e.quarterStart === quarterStart
+            && e.estadoAgenda !== 'cancelado')) continue;
           createEntry({
             fechaInicio, fechaFin, quarterStart, quarterEnd,
             ingenieroId: cell.ingenieroId,
