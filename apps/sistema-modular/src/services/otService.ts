@@ -1073,9 +1073,15 @@ export const ordenesTrabajoService = {
     const ot = await this.getByOtNumber(otNumber);
     if (!ot) throw new Error(`OT ${otNumber} no existe`);
     if (ot.estadoAdmin === 'CANCELADA') return;
-    if (!isOTTransicionValida(ot.estadoAdmin, 'CANCELADA')) {
+    // Items LEGACY (numeracion vieja, pre-workflow admin) no tienen `estadoAdmin`
+    // en el doc: el validador recibia undefined, no encontraba transicion y el
+    // mensaje culpaba al "cierre administrativo" (2026-08-11). Mismo default que
+    // usa la UI al mostrarlos.
+    const estadoActual: OTEstadoAdmin = ot.estadoAdmin
+      ?? (ot.status === 'FINALIZADO' ? 'CIERRE_TECNICO' : 'CREADA');
+    if (!isOTTransicionValida(estadoActual, 'CANCELADA')) {
       throw new Error(
-        `No se puede cancelar el item ${otNumber} en estado ${ot.estadoAdmin}: ya tiene cierre administrativo. Reabrir la OT para corregir.`,
+        `No se puede cancelar el item ${otNumber}: esta en ${estadoActual}, con cierre administrativo hecho. Reabrir la OT para corregir.`,
       );
     }
     const nowIso = new Date().toISOString();
@@ -1087,14 +1093,25 @@ export const ordenesTrabajoService = {
       canceladaPorNombre: actor?.name ?? getCurrentUserTrace()?.name ?? null,
       estadoHistorial: [
         ...(ot.estadoHistorial ?? []),
-        { estado: 'CANCELADA' as OTEstadoAdmin, fecha: nowIso, usuario: actor?.name ?? undefined, nota: motivo.trim() || undefined },
+        // Sin claves `undefined` (regla firestore): se omiten en lugar de
+        // escribirse. Con `usuario: undefined` el audit_log reventaba con
+        // "Unsupported field value: undefined" (2026-08-11).
+        {
+          estado: 'CANCELADA' as OTEstadoAdmin,
+          fecha: nowIso,
+          ...(actor?.name ? { usuario: actor.name } : {}),
+          ...(motivo.trim() ? { nota: motivo.trim() } : {}),
+        },
       ],
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
+    // Limpiar UNA vez y usar el MISMO payload para la OT y el audit — antes el
+    // audit recibia el patch crudo y era el que fallaba.
+    const cleaned = deepCleanForFirestore(patch);
     const batch = createBatch();
-    batch.update(docRef('reportes', otNumber), deepCleanForFirestore(patch));
-    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: patch });
+    batch.update(docRef('reportes', otNumber), cleaned);
+    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleaned });
     await batch.commit();
 
     // La agenda se libera: la visita no va a ocurrir. Best-effort.
@@ -1109,7 +1126,7 @@ export const ordenesTrabajoService = {
       eventName: 'ot.item_cancelado',
       collection: 'ordenes_trabajo',
       documentId: otNumber,
-      details: { motivo: motivo.trim() || null, estadoPrevio: ot.estadoAdmin ?? null },
+      details: { motivo: motivo.trim() || null, estadoPrevio: estadoActual },
       entityLabel: `OT ${otNumber}`,
     });
 

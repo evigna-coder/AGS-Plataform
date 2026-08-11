@@ -24,6 +24,7 @@ import { PrevisionesList } from './PrevisionesList';
 import { type SortDir, toggleSort } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { usePrompt } from '../../components/ui/PromptDialog';
 import { exportOTsToCSV } from '../../utils/otCsvExport';
 
 const FILTER_SCHEMA = {
@@ -51,6 +52,7 @@ const HIDEABLE_COLUMNS = OT_DATA_COLUMNS.filter(c => c.idx !== 1).map(c => ({ id
 
 export const OTList = () => {
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
   // Las búsquedas ya vienen debounced desde OTFiltersBar (estado local + debounce
@@ -109,9 +111,16 @@ export const OTList = () => {
     // Los items se cancelan (queda rastro y el número sigue ocupado); el padre,
     // que es solo el agrupador, sí se elimina (2026-08-09).
     if (ot.otNumber.includes('.')) {
-      const motivo = prompt(`Motivo de la baja del item ${ot.otNumber}:`);
+      // window.prompt() no existe en Electron — el boton no hacia nada (2026-08-11).
+      const motivo = await promptText({
+        title: `Cancelar item ${ot.otNumber}`,
+        label: 'Motivo de la baja',
+        placeholder: 'Ej: se creo por error / el trabajo se hizo en otro item…',
+        required: true,
+        multiline: true,
+        confirmLabel: 'Cancelar item',
+      });
       if (motivo === null) return;
-      if (!motivo.trim()) { alert('El motivo es obligatorio.'); return; }
       try {
         await ordenesTrabajoService.cancelarItem(ot.otNumber, motivo);
       } catch (err) { alert(err instanceof Error ? err.message : 'Error al cancelar el item'); }

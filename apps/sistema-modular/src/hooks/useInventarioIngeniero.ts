@@ -8,6 +8,7 @@ import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 import { descripcionItemAsignacion } from '../utils/itemAsignacionLabel';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
 import { useConfirm } from '../components/ui/ConfirmDialog';
+import { usePrompt } from '../components/ui/PromptDialog';
 
 export interface InventarioItem extends ItemAsignacion {
   asignacionId: string;
@@ -26,6 +27,7 @@ const REMITO_ESTADOS_EN_CAMPO = new Set(['confirmado', 'en_transito', 'en_provee
 
 export function useInventarioIngeniero(ingenieroId: string | undefined) {
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const [ingeniero, setIngeniero] = useState<Ingeniero | null>(null);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -95,7 +97,15 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
 
   // ── Consumir: mark as used (linked to OT) ──
   const handleConsumir = async (item: InventarioItem) => {
-    const ot = prompt('Número de OT (opcional):');
+    // prompt() no existe en Electron. Cancelar ABORTA el consumo (antes, en
+    // browser, cancelar consumia igual sin OT — semantica peligrosa).
+    const ot = await promptText({
+      title: `Consumir ${itemLabel(item)}`,
+      label: 'Número de OT (opcional)',
+      placeholder: 'Vacío = consumo sin OT',
+      confirmLabel: 'Consumir',
+    });
+    if (ot === null) return;
     setSaving(true);
     try {
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;

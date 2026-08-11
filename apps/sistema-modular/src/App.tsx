@@ -4,6 +4,7 @@ import { BackgroundTasksProvider } from './contexts/BackgroundTasksContext';
 import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoContext';
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
+import { PromptDialogProvider } from './components/ui/PromptDialog';
 import { Layout } from './components/Layout';
 import { UpdateBanner } from './components/UpdateBanner';
 import { LoginPage, PendingApprovalPage } from './pages/auth';
@@ -86,6 +87,7 @@ function AuthGate() {
       <QRNotificationListener />
       <LeadNotificationListener />
       <ConfirmDialogProvider>
+      <PromptDialogProvider>
       <FeatureFlagsProvider>
       <BackgroundTasksProvider>
       <FloatingPresupuestoProvider>
@@ -96,6 +98,7 @@ function AuthGate() {
       </FloatingPresupuestoProvider>
       </BackgroundTasksProvider>
       </FeatureFlagsProvider>
+      </PromptDialogProvider>
       </ConfirmDialogProvider>
     </>
   );

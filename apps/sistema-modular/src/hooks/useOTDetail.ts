@@ -7,10 +7,12 @@ import { useOTFormState } from './useOTFormState';
 import { useOTFieldHandlers } from './useOTFieldHandlers';
 import { useOTActions } from './useOTActions';
 import { useConfirm } from '../components/ui/ConfirmDialog';
+import { usePrompt } from '../components/ui/PromptDialog';
 import { useAuth } from '../contexts/AuthContext';
 
 export function useOTDetail(otNumber?: string) {
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const navigate = useNavigate();
   const { firebaseUser, usuario } = useAuth();
   const { form, setField, setFields, markInteracted, hasUserInteracted, loadFromOT, buildSavePayload, validate } = useOTFormState();
@@ -147,9 +149,17 @@ export function useOTDetail(otNumber?: string) {
    */
   const handleCancelarItem = useCallback(async () => {
     if (!otNumber) return;
-    const motivo = prompt(`Motivo de la baja del item ${otNumber}:`);
+    // window.prompt() no existe en Electron ("prompt() is not supported"): el
+    // boton no hacia NADA en las terminales instaladas (2026-08-11).
+    const motivo = await promptText({
+      title: `Cancelar item ${otNumber}`,
+      label: 'Motivo de la baja',
+      placeholder: 'Ej: se creo por error / el trabajo se hizo en otro item…',
+      required: true,
+      multiline: true,
+      confirmLabel: 'Cancelar item',
+    });
     if (motivo === null) return;
-    if (!motivo.trim()) { alert('El motivo es obligatorio.'); return; }
     try {
       setSaving(true);
       await ordenesTrabajoService.cancelarItem(otNumber, motivo);
@@ -158,7 +168,7 @@ export function useOTDetail(otNumber?: string) {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al cancelar el item');
     } finally { setSaving(false); }
-  }, [otNumber, navigate]);
+  }, [otNumber, navigate, promptText]);
 
   // ── FLOW-04: wrapper that intercepts CIERRE_ADMINISTRATIVO transitions ─
   // When the user moves to CIERRE_ADMINISTRATIVO, run the atomic

@@ -9,6 +9,7 @@ import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { usePrompt } from '../../components/ui/PromptDialog';
 
 const ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
   asignado: 'bg-blue-100 text-blue-700',
@@ -20,6 +21,7 @@ export const AsignacionDetail = () => {
   const { id } = useParams<{ id: string }>();
 
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const goBack = useNavigateBack();
 
   useDeclareParent('/stock/asignaciones/historial');
@@ -50,7 +52,14 @@ export const AsignacionDetail = () => {
 
   const handleConsumir = async (item: ItemAsignacion) => {
     if (!id) return;
-    const ot = prompt('Número de OT (opcional):');
+    // prompt() no existe en Electron; cancelar aborta (2026-08-11).
+    const ot = await promptText({
+      title: 'Consumir item',
+      label: 'Número de OT (opcional)',
+      placeholder: 'Vacío = consumo sin OT',
+      confirmLabel: 'Consumir',
+    });
+    if (ot === null) return;
     setSaving(true);
     try {
       await asignacionesService.consumirItems(id, [{ itemId: item.id, cantidad: item.cantidad - item.cantidadDevuelta - item.cantidadConsumida, otNumber: ot || undefined }]);
