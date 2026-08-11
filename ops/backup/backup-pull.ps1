@@ -52,6 +52,31 @@ if ($Mode -eq 'weekly') {
   if ($LASTEXITCODE -ne 0) {
     Fail "El paso de archivos (backup-renamed.mjs) fallo (exit=$LASTEXITCODE)."
   }
+
+  # Regeneración de PDFs de presupuestos (los PDF se generan al vuelo en la app,
+  # no viven en Storage). Reusa los componentes @react-pdf via ops/backup/pdf-regen.
+  # BEST-EFFORT: si falla, avisa en ULTIMO-PDF-WARN.txt pero NO rompe el backup
+  # (base + archivos ya se completaron y son la copia crítica).
+  $regenDir = Join-Path $here 'pdf-regen'
+  if (-not (Test-Path (Join-Path $regenDir 'regen.mjs'))) {
+    $regenDir = 'C:\Users\Evigna\Desktop\Ags plataform\ops\backup\pdf-regen'
+  }
+  $warnFile = Join-Path $dest 'ULTIMO-PDF-WARN.txt'
+  if (Test-Path (Join-Path $regenDir 'regen.mjs')) {
+    & node (Join-Path $regenDir 'build.mjs') 2>&1 | Tee-Object -FilePath $log -Append
+    if ($LASTEXITCODE -eq 0) {
+      & node (Join-Path $regenDir 'regen.mjs') "--base=$dest" 2>&1 | Tee-Object -FilePath $log -Append
+    }
+    if ($LASTEXITCODE -ne 0) {
+      $w = "[{0}] Regeneracion de PDFs de presupuestos fallo (exit=$LASTEXITCODE). El backup de base + archivos SI se completo. Ver log: {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $log
+      Set-Content -Path $warnFile -Value $w -Encoding UTF8
+      Write-Host $w -ForegroundColor Yellow
+    } elseif (Test-Path $warnFile) {
+      Remove-Item $warnFile -Force
+    }
+  } else {
+    Write-Host "Aviso: no se encontro pdf-regen; se omite la regeneracion de PDFs." -ForegroundColor Yellow
+  }
 }
 
 # Exito: limpiar la marca de error y dejar latido.

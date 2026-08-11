@@ -31,7 +31,9 @@ const NDJSON = join(FS_DIR, nd);
 log(`Índice: ${NDJSON}`);
 
 // ---- mapas desde el .ndjson ----
-const leadMap = new Map(), presuMap = new Map(), auditPresuMap = new Map(), certMap = new Map();
+// Presupuestos + OC cliente los arma pdf-regen (carpeta por presupuesto con PDF + OC).
+// Acá solo: tickets, OT/informes, certificados, fichas.
+const leadMap = new Map(), certMap = new Map();
 const CERT_RE = /certificados(?:-ingeniero)?(?:\/|%2F)(?:patrones(?:\/|%2F))?([0-9a-fA-F-]{20,})/g;
 const bestName = (d, fs) => { for (const f of fs) if (d[f]) return String(d[f]); return ''; };
 
@@ -43,10 +45,7 @@ await new Promise((res) => {
     const { path, data } = o; if (!path || !data) return;
     const [col, id] = path.split('/');
     if (col === 'leads') leadMap.set(id, `${data.numero || id}${data.razonSocial ? ' - ' + data.razonSocial : ''}`);
-    else if (col === 'presupuestos') presuMap.set(id, `${data.numero || id}`);
-    else if (col === 'audit_log' && data.collection === 'presupuestos' && data.documentId) {
-      const n = data?.changes?.after?.numero; if (n) auditPresuMap.set(data.documentId, n);
-    } else if (['instrumentos', 'patrones', 'columnas', 'certificadosIngeniero'].includes(col)) {
+    else if (['instrumentos', 'patrones', 'columnas', 'certificadosIngeniero'].includes(col)) {
       const nombre = bestName(data, ['certificadoNombre', 'nombre', 'descripcion', 'ingenieroNombre', 'tipo']) ||
         [data.marca, data.modelo, data.serie].filter(Boolean).join(' ');
       const blob = JSON.stringify(data); let m;
@@ -55,18 +54,18 @@ await new Promise((res) => {
   });
   rl.on('close', res);
 });
-log(`Mapas: leads=${leadMap.size} presupuestos=${presuMap.size}(+${auditPresuMap.size} hist) certificados=${certMap.size}`);
+log(`Mapas: leads=${leadMap.size} certificados=${certMap.size}`);
 
 // ---- rutas ----
 const ROUTES = {
   leads:                    { cat: 'Tickets',                resolve: (id) => leadMap.get(id) },
-  presupuestos:             { cat: 'Presupuestos',           resolve: (id) => presuMap.get(id) || (auditPresuMap.has(id) ? auditPresuMap.get(id) + ' (eliminado)' : undefined) },
   reports:                  { cat: 'OT',                     resolve: (id) => id },
   adjuntos:                 { cat: 'OT',                     resolve: (id) => id, sub: 'adjuntos' },
   certificados:             { cat: 'Certificados',           resolve: (id) => certMap.get(id), descend: ['patrones'] },
   'certificados-ingeniero': { cat: 'Certificados Ingeniero', resolve: (id) => certMap.get(id) },
   fotosFichas:              { cat: 'Fichas',                 resolve: (id) => id },
   'sistema-modular':        { cat: 'Otros',                  resolve: (id) => id },
+  // Presupuestos y ordenesCompraCliente los baja pdf-regen (carpeta por presupuesto).
 };
 
 const rcloneDirs = (path) => {

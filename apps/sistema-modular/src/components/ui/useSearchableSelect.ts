@@ -267,14 +267,13 @@ export function useSearchableSelect({
       setIsOpen(false);
       return;
     }
-    if (e.key === ' ' && highlightedIndex >= 0 && allOptions[highlightedIndex]) {
-      e.preventDefault(); e.stopPropagation();
-      handleSelect(allOptions[highlightedIndex].value);
-      return;
-    }
+    // Espacio dentro del input = un caracter, nunca "seleccionar el resaltado":
+    // con el auto-resaltado al tipear siempre hay opción resaltada, y buscar
+    // "lampara deuterio" saltaba al proximo campo al primer espacio (UAT
+    // 2026-08-11). Seleccionar con teclado es Enter.
     handleKeyDown(e);
     e.stopPropagation();
-  }, [allOptions, highlightedIndex, handleSelect, handleKeyDown, handleTabNav]);
+  }, [handleKeyDown, handleTabNav]);
 
   const handleSearchChange = useCallback((val: string) => {
     setSearchTerm(val);

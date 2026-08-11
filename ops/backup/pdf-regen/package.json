@@ -1,0 +1,21 @@
+{
+  "name": "ags-pdf-regen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regenera los PDF de presupuestos (y OC) desde el dump NDJSON del backup, reusando los componentes @react-pdf de sistema-modular. Corre en el weekly del backup.",
+  "scripts": {
+    "build": "node build.mjs",
+    "regen": "node regen.mjs"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.3.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-pdf-html": "^2.1.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "pdf-to-img": "^6.2.0"
+  }
+}

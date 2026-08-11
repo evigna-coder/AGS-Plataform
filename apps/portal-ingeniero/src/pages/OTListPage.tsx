@@ -11,7 +11,12 @@ const RANGE_TABS: { value: MisOTRange; label: string }[] = [
   { value: 'proximas', label: 'Próximas' },
 ];
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => {
+  // Fecha LOCAL, no UTC (toISOString corría "hoy" un día desde las 21:00 ART).
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 
 function dayLabel(dayStr: string): string {
   if (dayStr === 'sin-fecha') return 'Sin fecha';
@@ -92,10 +97,12 @@ export default function OTListPage() {
             <div className="space-y-6">
               {groupedByDay.map(({ day, items }) => {
                 const isToday = day === todayStr();
+                const isPast = day !== 'sin-fecha' && day < todayStr();
                 return (
                   <div key={day}>
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 px-1.5 mb-2.5">
                       {isToday ? 'Hoy' : dayLabel(day)} · {items.length} {items.length === 1 ? 'orden' : 'órdenes'}
+                      {isPast && <span className="text-amber-600"> · atrasada{items.length === 1 ? '' : 's'}</span>}
                     </p>
                     <div className="space-y-3">
                       {items.map(item => (

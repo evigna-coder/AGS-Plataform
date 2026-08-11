@@ -10,7 +10,10 @@ export type MisOTRange = 'hoy' | 'semana' | 'proximas';
 const QUARTER_LABELS: Record<number, string> = { 1: 'AM1', 2: 'AM2', 3: 'PM1', 4: 'PM2' };
 
 function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Fecha LOCAL, no UTC: con toISOString, desde las 21:00 (ART) "hoy" pasaba a
+  // ser mañana y toda la lista corría un día.
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 function addDays(d: Date, n: number): Date {
@@ -67,7 +70,8 @@ export function useMisOTList(range: MisOTRange) {
     const unsub = agendaService.subscribeToRange(
       // 366 días: la coordinación agenda los regulatorios anuales con meses de
       // anticipación — con 60 días las OTs lejanas quedaban sin franja (2026-07-31).
-      todayStr, formatDate(addDays(today, 366)), verTodas ? null : ids, setAgenda);
+      // 7 días hacia atrás: las OT atrasadas conservan su franja horaria.
+      formatDate(addDays(today, -7)), formatDate(addDays(today, 366)), verTodas ? null : ids, setAgenda);
     return unsub;
   }, [usuario?.id, ingenieroDocId, ingLoaded, todayStr, today, verTodas]);
 
@@ -91,7 +95,10 @@ export function useMisOTList(range: MisOTRange) {
     return map;
   }, [agenda]);
 
-  // Filtro por rango + agrupación por día (fechas pasadas se agrupan bajo hoy)
+  // Filtro por rango + agrupación por día. Las OT abiertas con fecha pasada
+  // siguen entrando en "Hoy" (no deben perderse de vista), pero agrupadas bajo
+  // su fecha REAL — antes se fusionaban en el grupo de hoy y el ingeniero veía
+  // una OT de ayer titulada "Hoy" (UAT 2026-08-11).
   const groupedByDay = useMemo(() => {
     const weekEndStr = formatDate(addDays(today, 7));
     const filtered = ots.filter(ot => {
@@ -103,7 +110,7 @@ export function useMisOTList(range: MisOTRange) {
     const map = new Map<string, MisOTListItem[]>();
     for (const ot of filtered) {
       const f = ot.fechaServicioAprox || '';
-      const key = !f ? 'sin-fecha' : f < todayStr ? todayStr : f;
+      const key = !f ? 'sin-fecha' : f;
       const arr = map.get(key) ?? [];
       arr.push({ ot, franja: franjaByOt.get(ot.otNumber) ?? null, pendientesCount: pendCounts.get(ot.sistemaId ?? '') ?? 0 });
       map.set(key, arr);
