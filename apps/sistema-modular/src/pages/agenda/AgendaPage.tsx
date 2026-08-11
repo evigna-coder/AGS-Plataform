@@ -6,6 +6,7 @@ import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns
 import { ordenesTrabajoService } from '../../services/otService';
 import { establecimientosService } from '../../services/firebaseService';
 import { estadoAgendaInicialPorUbicacion } from '../../utils/distanciaInterior';
+import { colorDeTituloFijo } from '../../utils/agendaCellColor';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
@@ -21,6 +22,39 @@ import {
   AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId, continuaElRango,
   type ClipboardData,
 } from '../../utils/agendaOTSync';
+
+/**
+ * Muestra del color que va a tomar la celda, como referencia en el menú
+ * contextual (2026-08-09). El color sale de la tabla de reglas — no se repite
+ * el hexadecimal acá, para que un retoque de color no deje el menú mintiendo.
+ */
+/**
+ * Posición del menú contextual. Abría SIEMPRE hacia arriba
+ * (`bottom: innerHeight - y`), así que en la primera fila de celdas se salía por
+ * el techo y quedaba cortado — más notorio a medida que el menú creció con los
+ * eventos nuevos (2026-08-09). Ahora elige la dirección según el espacio
+ * disponible, clampea horizontalmente y, si no entra en ninguna, scrollea.
+ */
+function estiloMenuContextual(x: number, y: number): React.CSSProperties {
+  const ALTO_EST = 330;   // ~10 ítems de 28px + padding
+  const ANCHO_EST = 230;
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const espacioArriba = y;
+  const espacioAbajo = vh - y;
+  // Hacia arriba solo si de verdad entra; si no, hacia abajo.
+  const abreArriba = espacioArriba >= Math.min(ALTO_EST, vh - 16) || espacioArriba > espacioAbajo;
+  const left = Math.min(Math.max(8, x), Math.max(8, vw - ANCHO_EST - 8));
+  return abreArriba
+    ? { left, bottom: Math.max(8, vh - y), maxHeight: Math.max(120, espacioArriba - 8), overflowY: 'auto' }
+    : { left, top: Math.max(8, y), maxHeight: Math.max(120, espacioAbajo - 8), overflowY: 'auto' };
+}
+
+const ColorRef: FC<{ titulo: string }> = ({ titulo }) => {
+  const bg = colorDeTituloFijo(titulo);
+  if (!bg) return null;
+  return <span className={`w-3.5 h-3.5 rounded-sm border border-slate-300 shrink-0 ${bg}`} aria-hidden />;
+};
 
 export const AgendaPage: FC = () => {
   const {
@@ -278,7 +312,9 @@ export const AgendaPage: FC = () => {
           // no vuelve a tentativo por moverlo de celda).
           estadoAgenda: src.estadoAgenda,
           pagoAdelantado: src.pagoAdelantado ?? false,
-          requiereInduccion: src.requiereInduccion ?? false,
+          // La inducción NO se copia (2026-08-09): es del PRIMER día del trabajo.
+          // La jornada nueva es otro día y arranca sin la marca.
+          requiereInduccion: false,
           ventaConcretada: src.ventaConcretada ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
@@ -359,7 +395,9 @@ export const AgendaPage: FC = () => {
             equipoAgsId: src.equipoAgsId ?? null,
             estadoAgenda: 'tentativo',
             pagoAdelantado: src.pagoAdelantado ?? false,
-            requiereInduccion: src.requiereInduccion ?? false,
+            // La inducción NO se copia (2026-08-09): es del PRIMER día del trabajo.
+            // La jornada nueva es otro día y arranca sin la marca.
+            requiereInduccion: false,
             ventaConcretada: src.ventaConcretada ?? false,
             notas: null,
             titulo: src.titulo || null,
@@ -953,7 +991,7 @@ export const AgendaPage: FC = () => {
         {contextMenu && (
           <div
             className="fixed z-[10000] bg-white border border-slate-200 rounded-lg shadow-lg py-0.5 min-w-[150px]"
-            style={{ left: contextMenu.x, bottom: Math.max(8, window.innerHeight - contextMenu.y) }}
+            style={estiloMenuContextual(contextMenu.x, contextMenu.y)}
           >
             <button
               onClick={handleOpenManualTaskInput}
@@ -987,9 +1025,7 @@ export const AgendaPage: FC = () => {
               onClick={() => handleAgregarEventoFijo('Firma de recibos')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.862 4.487Z" />
-              </svg>
+              <ColorRef titulo="Firma de recibos" />
               Agregar firma de recibos
             </button>
             {/* Oficina (2026-08-06): día en oficina — celda amarilla (mismo tono bench) */}
@@ -997,9 +1033,7 @@ export const AgendaPage: FC = () => {
               onClick={() => handleAgregarEventoFijo('Oficina')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-              </svg>
+              <ColorRef titulo="Oficina" />
               Agregar día de oficina
             </button>
             {/* Permisos especiales (2026-08-09): celda marrón oscuro */}
@@ -1007,9 +1041,7 @@ export const AgendaPage: FC = () => {
               onClick={() => handleAgregarEventoFijo('Permisos especiales')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-[#f2ece8] hover:text-[#5c4033] flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
-              </svg>
+              <ColorRef titulo="Permisos especiales" />
               Agregar permisos especiales
             </button>
             {/* Estudios médicos (2026-08-09): celda amarillo fuerte */}
@@ -1017,9 +1049,7 @@ export const AgendaPage: FC = () => {
               onClick={() => handleAgregarEventoFijo('Estudios médicos')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-              </svg>
+              <ColorRef titulo="Estudios médicos" />
               Agregar estudios médicos
             </button>
             {/* Día por enfermedad (2026-08-09): celda verde chillón */}
@@ -1027,9 +1057,7 @@ export const AgendaPage: FC = () => {
               onClick={() => handleAgregarEventoFijo('Día por enfermedad')}
               className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-lime-50 hover:text-lime-700 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-              </svg>
+              <ColorRef titulo="Día por enfermedad" />
               Agregar día por enfermedad
             </button>
             <button

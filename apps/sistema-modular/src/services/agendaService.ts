@@ -59,6 +59,14 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     equipoModelo: data.equipoModelo ?? null,
     equipoAgsId: data.equipoAgsId ?? null,
     pagoAdelantado: data.pagoAdelantado === true,
+    // Estos dos FALTABAN acá (2026-08-09) y por eso "se destildaban solos": el
+    // toggle guardaba bien en Firestore, pero este mapper es campo por campo y
+    // los descartaba al reconstruir la entrada, así que el primer snapshot en
+    // tiempo real pisaba el update optimista y la marca desaparecía. El dato
+    // nunca se perdió — no se leía. Al agregar un flag nuevo a `AgendaEntry`,
+    // agregarlo TAMBIÉN acá.
+    requiereInduccion: data.requiereInduccion === true,
+    ventaConcretada: data.ventaConcretada === true,
     estadoAgenda: data.estadoAgenda,
     notas: data.notas ?? null,
     titulo: data.titulo ?? null,

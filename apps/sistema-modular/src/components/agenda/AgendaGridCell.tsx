@@ -151,8 +151,10 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
           />
         )}
         {/* Requiere inducción (2026-08-05): mitad INFERIOR negra — convive con
-            la diagonal azul del pago adelantado (mitad superior). */}
-        {hasEntry && entryRequiereInduccion && !cancelled && (
+            la diagonal azul del pago adelantado (mitad superior).
+            SOLO en la celda de inicio (2026-08-09): la inducción se hace el
+            PRIMER día del trabajo, no todos los días del rango. */}
+        {hasEntry && isStart && entryRequiereInduccion && !cancelled && (
           <span
             className="absolute inset-0 bg-black pointer-events-none"
             style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}

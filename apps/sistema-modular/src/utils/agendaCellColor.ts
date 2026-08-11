@@ -66,10 +66,27 @@ const REGLAS: ReglaColor[] = [
   { campo: 'titulo', test: /permisos?\s+especial/i, bg: 'bg-[#5c4033]', text: 'text-[#f2e8e2]' },
   // Día por enfermedad (2026-08-09) — verde chillón, para que salte en la grilla.
   { campo: 'titulo', test: /enfermedad/i, bg: 'bg-[#7cfc00]', text: 'text-[#1a3300]' },
-  // Estudios médicos (2026-08-09) — amarillo fuerte. Distinto del amarillo
-  // opaco de bench/oficina, que es mucho más apagado.
-  { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#f5c518]', text: 'text-[#3d2f00]' },
+  // Estudios médicos (2026-08-09) — AMARILLO PATITO. El primer intento fue
+  // #f5c518, que con tanto rojo se leía naranja. Este levanta el verde y suma
+  // algo de azul para sacarle el tinte ámbar. Distinto del amarillo opaco de
+  // bench/oficina (#e0c878), que es mucho más apagado y terroso.
+  { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#ffe23f]', text: 'text-[#3d3300]' },
 ];
+
+/**
+ * Clase de fondo que le va a corresponder a la celda de un evento fijo, para
+ * mostrarla como referencia en el menú contextual (2026-08-09). Sale de la MISMA
+ * tabla de reglas que pinta la celda: sin esto habría que repetir los
+ * hexadecimales en el menú y se desincronizarían al primer retoque de color.
+ *
+ * Devuelve null si el título no matchea ninguna regla de color.
+ */
+export function colorDeTituloFijo(titulo: string): string | null {
+  for (const r of REGLAS) {
+    if (r.campo === 'titulo' && r.test.test(titulo)) return r.bg;
+  }
+  return null;
+}
 
 /** Verde agua institucional (teal-700) — el mismo de los botones. */
 const VENTA_CONCRETADA = { bg: 'bg-[#0D6E6E]', text: 'text-white' };
