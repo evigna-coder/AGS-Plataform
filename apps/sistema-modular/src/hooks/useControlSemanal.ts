@@ -66,7 +66,10 @@ const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(['pendiente_oc', 'ace
 // Pago anticipado (UAT 2026-07-19): estos pptos figuran desde el ENVÍO — se facturan
 // antes del servicio (ej. servicio que espera una importación), así que hay que
 // trabajarlos aunque ninguna OT esté cerrada.
-const ESTADOS_ANTICIPADA = new Set<Presupuesto['estado']>(['enviado', 'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+// 2026-08-11: se REVIERTE el "figura desde el envío" (UAT 2026-07-19) — el user
+// definió que al control entra todo presupuesto desde aceptado / pendiente_oc en
+// adelante, también los anticipados. Un enviado, anticipado o no, no figura.
+const ESTADOS_ANTICIPADA = new Set<Presupuesto['estado']>(['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 // Detección por texto del catálogo de condiciones de pago ("anticipado"/"adelanto") —
 // cuando exista el flag formal "requiere pago anticipado" (item 11 UAT Fanely),
 // cambiar solo esta función.
@@ -233,11 +236,11 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const pagoAnticipado = !!p.condicionPagoId && condicionesAnticipadas.has(p.condicionPagoId);
       const enUniversoTrabajo = ESTADOS_CON_TRABAJO.has(p.estado);
       const enUniversoAnticipada = pagoAnticipado && ESTADOS_ANTICIPADA.has(p.estado);
-      // 2026-08-05 (caso Synthon/portal): un ppto SIN aceptar (borrador/enviado)
-      // cuya OT ya se realizó también entra al universo — los creados desde el
-      // portal implican aceptación del cliente y quedaban invisibles.
-      const esPreAceptacion = p.estado === 'borrador' || p.estado === 'enviado';
-      if (!enUniversoTrabajo && !enUniversoAnticipada && !esPreAceptacion) continue;
+      // 2026-08-11: fuera los borradores/enviados (revierte el caso Synthon del
+      // 2026-08-05 — hoy la aceptación por portal se registra como `pendiente_oc`,
+      // que YA está en el universo de trabajo, así que el parche quedó obsoleto y
+      // solo metía ruido pre-aceptación al control).
+      if (!enUniversoTrabajo && !enUniversoAnticipada) continue;
       const nums = otsDelPresupuesto(p, ots);
       // "Trabajo realizado" = cierre TÉCNICO en adelante (criterio unificado con el
       // chip Pend. OC). Antes se exigía cierre ADMINISTRATIVO y un ppto con la OT
@@ -263,21 +266,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           return !!ot && esEntregaOT(ot) && !esOTCerradaTecnicamente(ot);
         })
         .sort();
-      // Trabajo TODAVÍA en curso: hay algún item del ppto sin cerrar
-      // técnicamente. Un presupuesto que nace en el item .04 y sigue por el .05
-      // no es un pendiente de facturación: el trabajo no terminó (2026-08-08).
-      const trabajoEnCurso = [...nums].some(n => {
-        const ot = otByNumber.get(n);
-        if (!ot) return false;
-        return !ot.estadoAdmin || !OT_CERRADA.has(ot.estadoAdmin);
-      });
-      // Pre-aceptación: entra SOLO si el trabajo ya se hizo (OT cerrada) o si
-      // tiene una OT agendada esta semana — no todo borrador del sistema. Y sale
-      // apenas se abre el item siguiente, hasta que ese también se realice: si
-      // no, el mismo ppto figura como pendiente de facturar mientras el trabajo
-      // continúa (caso 29688.04 → .05).
-      const sinAceptar = esPreAceptacion && !enUniversoTrabajo && tieneTrabajoRealizado && !trabajoEnCurso;
-      if (esPreAceptacion && !enUniversoAnticipada && !sinAceptar && otsEnSemana.length === 0) continue;
+      // (2026-08-11: los pre-aceptación —borrador/enviado— ya no entran al
+      // universo; el flag `sinAceptar` queda en false y su badge no se muestra.)
+      const sinAceptar = false;
       if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta
         && otsEnSemana.length === 0 && entregasPpto.length === 0) continue;
 

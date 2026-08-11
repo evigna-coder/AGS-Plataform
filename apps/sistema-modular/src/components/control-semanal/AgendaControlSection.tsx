@@ -6,7 +6,6 @@ import { EmptyState } from '../ui/EmptyState';
 
 interface Props {
   rows: AgendaControlRow[];
-  tareasSinOT: AgendaEntry[];
   kpis: { agendadas: number; cerradas: number; sinCierreAdmin: number; sinRealizar: number };
   onOpenOT: (otNumber: string) => void;
 }
@@ -34,7 +33,7 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
   </div>
 );
 
-export const AgendaControlSection: React.FC<Props> = ({ rows, tareasSinOT, kpis, onOpenOT }) => (
+export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT }) => (
   <section className="space-y-2">
     <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
       1 · Agenda de la semana vs. cierre de OTs
@@ -105,21 +104,31 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, tareasSinOT, kpis,
       </div>
     )}
 
-    {tareasSinOT.length > 0 && (
-      <div className="bg-white rounded-xl border border-slate-200 p-3">
-        <p className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1.5">
-          Tareas sin OT ({tareasSinOT.length}) — solo informativo
-        </p>
-        <ul className="space-y-0.5">
-          {tareasSinOT.map(t => (
-            <li key={t.id} className="text-[10px] text-slate-500">
-              {fmtFecha(t.fechaInicio)} · {t.titulo || t.tipoServicio || 'Tarea'}
-              {t.clienteNombre ? ` · ${t.clienteNombre}` : ''}
-              {t.ingenieroNombre ? ` · ${t.ingenieroNombre}` : ''}
-            </li>
-          ))}
-        </ul>
-      </div>
+  </section>
+);
+
+/**
+ * Pestaña "Tareas sin OT" del control semanal (2026-08-11). Vivía incrustada al
+ * pie de la sección de agenda como bloque "solo informativo" — el usuario la
+ * quiere aparte para que el control quede solo con lo accionable.
+ */
+export const TareasSinOTSection: React.FC<{ tareas: AgendaEntry[] }> = ({ tareas }) => (
+  <section className="bg-white rounded-xl border border-slate-200 p-4">
+    <p className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-2">
+      Tareas sin OT de la semana ({tareas.length}) — solo informativo
+    </p>
+    {tareas.length === 0 ? (
+      <p className="text-xs text-slate-400 py-4 text-center">Sin tareas sin OT esta semana.</p>
+    ) : (
+      <ul className="space-y-1">
+        {tareas.map(t => (
+          <li key={t.id} className="text-xs text-slate-600">
+            {fmtFecha(t.fechaInicio)} · <span className="font-medium">{t.titulo || t.tipoServicio || 'Tarea'}</span>
+            {t.clienteNombre ? ` · ${t.clienteNombre}` : ''}
+            {t.ingenieroNombre ? ` · ${t.ingenieroNombre}` : ''}
+          </li>
+        ))}
+      </ul>
     )}
   </section>
 );

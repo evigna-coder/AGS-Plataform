@@ -237,6 +237,15 @@ export const PresupuestosList = () => {
 
   // Otros presupuestos del mismo cliente, `aceptado` y sin OC cargada aún — para
   // el checkbox N:M del modal. Derivado de la lista ya cargada en memoria.
+  /** Universo de la pestaña activa: Comerciales o Contratos, para que las
+   *  cards y su facturación cuenten solo lo suyo (2026-08-11). */
+  const pptosDeLaVista = useMemo<Presupuesto[]>(() => (
+    filters.vista === 'contratos'
+      ? presupuestos.filter(p => p.tipo === 'contrato')
+      : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')
+  ), [presupuestos, filters.vista, filters.tipo]);
+  const idsDeLaVista = useMemo(() => new Set(pptosDeLaVista.map(p => p.id)), [pptosDeLaVista]);
+
   const otrosPresupuestosParaOC = useMemo<Presupuesto[]>(() => {
     if (!cargarOCTarget) return [];
     return presupuestos.filter(p =>
@@ -546,10 +555,13 @@ export const PresupuestosList = () => {
           (2026-08-04): contratos (P5) viven en su solapa — la card decía "2
           aceptados" y la lista mostraba 1 porque el otro era un contrato. */}
       <PresupuestoDashboard
-        presupuestos={filters.vista === 'contratos'
-          ? presupuestos.filter(p => p.tipo === 'contrato')
-          : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')}
-        solicitudes={solicitudes}
+        presupuestos={pptosDeLaVista}
+        // Las solicitudes TAMBIÉN se filtran por la pestaña (2026-08-11): iban
+        // completas y las cards "Enviadas a facturación" / "Pend. cobro"
+        // mezclaban la facturación de CONTRATOS con la comercial en ambas
+        // solapas — con contratos abiertos con números ficticios, el monto de
+        // las cards comerciales no cerraba con nada.
+        solicitudes={solicitudes.filter(s => idsDeLaVista.has(s.presupuestoId))}
         ots={todasOts}
         activeKpi={filters.kpi as any}
         // Exclusión mutua (2026-08-05): activar una card resetea el estado del

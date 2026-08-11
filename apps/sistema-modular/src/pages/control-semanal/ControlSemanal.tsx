@@ -10,7 +10,7 @@ import { formatDateKey, formatWeekRange, getMonday } from '../../utils/agendaDat
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { AgendaControlSection } from '../../components/control-semanal/AgendaControlSection';
+import { AgendaControlSection, TareasSinOTSection } from '../../components/control-semanal/AgendaControlSection';
 import { EntregasControlSection } from '../../components/control-semanal/EntregasControlSection';
 import { PresupuestosControlSection } from '../../components/control-semanal/PresupuestosControlSection';
 import { FacturacionControlSection } from '../../components/control-semanal/FacturacionControlSection';
@@ -20,6 +20,8 @@ const FILTER_SCHEMA = {
   /** Lunes de la semana bajo control (YYYY-MM-DD). '' = semana actual. */
   semana:          { type: 'string' as const,  default: '' },
   mostrarEnviados: { type: 'boolean' as const, default: false },
+  /** Pestaña: control (default) | tareas sin OT (2026-08-11). */
+  tab:             { type: 'string' as const,  default: 'control' },
 };
 
 export const ControlSemanal = () => {
@@ -98,6 +100,14 @@ export const ControlSemanal = () => {
           </Button>
         }
       >
+        <div className="flex gap-2 mb-2">
+          {([['control', 'Control'], ['tareas', `Tareas sin OT (${tareasSinOT.length})`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setFilter('tab', k)}
+              className={`px-3 py-1.5 rounded text-xs font-medium ${filters.tab === k ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => goSemana(subWeeks(monday, 1))}>
             ‹ Semana anterior
@@ -129,10 +139,12 @@ export const ControlSemanal = () => {
             <p className="text-slate-400">Cargando control semanal…</p>
           </div>
         ) : !error && (
+          filters.tab === 'tareas' ? (
+            <TareasSinOTSection tareas={tareasSinOT} />
+          ) : (
           <>
             <AgendaControlSection
               rows={agendaRows}
-              tareasSinOT={tareasSinOT}
               kpis={agendaKpis}
               onOpenOT={(otNumber) => navigateInActiveTab(`/ordenes-trabajo/${otNumber}`)}
             />
@@ -161,6 +173,7 @@ export const ControlSemanal = () => {
               onSaveComentario={saveComentarioSolicitud}
             />
           </>
+          )
         )}
       </div>
     </div>
