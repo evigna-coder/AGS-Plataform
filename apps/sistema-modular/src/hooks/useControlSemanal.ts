@@ -319,8 +319,13 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const d = (iso ?? '').slice(0, 10);
       return !!d && d >= weekStart && d <= weekEnd;
     };
+    // El backlog arrastra hacia ADELANTE, no hacia atrás (2026-08-09): una
+    // solicitud no puede figurar en una semana anterior a su creación. Sin esto,
+    // lo que se pasaba a facturar hoy aparecía también en el control de la
+    // semana pasada — y ahí ni siquiera tenía OT ni presupuesto que lo respaldara.
+    const yaExistia = (s: SolicitudFacturacion) => (s.createdAt ?? '').slice(0, 10) <= weekEnd;
     return solicitudes
-      .filter(s => s.estado !== 'anulada')
+      .filter(s => s.estado !== 'anulada' && yaExistia(s))
       .map(s => {
         const facturada = s.estado === 'facturada' || s.estado === 'cobrada';
         return {
