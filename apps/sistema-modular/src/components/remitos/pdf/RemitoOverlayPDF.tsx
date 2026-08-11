@@ -46,7 +46,7 @@ const X_VALUE_RIGHT = X_VALUE_LEFT + 241 + 1 * MM;
 const DY_TRANSPORTISTA = {
   razonSocial: 2 * MM,
   domicilio: -1 * MM,
-  localidad: 0,
+  localidad: -5 * MM,   // calibrado contra papel real 2026-08-11
   provincia: 0,
   iva: 0,
   cuit: -15 * MM,

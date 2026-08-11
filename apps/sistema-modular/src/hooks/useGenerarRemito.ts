@@ -7,6 +7,7 @@ import { ordenesTrabajoService } from '../services/firebaseService';
 import { loanersService } from '../services/loanersService';
 import { proveedorEsCategoria } from '@ags/shared';
 import { remitosService, unidadesService, type DatosTransportista } from '../services/stockService';
+import { partyFromProveedor } from '../components/remitos/RemitoTransportistaPicker';
 import type { UnidadSalida } from '../components/remitos/RemitoStockPicker';
 import type { ElegibleItem, ItemMode, ParteInput } from '../components/remitos/RemitoItemPicker';
 import type { TipoRemito } from '../components/remitos/RemitoTipoToggle';
@@ -238,12 +239,10 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
     setProveedorId(id);
     const prov = proveedores.find(p => p.id === id);
     if (!prov) return;
-    setDestinatario({
-      razonSocial: prov.nombre,
-      domicilio: prov.direccion ?? '',
-      cuit: prov.cuit ?? '',
-      localidad: '', provincia: '', iva: '',
-    });
+    // partyFromProveedor usa los campos reales (localidad/provincia/condicionIva,
+    // 2026-08-11) — el mapeo inline anterior los dejaba VACÍOS aunque el
+    // proveedor los tuviera cargados (caso ELS desde ficha de cliente).
+    setDestinatario(partyFromProveedor(prov));
   };
 
   const handleToggleItem = (key: string) => {

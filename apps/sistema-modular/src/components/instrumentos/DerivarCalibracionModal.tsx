@@ -106,6 +106,9 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         proveedorNombre: proveedor.nombre,
         transportistaId: transportistaId || null,
         transportistaNombre: transportista.razonSocial.trim() || null,
+        // Snapshot completo para reimpresión (2026-08-11): sin esto, un flete
+        // cargado a mano perdía domicilio/CUIT al reimprimir desde la lista.
+        transportista: transportista.razonSocial.trim() ? transportista : null,
       });
 
       await Promise.all(seleccionados.map(i => derivarACalibracion(i.id, {

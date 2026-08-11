@@ -143,18 +143,22 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   await imprimirRemitoOverlay({
     fecha: fechaFmt,
     destinatario,
-    transportista: transportista
-      ? {
-          razonSocial: transportista.nombre,
-          domicilio: transportista.direccion ?? '',
-          localidad: transportista.localidad ?? '',
-          provincia: transportista.provincia ?? '',
-          iva: transportista.condicionIva ?? '',
-          cuit: transportista.cuit ?? '',
-        }
-      : (remito.transportistaNombre
-          ? { razonSocial: remito.transportistaNombre, domicilio: '', localidad: '', provincia: '', iva: '', cuit: '' }
-          : null),
+    // Prioridad: snapshot guardado en el remito (2026-08-11 — conserva fletes
+    // cargados a mano) → proveedor del catálogo por id → nombre pelado.
+    transportista: remito.transportista?.razonSocial
+      ? remito.transportista
+      : transportista
+        ? {
+            razonSocial: transportista.nombre,
+            domicilio: transportista.direccion ?? '',
+            localidad: transportista.localidad ?? '',
+            provincia: transportista.provincia ?? '',
+            iva: transportista.condicionIva ?? '',
+            cuit: transportista.cuit ?? '',
+          }
+        : (remito.transportistaNombre
+            ? { razonSocial: remito.transportistaNombre, domicilio: '', localidad: '', provincia: '', iva: '', cuit: '' }
+            : null),
     items,
     observaciones: remito.observaciones,
   });
