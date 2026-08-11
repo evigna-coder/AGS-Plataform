@@ -5,21 +5,28 @@ import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 interface Props {
   item: InventarioItem;
   saving: boolean;
+  /** Selección múltiple para devolver en lote (2026-08-11). */
+  selected?: boolean;
+  onToggleSelect?: () => void;
   onDevolver: (item: InventarioItem) => void;
   onConsumir: (item: InventarioItem) => void;
   onReasignarCliente: () => void;
   onTransferir: () => void;
 }
 
-export const InventarioItemRow = ({ item, saving, onDevolver, onConsumir, onReasignarCliente, onTransferir }: Props) => {
+export const InventarioItemRow = ({ item, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: Props) => {
   const codigo = item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
   const desc = descripcionItemAsignacion(item);
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
   const canAct = remaining > 0;
 
   return (
-    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${selected ? 'bg-teal-50 border border-teal-200' : 'bg-slate-50'}`}>
       <div className="flex items-center gap-2 min-w-0 flex-1">
+        {onToggleSelect && canAct && (
+          <input type="checkbox" checked={!!selected} onChange={onToggleSelect}
+            className="w-3.5 h-3.5 accent-teal-600 shrink-0" />
+        )}
         <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{codigo}</span>
         <span className="text-xs text-slate-700 truncate">{desc}</span>
         <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded shrink-0">{item.tipo}</span>

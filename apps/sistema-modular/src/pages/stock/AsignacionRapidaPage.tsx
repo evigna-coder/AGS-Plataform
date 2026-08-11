@@ -6,8 +6,8 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import { InventarioIngenieroInline } from '../../components/stock/InventarioIngenieroInline';
-import { useAsignacionRapida, type DragPayload, type LotePatronDisponible } from '../../hooks/useAsignacionRapida';
-import { RemitoTransportistaPicker } from '../../components/remitos/RemitoTransportistaPicker';
+import { useAsignacionRapida, type DragPayload, type LotePatronDisponible, type SerieColumnaDisponible } from '../../hooks/useAsignacionRapida';
+import { ConfirmarAsignacionModal } from '../../components/stock/ConfirmarAsignacionModal';
 import type { UnidadStock, Minikit, InstrumentoPatron, Dispositivo, Vehiculo } from '@ags/shared';
 
 export const AsignacionRapidaPage = () => {
@@ -16,7 +16,7 @@ export const AsignacionRapidaPage = () => {
     ingenieros, clientes, observaciones, setObservaciones,
     proveedores, transportistaId, transportista, setTransportistaSeleccion,
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
-    filteredPatrones,
+    filteredPatrones, filteredColumnas,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
     removeFromCart, updateCartItem, handleConfirm, loadData,
   } = useAsignacionRapida();
@@ -24,6 +24,8 @@ export const AsignacionRapidaPage = () => {
   const dragRef = useRef<DragPayload | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
+  /** Confirmar abre el paso del remito de salida (transportista) (2026-08-11). */
+  const [confirmOpen, setConfirmOpen] = useState(false);
   /** Vista rápida inline del inventario (2026-08-04): click en el nombre
    *  despliega; el modal completo queda detrás del botón "Detalle". */
   const [expandedIngId, setExpandedIngId] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export const AsignacionRapidaPage = () => {
     { key: 'minikits' as const, label: 'Minikits', count: filteredMinikits.length },
     { key: 'instrumentos' as const, label: 'Instrumentos', count: filteredInstrumentos.length },
     { key: 'patrones' as const, label: 'Patrones', count: filteredPatrones.length },
+    { key: 'columnas' as const, label: 'Columnas', count: filteredColumnas.length },
     { key: 'dispositivos' as const, label: 'Dispositivos', count: filteredDispositivos.length },
     { key: 'vehiculos' as const, label: 'Vehículos', count: filteredVehiculos.length },
   ];
@@ -110,6 +113,11 @@ export const AsignacionRapidaPage = () => {
                     extra={`${p.marca} · ${p.cantidad} disp.${p.vencimiento ? ` · vence ${p.vencimiento.slice(0, 10).split('-').reverse().join('/')}` : ''}`}
                     badge={p.vencido ? 'Vencido' : undefined}
                     badgeColor="bg-red-50 text-red-700" />))}
+                {/* Una serie física por fila — mismo criterio que los lotes de patrón. */}
+                {tab === 'columnas' && (filteredColumnas.length === 0 ? <Empty /> :
+                  filteredColumnas.map(c => <DragRow key={`${c.columnaId}:${c.serie}`} onDragStart={startDrag(columnaPayload(c))}
+                    code={c.codigo} label={c.descripcion}
+                    extra={`${c.marca} · S/N ${c.serie}${c.vencimiento ? ` · vence ${c.vencimiento.slice(0, 10).split('-').reverse().join('/')}` : ''}`} />))}
                 {tab === 'dispositivos' && (filteredDispositivos.length === 0 ? <Empty /> :
                   filteredDispositivos.map(d => <DragRow key={d.id} onDragStart={startDrag(dispositivoPayload(d))}
                     code={`${d.marca} ${d.modelo}`} label={d.serie ? `S/N: ${d.serie}` : ''} badge={d.tipo} badgeColor="bg-blue-50 text-blue-700" />))}
@@ -144,6 +152,7 @@ export const AsignacionRapidaPage = () => {
                       items={group?.items ?? []}
                       onRemove={removeFromCart}
                       onTogglePerm={(id, val) => updateCartItem(id, { permanente: val })}
+                      onCantidad={(id, val) => updateCartItem(id, { cantidad: val })}
                       expanded={expandedIngId === ing.id}
                       onNameClick={() => setExpandedIngId(prev => prev === ing.id ? null : ing.id)}
                       onOpenDetalle={() => setInventarioIngId(ing.id)}
@@ -153,21 +162,14 @@ export const AsignacionRapidaPage = () => {
                 })}
               </div>
 
-              {/* Footer */}
+              {/* Footer — el transportista se pide al confirmar, junto con la
+                  creación del remito de salida (2026-08-11). */}
               <div className="shrink-0 space-y-2 pt-2 mt-2 border-t border-slate-100">
                 <Input inputSize="sm" label="Observaciones" value={observaciones}
                   onChange={e => setObservaciones(e.target.value)} placeholder="Notas opcionales..." />
-                {/* Transportista del remito de salida (2026-08-10): faltaba, y el
-                    recuadro del papel preimpreso salía vacío. */}
-                <RemitoTransportistaPicker
-                  proveedores={proveedores}
-                  selectedId={transportistaId}
-                  value={transportista}
-                  onChange={setTransportistaSeleccion}
-                />
-                <Button className="w-full" size="sm" onClick={handleConfirm}
+                <Button className="w-full" size="sm" onClick={() => setConfirmOpen(true)}
                   disabled={saving || cart.length === 0}>
-                  {saving ? 'Procesando...' : `Confirmar ${cart.length} items → ${ingenieroCount} IST`}
+                  {`Confirmar ${cart.length} items → ${ingenieroCount} IST`}
                 </Button>
               </div>
             </Card>
@@ -177,6 +179,19 @@ export const AsignacionRapidaPage = () => {
 
       {/* Inventario modal */}
       <InventarioIngenieroModal ingenieroId={inventarioIngId} onClose={() => { setInventarioIngId(null); loadData(); }} />
+
+      <ConfirmarAsignacionModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        saving={saving}
+        itemCount={cart.length}
+        ingenieroCount={ingenieroCount}
+        proveedores={proveedores}
+        transportistaId={transportistaId}
+        transportista={transportista}
+        onTransportistaChange={setTransportistaSeleccion}
+      />
     </div>
   );
 };
@@ -184,16 +199,18 @@ export const AsignacionRapidaPage = () => {
 // ── Engineer drop-zone (collapsed when empty, expanded when has items) ──
 
 const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onClienteChange,
-  onDrop, onDragOver, onDragLeave, items, onRemove, onTogglePerm, expanded, onNameClick, onOpenDetalle, inline }: {
+  onDrop, onDragOver, onDragLeave, items, onRemove, onTogglePerm, onCantidad, expanded, onNameClick, onOpenDetalle, inline }: {
   nombre: string; count: number; isOver: boolean;
   clienteId: string; clienteOpts: { value: string; label: string }[];
   onClienteChange: (val: string) => void;
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
-  items: { id: string; codigo: string; label: string; tipo: string; permanente: boolean }[];
+  items: { id: string; codigo: string; label: string; tipo: string; permanente: boolean; cantidad: number; cantidadMax?: number }[];
   onRemove: (id: string) => void;
   onTogglePerm: (id: string, val: boolean) => void;
+  /** Patrones: elegir cuántas unidades del lote se lleva (2026-08-11). */
+  onCantidad: (id: string, val: number) => void;
   /** Vista rápida inline desplegada (2026-08-04). */
   expanded: boolean;
   onNameClick: () => void;
@@ -264,6 +281,18 @@ const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onCl
                 <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded">{item.tipo}</span>
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-1">
+                {(item.cantidadMax ?? 1) > 1 && (
+                  <label className="flex items-center gap-0.5" title={`Unidades del lote (máx. ${item.cantidadMax})`}>
+                    <input type="number" min={1} max={item.cantidadMax} value={item.cantidad}
+                      onChange={e => {
+                        const v = parseInt(e.target.value) || 1;
+                        onCantidad(item.id, Math.max(1, Math.min(v, item.cantidadMax ?? v)));
+                      }}
+                      onFocus={e => e.currentTarget.select()}
+                      className="w-11 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-center" />
+                    <span className="text-[9px] text-slate-400">/{item.cantidadMax}</span>
+                  </label>
+                )}
                 <label className="flex items-center gap-0.5 cursor-pointer" title="Permanente">
                   <input type="checkbox" checked={item.permanente}
                     onChange={e => onTogglePerm(item.id, e.target.checked)}
@@ -301,10 +330,17 @@ const vehiculoPayload = (v: Vehiculo): DragPayload => ({
   tipo: 'vehiculo', label: `${v.marca} ${v.modelo}`, codigo: v.patente,
   vehiculoId: v.id, permanente: true,
 });
-/** Lo asignable es el LOTE del patrón, no el kit (2026-08-07). */
+/** Lo asignable es la SERIE física de la columna (2026-08-11). */
+const columnaPayload = (c: SerieColumnaDisponible): DragPayload => ({
+  tipo: 'columna', label: c.descripcion, codigo: c.codigo,
+  columnaId: c.columnaId, columnaSerie: c.serie,
+  permanente: false,
+});
+/** Lo asignable es el LOTE del patrón, con cantidad elegible (2026-08-11). */
 const patronPayload = (p: LotePatronDisponible): DragPayload => ({
   tipo: 'patron', label: p.descripcion, codigo: p.codigo,
   patronId: p.patronId, patronLote: p.lote, patronVencimiento: p.vencimiento,
+  cantidadDisponible: p.cantidad,
   permanente: false,
 });
 

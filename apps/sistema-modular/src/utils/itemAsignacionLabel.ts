@@ -4,7 +4,8 @@ import type { ItemAsignacion } from '@ags/shared';
 type ItemLike = Partial<Pick<ItemAsignacion,
   | 'articuloDescripcion' | 'instrumentoNombre' | 'dispositivoDescripcion'
   | 'minikitCodigo' | 'loanerCodigo' | 'vehiculoPatente'
-  | 'patronDescripcion' | 'patronCodigo' | 'patronLote' | 'tipo'
+  | 'patronDescripcion' | 'patronCodigo' | 'patronLote'
+  | 'columnaDescripcion' | 'columnaCodigo' | 'columnaSerie' | 'tipo'
 >>;
 
 /**
@@ -27,6 +28,11 @@ export function descripcionItemAsignacion(item: ItemLike, fallback = ''): string
       ? [item.patronDescripcion, item.patronLote ? `Lote ${item.patronLote}` : null].filter(Boolean).join(' · ')
       : '')
     || item.patronCodigo
+    // La SERIE identifica la columna física, igual que el lote al patrón.
+    || (item.columnaDescripcion
+      ? [item.columnaDescripcion, item.columnaSerie ? `S/N ${item.columnaSerie}` : null].filter(Boolean).join(' · ')
+      : '')
+    || item.columnaCodigo
     || item.minikitCodigo
     || item.loanerCodigo
     || item.vehiculoPatente

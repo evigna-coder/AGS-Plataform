@@ -3544,7 +3544,7 @@ export interface Minikit {
 
 // --- Asignaciones de Stock ---
 
-export type TipoItemAsignacion = 'articulo' | 'minikit' | 'loaner' | 'instrumento' | 'dispositivo' | 'vehiculo' | 'patron';
+export type TipoItemAsignacion = 'articulo' | 'minikit' | 'loaner' | 'instrumento' | 'dispositivo' | 'vehiculo' | 'patron' | 'columna';
 export type EstadoItemAsignacion = 'asignado' | 'devuelto' | 'consumido';
 
 export interface ItemAsignacion {
@@ -3586,6 +3586,16 @@ export interface ItemAsignacion {
   patronLote?: string | null;
   /** Vencimiento del lote al momento de asignarlo (desnormalizado). */
   patronVencimiento?: string | null;
+  /**
+   * Columna cromatográfica (colección `columnas`) asignada a un IST
+   * (2026-08-11). Se asigna una SERIE física concreta — mismo modelo que el
+   * lote del patrón: la disponibilidad se deriva de las asignaciones activas,
+   * el doc de la columna no se toca.
+   */
+  columnaId?: string | null;
+  columnaCodigo?: string | null;
+  columnaDescripcion?: string | null;
+  columnaSerie?: string | null;
   clienteId?: string | null;
   clienteNombre?: string | null;
   otNumber?: string | null;
@@ -3788,6 +3798,10 @@ export interface RemitoItem {
    */
   patronId?: string | null;
   patronLote?: string | null;
+  /** Columna cromatográfica con serie asignada a un IST (2026-08-11) — mismo
+   *  criterio que patronId/patronLote para poder marcar la devolución. */
+  columnaId?: string | null;
+  columnaSerie?: string | null;
   /** Ficha propiedad del cliente (remitos de devolución / derivación) */
   fichaId?: string | null;
   fichaNumero?: string | null;
@@ -3865,6 +3879,20 @@ export interface Remito {
    */
   transportistaId?: string | null;
   transportistaNombre?: string | null;
+  /**
+   * Snapshot completo del transportista al crear el remito (2026-08-11). Sin
+   * esto, un flete cargado a mano (sin alta en Proveedores) perdía domicilio,
+   * CUIT e IVA — el bloque del papel salía con la razón social sola al
+   * reimprimir. La impresión lo prefiere sobre resolver `transportistaId`.
+   */
+  transportista?: {
+    razonSocial: string;
+    domicilio: string;
+    localidad: string;
+    provincia: string;
+    iva: string;
+    cuit: string;
+  } | null;
   /**
    * Remito de servicio (tipo `'servicio'`): equipo al que refieren los servicios
    * (el remito se arma por equipo, consolidando N OTs → 1 remito) y los datos

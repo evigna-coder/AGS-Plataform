@@ -19,15 +19,29 @@ export const InventarioIngenieroPage = () => {
   const {
     ingeniero, ingenieros, clientes, unidades, unidadesRemito,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
+    handleDevolver, handleDevolverVarios, handleConsumir, handleReasignarCliente, handleTransferir,
   } = useInventarioIngeniero(id);
 
-  const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
+  const [tab, setTabRaw] = useState<'temporales' | 'permanentes'>('temporales');
+  /** Selección múltiple para devolver en lote (2026-08-11). */
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const setTab = (t: 'temporales' | 'permanentes') => { setTabRaw(t); setSeleccion(new Set()); };
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
   const [actionValue, setActionValue] = useState('');
   const [showRemitoModal, setShowRemitoModal] = useState(false);
 
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
+  const devolvibles = visibleItems.filter(i => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida > 0);
+  const todosSeleccionados = devolvibles.length > 0 && devolvibles.every(i => seleccion.has(i.id));
+  const toggleSeleccion = (itemId: string) => setSeleccion(prev => {
+    const next = new Set(prev);
+    if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+    return next;
+  });
+  const devolverSeleccionados = async () => {
+    await handleDevolverVarios(devolvibles.filter(i => seleccion.has(i.id)));
+    setSeleccion(new Set());
+  };
 
   const clienteOpts = [{ value: '', label: 'Sin cliente' }, ...Object.values(
     clientes.filter(c => c.cuit).reduce<Record<string, { value: string; label: string }>>((acc, c) => {
@@ -98,14 +112,27 @@ export const InventarioIngenieroPage = () => {
           ))}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
+        {/* Tabs + devolución en lote */}
+        <div className="flex items-center gap-2">
           {(['temporales', 'permanentes'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-3 py-1.5 rounded text-xs font-medium ${tab === t ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               {t === 'temporales' ? `Temporales (${temporales.length})` : `Permanentes (${permanentes.length})`}
             </button>
           ))}
+          {devolvibles.length > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600">
+                <input type="checkbox" checked={todosSeleccionados}
+                  onChange={() => setSeleccion(todosSeleccionados ? new Set() : new Set(devolvibles.map(i => i.id)))}
+                  className="w-3.5 h-3.5 accent-teal-600" />
+                Seleccionar todos
+              </label>
+              <Button size="sm" onClick={devolverSeleccionados} disabled={saving || seleccion.size === 0}>
+                {saving ? 'Procesando...' : `Devolver seleccionados (${seleccion.size})`}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Items table */}
@@ -116,6 +143,7 @@ export const InventarioIngenieroPage = () => {
             <div className="space-y-1">
               {visibleItems.map(item => (
                 <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                  selected={seleccion.has(item.id)} onToggleSelect={() => toggleSeleccion(item.id)}
                   onDevolver={handleDevolver} onConsumir={handleConsumir}
                   onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                   onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}

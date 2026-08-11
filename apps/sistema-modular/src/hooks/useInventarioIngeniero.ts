@@ -95,6 +95,32 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
     finally { setSaving(false); }
   };
 
+  // ── Devolver varios de una (2026-08-11): agrupa por asignación y hace UNA
+  // llamada por asignación con todos sus items — pedido "devolver todo o
+  // varios a la vez" en lugar de uno por uno.
+  const handleDevolverVarios = async (items: InventarioItem[]) => {
+    const pendientes = items.filter(i => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida > 0);
+    if (pendientes.length === 0) return;
+    const detalle = pendientes.length <= 4
+      ? pendientes.map(i => itemLabel(i)).join(', ')
+      : `${pendientes.length} items`;
+    if (!await confirm(`¿Devolver ${detalle}?`)) return;
+    setSaving(true);
+    try {
+      const porAsignacion = new Map<string, { itemId: string; cantidad: number }[]>();
+      for (const it of pendientes) {
+        const arr = porAsignacion.get(it.asignacionId) ?? [];
+        arr.push({ itemId: it.id, cantidad: it.cantidad - it.cantidadDevuelta - it.cantidadConsumida });
+        porAsignacion.set(it.asignacionId, arr);
+      }
+      for (const [asigId, its] of porAsignacion) {
+        await asignacionesService.devolverItems(asigId, its);
+      }
+      await loadData(true);
+    } catch { alert('Error al devolver'); }
+    finally { setSaving(false); }
+  };
+
   // ── Consumir: mark as used (linked to OT) ──
   const handleConsumir = async (item: InventarioItem) => {
     // prompt() no existe en Electron. Cancelar ABORTA el consumo (antes, en
@@ -158,6 +184,8 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
         patronId: item.patronId, patronCodigo: item.patronCodigo,
         patronDescripcion: item.patronDescripcion, patronLote: item.patronLote,
         patronVencimiento: item.patronVencimiento,
+        columnaId: item.columnaId, columnaCodigo: item.columnaCodigo,
+        columnaDescripcion: item.columnaDescripcion, columnaSerie: item.columnaSerie,
         clienteId: item.clienteId, clienteNombre: item.clienteNombre,
         otNumber: null, proposito: null,
         estado: 'asignado', permanente: item.permanente,
@@ -225,6 +253,6 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
   return {
     ingeniero, ingenieros, clientes, unidades, unidadesRemito,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
+    handleDevolver, handleDevolverVarios, handleConsumir, handleReasignarCliente, handleTransferir,
   };
 }

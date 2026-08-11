@@ -17,15 +17,29 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
   const {
     ingeniero, ingenieros, clientes, unidades,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
+    handleDevolver, handleDevolverVarios, handleConsumir, handleReasignarCliente, handleTransferir,
   } = useInventarioIngeniero(ingenieroId ?? undefined);
 
-  const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
+  const [tab, setTabRaw] = useState<'temporales' | 'permanentes'>('temporales');
+  /** Selección múltiple para devolver en lote (2026-08-11). */
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const setTab = (t: 'temporales' | 'permanentes') => { setTabRaw(t); setSeleccion(new Set()); };
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
   const [actionValue, setActionValue] = useState('');
   const [showRemitoModal, setShowRemitoModal] = useState(false);
 
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
+  const devolvibles = visibleItems.filter(i => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida > 0);
+  const todosSeleccionados = devolvibles.length > 0 && devolvibles.every(i => seleccion.has(i.id));
+  const toggleSeleccion = (itemId: string) => setSeleccion(prev => {
+    const next = new Set(prev);
+    if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+    return next;
+  });
+  const devolverSeleccionados = async () => {
+    await handleDevolverVarios(devolvibles.filter(i => seleccion.has(i.id)));
+    setSeleccion(new Set());
+  };
 
   const clienteOpts = buildClienteOpts(clientes);
   const ingOpts = ingenieros.map(i => ({ value: i.id, label: i.nombre }));
@@ -76,10 +90,26 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
                   </button>
                 ))}
               </div>
-              <button onClick={() => setShowRemitoModal(true)} disabled={allItems.length === 0}
-                className="px-2.5 py-1 border border-teal-600 text-teal-700 rounded text-xs font-medium hover:bg-teal-50 disabled:opacity-40">
-                Crear Remito
-              </button>
+              <div className="flex items-center gap-2">
+                {devolvibles.length > 0 && (
+                  <>
+                    <label className="flex items-center gap-1 cursor-pointer text-[11px] text-slate-600">
+                      <input type="checkbox" checked={todosSeleccionados}
+                        onChange={() => setSeleccion(todosSeleccionados ? new Set() : new Set(devolvibles.map(i => i.id)))}
+                        className="w-3.5 h-3.5 accent-teal-600" />
+                      Todos
+                    </label>
+                    <button onClick={devolverSeleccionados} disabled={saving || seleccion.size === 0}
+                      className="px-2.5 py-1 bg-teal-600 text-white rounded text-xs font-medium hover:bg-teal-700 disabled:opacity-40">
+                      {saving ? 'Procesando...' : `Devolver (${seleccion.size})`}
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setShowRemitoModal(true)} disabled={allItems.length === 0}
+                  className="px-2.5 py-1 border border-teal-600 text-teal-700 rounded text-xs font-medium hover:bg-teal-50 disabled:opacity-40">
+                  Crear Remito
+                </button>
+              </div>
             </div>
 
             {/* Items */}
@@ -89,6 +119,7 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
                 {visibleItems.map(item => (
                   <ItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                    selected={seleccion.has(item.id)} onToggleSelect={() => toggleSeleccion(item.id)}
                     onDevolver={handleDevolver} onConsumir={handleConsumir}
                     onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                     onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}
@@ -140,8 +171,10 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
 
 // ── Item row ──
 
-const ItemRow = ({ item, saving, onDevolver, onConsumir, onReasignarCliente, onTransferir }: {
+const ItemRow = ({ item, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: {
   item: InventarioItem; saving: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
   onDevolver: (item: InventarioItem) => void;
   onConsumir: (item: InventarioItem) => void;
   onReasignarCliente: () => void;
@@ -152,8 +185,12 @@ const ItemRow = ({ item, saving, onDevolver, onConsumir, onReasignarCliente, onT
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
 
   return (
-    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${selected ? 'bg-teal-50 border border-teal-200' : 'bg-slate-50'}`}>
       <div className="flex items-center gap-2 min-w-0 flex-1">
+        {onToggleSelect && remaining > 0 && (
+          <input type="checkbox" checked={!!selected} onChange={onToggleSelect}
+            className="w-3.5 h-3.5 accent-teal-600 shrink-0" />
+        )}
         <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{codigo}</span>
         <span className="text-xs text-slate-700 truncate">{desc}</span>
         <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded shrink-0">{item.tipo}</span>

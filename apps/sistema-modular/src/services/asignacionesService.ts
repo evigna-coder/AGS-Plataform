@@ -159,13 +159,19 @@ export const asignacionesService = {
             reciénDevueltos
               .filter(({ item }) => item.patronId)
               .map(({ item }) => `${item.patronId}|${item.patronLote ?? ''}`));
+          // Columnas: se matchean por columna + SERIE, igual que patrón + lote.
+          const devueltasColumnas = new Set(
+            reciénDevueltos
+              .filter(({ item }) => item.columnaId)
+              .map(({ item }) => `${item.columnaId}|${item.columnaSerie ?? ''}`));
           const matchea = (ri: (typeof remito.items)[number]) =>
             (ri.unidadId && devueltasUnidades.has(ri.unidadId))
             || (ri.instrumentoId && devueltosOtros.has(ri.instrumentoId))
             || (ri.minikitId && devueltosOtros.has(ri.minikitId))
             || (ri.dispositivoId && devueltosOtros.has(ri.dispositivoId))
             || (ri.vehiculoId && devueltosOtros.has(ri.vehiculoId))
-            || (ri.patronId && devueltosPatrones.has(`${ri.patronId}|${ri.patronLote ?? ''}`));
+            || (ri.patronId && devueltosPatrones.has(`${ri.patronId}|${ri.patronLote ?? ''}`))
+            || (ri.columnaId && devueltasColumnas.has(`${ri.columnaId}|${ri.columnaSerie ?? ''}`));
           const itemsRemito = (remito.items ?? []).map(ri =>
             matchea(ri) && !ri.devuelto
               ? { ...ri, devuelto: true, fechaDevolucion: nowIso }

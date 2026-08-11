@@ -7,10 +7,11 @@ import {
 import { useDebounce } from './useDebounce';
 import { matchesSearch } from '../utils/searchTerms';
 import { patronesService } from '../services/patronesService';
+import { columnasService } from '../services/columnasService';
 import { proveedoresService } from '../services/personalService';
 import { EMPTY_PARTY } from '../components/remitos/RemitoTransportistaPicker';
 import type { DatosTransportista } from '../services/stockService';
-import type { UnidadStock, Minikit, Ingeniero, Cliente, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Proveedor } from '@ags/shared';
+import type { UnidadStock, Minikit, Ingeniero, Cliente, Asignacion, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Columna, Proveedor } from '@ags/shared';
 
 /**
  * Un LOTE de patrón presentado como item asignable (2026-08-07). El patrón es
@@ -24,9 +25,25 @@ export interface LotePatronDisponible {
   marca: string;
   lote: string;
   vencimiento: string | null;
+  /** Unidades RESTANTES asignables: cantidad del lote − en campo (asignaciones
+   *  activas) − ya en carrito (2026-08-11 — antes se iba el lote entero). */
   cantidad: number;
   /** true si el lote ya venció — se puede asignar igual, pero se avisa. */
   vencido: boolean;
+}
+
+/**
+ * Una SERIE física de columna cromatográfica presentada como item asignable
+ * (2026-08-11). Mismo modelo que el lote del patrón: la serie es lo que el IST
+ * se lleva; la disponibilidad se deriva de las asignaciones activas.
+ */
+export interface SerieColumnaDisponible {
+  columnaId: string;
+  codigo: string;
+  descripcion: string;
+  marca: string;
+  serie: string;
+  vencimiento: string | null;
 }
 
 export interface CartItem {
@@ -49,7 +66,11 @@ export interface CartItem {
   patronId?: string;
   patronLote?: string;
   patronVencimiento?: string | null;
+  columnaId?: string;
+  columnaSerie?: string;
   cantidad: number;
+  /** Tope editable de `cantidad` (patrones: restante del lote al arrastrarlo). */
+  cantidadMax?: number;
   permanente: boolean;
 }
 
@@ -70,6 +91,10 @@ export interface DragPayload {
   patronId?: string;
   patronLote?: string;
   patronVencimiento?: string | null;
+  columnaId?: string;
+  columnaSerie?: string;
+  /** Patrones: unidades restantes del lote al momento de arrastrar. */
+  cantidadDisponible?: number;
   permanente: boolean;
 }
 
@@ -84,10 +109,13 @@ export function useAsignacionRapida() {
   const [minikits, setMinikits] = useState<Minikit[]>([]);
   const [instrumentos, setInstrumentos] = useState<InstrumentoPatron[]>([]);
   const [patrones, setPatrones] = useState<Patron[]>([]);
+  const [columnas, setColumnas] = useState<Columna[]>([]);
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  /** Asignaciones activas — para descontar del disponible lo que ya está en campo. */
+  const [asignacionesActivas, setAsignacionesActivas] = useState<Asignacion[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -100,7 +128,7 @@ export function useAsignacionRapida() {
   const [transportistaId, setTransportistaId] = useState('');
   const [transportista, setTransportista] = useState<DatosTransportista>(EMPTY_PARTY);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'patrones' | 'dispositivos' | 'vehiculos'>('articulos');
+  const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'patrones' | 'columnas' | 'dispositivos' | 'vehiculos'>('articulos');
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
@@ -116,6 +144,8 @@ export function useAsignacionRapida() {
         clientesService.getAll(),
         patronesService.getAll({ activoOnly: true }),
         proveedoresService.getAll(true),
+        asignacionesService.getAll({ estado: 'activa' }),
+        columnasService.getAll({ activoOnly: true }),
       ]);
       const val = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === 'fulfilled' ? r.value : (console.error('Error cargando:', r.reason), fallback);
@@ -128,6 +158,8 @@ export function useAsignacionRapida() {
       setClientes(val(results[6], []));
       setPatrones(val(results[7], []));
       setProveedores(val(results[8], []));
+      setAsignacionesActivas(val(results[9], []));
+      setColumnas(val(results[10], []));
     } catch (err) { console.error('Error cargando datos:', err); }
     finally { setLoading(false); }
   }, []);
@@ -151,18 +183,43 @@ export function useAsignacionRapida() {
     !v.asignadoA && !cart.some(c => c.vehiculoId === v.id)
   );
   /**
+   * Lo que ya está EN CAMPO por lote de patrón (asignaciones activas, items
+   * 'asignado', neto de devuelto/consumido). Antes no se descontaba nada: el
+   * lote se asignaba entero como bloque y no quedaban unidades disponibles
+   * (2026-08-11).
+   */
+  const patronEnCampoPorLote = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of asignacionesActivas) {
+      for (const it of a.items ?? []) {
+        if (!it.patronId || it.estado !== 'asignado') continue;
+        const fuera = (it.cantidad ?? 1) - (it.cantidadDevuelta ?? 0) - (it.cantidadConsumida ?? 0);
+        if (fuera <= 0) continue;
+        const key = `${it.patronId}|${it.patronLote ?? ''}`;
+        map.set(key, (map.get(key) ?? 0) + fuera);
+      }
+    }
+    return map;
+  }, [asignacionesActivas]);
+
+  /**
    * Lotes de patrón disponibles (2026-08-07): un item por lote, no por patrón.
-   * Se listan los lotes con cantidad; los vencidos se muestran marcados en vez
-   * de ocultarse — el IST a veces necesita llevarlos igual y es peor que
-   * "desaparezcan" sin explicación.
+   * `cantidad` = restante asignable (lote − en campo − en carrito); el mismo
+   * lote puede repartirse entre varios IST (2026-08-11). Los vencidos se
+   * muestran marcados en vez de ocultarse — el IST a veces necesita llevarlos
+   * igual y es peor que "desaparezcan" sin explicación.
    */
   const availablePatrones = useMemo<LotePatronDisponible[]>(() => {
     const hoy = new Date().toISOString().slice(0, 10);
     const out: LotePatronDisponible[] = [];
     for (const p of patrones) {
       for (const l of p.lotes ?? []) {
-        if ((l.cantidad ?? 0) <= 0) continue;
-        if (cart.some(c => c.patronId === p.id && c.patronLote === l.lote)) continue;
+        const enCampo = patronEnCampoPorLote.get(`${p.id}|${l.lote}`) ?? 0;
+        const enCarrito = cart
+          .filter(c => c.patronId === p.id && c.patronLote === l.lote)
+          .reduce((s, c) => s + (c.cantidad || 1), 0);
+        const restante = (l.cantidad ?? 0) - enCampo - enCarrito;
+        if (restante <= 0) continue;
         out.push({
           patronId: p.id,
           codigo: p.codigoArticulo,
@@ -170,13 +227,44 @@ export function useAsignacionRapida() {
           marca: p.marca,
           lote: l.lote,
           vencimiento: l.fechaVencimiento ?? null,
-          cantidad: l.cantidad ?? 0,
+          cantidad: restante,
           vencido: !!l.fechaVencimiento && l.fechaVencimiento.slice(0, 10) < hoy,
         });
       }
     }
     return out;
-  }, [patrones, cart]);
+  }, [patrones, cart, patronEnCampoPorLote]);
+
+  /**
+   * Series de columna disponibles (2026-08-11): una serie física por item —
+   * mismo modelo que el lote del patrón. Disponible = no está en una
+   * asignación activa ni ya en el carrito.
+   */
+  const availableColumnas = useMemo<SerieColumnaDisponible[]>(() => {
+    const enCampo = new Set<string>();
+    for (const a of asignacionesActivas) {
+      for (const it of a.items ?? []) {
+        if (it.columnaId && it.estado === 'asignado') enCampo.add(`${it.columnaId}|${it.columnaSerie ?? ''}`);
+      }
+    }
+    const out: SerieColumnaDisponible[] = [];
+    for (const c of columnas) {
+      for (const s of c.series ?? []) {
+        const key = `${c.id}|${s.serie}`;
+        if (enCampo.has(key)) continue;
+        if (cart.some(x => x.columnaId === c.id && x.columnaSerie === s.serie)) continue;
+        out.push({
+          columnaId: c.id,
+          codigo: c.codigoArticulo,
+          descripcion: c.descripcion,
+          marca: c.marca,
+          serie: s.serie,
+          vencimiento: s.fechaVencimiento ?? null,
+        });
+      }
+    }
+    return out;
+  }, [columnas, asignacionesActivas, cart]);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
   const q = debouncedQuery.toLowerCase();
@@ -198,6 +286,9 @@ export function useAsignacionRapida() {
   const filteredPatrones = q ? availablePatrones.filter(p =>
     matchesSearch(debouncedQuery, p.codigo, p.descripcion, p.marca, p.lote)
   ) : availablePatrones;
+  const filteredColumnas = q ? availableColumnas.filter(c =>
+    matchesSearch(debouncedQuery, c.codigo, c.descripcion, c.marca, c.serie)
+  ) : availableColumnas;
 
   // --- Cart grouped by engineer (with per-engineer client) ---
   const cartByIngeniero = useMemo(() => {
@@ -226,7 +317,10 @@ export function useAsignacionRapida() {
       id: crypto.randomUUID(),
       ingenieroId,
       ingenieroNombre,
-      cantidad: unidad?.cantidad ?? 1,
+      // Patrones: arranca en 1 y el usuario elige cuántas unidades del lote se
+      // lleva (tope = restante al arrastrar). Antes iba el lote como bloque.
+      cantidad: payload.patronId ? 1 : (unidad?.cantidad ?? 1),
+      cantidadMax: payload.patronId ? payload.cantidadDisponible : undefined,
     }]);
   };
 
@@ -235,9 +329,10 @@ export function useAsignacionRapida() {
   const updateCartItem = (cartId: string, updates: Partial<CartItem>) =>
     setCart(prev => prev.map(c => c.id === cartId ? { ...c, ...updates } : c));
 
-  // --- Confirm: one Asignacion per engineer ---
-  const handleConfirm = async () => {
-    if (cart.length === 0) return;
+  // --- Confirm: one Asignacion per engineer. Devuelve true si terminó OK
+  // (el modal de confirmación se cierra solo en ese caso). ---
+  const handleConfirm = async (): Promise<boolean> => {
+    if (cart.length === 0) return false;
     setSaving(true);
     try {
       for (const [ingId, group] of Object.entries(cartByIngeniero)) {
@@ -252,7 +347,11 @@ export function useAsignacionRapida() {
         // unidad (el flujo asigna el doc completo; un lote de N son N unidades).
         // Se re-deriva acá por si el doc cambió después de armar el carrito.
         const cantidadReal = (c: CartItem): number => {
-          if (!c.unidadId) return c.cantidad || 1;
+          if (!c.unidadId) {
+            // Patrones: la cantidad elegida en el carrito, capada al tope.
+            const cant = c.cantidad || 1;
+            return c.cantidadMax ? Math.min(cant, c.cantidadMax) : cant;
+          }
           const u = unidades.find(x => x.id === c.unidadId);
           return u?.cantidad ?? c.cantidad ?? 1;
         };
@@ -290,6 +389,12 @@ export function useAsignacionRapida() {
           patronDescripcion: c.tipo === 'patron' ? c.label : null,
           patronLote: c.patronLote ?? null,
           patronVencimiento: c.patronVencimiento ?? null,
+          // Columna: viaja la SERIE física (2026-08-11), mismo criterio que el
+          // lote del patrón.
+          columnaId: c.columnaId ?? null,
+          columnaCodigo: c.tipo === 'columna' ? c.codigo : null,
+          columnaDescripcion: c.tipo === 'columna' ? c.label : null,
+          columnaSerie: c.columnaSerie ?? null,
           clienteId,
           clienteNombre,
           otNumber: null, proposito: null,
@@ -304,11 +409,18 @@ export function useAsignacionRapida() {
           id: crypto.randomUUID(),
           unidadId: i.unidadId ?? '',
           articuloId: i.articuloId ?? '',
-          articuloCodigo: i.articuloCodigo ?? i.minikitCodigo ?? i.vehiculoPatente ?? i.patronCodigo ?? '',
+          articuloCodigo: i.articuloCodigo ?? i.minikitCodigo ?? i.vehiculoPatente ?? i.patronCodigo ?? i.columnaCodigo ?? '',
           articuloDescripcion: [
-            i.articuloDescripcion ?? i.instrumentoNombre ?? i.dispositivoDescripcion ?? i.patronDescripcion ?? i.minikitCodigo ?? i.tipo,
+            i.articuloDescripcion ?? i.instrumentoNombre ?? i.dispositivoDescripcion ?? i.patronDescripcion ?? i.columnaDescripcion ?? i.minikitCodigo ?? i.tipo,
             i.patronLote ? `Lote ${i.patronLote}` : null,
           ].filter(Boolean).join(' · '),
+          // N° de serie de la unidad física (2026-08-11): el papel lo imprime
+          // desde `serie` y el remito de asignación no lo estampaba nunca.
+          serie: i.unidadId
+            ? (unidades.find(u => u.id === i.unidadId)?.nroSerie ?? null)
+            : i.dispositivoSerie
+              ?? i.columnaSerie
+              ?? (i.instrumentoId ? (instrumentos.find(x => x.id === i.instrumentoId)?.serie ?? null) : null),
           cantidad: i.cantidad,
           tipoItem: 'sale_y_vuelve' as const,
           devuelto: false,
@@ -321,11 +433,17 @@ export function useAsignacionRapida() {
           // quedaba "en campo" para siempre (2026-08-08).
           patronId: i.patronId ?? null,
           patronLote: i.patronLote ?? null,
+          // Ídem columnas: la serie identifica la línea al devolver (2026-08-11).
+          columnaId: i.columnaId ?? null,
+          columnaSerie: i.columnaSerie ?? null,
         }));
         const remitoId = itemsRemito.length === 0 ? null : await remitosService.create({
           tipo: 'salida_campo', ingenieroId: ing.id, ingenieroNombre: ing.nombre,
           transportistaId: transportistaId || null,
           transportistaNombre: transportista.razonSocial.trim() || null,
+          // Snapshot completo: la impresión lo usa directo — sin esto un flete
+          // cargado a mano salía con la razón social sola (2026-08-11).
+          transportista: transportista.razonSocial.trim() ? transportista : null,
           clienteId, clienteNombre,
           estado: 'en_transito',
           items: itemsRemito,
@@ -385,10 +503,14 @@ export function useAsignacionRapida() {
       setCart([]);
       setClienteByIng({});
       setObservaciones('');
+      setTransportistaId('');
+      setTransportista(EMPTY_PARTY);
       await loadData();
+      return true;
     } catch (err) {
       console.error('Error al confirmar asignación:', err);
       alert('Error al confirmar asignación');
+      return false;
     } finally { setSaving(false); }
   };
 
@@ -400,7 +522,7 @@ export function useAsignacionRapida() {
       setTransportistaId(next.id); setTransportista(next.datos);
     },
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
-    filteredPatrones,
+    filteredPatrones, filteredColumnas,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
     removeFromCart, updateCartItem, handleConfirm, loadData,
   };
