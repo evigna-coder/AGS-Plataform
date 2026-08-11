@@ -89,7 +89,16 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
       return;
     }
     const el = editorRef.current;
-    if (el && el.innerHTML !== value) {
+    if (!el) return;
+    // NUNCA pisar el DOM mientras el usuario está escribiendo ADENTRO
+    // (2026-08-11). Un snapshot remoto —el eco del propio Guardar, el recompute
+    // del esquema, u otra sesión con el mismo presupuesto abierto— llegaba en la
+    // ventana en que el guard de ediciones locales está bajado y reescribía
+    // innerHTML: el caret se perdía y el tipeo moría ("deja copiar pero no
+    // escribir", caso notas técnicas en producción). El valor externo se aplica
+    // recién cuando el editor pierde el foco.
+    if (el === document.activeElement || el.contains(document.activeElement)) return;
+    if (el.innerHTML !== value) {
       el.innerHTML = value;
     }
   }, [value]);
