@@ -1,5 +1,16 @@
 import type { PresupuestoItem } from '@ags/shared';
 
+/**
+ * Fecha de vencimiento de la oferta: emisión + validezDias, en dd/mm/aaaa
+ * (2026-08-11). Antes el PDF decía "válida por 15 días desde la emisión" y el
+ * cliente tenía que hacer la cuenta — ahora dice "válida hasta el <fecha>".
+ */
+export function validezHastaFecha(createdAt: string, validezDias?: number | null): string {
+  const d = new Date(createdAt);
+  d.setDate(d.getDate() + (validezDias || 15));
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 export interface GrupoSistemaPDF {
   grupo: number;
   sistemaNombre: string;

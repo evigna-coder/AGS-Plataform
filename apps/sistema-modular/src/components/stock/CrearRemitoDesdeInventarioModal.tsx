@@ -8,8 +8,11 @@ import { inventarioToRemitoItem, getTipoEntidadLabel } from '../../utils/inventa
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { NUMERO_PREIMPRESO_REGEX } from '../../hooks/useRemitoForm';
 import { RemitoDestinatarioPicker, type DestinatarioSeleccion } from '../remitos/RemitoDestinatarioPicker';
+import { RemitoTransportistaPicker, EMPTY_PARTY } from '../remitos/RemitoTransportistaPicker';
+import { proveedoresService } from '../../services/personalService';
+import type { DatosTransportista } from '../../services/stockService';
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
-import type { TipoRemito, TipoRemitoItem, TipoItemAsignacion } from '@ags/shared';
+import type { Proveedor, TipoRemito, TipoRemitoItem, TipoItemAsignacion } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -44,6 +47,12 @@ export const CrearRemitoDesdeInventarioModal = ({
   // Destinatario + impresión (2026-08-06): el caso principal es la ingeniera
   // entrando materiales de AGS a un cliente que pide el detalle en papel.
   const [destinatario, setDestinatario] = useState<DestinatarioSeleccion | null>(null);
+  // Transportista (2026-08-11): este remito ES el que sale impreso en el papel
+  // del talonario, y no tenía forma de cargar quién transporta — el recuadro
+  // salía vacío siempre. Mismo picker + snapshot que asignaciones/derivación.
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [transportistaId, setTransportistaId] = useState('');
+  const [transportista, setTransportista] = useState<DatosTransportista>(EMPTY_PARTY);
   const [imprimir, setImprimir] = useState(true);
   /** Número del papel preimpreso. Si se imprime, el remito TIENE que salir con
    *  el número del talonario — no con el correlativo interno REM- (2026-08-10):
@@ -54,6 +63,7 @@ export const CrearRemitoDesdeInventarioModal = ({
     remitosService.getProximoNumeroPreimpreso()
       .then((n: string) => setNumero(prev => prev || n))
       .catch(() => { /* el usuario lo carga a mano */ });
+    proveedoresService.getAll(true).then(setProveedores).catch(() => setProveedores([]));
   }, [open]);
   // Guarda anti doble-click: ref, no state (el disabled llega tarde al 2do click).
   const creandoRef = useRef(false);
@@ -107,6 +117,8 @@ export const CrearRemitoDesdeInventarioModal = ({
     setTipoRemitoItem('sale_y_vuelve');
     setObservaciones('');
     setDestinatario(null);
+    setTransportistaId('');
+    setTransportista(EMPTY_PARTY);
     setImprimir(true);
   };
 
@@ -136,6 +148,9 @@ export const CrearRemitoDesdeInventarioModal = ({
         clienteNombre: destinatario?.clienteNombre ?? null,
         establecimientoId: destinatario?.establecimientoId ?? null,
         establecimientoNombre: destinatario?.establecimientoNombre ?? null,
+        transportistaId: transportistaId || null,
+        transportistaNombre: transportista.razonSocial.trim() || null,
+        transportista: transportista.razonSocial.trim() ? transportista : null,
         items: remitoItems,
         observaciones: observaciones.trim() || null,
         fechaSalida: new Date().toISOString().slice(0, 10),
@@ -245,6 +260,13 @@ export const CrearRemitoDesdeInventarioModal = ({
         </div>
 
         <RemitoDestinatarioPicker value={destinatario} onChange={setDestinatario} requerido={imprimir} />
+
+        <RemitoTransportistaPicker
+          proveedores={proveedores}
+          selectedId={transportistaId}
+          value={transportista}
+          onChange={({ id, datos }) => { setTransportistaId(id); setTransportista(datos); }}
+        />
 
         <div>
           <label className={lbl}>Observaciones</label>

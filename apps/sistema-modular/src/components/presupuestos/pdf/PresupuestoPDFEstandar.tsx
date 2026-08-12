@@ -1,7 +1,7 @@
 import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
 import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
-import { agruparPorSistemaSimple } from './pdfUtils';
+import { agruparPorSistemaSimple, validezHastaFecha } from './pdfUtils';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
 import { PDFRichText } from './PDFRichText';
 import { presupuestoTieneValidez } from '@ags/shared';
@@ -251,7 +251,10 @@ export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
             </View>
           ))}
         </View>
-        <Image src={data.isoLogoSrc} style={{ width: 64, height: 'auto', marginTop: 8 }} />
+        {/* 64→76 (2026-08-11): el identificador tiene que poder leerse. A 90 se
+            pixela — el PNG embebido es de 283x143; con un asset de mayor
+            resolución en logos.ts se puede volver a agrandar. */}
+        <Image src={data.isoLogoSrc} style={{ width: 76, height: 'auto', marginTop: 8 }} />
       </View>
     </View>
   );
@@ -340,35 +343,53 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
 
   return (
     <View>
-      {/* Totales — bloque derecho estilo Odoo */}
+      {/* Totales — el protagonista es el precio SIN IVA (formato "D + B" elegido
+          por dirección sobre docs/design/presupuesto-totales-alternativas.pen,
+          2026-08-11): caja con tinte azul y borde primario para el neto, y
+          debajo el desglose IVA + total final como tabla fina gris — visible
+          pero subordinado. */}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
         <View style={{ width: 280 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 }}>
-            <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>Subtotal</Text>
-            <Text style={{ fontSize: 8.5, color: COLORS.text }}>
-              {fmt(data.netoPorMoneda[moneda] ?? subtotal)}
-            </Text>
-          </View>
-          {([
-            impuestos.iva105 > 0 ? ['I.V.A 10,5%', impuestos.iva105] as const : null,
-            impuestos.iva21 > 0 ? ['I.V.A 21%', impuestos.iva21] as const : null,
-            impuestos.ganancias > 0 ? ['Ganancias', impuestos.ganancias] as const : null,
-            impuestos.iibb > 0 ? ['IIBB', impuestos.iibb] as const : null,
-          ].filter(Boolean) as readonly (readonly [string, number])[]).map(([label, value]) => (
-            <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 }}>
-              <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>{label}</Text>
-              <Text style={{ fontSize: 8.5, color: COLORS.text }}>{fmt(value)}</Text>
-            </View>
-          ))}
-          {(Object.keys(data.totalesPorMoneda).length > 0
-            ? Object.entries(data.totalesPorMoneda)
-            : [[moneda, total] as [string, number]]
-          ).map(([m, t]) => (
-            <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 6, paddingVertical: 7, paddingHorizontal: 12, marginTop: 5 }}>
-              <Text style={{ fontSize: 9.5, fontWeight: 'bold', color: COLORS.white }}>TOTAL {m}</Text>
-              <Text style={{ fontSize: 13, fontWeight: 'bold', color: COLORS.white }}>{fmt(t)}</Text>
-            </View>
-          ))}
+          {(() => {
+            const netos: [string, number][] = Object.keys(data.netoPorMoneda).length > 0
+              ? Object.entries(data.netoPorMoneda)
+              : [[moneda, subtotal]];
+            const esUnaMoneda = netos.length === 1;
+            const filaChica = (label: string, value: string, strong = false) => (
+              <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 1.5 }}>
+                <Text style={{ fontSize: 8, color: COLORS.textMuted, fontWeight: strong ? 600 : 400, flexGrow: 1 }}>{label}</Text>
+                <Text style={{ fontSize: 8, color: COLORS.textMuted, fontWeight: strong ? 600 : 400 }}>{value}</Text>
+              </View>
+            );
+            return netos.map(([m, neto]) => {
+              const imp = esUnaMoneda
+                ? impuestos.iva105 + impuestos.iva21 + impuestos.ganancias + impuestos.iibb
+                : (impuestos.porMoneda[m] ?? 0);
+              const totalFinal = data.totalesPorMoneda[m] ?? (esUnaMoneda ? total : neto + imp);
+              const filas: [string, number][] = esUnaMoneda
+                ? ([
+                    ['I.V.A 10,5%', impuestos.iva105],
+                    ['I.V.A 21%', impuestos.iva21],
+                    ['Ganancias', impuestos.ganancias],
+                    ['IIBB', impuestos.iibb],
+                  ] as [string, number][]).filter(([, v]) => v > 0)
+                : imp > 0 ? [['Impuestos', imp]] : [];
+              return (
+                <View key={m} style={{ marginTop: 5 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primaryTint, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12 }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primaryDark }}>TOTAL {m} (sin IVA)</Text>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: COLORS.primaryDark }}>{fmt(neto)}</Text>
+                  </View>
+                  {imp > 0 && (
+                    <View style={{ marginTop: 3, paddingHorizontal: 12 }}>
+                      {filas.map(([label, v]) => filaChica(label, fmt(v)))}
+                      {filaChica(`Total ${m} con IVA`, fmt(totalFinal), true)}
+                    </View>
+                  )}
+                </View>
+              );
+            });
+          })()}
         </View>
       </View>
 
@@ -379,13 +400,19 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
       <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }}>
         {/* La validez desaparece una vez aceptado (2026-08-09): ya no es una
             oferta abierta, y en `pendiente_oc` el trabajo incluso ya se hizo. */}
+        {/* La referencia a la pagina 2 va en linea propia (2026-08-11): metida en
+            la misma linea, el wrap dejaba el "2" colgado solo. */}
         <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
           {presupuestoTieneValidez(presupuesto.estado)
-            ? `Oferta válida por ${presupuesto.validezDias || 15} días desde la fecha de emisión`
+            ? `Propuesta válida hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
             : 'Presupuesto aceptado'}
           {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
-          {presupuesto.condicionesComerciales ? `   ·   Ver condiciones comerciales en página 2` : ''}
         </Text>
+        {presupuesto.condicionesComerciales ? (
+          <Text style={{ fontSize: 8, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
+            Ver condiciones comerciales en página 2
+          </Text>
+        ) : null}
         <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
           No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de métodos
           analíticos, repuestos o consumibles no especificados, etc.

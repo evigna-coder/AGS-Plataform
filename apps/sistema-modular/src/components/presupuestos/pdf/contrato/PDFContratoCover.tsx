@@ -2,6 +2,7 @@ import { View, Text, Image } from '@react-pdf/renderer';
 import { cs, T } from './pdfContratoStyles';
 import { fmtDate, fmtDateISO, fmtNum, planCuotas, totalsByCurrency } from './pdfContratoHelpers';
 import { presupuestoTieneValidez } from '@ags/shared';
+import { validezHastaFecha } from '../pdfUtils';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
 export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
@@ -38,9 +39,9 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
           {/* La validez desaparece una vez aceptado (2026-08-09). */}
           {presupuestoTieneValidez(presupuesto.estado) && (
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={cs.vigenciaLabel}>Oferta válida por</Text>
+              <Text style={cs.vigenciaLabel}>Oferta válida hasta</Text>
               <Text style={{ fontSize: 11, color: T.text, fontWeight: 'bold', marginTop: 2 }}>
-                {presupuesto.validezDias || 15} días
+                {validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}
               </Text>
             </View>
           )}

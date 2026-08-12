@@ -12,6 +12,7 @@ import {
 } from './PresupuestoPDFEstandar';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
+import { validezHastaFecha } from './pdfUtils';
 import { PDFEquiposItemsTable } from './equipos/PDFEquiposItemsTable';
 import { PDFEquiposConfigDetalles, collectBloquesDetalle } from './equipos/PDFEquiposConfigDetalles';
 
@@ -24,7 +25,7 @@ function ValidezCard({ data }: { data: PresupuestoPDFData }) {
     <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }} wrap={false}>
       <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
         {presupuestoTieneValidez(presupuesto.estado)
-          ? `Oferta válida por ${presupuesto.validezDias || 15} días desde la fecha de emisión`
+          ? `Propuesta válida hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
           : 'Presupuesto aceptado'}
         {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
       </Text>
