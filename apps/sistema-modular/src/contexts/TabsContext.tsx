@@ -52,6 +52,9 @@ function generateTabId(): string {
   return `tab_${crypto.randomUUID()}`;
 }
 
+/** Destino de la pestaña nueva (el "+" de la TabBar y Ctrl+T). */
+export const NUEVA_PESTANA_PATH = '/nueva-pestana';
+
 /** Get the module prefix from a path: /clientes/123 → /clientes */
 export function modulePrefix(path: string): string {
   const clean = path.split('?')[0]; // strip search params
@@ -80,6 +83,7 @@ const NAV_META: Record<string, { label: string; icon: string }> = {
   '/agenda': { label: 'Agenda', icon: '📅' },
   '/facturacion': { label: 'Facturacion', icon: '💰' },
   '/admin': { label: 'Importar Datos', icon: '📥' },
+  '/nueva-pestana': { label: 'Nueva pestaña', icon: '➕' },
 };
 
 /** Get label and icon for a path from the nav metadata */

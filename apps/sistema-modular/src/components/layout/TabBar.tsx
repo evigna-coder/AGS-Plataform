@@ -1,7 +1,7 @@
-import { useTabs } from '../../contexts/TabsContext';
+import { useTabs, NUEVA_PESTANA_PATH } from '../../contexts/TabsContext';
 
 export const TabBar: React.FC = () => {
-  const { tabs, activeTabId, switchTab, closeTab } = useTabs();
+  const { tabs, activeTabId, switchTab, closeTab, openTab } = useTabs();
 
   return (
     <div className="shrink-0 bg-white border-b border-slate-200 flex items-center gap-0 px-2 overflow-x-auto z-20">
@@ -40,6 +40,17 @@ export const TabBar: React.FC = () => {
           </div>
         );
       })}
+      {/* Pestaña nueva (2026-08-12), como en un navegador: abre una tab vacía
+          con los módulos accesibles. Atajo Ctrl+T. */}
+      <button
+        onClick={() => openTab(NUEVA_PESTANA_PATH)}
+        title="Nueva pestaña (Ctrl+T)"
+        className="shrink-0 ml-1 px-2 py-1 rounded text-slate-400 hover:text-teal-700 hover:bg-slate-100 transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
     </div>
   );
 };

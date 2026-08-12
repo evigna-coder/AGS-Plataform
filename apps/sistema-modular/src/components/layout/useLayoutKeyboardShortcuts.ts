@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useTabs } from '../../contexts/TabsContext';
+import { useTabs, NUEVA_PESTANA_PATH } from '../../contexts/TabsContext';
 import { MODULE_ROOTS } from './navigation';
 
 /**
@@ -12,14 +12,22 @@ import { MODULE_ROOTS } from './navigation';
  *   filters.
  * - Ctrl+Tab / Ctrl+Shift+Tab: cycle through tabs
  * - Ctrl+1-9: jump to tab by position
+ * - Ctrl+T: nueva pestaña (como en el navegador)
  */
 export function useLayoutKeyboardShortcuts() {
-  const { tabs, activeTabId, activeTabPath, switchTab, goBackInActiveTab } = useTabs();
+  const { tabs, activeTabId, activeTabPath, switchTab, goBackInActiveTab, openTab } = useTabs();
 
   const pathname = activeTabPath.split('?')[0];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ── Ctrl+T → nueva pestaña ──
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        openTab(NUEVA_PESTANA_PATH);
+        return;
+      }
+
       // ── Ctrl+1-9 → jump to tab by position ──
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key) - 1;
@@ -59,5 +67,5 @@ export function useLayoutKeyboardShortcuts() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pathname, tabs, activeTabId, switchTab, goBackInActiveTab]);
+  }, [pathname, tabs, activeTabId, switchTab, goBackInActiveTab, openTab]);
 }

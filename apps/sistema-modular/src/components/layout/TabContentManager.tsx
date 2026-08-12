@@ -36,6 +36,7 @@ import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
 import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
 import { QFDocumentosList } from '../../pages/qf-documentos';
+import { NuevaPestanaPage } from '../../pages/nueva-pestana';
 import { DashboardPage } from '../../pages/dashboard';
 import { EntregasList } from '../../pages/entregas';
 
@@ -82,6 +83,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to={landing} replace />} />
+      {/* Pestaña nueva (el "+" de la barra de pestañas) — sin gate: lo que lista
+          adentro ya viene filtrado por permisos. */}
+      <Route path="/nueva-pestana" element={<NuevaPestanaPage />} />
       {/* Dashboard */}
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'admin_ing_soporte']}><DashboardPage /></ProtectedRoute>} />
       {/* Clientes */}

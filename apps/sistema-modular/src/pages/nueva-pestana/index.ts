@@ -1,0 +1,1 @@
+export { NuevaPestanaPage } from './NuevaPestanaPage';
