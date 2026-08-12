@@ -248,7 +248,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
                   <div className="h-14 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                     {signatureEngineer && <img src={signatureEngineer} className="max-h-full max-w-full object-contain" alt="Firma Técnico" />}
                   </div>
-                  <p className="font-black text-[11px] mt-1 uppercase text-center leading-none">{aclaracionEspecialista || "Especialista AGS"}</p>
+                  <p className="font-black text-[11px] mt-1 uppercase text-center leading-none">{aclaracionEspecialista || "AGS Analítica"}</p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Firma del Ing. de soporte técnico</p>
                 </div>
               </div>

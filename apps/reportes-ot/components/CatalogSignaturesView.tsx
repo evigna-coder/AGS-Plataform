@@ -142,7 +142,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
                 )}
               </div>
               <p className="font-bold text-[11px] mt-1 text-center leading-none">
-                {aclaracionEspecialista || 'Especialista AGS'}
+                {aclaracionEspecialista || 'AGS Analítica'}
               </p>
               <p className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">
                 Firma del Ing. de soporte técnico

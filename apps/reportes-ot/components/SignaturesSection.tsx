@@ -106,7 +106,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
         <div data-required-field="engineerSignature">
           <SignaturePad
             ref={engineerPadRef}
-            label="Firma del Especialista AGS"
+            label="Firma de AGS Analítica"
             initialValue={signatureEngineer}
             onClear={() => {
               if (readOnly) return;

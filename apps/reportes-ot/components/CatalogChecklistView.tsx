@@ -439,7 +439,7 @@ function ChecklistItemRow({
             <div className="flex items-start gap-10">
               {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, true)}</React.Fragment>)}
               {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', true)}
-              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', true)}
+              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'AGS Analítica', 'Firma del ing. de soporte técnico', true)}
             </div>
           </div>
         );
@@ -450,7 +450,7 @@ function ChecklistItemRow({
           <div className="flex items-start gap-10">
             {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, false)}</React.Fragment>)}
             {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', false)}
-            {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', false)}
+            {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'AGS Analítica', 'Firma del ing. de soporte técnico', false)}
           </div>
         </div>
       );
@@ -490,7 +490,7 @@ function ChecklistItemRow({
               <div className="flex items-start gap-10">
                 {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, true)}</React.Fragment>)}
                 {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', true)}
-                {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', true)}
+                {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'AGS Analítica', 'Firma del ing. de soporte técnico', true)}
               </div>
             </div>
           )}
@@ -531,7 +531,7 @@ function ChecklistItemRow({
             <div className="flex items-start gap-10">
               {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, false)}</React.Fragment>)}
               {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', false)}
-              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', false)}
+              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'AGS Analítica', 'Firma del ing. de soporte técnico', false)}
             </div>
           </div>
         )}

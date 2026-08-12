@@ -4,6 +4,7 @@ import { CatalogTextView } from './CatalogTextView';
 import { CatalogChecklistView } from './CatalogChecklistView';
 import { CatalogSignaturesView } from './CatalogSignaturesView';
 import { CatalogCoverView } from './CatalogCoverView';
+import { TUV_LOGO_SRC } from './logoTuv';
 
 /* ── Constantes A4 ── */
 const A4_WIDTH_MM = 210;
@@ -158,13 +159,19 @@ const PageHeader: React.FC<{ meta: ProtocolMeta; protocolTitle?: string }> = ({ 
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━ PAGE FOOTER ━━━━━━━━━━━━━━━━━━━━ */
-const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number }> = ({ meta, pageNum, totalPages }) => {
+const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number; isLastPage?: boolean }> = ({ pageNum, totalPages, isLastPage = false }) => {
   return (
     <div style={{ height: `${FOOTER_HEIGHT_MM}mm`, flexShrink: 0 }}>
       <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ paddingTop: '1mm' }}>
         <div className="flex items-center justify-between" style={{ marginBottom: '1.5mm' }}>
           <div className="flex items-center">
-            <img src={meta.isoLogoSrc} alt="Certificación ISO 9001" className="h-[10mm] w-auto" style={{ maxHeight: '10mm' }} />
+            {/* Sello TÜV Rheinland ISO 9001 (alta resolución) — solo en la última hoja del protocolo.
+                Placeholder de 10mm en las demás páginas para que el footer no cambie de geometría. */}
+            {isLastPage ? (
+              <img src={TUV_LOGO_SRC} alt="Certificación ISO 9001 — TÜV Rheinland" className="h-[10mm] w-auto" style={{ maxHeight: '10mm' }} />
+            ) : (
+              <div style={{ height: '10mm' }} />
+            )}
           </div>
           <div className="flex items-center whitespace-nowrap">
             Página {pageNum} de {totalPages}
@@ -732,7 +739,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
               })}
             </div>
 
-            <PageFooter meta={meta} pageNum={contentPageIdx} totalPages={totalContentPages} />
+            <PageFooter meta={meta} pageNum={contentPageIdx} totalPages={totalContentPages} isLastPage={contentPageIdx === totalContentPages} />
           </div>
         );
       })}
