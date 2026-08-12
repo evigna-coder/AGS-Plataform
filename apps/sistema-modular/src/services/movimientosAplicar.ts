@@ -292,6 +292,45 @@ export const movimientosAplicarService = {
   },
 
   /**
+   * Fracciona un lote disponible SIN moverlo (2026-08-11): decrementa el doc
+   * original y crea un clon con `cantidad` en la MISMA ubicación/estado.
+   * Split puro, suma cero — no genera MovimientoStock. Lo usa la asignación
+   * rápida para llevarse una parte del lote ("el stock debe permitir
+   * cantidades"): el clon es lo que se asigna, el original queda disponible.
+   * Devuelve el id del doc nuevo (o el original si la cantidad pedida cubre
+   * todo el lote — en ese caso no hay split).
+   */
+  async fraccionarUnidad(params: { unidad: UnidadStock; cantidad: number }): Promise<string> {
+    const now = Timestamp.now();
+    const unidadRef = docRef('unidades', params.unidad.id);
+    const splitRef = docRef('unidades', crypto.randomUUID());
+
+    const idFinal = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(unidadRef);
+      if (!snap.exists()) throw new Error(`Unidad ${params.unidad.id} no encontrada`);
+      const data = snap.data();
+      if (data.estado !== 'disponible' || data.activo === false) {
+        throw new Error(`Unidad no fraccionable — estado '${data.estado}' (esperaba 'disponible')`);
+      }
+      const qtyActual = data.cantidad ?? 1;
+      const pedida = Math.min(params.cantidad, qtyActual);
+      if (pedida >= qtyActual) return params.unidad.id;
+      const { id: _id, ...rest } = data as Record<string, unknown>;
+      tx.update(unidadRef, deepCleanForFirestore({
+        cantidad: qtyActual - pedida, ...getUpdateTrace(), updatedAt: now,
+      }));
+      tx.set(splitRef, deepCleanForFirestore({
+        ...rest, cantidad: pedida,
+        ...getCreateTrace(), createdAt: now, updatedAt: now,
+      }));
+      return splitRef.id;
+    });
+
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidad.id });
+    return idFinal;
+  },
+
+  /**
    * Ajuste manual de la cantidad de UNA unidad (motivo obligatorio). Mismo
    * comportamiento que `AjusteStockModal` pero atómico (unidad + movimiento en tx):
    * - nueva cantidad > 0 → update de `cantidad`.

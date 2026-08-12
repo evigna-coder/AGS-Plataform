@@ -8,6 +8,7 @@ import { useDebounce } from './useDebounce';
 import { matchesSearch } from '../utils/searchTerms';
 import { patronesService } from '../services/patronesService';
 import { columnasService } from '../services/columnasService';
+import { movimientosAplicarService } from '../services/movimientosAplicar';
 import { proveedoresService } from '../services/personalService';
 import { EMPTY_PARTY } from '../components/remitos/RemitoTransportistaPicker';
 import type { DatosTransportista } from '../services/stockService';
@@ -319,8 +320,13 @@ export function useAsignacionRapida() {
       ingenieroNombre,
       // Patrones: arranca en 1 y el usuario elige cuántas unidades del lote se
       // lleva (tope = restante al arrastrar). Antes iba el lote como bloque.
+      // Stock: arranca con el lote COMPLETO (comportamiento histórico) pero es
+      // editable — al confirmar, una cantidad menor fracciona el doc
+      // (2026-08-11: "el stock debe permitir cantidades").
       cantidad: payload.patronId ? 1 : (unidad?.cantidad ?? 1),
-      cantidadMax: payload.patronId ? payload.cantidadDisponible : undefined,
+      cantidadMax: payload.patronId
+        ? payload.cantidadDisponible
+        : (unidad && (unidad.cantidad ?? 1) > 1 ? unidad.cantidad : undefined),
     }]);
   };
 
@@ -352,8 +358,11 @@ export function useAsignacionRapida() {
             const cant = c.cantidad || 1;
             return c.cantidadMax ? Math.min(cant, c.cantidadMax) : cant;
           }
+          // Stock: la cantidad elegida, capada al doc (2026-08-11). Antes iba
+          // siempre el doc completo.
           const u = unidades.find(x => x.id === c.unidadId);
-          return u?.cantidad ?? c.cantidad ?? 1;
+          const total = u?.cantidad ?? c.cantidad ?? 1;
+          return Math.max(1, Math.min(c.cantidad || total, total));
         };
 
         // La devolución restaura la posición ORIGINAL de la unidad — se captura
@@ -364,10 +373,32 @@ export function useAsignacionRapida() {
           return u?.ubicacion ? { ...u.ubicacion } : null;
         };
 
+        // Fraccionamiento de lotes de stock (2026-08-11): si la cantidad elegida
+        // es menor al doc, se separa un doc nuevo con esa cantidad (misma
+        // posición, disponible) y ESO es lo que se asigna — el resto queda en
+        // stock. El item, el remito y el movimiento referencian el doc nuevo.
+        const unidadFinalPorCart = new Map<string, string>();
+        for (const c of group.items) {
+          if (!c.unidadId) continue;
+          const u = unidades.find(x => x.id === c.unidadId);
+          const pedida = cantidadReal(c);
+          unidadFinalPorCart.set(c.id, u && pedida < (u.cantidad ?? 1)
+            ? await movimientosAplicarService.fraccionarUnidad({ unidad: u, cantidad: pedida })
+            : c.unidadId);
+        }
+        // El doc ORIGINAL de cada unidad final (para serie/lote/origen).
+        const docOriginalPorFinal = new Map<string, UnidadStock>();
+        for (const c of group.items) {
+          if (!c.unidadId) continue;
+          const u = unidades.find(x => x.id === c.unidadId);
+          if (u) docOriginalPorFinal.set(unidadFinalPorCart.get(c.id)!, u);
+        }
+
         const items: ItemAsignacion[] = group.items.map(c => ({
           id: c.id, tipo: c.tipo,
           origenUbicacion: origenDe(c),
-          unidadId: c.unidadId ?? null, articuloId: c.articuloId ?? null,
+          unidadId: c.unidadId ? (unidadFinalPorCart.get(c.id) ?? c.unidadId) : null,
+          articuloId: c.articuloId ?? null,
           articuloCodigo: c.tipo === 'articulo' ? c.codigo : null,
           articuloDescripcion: c.articuloDescripcion ?? null,
           cantidad: cantidadReal(c), cantidadDevuelta: 0, cantidadConsumida: 0,
@@ -415,9 +446,11 @@ export function useAsignacionRapida() {
             i.patronLote ? `Lote ${i.patronLote}` : null,
           ].filter(Boolean).join(' · '),
           // N° de serie de la unidad física (2026-08-11): el papel lo imprime
-          // desde `serie` y el remito de asignación no lo estampaba nunca.
+          // desde `serie` y el remito de asignación no lo estampaba nunca. El
+          // doc puede ser un fraccionado recién creado — la serie sale del
+          // original.
           serie: i.unidadId
-            ? (unidades.find(u => u.id === i.unidadId)?.nroSerie ?? null)
+            ? (docOriginalPorFinal.get(i.unidadId)?.nroSerie ?? unidades.find(u => u.id === i.unidadId)?.nroSerie ?? null)
             : i.dispositivoSerie
               ?? i.columnaSerie
               ?? (i.instrumentoId ? (instrumentos.find(x => x.id === i.instrumentoId)?.serie ?? null) : null),
@@ -460,16 +493,17 @@ export function useAsignacionRapida() {
         for (const c of group.items) {
           if (c.unidadId) {
             // Auditoría I6: el egreso debe registrar la ubicación REAL de la unidad
-            // como origen (no un 'Stock' genérico con id vacío) y la cantidad real
-            // del doc (lotes de N cuentan N, no 1).
+            // como origen (no un 'Stock' genérico con id vacío) y la cantidad
+            // elegida. Si hubo fraccionamiento, se mueve el doc NUEVO.
             const unidad = unidades.find(u => u.id === c.unidadId);
+            const idAsignado = unidadFinalPorCart.get(c.id) ?? c.unidadId;
             const origen = unidad?.ubicacion;
-            await unidadesService.update(c.unidadId, {
+            await unidadesService.update(idAsignado, {
               estado: 'asignado',
               ubicacion: { tipo: 'ingeniero', referenciaId: ing.id, referenciaNombre: ing.nombre },
             });
             await movimientosService.create({
-              tipo: 'egreso', unidadId: c.unidadId, articuloId: c.articuloId ?? '',
+              tipo: 'egreso', unidadId: idAsignado, articuloId: c.articuloId ?? '',
               articuloCodigo: c.codigo, articuloDescripcion: c.articuloDescripcion ?? '',
               cantidad: cantidadReal(c),
               nroSerie: unidad?.nroSerie ?? null, nroLote: unidad?.nroLote ?? null,
