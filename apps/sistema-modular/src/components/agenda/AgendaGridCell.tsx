@@ -21,6 +21,8 @@ interface AgendaGridCellProps {
   entryRequiereInduccion?: boolean;
   /** Venta concretada (2026-08-09): pinta la celda ENTERA de verde agua. */
   entryVentaConcretada?: boolean;
+  /** Per Incident (2026-08-12): pinta la celda ENTERA de verde oliva. */
+  entryPerIncident?: boolean;
   entrySistemaNombre?: string | null;
   entryNotas?: string | null;
   isStart?: boolean;
@@ -50,7 +52,7 @@ interface AgendaGridCellProps {
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
   entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado, entryRequiereInduccion,
-  entryVentaConcretada,
+  entryVentaConcretada, entryPerIncident,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -84,6 +86,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     tipoServicio: entryTipoServicio,
     titulo: entryTitulo,
     ventaConcretada: entryVentaConcretada,
+    perIncident: entryPerIncident,
   });
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
@@ -162,7 +165,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         )}
         {isStart && hasEntry && showText && (
           <span
-            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion || entryVentaConcretada) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
+            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion || entryVentaConcretada || entryPerIncident) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
             style={{ lineHeight: rowHeight }}
           >
             {entryOtNumber || entryTitulo || '—'}
@@ -235,6 +238,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryPagoAdelantado === next.entryPagoAdelantado &&
     prev.entryRequiereInduccion === next.entryRequiereInduccion &&
     prev.entryVentaConcretada === next.entryVentaConcretada &&
+    prev.entryPerIncident === next.entryPerIncident &&
     prev.entryTitulo === next.entryTitulo &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&

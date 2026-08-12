@@ -19,6 +19,7 @@ interface AgendaInfoBarProps {
   /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada. */
   onToggleRequiereInduccion?: (entryId: string, valor: boolean) => void;
   onToggleVentaConcretada?: (entryId: string, valor: boolean) => void;
+  onTogglePerIncident?: (entryId: string, valor: boolean) => void;
 }
 
 function EntryRange({ entry }: { entry: AgendaEntry }) {
@@ -39,6 +40,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onTogglePagoAdelantado,
   onToggleRequiereInduccion,
   onToggleVentaConcretada,
+  onTogglePerIncident,
 }) => {
   const entry = selectedCell?.entry ?? null;
   const allEntries = selectedCell?.allEntries ?? [];
@@ -138,6 +140,21 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
                   className="w-3 h-3 accent-[#0D6E6E]"
                 />
                 <span className={entry.ventaConcretada ? 'text-[#0D6E6E] font-semibold' : ''}>Venta concretada</span>
+              </label>
+            )}
+
+            {/* Per Incident (2026-08-12): celda ENTERA verde oliva, mismo
+                comportamiento que venta concretada. */}
+            {onTogglePerIncident && (
+              <label className="flex items-center gap-1 text-[10px] font-medium text-slate-500 cursor-pointer shrink-0 select-none"
+                title="Visita Per Incident — la celda entera se pinta de verde oliva">
+                <input
+                  type="checkbox"
+                  checked={!!entry.perIncident}
+                  onChange={e => onTogglePerIncident(entry.id, e.target.checked)}
+                  className="w-3 h-3 accent-[#7C9A4F]"
+                />
+                <span className={entry.perIncident ? 'text-[#5c7539] font-semibold' : ''}>Per Incident</span>
               </label>
             )}
 

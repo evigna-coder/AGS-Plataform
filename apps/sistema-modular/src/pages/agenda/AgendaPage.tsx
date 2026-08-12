@@ -316,6 +316,7 @@ export const AgendaPage: FC = () => {
           // La jornada nueva es otro día y arranca sin la marca.
           requiereInduccion: false,
           ventaConcretada: src.ventaConcretada ?? false,
+          perIncident: src.perIncident ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
@@ -403,6 +404,7 @@ export const AgendaPage: FC = () => {
             // La jornada nueva es otro día y arranca sin la marca.
             requiereInduccion: false,
             ventaConcretada: src.ventaConcretada ?? false,
+            perIncident: src.perIncident ?? false,
             notas: null,
             titulo: src.titulo || null,
           });
@@ -794,6 +796,22 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell]);
 
+  /** Per Incident (2026-08-12): flag ortogonal que pinta la celda ENTERA de
+   *  verde oliva — mismo comportamiento que venta concretada. */
+  const handleTogglePerIncident = useCallback((entryId: string, valor: boolean) => {
+    updateEntry(entryId, { perIncident: valor });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: selectedCell.entry.id === entryId
+          ? { ...selectedCell.entry, perIncident: valor }
+          : selectedCell.entry,
+        allEntries: selectedCell.allEntries.map(e =>
+          e.id === entryId ? { ...e, perIncident: valor } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
   /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada
    *  (a diferencia del pago adelantado, que aplica a toda la celda). */
   const handleToggleRequiereInduccion = useCallback((entryId: string, valor: boolean) => {
@@ -925,6 +943,7 @@ export const AgendaPage: FC = () => {
         onTogglePagoAdelantado={handleTogglePagoAdelantado}
         onToggleRequiereInduccion={handleToggleRequiereInduccion}
         onToggleVentaConcretada={handleToggleVentaConcretada}
+        onTogglePerIncident={handleTogglePerIncident}
       />
 
       <DndContext
@@ -1063,6 +1082,14 @@ export const AgendaPage: FC = () => {
             >
               <ColorRef titulo="Día por enfermedad" />
               Agregar día por enfermedad
+            </button>
+            {/* Vacaciones (2026-08-12): celda naranja Claude */}
+            <button
+              onClick={() => handleAgregarEventoFijo('Vacaciones')}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-1.5"
+            >
+              <ColorRef titulo="Vacaciones" />
+              Agregar vacaciones
             </button>
             <button
               onClick={handleOpenNotaInput}
