@@ -15,8 +15,9 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
       {/* Logo + ISO top bar */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
         <Image src={data.logoSrc} style={{ width: 120, height: 'auto' }} />
-        {/* Logo TÜV/ISO más grande (UAT contrato 2026-08-04) */}
-        <Image src={data.isoLogoSrc} style={{ width: 80, height: 'auto' }} />
+        {/* Logo TÜV/ISO más grande (UAT contrato 2026-08-04; 80→95 con el asset
+            en alta resolución, 2026-08-12) */}
+        <Image src={data.isoLogoSrc} style={{ width: 95, height: 'auto' }} />
       </View>
 
       {/* Title block */}
@@ -39,9 +40,9 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
           {/* La validez desaparece una vez aceptado (2026-08-09). */}
           {presupuestoTieneValidez(presupuesto.estado) && (
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={cs.vigenciaLabel}>Oferta válida hasta</Text>
+              <Text style={cs.vigenciaLabel}>Oferta válida</Text>
               <Text style={{ fontSize: 11, color: T.text, fontWeight: 'bold', marginTop: 2 }}>
-                {validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}
+                {presupuesto.validezDias || 15} días — hasta el {validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}
               </Text>
             </View>
           )}

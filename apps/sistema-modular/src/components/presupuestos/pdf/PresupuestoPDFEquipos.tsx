@@ -25,7 +25,7 @@ function ValidezCard({ data }: { data: PresupuestoPDFData }) {
     <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }} wrap={false}>
       <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
         {presupuestoTieneValidez(presupuesto.estado)
-          ? `Propuesta válida hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
+          ? `Propuesta válida por ${presupuesto.validezDias || 15} días — hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
           : 'Presupuesto aceptado'}
         {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
       </Text>

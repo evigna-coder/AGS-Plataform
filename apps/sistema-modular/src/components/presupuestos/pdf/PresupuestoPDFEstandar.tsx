@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, Svg, Rect, Path, Line as SvgLine } from '@react-pdf/renderer';
 import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
 import { agruparPorSistemaSimple, validezHastaFecha } from './pdfUtils';
@@ -107,7 +107,8 @@ function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento
       {showDescuento ? (
         <Text style={{ width: odooCols.descuento, fontSize: ITEM_FS, color: COLORS.textMuted, textAlign: 'center' }}>{item.descuento ? `${fmt(item.descuento)}%` : '—'}</Text>
       ) : null}
-      <Text style={{ width: odooCols.total, fontSize: ITEM_FS, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
+      {/* 700→600 (2026-08-12): el total de línea no debe pesar más que la descripción. */}
+      <Text style={{ width: odooCols.total, fontSize: ITEM_FS, fontWeight: 600, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
     </View>
   );
 }
@@ -141,12 +142,13 @@ function ItemsTable({ items }: { items: PresupuestoItem[]; moneda?: string }) {
   const showDescuento = items.some(i => i.descuento && i.descuento > 0);
   return (
     <View style={{ marginBottom: 12 }}>
-      <View style={{ flexDirection: 'row', backgroundColor: COLORS.cardBg, paddingVertical: 6, paddingHorizontal: 4, borderBottomWidth: 1.5, borderBottomColor: COLORS.primary }}>
-        <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text }}>Descripción</Text>
-        <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' }}>Cant.</Text>
-        <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Precio</Text>
-        {showDescuento ? <Text style={{ width: odooCols.descuento, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' }}>Dto</Text> : null}
-        <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Total</Text>
+      {/* Sin fondo gris (reforma 2026-08-12): labels azules + línea azul fina. */}
+      <View style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.primary }}>
+        <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4 }}>DESCRIPCIÓN</Text>
+        <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'center' }}>CANT.</Text>
+        <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>PRECIO</Text>
+        {showDescuento ? <Text style={{ width: odooCols.descuento, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'center' }}>DTO</Text> : null}
+        <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>TOTAL</Text>
       </View>
       {items.map((item) => <ItemRow key={item.id} item={item} showDescuento={showDescuento} />)}
     </View>
@@ -218,43 +220,71 @@ export function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) 
 /** Header estilo Odoo: empresa a la izquierda, título + metadata key/value a la derecha (sin recuadro). */
 export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
+  // Reforma visual 2026-08-12 (pedido de dirección): header compacto, título
+  // -20%, y la info bien repartida — lo FISCAL de AGS (CUIT/IIBB/IVA) va a la
+  // izquierda con el resto de los datos de la empresa; a la derecha solo lo del
+  // PRESUPUESTO (N°, fecha, quién presupuestó) + el sello TÜV discreto.
   const metaRows: [string, string][] = [
     ['Fecha', formatDate(presupuesto.createdAt)],
-    ['Usuario', presupuesto.responsableNombre || '-'],
-    ['CUIT', '30-70861861-2'],
-    ['Ing. Brutos C.M.', '30-70861861-2 901'],
-    ['IVA', 'Responsable Inscripto'],
+    ['Preparó', presupuesto.responsableNombre || '-'],
   ];
+  // Dos columnas con eje derecho cada una (pedido dirección 2026-08-12):
+  // "Fecha:"/"Preparó:" terminan a la misma altura, y los valores también.
+  // El ancho de la columna de valores se estima con el valor más largo para
+  // que el hueco de la fila corta (la fecha) quede mínimo.
+  const metaValorW = Math.max(46, Math.min(110, 4.3 * Math.max(...metaRows.map(([, v]) => v.length)) + 2));
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-      {/* Logo + datos empresa */}
+    // Sin alignItems: los hijos se estiran a la altura de la fila (default
+    // stretch) — necesario para que el sello TÜV ancle al PISO del bloque
+    // derecho, a la altura del bloque fiscal izquierdo.
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+      {/* Bloque izquierdo: TODO lo institucional de AGS en un mismo eje a la
+          izquierda — datos de contacto y, tras un filete azul, los fiscales
+          como tablita label/valor alineada (jerarquía secundaria). */}
       <View style={{ width: '52%' }}>
-        <Image src={data.logoSrc} style={S.logo} />
+        {/* marginLeft negativo: el PNG del logo trae aire interno y se veía
+            corrido respecto del texto (ajuste dirección 2026-08-12). */}
+        <Image src={data.logoSrc} style={[S.logo, { marginLeft: -5 }]} />
         <Text style={S.companyName}>AGS Analítica S.A.</Text>
-        <Text style={S.companyInfo}>Arenales 605 – Piso 15</Text>
-        <Text style={S.companyInfo}>Vicente López (B1638BRG) - Buenos Aires - Argentina</Text>
-        <Text style={S.companyInfo}>Te: 011-4524-7247</Text>
+        {/* Dirección en 2 renglones de largo parejo (dirección 2026-08-12). */}
+        <Text style={S.companyInfo}>Arenales 605 – Piso 15   Vicente López</Text>
+        <Text style={S.companyInfo}>(B1638BRG) – Buenos Aires – Argentina</Text>
+        <Text style={S.companyInfo}>Tel.: 011-4524-7247</Text>
         <Text style={S.companyInfo}>info@agsanalitica.com</Text>
-        <Text style={S.companyInfo}>www.agsanalitica.com</Text>
+        <Text style={[S.companyInfo, { color: COLORS.primary }]}>www.agsanalitica.com</Text>
+        <View style={{ width: 170, borderTopWidth: 0.5, borderTopColor: COLORS.primary, marginTop: 4, marginBottom: 3 }} />
+        {([
+          ['CUIT:', '30-70861861-2'],
+          ['Ing. Brutos C.M.:', '30-70861861-2 901'],
+          ['IVA:', 'Responsable Inscripto'],
+        ] as const).map(([k, v]) => (
+          <View key={k} style={{ flexDirection: 'row', marginBottom: 1.5 }}>
+            {/* 78→66: valores más pegados a los labels (dirección 2026-08-12). */}
+            <Text style={{ fontSize: 7, fontWeight: 600, color: COLORS.primary, width: 66 }}>{k}</Text>
+            <Text style={{ fontSize: 7, color: COLORS.text }}>{v}</Text>
+          </View>
+        ))}
       </View>
 
-      {/* Título grande + metadata key/value a la derecha */}
-      <View style={{ width: '44%', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 23, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>Presupuesto</Text>
-        <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 7 }}>Documento no válido como factura</Text>
-        <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.text, marginBottom: 7 }}>{presupuesto.numero}</Text>
-        <View style={{ width: 180 }}>
+      {/* Bloque derecho: SOLO lo del presupuesto, eje derecho. El sello TÜV va
+          ANCLADO al fondo del bloque, a la altura del bloque fiscal de la
+          izquierda (decisión 2026-08-12): las dos columnas comparten techo y
+          piso, y el aire del medio queda deliberado — no un sello flotando. */}
+      <View style={{ width: '44%', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>Presupuesto</Text>
+          <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 5 }}>Documento no válido como factura</Text>
+          <Text style={{ fontSize: 10.5, fontWeight: 'bold', color: COLORS.text }}>N° {presupuesto.numero}</Text>
+          <View style={{ width: 130, borderTopWidth: 0.5, borderTopColor: COLORS.primary, marginTop: 3, marginBottom: 5 }} />
           {metaRows.map(([k, v]) => (
-            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 2.5 }}>
-              <Text style={{ fontSize: 7.5, color: COLORS.textMuted, marginRight: 8 }}>{k}</Text>
-              <Text style={{ fontSize: 7.5, fontWeight: 600, color: COLORS.text, textAlign: 'right' }}>{v}</Text>
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 2.5 }}>
+              <Text style={{ fontSize: 7.5, fontWeight: 600, color: COLORS.primary, textAlign: 'right' }}>{k}:</Text>
+              <Text style={{ fontSize: 7.5, fontWeight: 600, color: COLORS.text, textAlign: 'right', width: metaValorW }}>{v}</Text>
             </View>
           ))}
         </View>
-        {/* 64→76 (2026-08-11): el identificador tiene que poder leerse. A 90 se
-            pixela — el PNG embebido es de 283x143; con un asset de mayor
-            resolución en logos.ts se puede volver a agrandar. */}
-        <Image src={data.isoLogoSrc} style={{ width: 76, height: 'auto', marginTop: 8 }} />
+        {/* Sello TÜV discreto, al pie del bloque. */}
+        <Image src={data.isoLogoSrc} style={{ width: 68, height: 'auto', marginTop: 7 }} />
       </View>
     </View>
   );
@@ -289,14 +319,17 @@ export function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
     + (sector !== '-' ? ` — ${sector}` : '')
     + (email !== '-' ? `   ·   ${email}` : '');
 
+  // Sin caja gris (reforma 2026-08-12): separación por línea fina + aire, y la
+  // razón social -20% — el cliente se identifica rápido pero no compite con el
+  // servicio cotizado.
   return (
-    <View style={{ marginBottom: 14, padding: 12, backgroundColor: COLORS.cardBg, borderRadius: 6 }}>
-      <Text style={{ fontSize: 7, fontWeight: 'bold', color: COLORS.textMuted, letterSpacing: 0.5, marginBottom: 3 }}>CLIENTE</Text>
-      <Text style={{ fontSize: 12, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 }}>{nombre}</Text>
-      <Text style={{ fontSize: 8.5, color: COLORS.textMuted, marginBottom: 1.5 }}>{dirLine}</Text>
-      <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>{contactoLine}</Text>
+    <View style={{ marginBottom: 12, borderTopWidth: 0.5, borderTopColor: COLORS.borderLight, paddingTop: 8 }}>
+      <Text style={{ fontSize: 7, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.5, marginBottom: 3 }}>CLIENTE</Text>
+      <Text style={{ fontSize: 9.5, fontWeight: 'bold', color: COLORS.text, marginBottom: 3 }}>{nombre}</Text>
+      <Text style={{ fontSize: 8, color: COLORS.textMuted, marginBottom: 1.5 }}>{dirLine}</Text>
+      <Text style={{ fontSize: 8, color: COLORS.textMuted }}>{contactoLine}</Text>
       {equipoStr ? (
-        <Text style={{ fontSize: 8.5, fontWeight: 600, color: COLORS.primary, marginTop: 3 }}>Equipo: {equipoStr}</Text>
+        <Text style={{ fontSize: 8, fontWeight: 600, color: COLORS.primary, marginTop: 3 }}>Equipo: {equipoStr}</Text>
       ) : null}
     </View>
   );
@@ -337,6 +370,70 @@ function PDFItemsTable({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
+/**
+ * Iconitos de la fila de condiciones (reforma 2026-08-12, mockup de dirección):
+ * almanaque / tarjeta / documento en trazo azul, dibujados como SVG inline —
+ * react-pdf no tiene fuentes de íconos.
+ */
+function CondicionIcono({ tipo }: { tipo: 'calendario' | 'tarjeta' | 'documento' }) {
+  const stroke = COLORS.primary;
+  const common = { stroke, strokeWidth: 1.2, fill: 'none' } as const;
+  return (
+    <Svg width={13.5} height={13.5} viewBox="0 0 14 14" style={{ marginRight: 4.5 }}>
+      {tipo === 'calendario' && (
+        <>
+          <Rect x={1.2} y={2.2} width={11.6} height={10.6} rx={2} {...common} />
+          {/* Banda superior rellena, como el mockup. */}
+          <Path d="M1.2 4.2 Q1.2 2.2 3.2 2.2 H10.8 Q12.8 2.2 12.8 4.2 V5.4 H1.2 Z" fill={stroke} />
+          <SvgLine x1={4.6} y1={0.8} x2={4.6} y2={3} stroke={stroke} strokeWidth={1.4} />
+          <SvgLine x1={9.4} y1={0.8} x2={9.4} y2={3} stroke={stroke} strokeWidth={1.4} />
+          <Rect x={3.6} y={7.2} width={1.8} height={1.8} fill={stroke} />
+          <Rect x={6.6} y={7.2} width={1.8} height={1.8} fill={stroke} />
+          <Rect x={9.6} y={7.2} width={1.8} height={1.8} fill={stroke} />
+        </>
+      )}
+      {tipo === 'tarjeta' && (
+        <>
+          <Rect x={0.8} y={2.8} width={12.4} height={9} rx={2} {...common} />
+          {/* Banda magnética rellena. */}
+          <Rect x={0.8} y={4.8} width={12.4} height={2.2} fill={stroke} />
+          <SvgLine x1={3} y1={9.6} x2={6.5} y2={9.6} stroke={stroke} strokeWidth={1.3} />
+        </>
+      )}
+      {tipo === 'documento' && (
+        <>
+          <Path d="M3.6 1.2 H8.8 L11.6 4 V11 Q11.6 12.8 9.8 12.8 H5.4 Q3.6 12.8 3.6 11 Z" {...common} />
+          <Path d="M8.8 1.2 V4 H11.6" {...common} />
+          <SvgLine x1={5.4} y1={6.6} x2={9.8} y2={6.6} {...common} />
+          <SvgLine x1={5.4} y1={8.6} x2={9.8} y2={8.6} {...common} />
+          <SvgLine x1={5.4} y1={10.6} x2={8.2} y2={10.6} {...common} />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+/** Un segmento de la fila de condiciones: icono + label azul + valor. */
+function CondicionSegmento({ icono, label, valor, primero }: {
+  icono: 'calendario' | 'tarjeta' | 'documento';
+  label: string;
+  valor: string;
+  primero?: boolean;
+}) {
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', flexShrink: 1,
+      ...(primero ? {} : { borderLeftWidth: 0.5, borderLeftColor: COLORS.border, marginLeft: 10, paddingLeft: 10 }),
+    }}>
+      <CondicionIcono tipo={icono} />
+      <Text style={{ fontSize: 8, color: COLORS.text, flexShrink: 1 }}>
+        {label ? <Text style={{ fontWeight: 'bold', color: COLORS.primary }}>{label} </Text> : null}
+        {valor}
+      </Text>
+    </View>
+  );
+}
+
 function PDFTotals({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto, impuestos, condicionPago } = data;
   const { moneda, subtotal, total, montoEnLetras } = { ...presupuesto, montoEnLetras: data.montoEnLetras };
@@ -348,8 +445,10 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
           2026-08-11): caja con tinte azul y borde primario para el neto, y
           debajo el desglose IVA + total final como tabla fina gris — visible
           pero subordinado. */}
+      {/* Reforma 2026-08-12: caja y cifra ~25% más chicas — el total se
+          localiza rápido pero no domina la página. */}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <View style={{ width: 280 }}>
+        <View style={{ width: 240 }}>
           {(() => {
             const netos: [string, number][] = Object.keys(data.netoPorMoneda).length > 0
               ? Object.entries(data.netoPorMoneda)
@@ -376,12 +475,12 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
                 : imp > 0 ? [['Impuestos', imp]] : [];
               return (
                 <View key={m} style={{ marginTop: 5 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primaryTint, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primaryDark }}>TOTAL {m} (sin IVA)</Text>
-                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: COLORS.primaryDark }}>{fmt(neto)}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primaryTint, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 5, paddingVertical: 6, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primaryDark }}>TOTAL {m} (sin IVA)</Text>
+                    <Text style={{ fontSize: 11.5, fontWeight: 'bold', color: COLORS.primaryDark }}>{fmt(neto)}</Text>
                   </View>
                   {imp > 0 && (
-                    <View style={{ marginTop: 3, paddingHorizontal: 12 }}>
+                    <View style={{ marginTop: 3, paddingHorizontal: 10 }}>
                       {filas.map(([label, v]) => filaChica(label, fmt(v)))}
                       {filaChica(`Total ${m} con IVA`, fmt(totalFinal), true)}
                     </View>
@@ -396,26 +495,33 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
       {/* Monto en letras */}
       <Text style={[S.monedaLetras, { marginBottom: 8 }]}>{montoEnLetras}</Text>
 
-      {/* Tarjeta de condiciones: validez + forma de pago + disclaimer */}
-      <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }}>
-        {/* La validez desaparece una vez aceptado (2026-08-09): ya no es una
-            oferta abierta, y en `pendiente_oc` el trabajo incluso ya se hizo. */}
-        {/* La referencia a la pagina 2 va en linea propia (2026-08-11): metida en
-            la misma linea, el wrap dejaba el "2" colgado solo. */}
-        <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
-          {presupuestoTieneValidez(presupuesto.estado)
-            ? `Propuesta válida hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
-            : 'Presupuesto aceptado'}
-          {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
-        </Text>
-        {presupuesto.condicionesComerciales ? (
-          <Text style={{ fontSize: 8, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
-            Ver condiciones comerciales en página 2
-          </Text>
-        ) : null}
+      {/* Condiciones comerciales SIN caja gris (reforma 2026-08-12): fila de
+          tres segmentos con iconitos (almanaque / tarjeta / documento, como el
+          mockup de dirección) separados por filetes, y debajo el alcance en
+          cuerpo menor. La validez desaparece una vez aceptado (2026-08-09). */}
+      <View style={{ marginBottom: 8, borderTopWidth: 0.5, borderTopColor: COLORS.borderLight, paddingTop: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+          <CondicionSegmento
+            icono="calendario"
+            label={presupuestoTieneValidez(presupuesto.estado) ? 'Vigencia:' : ''}
+            valor={presupuestoTieneValidez(presupuesto.estado)
+              ? `${presupuesto.validezDias || 15} días — hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
+              : 'Presupuesto aceptado'}
+            primero
+          />
+          {condicionPago ? (
+            <CondicionSegmento
+              icono="tarjeta"
+              label="Forma de pago:"
+              valor={`${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}`}
+            />
+          ) : null}
+          {presupuesto.condicionesComerciales ? (
+            <CondicionSegmento icono="documento" label="Condiciones generales:" valor="ver página 2" />
+          ) : null}
+        </View>
         <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
-          No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de métodos
-          analíticos, repuestos o consumibles no especificados, etc.
+          El servicio comprende exclusivamente el alcance indicado en esta propuesta.
         </Text>
       </View>
 

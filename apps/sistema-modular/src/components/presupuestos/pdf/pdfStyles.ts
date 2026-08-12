@@ -32,7 +32,8 @@ export const baseStyles = StyleSheet.create({
     fontSize: 8,
     color: COLORS.text,
     backgroundColor: COLORS.white,
-    paddingTop: 30,
+    // 30→26 (reforma 2026-08-12): el contenido arranca más arriba.
+    paddingTop: 26,
     paddingBottom: 50,
     paddingHorizontal: 30,
   },
@@ -170,17 +171,20 @@ export const baseStyles = StyleSheet.create({
   table: {
     marginBottom: 10,
   },
+  // Reforma 2026-08-12: cabecera sin fondo — labels azules + línea azul fina.
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.headerBg,
-    minHeight: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.primary,
+    minHeight: 18,
     alignItems: 'center',
   },
   tableHeaderCell: {
     fontSize: 7,
     fontWeight: 'bold',
-    color: COLORS.headerText,
-    paddingVertical: 4,
+    color: COLORS.primary,
+    letterSpacing: 0.4,
+    paddingVertical: 3,
     paddingHorizontal: 4,
     textAlign: 'center',
   },
@@ -263,19 +267,17 @@ export const baseStyles = StyleSheet.create({
     borderLeftColor: COLORS.sectionBorder,
     paddingLeft: 8,
   },
-  // Notas técnicas destacadas (pedido 2026-07-31): recuadro completo con fondo
-  // suave para diferenciarlas del resto de las notas (que llevan solo el filete
-  // izquierdo).
+  // Notas técnicas: era un recuadro completo con fondo (2026-07-31); la reforma
+  // 2026-08-12 lo baja a una línea azul fina superior + título discreto — menos
+  // preponderancia, sin cajas.
   condicionSectionDestacada: {
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 4,
-    backgroundColor: COLORS.primaryTint,
-    padding: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.primary,
+    paddingTop: 6,
   },
   condicionTitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: 'bold',
     color: COLORS.primary,
     marginBottom: 4,

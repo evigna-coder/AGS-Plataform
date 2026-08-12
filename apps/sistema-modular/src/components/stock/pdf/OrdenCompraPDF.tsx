@@ -108,7 +108,8 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
             <Text style={S.subEn}>PURCHASE ORDER</Text>
             <Text style={S.numero}>{oc.numero}</Text>
             <Text style={S.fechaLinea}>{fmtDate(oc.createdAt)}  ·  {esNacional ? 'Nacional' : 'Importacion'}  ·  {oc.moneda}</Text>
-            <Image src={ISO_LOGO_SRC} style={{ width: 38, height: 'auto', marginTop: 5 }} />
+            {/* 38→52 (2026-08-12): asset en alta resolución, que se lea el ID. */}
+            <Image src={ISO_LOGO_SRC} style={{ width: 52, height: 'auto', marginTop: 5 }} />
           </View>
         </View>
 
