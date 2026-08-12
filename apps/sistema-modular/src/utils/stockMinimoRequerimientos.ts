@@ -2,7 +2,6 @@ import { articulosService, unidadesService } from '../services/stockService';
 import { ordenesCompraService } from '../services/presupuestosService';
 import { requerimientosService } from '../services/importacionesService';
 import { OC_OPEN_STATES } from '../services/stockAmplioService';
-import { unidadCuentaComoDisponible } from '@ags/shared';
 import type { Articulo, OrdenCompra, UnidadStock } from '@ags/shared';
 
 /** Estados de requerimiento que ya no bloquean generar uno nuevo (cerrados). */
@@ -15,13 +14,29 @@ const REQ_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 let lastSweep = 0;
 
-/** Disponible físico por artículo (suma cantidad de unidades 'disponible'). */
+/**
+ * Disponible por artículo PARA EL CÁLCULO DE STOCK MÍNIMO.
+ *
+ * Sale y vuelve (2026-08-12, casos HMT200-2 y G3450-80250): lo que salió en
+ * circulación transitoria sigue contando para el mínimo — puede volver. Cuenta:
+ *  - 'disponible' en cualquier ubicación (incluye lo parado en un remito;
+ *    revierte para este cálculo la exclusión del 2026-08-09);
+ *  - 'asignado' (en poder de un ingeniero por asignación): vuelve salvo que
+ *    se consuma en una OT;
+ *  - 'en_transito' (derivado a proveedor / en viaje): sigue siendo patrimonio
+ *    de AGS y vuelve con retornarDeProveedor. Mismo criterio que el ATP
+ *    (UNIDAD_ATP_ESTADOS).
+ * El requerimiento se genera recién cuando la mercadería se resuelve de
+ * verdad (consumido / entregado / vendido). El cierre de OT
+ * (useCierreStockUnits) mantiene el criterio físico — acá NO aplica.
+ */
+const ESTADOS_CUENTAN_PARA_MINIMO = new Set(['disponible', 'asignado', 'en_transito']);
+
 export function disponiblePorArticulo(unidades: UnidadStock[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const u of unidades) {
-    // Excluye lo parado en un remito: si contara, tapaba la alerta de mínimo y no
-    // se generaba el requerimiento de compra por algo que ya no está (2026-08-09).
-    if (!unidadCuentaComoDisponible(u)) continue;
+    if (u.activo === false) continue;
+    if (!ESTADOS_CUENTAN_PARA_MINIMO.has(u.estado)) continue;
     map.set(u.articuloId, (map.get(u.articuloId) ?? 0) + (u.cantidad ?? 1));
   }
   return map;

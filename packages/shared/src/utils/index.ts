@@ -301,9 +301,11 @@ export function ubicacionDeRemito(remitoId: string, remitoNumero: string) {
  * NO está parada en la posición provisoria de un remito.
  *
  * Por qué (2026-08-09): lo que salió por un remito está físicamente en lo del
- * cliente. Contarlo como disponible tapaba la alerta de stock mínimo —no se
- * generaba el requerimiento de compra— y lo ofrecía en el cierre de OT como si
- * estuviera en el depósito.
+ * cliente; el cierre de OT lo ofrecía como si estuviera en el depósito.
+ *
+ * OJO (2026-08-12): el cálculo de stock mínimo / requerimientos NO usa este
+ * helper — un remito sale-y-vuelve sigue contando para el mínimo hasta que se
+ * consume (ver disponiblePorArticulo en stockMinimoRequerimientos.ts).
  */
 export function unidadCuentaComoDisponible(u: {
   estado?: string | null;
