@@ -17,9 +17,10 @@ export const URGENCIA_COLORS: Record<UrgenciaRequerimiento, string> = {
   alta: 'bg-amber-50 text-amber-700',
   critica: 'bg-red-100 text-red-700',
 };
-export const URGENCIA_LABELS: Record<UrgenciaRequerimiento, string> = {
-  baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica',
-};
+// URGENCIA_LABELS vive en el módulo de export (Excel/PDF usa los mismos textos);
+// se re-exporta desde acá para no romper a los consumidores existentes.
+import { URGENCIA_LABELS } from '../../utils/exports/exportRequerimientos';
+export { URGENCIA_LABELS };
 
 export interface RequerimientoRowProps {
   r: RequerimientoCompra;

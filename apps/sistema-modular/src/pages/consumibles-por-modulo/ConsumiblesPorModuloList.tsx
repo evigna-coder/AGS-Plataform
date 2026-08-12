@@ -9,6 +9,9 @@ import { Button } from '../../components/ui/Button';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ConsumibleModuloForm } from './ConsumibleModuloForm';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CONSUMIBLES_POR_MODULO_EXPORT_COLUMNS } from '../../utils/exports/exportConsumiblesPorModulo';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const FILTER_SCHEMA = {
   q: { type: 'string' as const, default: '' },
@@ -100,7 +103,12 @@ export const ConsumiblesPorModuloList = () => {
             Catálogo declarativo: cada módulo lleva la lista de consumibles que se adjunta al PDF anexo del presupuesto cuando aplica MPCC.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          {!showForm && (
+            <ExportarButton columnas={CONSUMIBLES_POR_MODULO_EXPORT_COLUMNS} data={filtered}
+              titulo="Consumibles por Módulo" filename="consumibles-por-modulo"
+              filtrosAplicados={filtrosAplicadosDesc({ 'Búsqueda': q ? `'${q}'` : '' })} />
+          )}
           {!showForm && <Button onClick={handleNew}>+ Nuevo módulo</Button>}
           <Button variant="outline" onClick={() => goBack()}>Volver</Button>
         </div>

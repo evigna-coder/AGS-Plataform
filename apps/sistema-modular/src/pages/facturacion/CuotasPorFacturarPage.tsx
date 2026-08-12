@@ -7,6 +7,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { GenerarSolicitudCuotaModal } from '../../components/presupuestos/GenerarSolicitudCuotaModal';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CUOTAS_POR_FACTURAR_EXPORT_COLUMNS, buildCuotasPorFacturarRows } from '../../utils/exports/exportCuotasPorFacturar';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 interface Fila {
   ppto: Presupuesto;
@@ -70,12 +73,26 @@ export const CuotasPorFacturarPage = () => {
     return out;
   }, [pptos, mes]);
 
+  // Export Excel/PDF de las mismas filas que muestran las cards.
+  const exportRows = useMemo(() => buildCuotasPorFacturarRows(filas, nombreById), [filas, nombreById]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Cuotas por facturar"
         subtitle="Cuotas mensuales de contrato que vencen hasta el mes elegido — confirmá el aviso a facturación"
-        actions={<input type="month" value={mes} onChange={e => setMes(e.target.value)} className="border rounded-lg px-2 py-1 text-xs border-slate-300 bg-white" />}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={CUOTAS_POR_FACTURAR_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Cuotas por Facturar"
+              filename="cuotas-por-facturar"
+              filtrosAplicados={filtrosAplicadosDesc({ 'Vence hasta': mes })}
+            />
+            <input type="month" value={mes} onChange={e => setMes(e.target.value)} className="border rounded-lg px-2 py-1 text-xs border-slate-300 bg-white" />
+          </div>
+        }
       />
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
         {loading ? (

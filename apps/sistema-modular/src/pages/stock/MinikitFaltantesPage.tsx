@@ -4,7 +4,11 @@ import { minikitsService, unidadesService } from '../../services/firebaseService
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import {
+  buildMinikitFaltantesFiltrosExport, MINIKIT_FALTANTES_EXPORT_COLUMNS,
+} from '../../utils/exports/exportMinikitFaltantes';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Minikit, UnidadStock } from '@ags/shared';
@@ -129,6 +133,15 @@ export const MinikitFaltantesPage = () => {
         title="Faltantes en minikits"
         subtitle={`${totalFaltantes} item(s) por reponer en ${minikitsConFaltantes} minikit(s)`}
         count={totalFaltantes}
+        actions={
+          <ExportarButton
+            columnas={MINIKIT_FALTANTES_EXPORT_COLUMNS}
+            data={filtered}
+            titulo="Faltantes de Minikits"
+            filename="minikit-faltantes"
+            filtrosAplicados={buildMinikitFaltantesFiltrosExport(filters, minikits)}
+          />
+        }
       />
 
       <div className="px-5 pb-3">

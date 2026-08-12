@@ -5,8 +5,12 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import {
+  CATEGORIAS_MODULOS_EXPORT_COLUMNS, CATEGORIAS_SISTEMAS_EXPORT_COLUMNS,
+} from '../../utils/exports/exportCategoriasEquipo';
 
 type TabType = 'sistemas' | 'modulos';
 
@@ -229,9 +233,17 @@ export const CategoriasEquipo = () => {
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Categorías de Sistemas</h3>
-            <Button onClick={() => { setEditingSistema(null); setFormDataSistemas({ nombre: '', modelosText: '' }); setShowModalSistemas(true); }}>
-              + Nueva Categoría
-            </Button>
+            <div className="flex items-center gap-2">
+              <ExportarButton
+                columnas={CATEGORIAS_SISTEMAS_EXPORT_COLUMNS}
+                data={categoriasSistemas}
+                titulo="Categorías de Sistemas"
+                filename="categorias-sistemas"
+              />
+              <Button onClick={() => { setEditingSistema(null); setFormDataSistemas({ nombre: '', modelosText: '' }); setShowModalSistemas(true); }}>
+                + Nueva Categoría
+              </Button>
+            </div>
           </div>
           {categoriasSistemas.length === 0 ? (
             <div className="text-center py-12">
@@ -276,9 +288,17 @@ export const CategoriasEquipo = () => {
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Categorías de Módulos</h3>
-            <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); setShowModalModulos(true); }}>
-              + Nueva Categoría
-            </Button>
+            <div className="flex items-center gap-2">
+              <ExportarButton
+                columnas={CATEGORIAS_MODULOS_EXPORT_COLUMNS}
+                data={categoriasModulos}
+                titulo="Categorías de Módulos"
+                filename="categorias-modulos"
+              />
+              <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); setShowModalModulos(true); }}>
+                + Nueva Categoría
+              </Button>
+            </div>
           </div>
           {categoriasModulos.length === 0 ? (
             <div className="text-center py-12">

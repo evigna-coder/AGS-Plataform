@@ -2,11 +2,9 @@ import { Link } from 'react-router-dom';
 import { SortableHeader, type SortDir } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import type { MovimientoStock, TipoMovimiento } from '@ags/shared';
+// Labels compartidos con el export Excel/PDF (misma fuente = mismos textos).
+import { TIPO_MOVIMIENTO_LABELS as TIPO_LABELS } from '../../utils/exports/exportMovimientos';
 
-const TIPO_LABELS: Record<TipoMovimiento, string> = {
-  ingreso: 'Ingreso', egreso: 'Egreso', transferencia: 'Transferencia',
-  consumo: 'Consumo', devolucion: 'Devolucion', ajuste: 'Ajuste',
-};
 const TIPO_COLORS: Record<TipoMovimiento, string> = {
   ingreso: 'bg-green-100 text-green-700', egreso: 'bg-red-100 text-red-700',
   transferencia: 'bg-blue-100 text-blue-700', consumo: 'bg-amber-100 text-amber-700',

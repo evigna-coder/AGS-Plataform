@@ -9,8 +9,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import type { Presupuesto, PresupuestoEstado, Cliente, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente, WorkOrder } from '@ags/shared';
 import { presupuestoEstaAceptado, presupuestoAceptadoVigente, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
-import { exportPresupuestosExcel, exportPresupuestosPDF, type PresupuestoExportRow } from '../../utils/exports/exportPresupuestos';
-import { exportOCsPendientesExcel, exportOCsPendientesPDF, type OCPendienteExportRow } from '../../utils/exports/exportOCsPendientes';
+import { PRESUPUESTOS_EXPORT_COLUMNS, buildPresupuestoRows, buildPresupuestosFiltrosExport } from '../../utils/exports/exportPresupuestos';
+import { OCS_PENDIENTES_EXPORT_COLUMNS, buildOCPendienteRows } from '../../utils/exports/exportOCsPendientes';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { Button } from '../../components/ui/Button';
 import { MenuButton } from '../../components/ui/MenuButton';
 import { Card } from '../../components/ui/Card';
@@ -398,41 +399,17 @@ export const PresupuestosList = () => {
 
   const isInitialLoad = loading && presupuestos.length === 0;
 
-  // ---- Export helpers ----
-  function buildPresupuestoRows(rows: Presupuesto[], clientesList: Cliente[], usuariosList: UsuarioAGS[]): PresupuestoExportRow[] {
-    return rows.map(p => ({
-      presupuesto: p,
-      clienteNombre: clientesList.find(c => c.id === p.clienteId)?.razonSocial || '—',
-      responsableNombre: usuariosList.find(u => u.id === p.responsableId)?.displayName || p.responsableNombre || '—',
-    }));
-  }
-
-  function buildOCPendienteRows(rows: Presupuesto[], clientesList: Cliente[], usuariosList: UsuarioAGS[]): OCPendienteExportRow[] {
-    return rows.map(p => ({
-      presupuesto: p,
-      clienteNombre: clientesList.find(c => c.id === p.clienteId)?.razonSocial || '—',
-      ocNumero: 'N/A',
-      ocFecha: null,
-      adjuntosCount: (p.adjuntos || []).length,
-      diasDesdeCarga: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86_400_000),
-      coordinadorNombre: usuariosList.find(u => u.id === p.responsableId)?.displayName || p.responsableNombre || '—',
-    }));
-  }
-
-  function buildFiltrosLabel(f: typeof filters, clientesList: Cliente[]): string {
-    const parts: string[] = [];
-    if (f.cliente) {
-      const nombre = clientesList.find(c => c.id === f.cliente)?.razonSocial;
-      if (nombre) parts.push(`cliente=${nombre}`);
-    }
-    if (f.estado) parts.push(`estado=${ESTADO_PRESUPUESTO_LABELS[f.estado as keyof typeof ESTADO_PRESUPUESTO_LABELS] || f.estado}`);
-    if (f.tipo) parts.push(`tipo=${f.tipo}`);
-    if (f.responsable) parts.push(`responsable=${f.responsable}`);
-    if (f.ocPendiente) parts.push('OCs pendientes');
-    if (f.ocTrabajoRealizado) parts.push('Pend. OC — trabajo realizado');
-    return parts.length > 0 ? parts.join(', ') : 'Sin filtros';
-  }
-  // ---- End export helpers ----
+  // Export Excel/PDF (ExportarButton): filas desde el MISMO array filtrado que
+  // muestra la tabla; el set de columnas cambia según el modo "OCs pendientes".
+  const exportRowsPresupuestos = useMemo(
+    () => (filters.ocPendiente ? [] : buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios)),
+    [filters.ocPendiente, presupuestosFiltrados, clientes, usuarios],
+  );
+  const exportRowsOCs = useMemo(
+    () => (filters.ocPendiente ? buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios) : []),
+    [filters.ocPendiente, presupuestosFiltrados, clientes, usuarios],
+  );
+  const filtrosExport = buildPresupuestosFiltrosExport(filters, clientes, usuarios);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -450,34 +427,23 @@ export const PresupuestosList = () => {
               { label: 'Consumibles por módulo', onClick: () => navigateInActiveTab('/presupuestos/consumibles-por-modulo') },
             ]} />
             <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/analitica')}>Analítica</Button>
-            {canExport && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => {
-                  const filtrosLabel = buildFiltrosLabel(filters, clientes);
-                  if (filters.ocPendiente) {
-                    const ocRows = buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios);
-                    exportOCsPendientesExcel(ocRows, { filtrosLabel });
-                  } else {
-                    const rows = buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios);
-                    exportPresupuestosExcel(rows, { filtrosLabel });
-                  }
-                }}>
-                  Exportar Excel
-                </Button>
-                <Button size="sm" variant="outline" onClick={async () => {
-                  const filtrosLabel = buildFiltrosLabel(filters, clientes);
-                  if (filters.ocPendiente) {
-                    const ocRows = buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios);
-                    await exportOCsPendientesPDF(ocRows, { filtrosLabel });
-                  } else {
-                    const rows = buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios);
-                    await exportPresupuestosPDF(rows, { filtrosLabel });
-                  }
-                }}>
-                  Exportar PDF
-                </Button>
-              </>
-            )}
+            {canExport && (filters.ocPendiente ? (
+              <ExportarButton
+                columnas={OCS_PENDIENTES_EXPORT_COLUMNS}
+                data={exportRowsOCs}
+                titulo="OCs Pendientes"
+                filename="ocs-pendientes"
+                filtrosAplicados={filtrosExport}
+              />
+            ) : (
+              <ExportarButton
+                columnas={PRESUPUESTOS_EXPORT_COLUMNS}
+                data={exportRowsPresupuestos}
+                titulo="Presupuestos"
+                filename="presupuestos"
+                filtrosAplicados={filtrosExport}
+              />
+            ))}
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Presupuesto</Button>
           </div>
         }>

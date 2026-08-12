@@ -9,6 +9,8 @@ import { Button } from '../../components/ui/Button';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { RegistrarCertificacionModal } from '../../components/certificaciones/RegistrarCertificacionModal';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS } from '../../utils/exports/exportPendientesDocumentacion';
 
 interface Grupo {
   clienteId: string;
@@ -67,7 +69,16 @@ export const PendientesDocumentacionPage = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Pendientes de documentación" subtitle="OTs retenidas hasta recibir remito firmado o certificación del cliente" />
+      <PageHeader title="Pendientes de documentación" subtitle="OTs retenidas hasta recibir remito firmado o certificación del cliente"
+        actions={
+          <ExportarButton
+            columnas={PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS}
+            data={grupos.flatMap(g => g.ots)}
+            titulo="Pendientes de Documentación"
+            filename="pendientes-documentacion"
+          />
+        }
+      />
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {loading ? (
           <p className="text-slate-400 text-sm">Cargando...</p>

@@ -17,6 +17,8 @@ import { Modal } from '../../components/ui/Modal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { EQUIPOS_EXPORT_COLUMNS, buildEquiposExportRows, buildEquiposFiltrosExport } from '../../utils/exports/exportEquipos';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
@@ -238,11 +240,19 @@ export const EquiposList = () => {
 
   const isInitialLoad = loading && sistemas.length === 0;
 
+  const exportRows = useMemo(
+    () => buildEquiposExportRows(sistemasFiltrados, estMap, clienteMap, catMap),
+    [sistemasFiltrados, estMap, clienteMap, catMap],
+  );
+  const filtrosExport = buildEquiposFiltrosExport(filters, categorias);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Equipos / Sistemas" count={isInitialLoad ? undefined : sistemasFiltrados.length}
         actions={
           <div className="flex gap-2 items-center">
+            <ExportarButton columnas={EQUIPOS_EXPORT_COLUMNS} data={exportRows}
+              titulo="Equipos" filename="equipos" filtrosAplicados={filtrosExport} />
             {selected.size > 0 && (
               <>
                 <Button size="sm" variant="outline" onClick={openReassign}>

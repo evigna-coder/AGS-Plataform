@@ -12,6 +12,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import type { EstadoImportacion, Importacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { IMPORTACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportImportaciones';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const ESTADOS: EstadoImportacion[] = [
   'preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
@@ -86,9 +89,20 @@ export const ImportacionesList = () => {
         subtitle="Operaciones de comercio exterior"
         count={sorted.length}
         actions={
-          <Button size="sm" onClick={() => openImp(null)}>
-            + Nueva importacion
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={IMPORTACIONES_EXPORT_COLUMNS}
+              data={sorted}
+              titulo="Importaciones"
+              filename="importaciones"
+              filtrosAplicados={filtrosAplicadosDesc({
+                Estado: filters.estado ? (ESTADO_IMPORTACION_LABELS[filters.estado as EstadoImportacion] ?? filters.estado) : '',
+              })}
+            />
+            <Button size="sm" onClick={() => openImp(null)}>
+              + Nueva importacion
+            </Button>
+          </div>
         }
       >
         <div className="flex items-center gap-2">

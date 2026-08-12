@@ -5,10 +5,14 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import type { ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import {
+  buildConceptosServicioExportRows, CONCEPTOS_SERVICIO_EXPORT_COLUMNS,
+} from '../../utils/exports/exportConceptosServicio';
 
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
@@ -39,6 +43,7 @@ export function ConceptosServicio() {
     setSortField(s.field); setSortDir(s.dir);
   };
   const sorted = useMemo(() => sortByField(conceptos, sortField, sortDir), [conceptos, sortField, sortDir]);
+  const exportRows = useMemo(() => buildConceptosServicioExportRows(sorted, categorias), [sorted, categorias]);
 
   const loadData = async () => {
     const [c, cats] = await Promise.all([conceptosServicioService.getAll(), categoriasPresupuestoService.getAll()]);
@@ -123,6 +128,12 @@ export function ConceptosServicio() {
         count={conceptos.length}
         actions={
           <div className="flex gap-2">
+            <ExportarButton
+              columnas={CONCEPTOS_SERVICIO_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Conceptos de Servicio"
+              filename="conceptos-servicio"
+            />
             <Button variant="secondary" size="sm" onClick={() => setShowFactorModal(true)}>Actualizar factor</Button>
             <Button variant="primary" size="sm" onClick={openCreate}>+ Nuevo concepto</Button>
           </div>

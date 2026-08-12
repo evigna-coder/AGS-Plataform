@@ -8,6 +8,9 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { CreateProveedorModal } from '../../components/stock/CreateProveedorModal';
 import type { Proveedor } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { PROVEEDORES_EXPORT_COLUMNS, TIPO_PROVEEDOR_LABELS } from '../../utils/exports/exportProveedores';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const TIPO_COLORS = { nacional: 'bg-blue-50 text-blue-700', internacional: 'bg-purple-50 text-purple-700' };
 
@@ -63,7 +66,15 @@ export const ProveedoresPage = () => {
         subtitle="Catálogo de proveedores de partes e insumos"
         count={items.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Agregar</Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={PROVEEDORES_EXPORT_COLUMNS} data={sorted}
+              titulo="Proveedores" filename="proveedores"
+              filtrosAplicados={filtrosAplicadosDesc({
+                Tipo: TIPO_PROVEEDOR_LABELS[filterTipo] ?? filterTipo,
+                'Incluye inactivos': showInactive,
+              })} />
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Agregar</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">

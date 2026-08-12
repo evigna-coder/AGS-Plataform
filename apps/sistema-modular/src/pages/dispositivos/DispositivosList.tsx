@@ -12,10 +12,10 @@ import { Card } from '../../components/ui/Card';
 import { DispositivoModal } from '../../components/dispositivos/DispositivoModal';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { DISPOSITIVOS_EXPORT_COLUMNS, TIPO_DISPOSITIVO_LABELS as TIPO_LABELS } from '../../utils/exports/exportDispositivos';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
-const TIPO_LABELS: Record<TipoDispositivo, string> = {
-  celular: 'Celular', computadora: 'Computadora', tablet: 'Tablet', otro: 'Otro',
-};
 const TIPO_COLORS: Record<TipoDispositivo, string> = {
   celular: 'bg-blue-50 text-blue-700',
   computadora: 'bg-purple-50 text-purple-700',
@@ -85,7 +85,16 @@ export const DispositivosList = () => {
         title="Dispositivos"
         subtitle="Celulares, computadoras y otros dispositivos"
         count={isInitialLoad ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo dispositivo</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={DISPOSITIVOS_EXPORT_COLUMNS} data={filtered}
+              titulo="Dispositivos" filename="dispositivos"
+              filtrosAplicados={filtrosAplicadosDesc({
+                'Búsqueda': debouncedSearch ? `'${debouncedSearch}'` : '',
+              })} />
+            <Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo dispositivo</Button>
+          </div>
+        }
       >
         <input type="text" placeholder="Buscar por marca, modelo, serie o asignado..."
           value={localSearch} onChange={e => setLocalSearch(e.target.value)}

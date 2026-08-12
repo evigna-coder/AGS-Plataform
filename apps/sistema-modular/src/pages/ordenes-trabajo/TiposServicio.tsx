@@ -7,7 +7,9 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { TIPOS_SERVICIO_ESTANDAR } from '../../utils/tiposServicioEstandar';
+import { TIPOS_SERVICIO_EXPORT_COLUMNS } from '../../utils/exports/exportTiposServicio';
 
 const normalizar = (s: string) => s.trim().toLowerCase();
 
@@ -124,6 +126,12 @@ export const TiposServicio = () => {
           <p className="text-sm text-slate-500 mt-1">Gestionar tipos de servicio para OTs</p>
         </div>
         <div className="flex gap-2">
+          <ExportarButton
+            columnas={TIPOS_SERVICIO_EXPORT_COLUMNS}
+            data={tipos}
+            titulo="Tipos de Servicio"
+            filename="tipos-servicio"
+          />
           <Button variant="outline" onClick={() => goBack()}>
             Volver a OTs
           </Button>

@@ -19,6 +19,8 @@ import { ArticulosListRow } from './ArticulosListRow';
 import { useEquivalenciaListExpansion } from './hooks/useEquivalenciaListExpansion';
 import { useDepositoFilter } from './hooks/useDepositoFilter';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { ARTICULOS_EXPORT_COLUMNS, buildArticulosExportRows, buildArticulosFiltrosExport } from '../../utils/exports/exportArticulos';
 import type { Articulo, Marca } from '@ags/shared';
 import type { ColAlign } from '../../hooks/useResizableColumns';
 
@@ -167,10 +169,24 @@ export const ArticulosList = () => {
   const isInitialLoad = loading && articulos.length === 0;
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
 
+  // Export Excel/PDF del array filtrado que muestra la tabla.
+  const exportRows = useMemo(() => buildArticulosExportRows(filtered, marcas), [filtered, marcas]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Articulos" subtitle="Catalogo de articulos de stock" count={isInitialLoad ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo articulo</Button>}>
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={ARTICULOS_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Artículos"
+              filename="articulos"
+              filtrosAplicados={buildArticulosFiltrosExport(filters, marcas, depositos)}
+            />
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo articulo</Button>
+          </div>
+        }>
         <ArticulosListFilters
           localSearch={localSearch} onSearchChange={setLocalSearch}
           categoriaEquipo={filters.categoriaEquipo} onCategoriaChange={v => setFilter('categoriaEquipo', v)}

@@ -22,6 +22,15 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  PATRON_ESTADO_BADGE,
+  PATRONES_EXPORT_COLUMNS,
+  PATRONES_BAJAS_EXPORT_COLUMNS,
+  buildPatronesBajasExportRows,
+  buildPatronesFiltrosExport,
+  type PatronExportRow,
+} from '../../utils/exports/exportPatrones';
 import { PatronRow } from './PatronRow';
 import { PatronesBajasTable } from './PatronesBajasTable';
 
@@ -75,12 +84,9 @@ const FILTER_SCHEMA = {
   vista: { type: 'string' as const, default: 'activos' },
 };
 
-const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
-  vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
-  por_vencer: { label: 'Por vencer', cls: 'bg-amber-100 text-amber-800' },
-  vencido: { label: 'Vencido', cls: 'bg-red-100 text-red-800' },
-  sin_cert: { label: 'Sin cert.', cls: 'bg-slate-100 text-slate-500' },
-};
+// Labels + clases del estado global — viven en el módulo de export para que
+// tabla y export nunca diverjan.
+const ESTADO_BADGE = PATRON_ESTADO_BADGE;
 
 export const PatronesList = () => {
   const confirm = useConfirm();
@@ -134,6 +140,16 @@ export const PatronesList = () => {
   const totalBajas = useMemo(() => patrones.reduce((n, p) => n + (p.lotesBaja?.length ?? 0), 0), [patrones]);
   const vistaBajas = filters.vista === 'bajas';
 
+  // Export Excel/PDF — mismas filas que renderiza la pestaña activa.
+  const exportRows = useMemo<PatronExportRow[]>(() => filtered.map(p => ({
+    patron: p,
+    estadoLabel: ESTADO_BADGE[estadoGlobal(p)].label,
+    vencimiento: proximoVencimiento(p),
+    cantidad: p.lotes.some(l => typeof l.cantidad === 'number') ? totalCantidad(p) : null,
+  })), [filtered]);
+  const bajasExportRows = useMemo(() => buildPatronesBajasExportRows(patrones), [patrones]);
+  const filtrosExport = buildPatronesFiltrosExport(filters);
+
   const handleDeactivate = async (p: Patron) => {
     if (!await confirm(`¿Desactivar "${p.descripcion}"?`)) return;
     try {
@@ -179,6 +195,13 @@ export const PatronesList = () => {
         count={isInitialLoad ? undefined : vistaBajas ? totalBajas : filtered.length}
         actions={
           <div className="flex items-center gap-2">
+            {vistaBajas ? (
+              <ExportarButton columnas={PATRONES_BAJAS_EXPORT_COLUMNS} data={bajasExportRows}
+                titulo="Patrones" filename="patrones" filtrosAplicados={filtrosExport} />
+            ) : (
+              <ExportarButton columnas={PATRONES_EXPORT_COLUMNS} data={exportRows}
+                titulo="Patrones" filename="patrones" filtrosAplicados={filtrosExport} />
+            )}
             <Button variant="outline" size="sm" onClick={() => void handleExportPdf()}
               disabled={exporting || filtered.length === 0 || vistaBajas}>
               {exporting ? 'Generando…' : 'Exportar PDF'}

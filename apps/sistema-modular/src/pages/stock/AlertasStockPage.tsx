@@ -7,7 +7,9 @@ import {
 } from '../../utils/stockMinimoRequerimientos';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ALERTAS_STOCK_EXPORT_COLUMNS } from '../../utils/exports/exportAlertasStock';
 import type { Articulo } from '@ags/shared';
 
 interface ArticuloConStock extends Articulo {
@@ -94,6 +96,14 @@ export const AlertasStockPage = () => {
         title="Alertas de Stock"
         subtitle="Stock (disponible + pedido en OC) por debajo del mínimo — los requerimientos se generan automáticamente"
         count={items.length}
+        actions={
+          <ExportarButton
+            columnas={ALERTAS_STOCK_EXPORT_COLUMNS}
+            data={sorted}
+            titulo="Alertas de Stock"
+            filename="alertas-stock"
+          />
+        }
       />
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">

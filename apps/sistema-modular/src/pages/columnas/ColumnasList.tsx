@@ -16,6 +16,9 @@ import {
   type Columna,
 } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { COLUMNAS_EXPORT_COLUMNS } from '../../utils/exports/exportColumnas';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -74,7 +77,15 @@ export const ColumnasList = () => {
         subtitle="Columnas GC/HPLC con unidades físicas por código de artículo"
         count={isInitialLoad ? undefined : filtered.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva columna</Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={COLUMNAS_EXPORT_COLUMNS} data={filtered}
+              titulo="Columnas" filename="columnas"
+              filtrosAplicados={filtrosAplicadosDesc({
+                'Categoría': CATEGORIA_PATRON_LABELS[filters.categoria as CategoriaPatron] ?? filters.categoria,
+                'Incluye inactivas': filters.showInactive,
+              })} />
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva columna</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">

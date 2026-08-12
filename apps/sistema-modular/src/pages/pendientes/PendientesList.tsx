@@ -21,6 +21,8 @@ import { DescartarPendienteModal } from '../../components/pendientes/DescartarPe
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { PENDIENTES_EXPORT_COLUMNS, buildPendientesFiltrosExport } from '../../utils/exports/exportPendientes';
 
 const thClass =
   'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -123,6 +125,8 @@ export const PendientesList = () => {
   const hasFilters =
     filters.cliente || filters.tipo || filters.search || filters.estado !== 'pendiente';
 
+  const filtrosExport = buildPendientesFiltrosExport(filters, clientes);
+
   const activeTabStyle =
     'bg-teal-600 text-white border-teal-600';
   const inactiveTabStyle =
@@ -135,9 +139,13 @@ export const PendientesList = () => {
         count={filtrados.length}
         subtitle="Recordatorios que se muestran al crear presupuestos u órdenes de trabajo"
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            + Nueva Pendiente
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={PENDIENTES_EXPORT_COLUMNS} data={filtrados}
+              titulo="Pendientes" filename="pendientes" filtrosAplicados={filtrosExport} />
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              + Nueva Pendiente
+            </Button>
+          </div>
         }
       >
         <div className="flex items-center gap-2 flex-wrap">

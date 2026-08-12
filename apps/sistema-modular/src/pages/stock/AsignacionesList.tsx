@@ -9,6 +9,9 @@ import type { Asignacion, Ingeniero, ItemAsignacion, EstadoItemAsignacion } from
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { ASIGNACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportAsignaciones';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const ITEM_ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
   asignado: 'bg-green-100 text-green-700',
@@ -103,7 +106,22 @@ export const AsignacionesList = () => {
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Historial de asignaciones" subtitle="Quién tuvo cada instrumento, patrón o artículo, dónde y cuándo volvió" count={rows.length}
-        actions={<Link to="/stock/asignaciones" className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700">+ Nueva asignación</Link>} />
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={ASIGNACIONES_EXPORT_COLUMNS}
+              data={rows}
+              titulo="Historial de asignaciones"
+              filename="asignaciones"
+              filtrosAplicados={filtrosAplicadosDesc({
+                'Búsqueda': filters.busqueda ? `'${filters.busqueda}'` : '',
+                Ingeniero: ingenieros.find(i => i.id === filters.ingenieroId)?.nombre,
+                Estado: filters.estado ? (ITEM_ESTADO_LABELS[filters.estado as EstadoItemAsignacion] ?? filters.estado) : '',
+              })}
+            />
+            <Link to="/stock/asignaciones" className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700">+ Nueva asignación</Link>
+          </div>
+        } />
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
         <div className="flex gap-3">

@@ -7,6 +7,10 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  buildPosicionesFiltrosExport, POSICIONES_ARANCELARIAS_EXPORT_COLUMNS,
+} from '../../utils/exports/exportPosicionesArancelarias';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { PosicionArancelaria, TratamientoArancelario } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -170,7 +174,18 @@ export const PosicionesArancelariasPage = () => {
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Posiciones Arancelarias" subtitle="Catalogo de posiciones y tratamientos arancelarios" count={sorted.length}
-        actions={<Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>}>
+        actions={
+          <>
+            <ExportarButton
+              columnas={POSICIONES_ARANCELARIAS_EXPORT_COLUMNS}
+              data={sorted}
+              titulo="Posiciones Arancelarias"
+              filename="posiciones-arancelarias"
+              filtrosAplicados={buildPosicionesFiltrosExport(filters.q, showInactive)}
+            />
+            <Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>
+          </>
+        }>
         {showCreate && (
           <Card>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

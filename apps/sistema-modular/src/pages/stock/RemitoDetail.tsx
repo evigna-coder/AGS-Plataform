@@ -11,6 +11,7 @@ import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAccion
 import { RemitoFirmaCard } from '../../components/remitos/RemitoFirmaCard';
 import { RemitoDescargaModal } from '../../components/remitos/RemitoDescargaModal';
 import { RetornoProveedorButton } from '../../components/remitos/RetornoProveedorButton';
+import { LoanerRetornoButton } from '../../components/remitos/LoanerRetornoButton';
 import { RemitoHistorialCard } from '../../components/remitos/RemitoHistorialCard';
 import { itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 
@@ -237,6 +238,10 @@ export const RemitoDetail = () => {
                             ) : remito.tipo === 'derivacion_proveedor' && item.unidadId && !item.devuelto ? (
                               /* Parte propia de stock en el proveedor (2026-08-07) */
                               <RetornoProveedorButton item={item} />
+                            ) : remito.tipo === 'derivacion_proveedor' && item.loanerId && !item.devuelto ? (
+                              /* Loaner derivado al proveedor (2026-08-12): la vuelta
+                                 marca la línea devuelta + calificación pendiente. */
+                              <LoanerRetornoButton remitoId={remito.id} item={item} />
                             ) : remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
                               <button onClick={() => toggleDevuelto(item, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>

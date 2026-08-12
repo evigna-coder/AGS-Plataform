@@ -11,6 +11,10 @@ interface Props {
   /** Texto del botón disparador (se le agrega el caret ▾). */
   label: string;
   items: MenuButtonItem[];
+  /** Deshabilita el disparador (ej. lista vacía en ExportarButton). */
+  disabled?: boolean;
+  /** Tooltip del disparador. */
+  title?: string;
 }
 
 /**
@@ -18,7 +22,7 @@ interface Props {
  * de un header (ej. "Configuración ▾" en listas). Portal + click-outside + Escape,
  * mismo patrón que ColMenu.
  */
-export const MenuButton: React.FC<Props> = ({ label, items }) => {
+export const MenuButton: React.FC<Props> = ({ label, items, disabled, title }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -51,7 +55,7 @@ export const MenuButton: React.FC<Props> = ({ label, items }) => {
   return (
     <>
       <span ref={wrapRef}>
-        <Button size="sm" variant="outline" onClick={toggle}>
+        <Button size="sm" variant="outline" onClick={toggle} disabled={disabled} title={title}>
           {label} <span className="text-[9px] ml-0.5">▾</span>
         </Button>
       </span>

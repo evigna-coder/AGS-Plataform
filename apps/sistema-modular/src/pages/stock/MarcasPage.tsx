@@ -4,6 +4,8 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { buildMarcasFiltrosExport, MARCAS_EXPORT_COLUMNS } from '../../utils/exports/exportMarcas';
 import type { Marca } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -93,9 +95,18 @@ export const MarcasPage = () => {
         subtitle="Catálogo de marcas compartido entre instrumentos, equipos y stock"
         count={marcas.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(v => !v)}>
-            {showCreate ? 'Cancelar' : '+ Agregar'}
-          </Button>
+          <>
+            <ExportarButton
+              columnas={MARCAS_EXPORT_COLUMNS}
+              data={marcas}
+              titulo="Marcas"
+              filename="marcas"
+              filtrosAplicados={buildMarcasFiltrosExport(showInactive)}
+            />
+            <Button size="sm" onClick={() => setShowCreate(v => !v)}>
+              {showCreate ? 'Cancelar' : '+ Agregar'}
+            </Button>
+          </>
         }
       >
         {showCreate && (

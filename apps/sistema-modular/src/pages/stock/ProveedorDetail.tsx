@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { ProveedorContactosEditor, normalizeContactos } from '../../components/stock/ProveedorContactosEditor';
+import { ProveedorCalificacionPanel } from '../../components/stock/ProveedorCalificacionPanel';
 import type { Proveedor, ContactoProveedor, CategoriaProveedor } from '@ags/shared';
 import { CATEGORIAS_PROVEEDOR, CATEGORIA_PROVEEDOR_LABELS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -218,6 +219,7 @@ export const ProveedorDetail = () => {
                 </div>
               )}
             </Card>
+            {id && <ProveedorCalificacionPanel proveedorId={id} />}
           </div>
 
           {/* Main column */}

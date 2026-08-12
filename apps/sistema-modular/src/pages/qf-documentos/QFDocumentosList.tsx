@@ -15,6 +15,8 @@ import { EditarQFModal } from '../../components/qf-documentos/EditarQFModal';
 import { HistorialDrawer } from '../../components/qf-documentos/HistorialDrawer';
 import { QFFilterBar } from '../../components/qf-documentos/QFFilterBar';
 import { SincronizarBibliotecaButton } from '../../components/qf-documentos/SincronizarBibliotecaButton';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { QF_DOCUMENTOS_EXPORT_COLUMNS, buildQFFiltrosExport } from '../../utils/exports/exportQFDocumentos';
 
 const FILTER_SCHEMA = {
   search: { type: 'string', default: '' },
@@ -176,6 +178,9 @@ export function QFDocumentosList() {
         count={filtered.length}
         actions={
           <div className="flex gap-2">
+            <ExportarButton columnas={QF_DOCUMENTOS_EXPORT_COLUMNS} data={sorted}
+              titulo="Documentos QF" filename="qf-documentos"
+              filtrosAplicados={buildQFFiltrosExport(filters)} />
             <SincronizarBibliotecaButton />
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo QF</Button>
           </div>

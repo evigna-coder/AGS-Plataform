@@ -15,6 +15,8 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CLIENTES_EXPORT_COLUMNS, buildClientesExportRows, buildClientesFiltrosExport } from '../../utils/exports/exportClientes';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
@@ -158,11 +160,19 @@ export const ClientesList = () => {
 
   const isInitialLoad = loading && clientes.length === 0;
 
+  const exportRows = useMemo(
+    () => buildClientesExportRows(filtered, establecimientosByCliente),
+    [filtered, establecimientosByCliente],
+  );
+  const filtrosExport = buildClientesFiltrosExport(filters);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Clientes" count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex gap-2 items-center">
+            <ExportarButton columnas={CLIENTES_EXPORT_COLUMNS} data={exportRows}
+              titulo="Clientes" filename="clientes" filtrosAplicados={filtrosExport} />
             {selected.size > 0 && (
               <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkActioning}
                 className="!border-red-300 !text-red-600 hover:!bg-red-50">

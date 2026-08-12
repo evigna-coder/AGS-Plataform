@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ordenesTrabajoService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useOTListData } from '../../hooks/useOTListData';
@@ -25,7 +25,9 @@ import { type SortDir, toggleSort } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { usePrompt } from '../../components/ui/PromptDialog';
-import { exportOTsToCSV } from '../../utils/otCsvExport';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { OT_EXPORT_COLUMNS, buildOTExportRows, buildOTFiltrosExport } from '../../utils/exports/exportOTs';
+import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
 const FILTER_SCHEMA = {
   /** Solapa activa del módulo: 'ots' (default) | 'previsiones'. */
@@ -141,6 +143,14 @@ export const OTList = () => {
 
   const isInitialLoad = loading && ordenes.length === 0;
 
+  // Export Excel/PDF de lo que está EN PANTALLA: mismo array `grouped` filtrado.
+  const sufijoEstab = useEstablecimientoSuffix();
+  const exportRows = useMemo(
+    () => buildOTExportRows(grouped, sistemas, sufijoEstab),
+    [grouped, sistemas, sufijoEstab],
+  );
+  const filtrosExport = buildOTFiltrosExport(filters, clientes, sistemas, ingenierosList);
+
   // Solapa "Previsiones" (OTs sin abrir). Va después de todos los hooks para no
   // romper el orden; la suscripción de OTs queda viva y el volver es instantáneo.
   if (filters.tab === 'previsiones') {
@@ -156,10 +166,13 @@ export const OTList = () => {
         actions={
           <div className="flex gap-2 items-center">
             <OTColumnsMenu columns={HIDEABLE_COLUMNS} isHidden={isHidden} toggleCol={toggleCol} showAllCols={showAllCols} />
-            <Button size="sm" variant="outline" onClick={() => exportOTsToCSV(grouped, sistemas)}
-              disabled={grouped.length === 0} title="Exportar datos filtrados a CSV">
-              Exportar CSV
-            </Button>
+            <ExportarButton
+              columnas={OT_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Órdenes de Trabajo"
+              filename="ordenes-trabajo"
+              filtrosAplicados={filtrosExport}
+            />
             <Button size="sm" variant="outline" onClick={() => setShowTiposServicio(true)}>Tipos de Servicio</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva OT</Button>
           </div>

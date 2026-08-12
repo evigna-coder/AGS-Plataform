@@ -28,6 +28,8 @@ import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadF
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns, type ColAlign } from '../../hooks/useResizableColumns';
 import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { TICKETS_EXPORT_COLUMNS, buildTicketsExportRows, buildTicketsFiltrosExport } from '../../utils/exports/exportTickets';
 
 const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
@@ -301,6 +303,13 @@ export const LeadsList = () => {
 
   const isInitialLoad = loading && leads.length === 0;
 
+  const exportRows = useMemo(
+    () => buildTicketsExportRows(leadsSorted, usuarios,
+      l => sufijoEstab(l.clienteId, l.sistemaId ? estabPorSistema.get(l.sistemaId) : null)),
+    [leadsSorted, usuarios, sufijoEstab, estabPorSistema],
+  );
+  const filtrosExport = buildTicketsFiltrosExport(filters, usuarios);
+
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -316,6 +325,8 @@ export const LeadsList = () => {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={
           <div className="flex items-center gap-2">
+            <ExportarButton columnas={TICKETS_EXPORT_COLUMNS} data={exportRows}
+              titulo="Tickets" filename="tickets" filtrosAplicados={filtrosExport} />
             <Button size="sm" variant="secondary" onClick={() => setShowReporte(true)}>Reporte Ventas Insumos</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>
           </div>

@@ -17,9 +17,13 @@ import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-
-const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
-const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', en_proveedor: 'En proveedor externo', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  REMITOS_EXPORT_COLUMNS, buildRemitosFiltrosExport,
+  REMITO_TIPO_LABELS as TIPO_LABELS,
+  REMITO_ESTADO_LABELS as ESTADO_LABELS,
+  type RemitoExportRow,
+} from '../../utils/exports/exportRemitos';
 const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
 const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-teal-50 text-teal-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700', servicio: 'bg-cyan-50 text-cyan-700' };
 
@@ -199,6 +203,14 @@ export const RemitosList = () => {
 
   const isInitialLoad = loading && remitos.length === 0;
 
+  // Export Excel/PDF del array filtrado/ordenado que muestra la tabla.
+  const exportRows = useMemo<RemitoExportRow[]>(
+    () => sorted.map(r => ({ remito: r, dueno: duenoRemito(r) })),
+    // duenoRemito depende de clientePorFicha (estado) — se recalcula con sorted.
+    [sorted, clientePorFicha], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const filtrosExport = buildRemitosFiltrosExport(filters, clientes);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -206,7 +218,16 @@ export const RemitosList = () => {
         subtitle="Gestionar remitos de stock"
         count={isInitialLoad ? undefined : sorted.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo remito</Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={REMITOS_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Remitos"
+              filename="remitos"
+              filtrosAplicados={filtrosExport}
+            />
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo remito</Button>
+          </div>
         }
       >
         {/* Pestañas: talonario (numeración fiscal) vs internos REM- */}

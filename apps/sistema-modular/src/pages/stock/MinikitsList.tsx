@@ -11,10 +11,13 @@ import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { Minikit, EstadoMinikit } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  MINIKITS_EXPORT_COLUMNS,
+  buildMinikitsFiltrosExport,
+  ESTADO_MINIKIT_LABELS as ESTADO_LABELS,
+} from '../../utils/exports/exportMinikits';
 
-const ESTADO_LABELS: Record<EstadoMinikit, string> = {
-  en_base: 'En base', en_campo: 'En campo', en_transito: 'En tránsito', en_revision: 'En revisión',
-};
 const ESTADO_COLORS: Record<EstadoMinikit, string> = {
   en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-teal-600',
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
@@ -112,9 +115,18 @@ export const MinikitsList = () => {
         subtitle="Kits portables asignables a ingenieros con unidades de stock"
         count={minikits.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(v => !v)}>
-            {showCreate ? 'Cancelar' : '+ Nuevo minikit'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={MINIKITS_EXPORT_COLUMNS}
+              data={sortedMinikits}
+              titulo="Minikits"
+              filename="minikits"
+              filtrosAplicados={buildMinikitsFiltrosExport(filters)}
+            />
+            <Button size="sm" onClick={() => setShowCreate(v => !v)}>
+              {showCreate ? 'Cancelar' : '+ Nuevo minikit'}
+            </Button>
+          </div>
         }
       >
         {showCreate && (

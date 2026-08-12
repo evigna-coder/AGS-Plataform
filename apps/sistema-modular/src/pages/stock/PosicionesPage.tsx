@@ -10,10 +10,14 @@ import { usePosicionesTree, type PosicionNode } from '../../hooks/usePosicionesT
 import { matchesSearch } from '../../utils/searchTerms';
 import type { TipoPosicionStock, UnidadStock } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  POSICIONES_EXPORT_COLUMNS,
+  buildPosicionesExportRows,
+  buildPosicionesFiltrosExport,
+  TIPO_POSICION_LABELS as TIPO_LABELS,
+} from '../../utils/exports/exportPosiciones';
 
-const TIPO_LABELS: Record<TipoPosicionStock, string> = {
-  cajonera: 'Cajonera', estante: 'Estante', deposito: 'Depósito', vitrina: 'Vitrina', otro: 'Otro',
-};
 const TIPO_OPTIONS: TipoPosicionStock[] = ['cajonera', 'estante', 'deposito', 'vitrina', 'otro'];
 
 interface FormState {
@@ -105,13 +109,28 @@ export const PosicionesPage = () => {
     return wt;
   }, [tree, zonaFilter, debouncedNombre, tipoFilter, sortByName]);
 
+  // Export Excel/PDF: el árbol filtrado aplanado en orden visual (incluye
+  // sub-posiciones aunque no estén expandidas en pantalla).
+  const exportRows = useMemo(() => buildPosicionesExportRows(filteredTree), [filteredTree]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Posiciones de stock"
         subtitle="Ubicaciones fisicas: cajoneras, estantes, depositos"
         count={allPositions.length}
-        actions={<Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={POSICIONES_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Posiciones de Stock"
+              filename="posiciones"
+              filtrosAplicados={buildPosicionesFiltrosExport({ busqueda: debouncedNombre, tipo: tipoFilter, zona: zonaFilter, showInactive })}
+            />
+            <Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>
+          </div>
+        }
       >
         {showCreate && (
           <Card>

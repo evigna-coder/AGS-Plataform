@@ -4,7 +4,11 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { CrearRemitoDesdeInventarioModal } from '../../components/stock/CrearRemitoDesdeInventarioModal';
+import {
+  buildInventarioIngenieroFiltrosExport, INVENTARIO_INGENIERO_EXPORT_COLUMNS,
+} from '../../utils/exports/exportInventarioIngeniero';
 import { InventarioItemRow } from './InventarioItemRow';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
@@ -90,6 +94,13 @@ export const InventarioIngenieroPage = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <ExportarButton
+              columnas={INVENTARIO_INGENIERO_EXPORT_COLUMNS}
+              data={visibleItems}
+              titulo="Inventario por Ingeniero"
+              filename="inventario-ingeniero"
+              filtrosAplicados={buildInventarioIngenieroFiltrosExport(ingeniero.nombre, tab)}
+            />
             <button onClick={() => setShowRemitoModal(true)} disabled={allItems.length === 0}
               className="inline-flex items-center gap-1 px-3 py-1.5 border border-teal-600 text-teal-700 rounded-lg text-xs font-medium hover:bg-teal-50 disabled:opacity-40">
               Crear Remito

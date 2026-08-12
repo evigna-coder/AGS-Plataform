@@ -11,8 +11,9 @@ import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { OC_EXPORT_COLUMNS, buildOCFiltrosExport, TIPO_OC_LABELS as TIPO_LABELS } from '../../utils/exports/exportOrdenesCompra';
 
-const TIPO_LABELS: Record<TipoOC, string> = { nacional: 'Nacional', importacion: 'Importacion' };
 const TIPO_COLORS: Record<TipoOC, string> = { nacional: 'bg-emerald-100 text-emerald-700', importacion: 'bg-violet-100 text-violet-700' };
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC' };
 
@@ -79,7 +80,16 @@ export const OCList = () => {
         subtitle="Gestionar ordenes de compra"
         count={filtered.length}
         actions={
-          <Button size="sm" onClick={() => setModalOcId(null)}>+ Nueva OC</Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={OC_EXPORT_COLUMNS}
+              data={filtered}
+              titulo="Órdenes de Compra"
+              filename="ordenes-compra"
+              filtrosAplicados={buildOCFiltrosExport(filters)}
+            />
+            <Button size="sm" onClick={() => setModalOcId(null)}>+ Nueva OC</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">

@@ -5,6 +5,8 @@ import { getResponsablesOT } from '../../services/personalService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { buildPrevisionesFiltrosExport, PREVISIONES_EXPORT_COLUMNS } from '../../utils/exports/exportPrevisiones';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { OTTabs, type OTTabId } from '../../components/ordenes-trabajo/OTTabs';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
@@ -96,7 +98,18 @@ export const PrevisionesList: React.FC<Props> = ({ onTabChange }) => {
       <PageHeader
         title="Órdenes de Trabajo"
         count={loading ? undefined : visibles.length}
-        actions={<GenerarPrevisionesButton anioOrigen={anio - 1} />}
+        actions={
+          <>
+            <ExportarButton
+              columnas={PREVISIONES_EXPORT_COLUMNS}
+              data={visibles}
+              titulo="Previsiones (OTs sin abrir)"
+              filename="previsiones"
+              filtrosAplicados={buildPrevisionesFiltrosExport(filters, ingenieros)}
+            />
+            <GenerarPrevisionesButton anioOrigen={anio - 1} />
+          </>
+        }
       >
         <div className="space-y-3">
           <OTTabs tab="previsiones" onChange={onTabChange} />

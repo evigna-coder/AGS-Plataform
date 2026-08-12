@@ -9,6 +9,8 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CONTROL_FACTURAS_EXPORT_COLUMNS, buildControlFacturasFiltros } from '../../utils/exports/exportControlFacturas';
 import { CargarFacturaModal } from '../../components/control-facturas/CargarFacturaModal';
 import { FacturaComentariosModal } from '../../components/control-facturas/FacturaComentariosModal';
 import { AprobarFacturaModal } from '../../components/control-facturas/AprobarFacturaModal';
@@ -108,7 +110,13 @@ export const ControlFacturasList = () => {
         title="Control de facturas"
         subtitle="Facturas a pagar — carga, aprobación y seguimiento"
         count={loading ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => setShowCargar(true)}>+ Cargar factura</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={CONTROL_FACTURAS_EXPORT_COLUMNS} data={filtered} titulo="Control de Facturas"
+              filename="control-facturas" filtrosAplicados={buildControlFacturasFiltros(filters)} />
+            <Button size="sm" onClick={() => setShowCargar(true)}>+ Cargar factura</Button>
+          </div>
+        }
       >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">

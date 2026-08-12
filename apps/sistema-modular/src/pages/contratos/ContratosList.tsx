@@ -14,6 +14,8 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { CreateContratoModal } from '../../components/contratos/CreateContratoModal';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CONTRATOS_EXPORT_COLUMNS, buildContratosFiltrosExport } from '../../utils/exports/exportContratos';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -71,11 +73,18 @@ export const ContratosList = () => {
   const activos = contratos.filter(c => c.estado === 'activo');
   const fmtDate = (iso: string) => iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
   const hasFilters = filters.cliente || filters.estado || filters.search;
+  const filtrosExport = buildContratosFiltrosExport(filters, clientes.find(c => c.id === filters.cliente)?.razonSocial);
 
   return (
     <div className="space-y-4">
       <PageHeader title="Contratos" count={filtrados.length} subtitle={`${activos.length} activo(s)`}
-        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Contrato</Button>}>
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={CONTRATOS_EXPORT_COLUMNS} data={filtrados}
+              titulo="Contratos" filename="contratos" filtrosAplicados={filtrosExport} />
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Contrato</Button>
+          </div>
+        }>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="Buscar por numero, cliente..." value={localSearch} onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />

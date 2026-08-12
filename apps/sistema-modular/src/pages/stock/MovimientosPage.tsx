@@ -13,6 +13,8 @@ import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { MovimientoDetailDrawer } from '../../components/stock/MovimientoDetailDrawer';
 import { MovimientosFilters } from './MovimientosFilters';
 import { MovimientosTable } from './MovimientosTable';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { MOVIMIENTOS_EXPORT_COLUMNS, buildMovimientosFiltrosExport } from '../../utils/exports/exportMovimientos';
 import type { MovimientoStock } from '@ags/shared';
 
 const formatDay = (d: Date) =>
@@ -160,7 +162,14 @@ export const MovimientosPage = () => {
         subtitle="Historial de movimientos de inventario"
         count={filtered.length}
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={MOVIMIENTOS_EXPORT_COLUMNS}
+              data={filtered}
+              titulo="Movimientos de Stock"
+              filename="movimientos-stock"
+              filtrosAplicados={buildMovimientosFiltrosExport(filters, debouncedSearch, clientes)}
+            />
             <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>+ Registrar movimiento</Button>
             <Button size="sm" onClick={() => setShowIngreso(true)}>+ Ingresar stock</Button>
           </div>

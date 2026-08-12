@@ -10,6 +10,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { VehiculoModal } from '../../components/vehiculos/VehiculoModal';
 import type { Vehiculo } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { VEHICULOS_EXPORT_COLUMNS } from '../../utils/exports/exportVehiculos';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 function vencimientoStatus(fecha: string): 'ok' | 'warning' | 'expired' {
   if (!fecha) return 'ok';
@@ -74,7 +77,16 @@ export const VehiculosList = () => {
         title="Vehículos"
         subtitle="Seguimiento vehicular y service"
         count={isInitialLoad ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo vehículo</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={VEHICULOS_EXPORT_COLUMNS} data={filtered}
+              titulo="Vehículos" filename="vehiculos"
+              filtrosAplicados={filtrosAplicadosDesc({
+                'Búsqueda': debouncedSearch ? `'${debouncedSearch}'` : '',
+              })} />
+            <Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo vehículo</Button>
+          </div>
+        }
       >
         <input
           type="text"

@@ -7,7 +7,8 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { useAuth } from '../../contexts/AuthContext';
-import { exportSolicitudesExcel, exportSolicitudesPDF } from '../../utils/exports/exportSolicitudesFacturacion';
+import { SOLICITUDES_FACTURACION_EXPORT_COLUMNS, buildSolicitudesFiltrosExport } from '../../utils/exports/exportSolicitudesFacturacion';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import type { SolicitudFacturacion, SolicitudFacturacionEstado, Cliente } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -119,14 +120,6 @@ export const FacturacionList = () => {
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
-  const buildFiltrosLabel = () =>
-    [
-      filters.cliente && `cliente=${clientes.find(c => c.id === filters.cliente)?.razonSocial || filters.cliente}`,
-      filters.estado && `estado=${filters.estado}`,
-      filters.fechaDesde && `desde=${filters.fechaDesde}`,
-      filters.fechaHasta && `hasta=${filters.fechaHasta}`,
-    ].filter(Boolean).join(', ') || 'Sin filtros';
-
   const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta);
 
   return (
@@ -136,24 +129,13 @@ export const FacturacionList = () => {
         count={loading ? undefined : filtradas.length}
         subtitle="Solicitudes de facturacion y seguimiento"
         actions={canAdminAction ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportSolicitudesExcel(filtradas, { filtrosLabel: buildFiltrosLabel() })}
-            >
-              Exportar Excel
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                await exportSolicitudesPDF(filtradas, { filtrosLabel: buildFiltrosLabel() });
-              }}
-            >
-              Exportar PDF
-            </Button>
-          </>
+          <ExportarButton
+            columnas={SOLICITUDES_FACTURACION_EXPORT_COLUMNS}
+            data={filtradas}
+            titulo="Solicitudes de Facturación"
+            filename="solicitudes-facturacion"
+            filtrosAplicados={buildSolicitudesFiltrosExport(filters, clientes)}
+          />
         ) : undefined}
       >
         <div className="flex items-center gap-2 flex-wrap">

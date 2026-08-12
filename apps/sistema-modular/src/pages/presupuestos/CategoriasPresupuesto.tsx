@@ -5,8 +5,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { CATEGORIAS_PRESUPUESTO_EXPORT_COLUMNS } from '../../utils/exports/exportCategoriasPresupuesto';
 
 export const CategoriasPresupuesto = () => {
   const goBack = useNavigateBack();
@@ -149,6 +151,12 @@ export const CategoriasPresupuesto = () => {
           <p className="text-sm text-slate-500 mt-1">Gestión de categorías y reglas tributarias</p>
         </div>
         <div className="flex gap-3">
+          <ExportarButton
+            columnas={CATEGORIAS_PRESUPUESTO_EXPORT_COLUMNS}
+            data={sorted}
+            titulo="Categorías de Presupuesto"
+            filename="categorias-presupuesto"
+          />
           {!showForm && (
             <Button onClick={handleNew}>
               + Nueva Categoría

@@ -8,15 +8,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import type { Ingeniero, AreaIngeniero, UsuarioAGS } from '@ags/shared';
 import { IngenieroCertificados } from '../../components/IngenieroCertificados';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-
-const AREA_LABELS: Record<AreaIngeniero, string> = {
-  campo: 'Campo',
-  taller: 'Taller',
-  electronica: 'Electrónica',
-  mecanica: 'Mecánica',
-  ventas: 'Ventas',
-  admin: 'Administración',
-};
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { AREA_INGENIERO_LABELS as AREA_LABELS, INGENIEROS_EXPORT_COLUMNS } from '../../utils/exports/exportIngenieros';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const AREA_OPTIONS: AreaIngeniero[] = ['campo', 'taller', 'electronica', 'mecanica', 'ventas', 'admin'];
 
@@ -130,9 +124,14 @@ export const IngenierosPage = () => {
         subtitle="Catálogo de técnicos e ingenieros de campo"
         count={items.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(v => !v)}>
-            {showCreate ? 'Cancelar' : '+ Agregar'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={INGENIEROS_EXPORT_COLUMNS} data={items}
+              titulo="Ingenieros" filename="ingenieros"
+              filtrosAplicados={filtrosAplicadosDesc({ 'Incluye inactivos': showInactive })} />
+            <Button size="sm" onClick={() => setShowCreate(v => !v)}>
+              {showCreate ? 'Cancelar' : '+ Agregar'}
+            </Button>
+          </div>
         }
       >
         {showCreate && (

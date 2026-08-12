@@ -7,7 +7,9 @@ import { pagosExteriorService } from '../../services/pagosExteriorService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PagoExteriorModal } from '../../components/stock/PagoExteriorModal';
+import { buildPagosVEPExportRows, PAGOS_VEP_EXPORT_COLUMNS } from '../../utils/exports/exportPagosVEP';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -96,6 +98,8 @@ export const PagosVEPPage = () => {
     };
   }, [importaciones, pagosManuales]);
 
+  const exportRows = useMemo(() => buildPagosVEPExportRows(meses), [meses]);
+
   const proxFecha = prox ? new Date(prox.fecha + 'T00:00:00') : null;
   // Los manuales abren su modal de edición; los de importación, la importación.
   const openEvento = (e: EventoFlujo) => {
@@ -112,7 +116,16 @@ export const PagosVEPPage = () => {
       <PageHeader title="Pagos VEP" subtitle="Flujo de fondos comercio exterior — VEP, giros y arribos por mes"
         count={loading ? undefined : futurosCount}
         actions={
-          <Button size="sm" onClick={() => { setEditando(null); setModalOpen(true); }}>+ Pago manual</Button>
+          <>
+            <ExportarButton
+              columnas={PAGOS_VEP_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Pagos VEP / al exterior"
+              filename="pagos-vep"
+              subtitulo="Pagos y arribos futuros pendientes"
+            />
+            <Button size="sm" onClick={() => { setEditando(null); setModalOpen(true); }}>+ Pago manual</Button>
+          </>
         } />
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">

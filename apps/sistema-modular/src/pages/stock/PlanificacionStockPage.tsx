@@ -7,6 +7,10 @@ import { marcasService } from '../../services/catalogService';
 import { proveedoresService } from '../../services/personalService';
 import type { Articulo } from '@ags/shared';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  buildPlanificacionExportRows, buildPlanificacionFiltrosExport, PLANIFICACION_EXPORT_COLUMNS,
+} from '../../utils/exports/exportPlanificacionStock';
 import { PlanificacionRow } from './PlanificacionRow';
 
 // Step 0 pre-check outcome (recorded in 09-03-SUMMARY.md):
@@ -68,6 +72,11 @@ export function PlanificacionStockPage() {
   const hideIfNotComprometido = filters.soloComprometido === 'true';
   const hasAdvancedFilters = !!(filters.marcaId || filters.proveedorId || filters.soloComprometido);
 
+  const exportRows = useMemo(
+    () => buildPlanificacionExportRows(filtered, marcaById, hideIfNotComprometido),
+    [filtered, marcaById, hideIfNotComprometido],
+  );
+
   const th = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
   return (
@@ -80,6 +89,15 @@ export function PlanificacionStockPage() {
             {!loading && (
               <p className="text-xs text-slate-400 mt-0.5">{filtered.length} artículos</p>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={PLANIFICACION_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Planificación de Stock"
+              filename="planificacion-stock"
+              filtrosAplicados={buildPlanificacionFiltrosExport(filters, marcas, proveedores)}
+            />
           </div>
         </div>
 

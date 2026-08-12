@@ -10,6 +10,9 @@ import { IngresoEmpresaModal } from '../../components/ingreso-empresas/IngresoEm
 import type { IngresoEmpresa, TipoIngresoCliente, DocumentoIngresoStatus } from '@ags/shared';
 import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { INGRESO_EMPRESAS_EXPORT_COLUMNS } from '../../utils/exports/exportIngresoEmpresas';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -89,7 +92,17 @@ export const IngresoEmpresasList = () => {
         title="Ingreso a Empresas"
         subtitle="Documentación requerida para ingreso a clientes"
         count={isInitialLoad ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo ingreso</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton columnas={INGRESO_EMPRESAS_EXPORT_COLUMNS} data={filtered}
+              titulo="Ingreso de Empresas" filename="ingreso-empresas"
+              filtrosAplicados={filtrosAplicadosDesc({
+                'Búsqueda': debouncedSearch ? `'${debouncedSearch}'` : '',
+                Tipo: filters.tipo ? (TIPO_INGRESO_LABELS[filters.tipo as TipoIngresoCliente] ?? filters.tipo) : '',
+              })} />
+            <Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo ingreso</Button>
+          </div>
+        }
       >
         <div className="flex items-center gap-3 flex-wrap">
           <input

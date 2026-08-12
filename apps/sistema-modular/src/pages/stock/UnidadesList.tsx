@@ -18,11 +18,14 @@ import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  buildUnidadesFiltrosExport, CONDICION_UNIDAD_LABELS as CONDICION_LABELS,
+  ESTADO_UNIDAD_LABELS as ESTADO_LABELS, UNIDADES_AGG_EXPORT_COLUMNS, UNIDADES_DETALLE_EXPORT_COLUMNS,
+} from '../../utils/exports/exportUnidades';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Presentacion } from '@ags/shared';
 
-const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
-const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', entregado: 'Entregado', baja: 'Baja' };
 
 /** Días enteros desde una fecha ISO — cuánto hace que la pieza está afuera. */
 const diasDesde = (iso: string) => {
@@ -172,6 +175,31 @@ export const UnidadesList = () => {
         title="Unidades de stock"
         subtitle="Stock real por artículo — click para ver el desglose"
         count={isInitialLoad ? undefined : (vistaDetalle ? filtered.length : aggregated.length)}
+        actions={vistaDetalle ? (
+          <ExportarButton
+            columnas={UNIDADES_DETALLE_EXPORT_COLUMNS}
+            data={filtered}
+            titulo="Unidades de stock"
+            filename="unidades"
+            filtrosAplicados={buildUnidadesFiltrosExport(
+              { ...filters, search: debouncedSearch },
+              depositos.find(d => d.value === filters.deposito)?.label,
+              true,
+            )}
+          />
+        ) : (
+          <ExportarButton
+            columnas={UNIDADES_AGG_EXPORT_COLUMNS}
+            data={aggregated}
+            titulo="Unidades de stock"
+            filename="unidades"
+            filtrosAplicados={buildUnidadesFiltrosExport(
+              { ...filters, search: debouncedSearch },
+              depositos.find(d => d.value === filters.deposito)?.label,
+              false,
+            )}
+          />
+        )}
       >
         <div className="flex items-center gap-3 flex-wrap">
           <input type="text" placeholder="Buscar por codigo, descripcion, serie o lote..."

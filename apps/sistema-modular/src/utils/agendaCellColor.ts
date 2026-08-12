@@ -8,8 +8,8 @@ const CELL_BG: Record<EstadoAgenda, string> = {
   tentativo: 'bg-slate-300',
   tentativo_interior: 'bg-[#a09a4e]',
   confirmado: 'bg-blue-300',
-  // Azul grisáceo más AZUL (2026-08-04: "#7d90a8 parece gris oscuro").
-  confirmado_interior: 'bg-[#6d8ec9]',
+  // 2026-08-12: verde agua pálido (muestra del user) — antes azul #6d8ec9.
+  confirmado_interior: 'bg-[#B8D2CC]',
   en_progreso: 'bg-teal-300',
   // La familia interior sigue hasta el final del ciclo (2026-08-08): el color no
   // se pierde al pasar a en progreso / completado, que es cuando se liquida el
@@ -25,7 +25,8 @@ const CELL_TEXT: Record<EstadoAgenda, string> = {
   tentativo: 'text-slate-800',
   tentativo_interior: 'text-[#26240c]',
   confirmado: 'text-blue-900',
-  confirmado_interior: 'text-white',
+  // Fondo claro desde 2026-08-12 → texto oscuro (antes blanco sobre azul).
+  confirmado_interior: 'text-[#1f3a35]',
   en_progreso: 'text-teal-900',
   en_progreso_interior: 'text-white',
   completado: 'text-emerald-900',
@@ -71,6 +72,8 @@ const REGLAS: ReglaColor[] = [
   // algo de azul para sacarle el tinte ámbar. Distinto del amarillo opaco de
   // bench/oficina (#e0c878), que es mucho más apagado y terroso.
   { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#ffe23f]', text: 'text-[#3d3300]' },
+  // Vacaciones (2026-08-12) — naranja Claude.
+  { campo: 'titulo', test: /vacaciones/i, bg: 'bg-[#D97757]', text: 'text-[#401c10]' },
 ];
 
 /**
@@ -91,6 +94,9 @@ export function colorDeTituloFijo(titulo: string): string | null {
 /** Verde agua institucional (teal-700) — el mismo de los botones. */
 const VENTA_CONCRETADA = { bg: 'bg-[#0D6E6E]', text: 'text-white' };
 
+/** Per Incident (2026-08-12) — verde oliva (muestra del user), celda entera. */
+const PER_INCIDENT = { bg: 'bg-[#7C9A4F]', text: 'text-white' };
+
 /**
  * Resuelve el fondo y el color de texto de una celda de agenda. Devuelve strings
  * de clases Tailwind vacíos cuando la celda no tiene entry.
@@ -101,11 +107,14 @@ export function colorDeCeldaAgenda(params: {
   titulo?: string | null;
   /** Flag manual: gana sobre todo lo demás salvo `cancelado`. */
   ventaConcretada?: boolean;
+  /** Flag manual Per Incident: ídem, debajo de ventaConcretada en prioridad. */
+  perIncident?: boolean;
 }): { bg: string; text: string } {
-  const { estado, tipoServicio, titulo, ventaConcretada } = params;
+  const { estado, tipoServicio, titulo, ventaConcretada, perIncident } = params;
   if (estado !== 'cancelado') {
     // Marca explícita del usuario: pisa las reglas derivadas de tipo/título.
     if (ventaConcretada) return { ...VENTA_CONCRETADA };
+    if (perIncident) return { ...PER_INCIDENT };
     for (const r of REGLAS) {
       const valor = r.campo === 'tipoServicio' ? tipoServicio : titulo;
       if (valor && r.test.test(valor)) return { bg: r.bg, text: r.text };

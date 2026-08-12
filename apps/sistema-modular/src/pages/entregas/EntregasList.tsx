@@ -8,6 +8,8 @@ import { EntregasFilters } from './EntregasFilters';
 import { EntregaRowComponent } from './EntregaRow';
 import { EntregaOCGroupRow } from './EntregaOCGroupRow';
 import type { EntregaRow } from '../../utils/entregasResolver';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { ENTREGAS_EXPORT_COLUMNS, buildEntregasFiltrosExport } from '../../utils/exports/exportEntregas';
 
 /** Entrada de render: fila suelta o grupo por OC completa (recibida). */
 type DisplayEntry =
@@ -114,12 +116,22 @@ export const EntregasList: React.FC = () => {
     return out;
   }, [sorted]);
 
+  // Export: filas PLANAS que alimentan el agrupado por OC, en el orden de sort visible.
+  const filtrosExport = buildEntregasFiltrosExport(
+    filters,
+    clienteOptions.find(o => o.value === filters.clienteId)?.label,
+  );
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Entregas"
         subtitle="Visor de cumplimiento de entregas comprometidas"
         count={sorted.length}
+        actions={
+          <ExportarButton columnas={ENTREGAS_EXPORT_COLUMNS} data={sorted}
+            titulo="Entregas" filename="entregas" filtrosAplicados={filtrosExport} />
+        }
       >
         <EntregasFilters filters={filters} setFilter={setFilter} clienteOptions={clienteOptions} search={search} onSearchChange={setSearch} />
       </PageHeader>

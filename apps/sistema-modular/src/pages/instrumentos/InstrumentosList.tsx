@@ -16,30 +16,25 @@ import { getCurrentUser } from '../../services/currentUser';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
   CATEGORIA_PATRON_LABELS,
-  calcularEstadoCertificado,
   type CategoriaInstrumento,
   type CategoriaPatron,
-  type EstadoCertificado,
   type InstrumentoPatron,
 } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  ALL_CAT_LABELS,
+  INSTRUMENTO_ESTADO_BADGE as ESTADO_BADGE,
+  INSTRUMENTOS_EXPORT_COLUMNS,
+  buildInstrumentosFiltrosExport,
+  getEstadoEfectivo,
+  type EstadoEfectivo,
+} from '../../utils/exports/exportInstrumentos';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
-type EstadoEfectivo = EstadoCertificado | 'en_calibracion';
-
-const ESTADO_BADGE: Record<EstadoEfectivo, { label: string; cls: string }> = {
-  vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
-  por_vencer: { label: 'Por vencer', cls: 'bg-amber-100 text-amber-800' },
-  vencido: { label: 'Vencido', cls: 'bg-red-100 text-red-800' },
-  sin_certificado: { label: 'Sin cert.', cls: 'bg-slate-100 text-slate-500' },
-  en_calibracion: { label: 'En calibración', cls: 'bg-blue-100 text-blue-800' },
-};
-
-const ALL_CAT_LABELS: Record<string, string> = { ...CATEGORIA_INSTRUMENTO_LABELS, ...CATEGORIA_PATRON_LABELS };
 const CATS_INSTRUMENTO = Object.entries(CATEGORIA_INSTRUMENTO_LABELS) as [CategoriaInstrumento, string][];
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
@@ -64,11 +59,6 @@ const FILTER_SCHEMA = {
   estadoCert: { type: 'string' as const, default: '' },
   showInactive: { type: 'boolean' as const, default: false },
 };
-
-function getEstadoEfectivo(i: InstrumentoPatron): EstadoEfectivo {
-  if (i.estadoCalibracion === 'en_calibracion') return 'en_calibracion';
-  return calcularEstadoCertificado(i.certificadoVencimiento);
-}
 
 export const InstrumentosList = () => {
 
@@ -161,6 +151,9 @@ export const InstrumentosList = () => {
         count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex gap-2">
+            <ExportarButton columnas={INSTRUMENTOS_EXPORT_COLUMNS} data={filtered}
+              titulo="Instrumentos" filename="instrumentos"
+              filtrosAplicados={buildInstrumentosFiltrosExport(filters)} />
             <Button variant="outline" size="sm" onClick={() => void handleExportPdf()}
               disabled={exporting || filtered.length === 0}>
               {exporting ? 'Generando…' : 'Exportar PDF'}

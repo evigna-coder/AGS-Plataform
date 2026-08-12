@@ -7,8 +7,11 @@ import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { matchesSearch } from '../../utils/searchTerms';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { DateInput } from '../../components/ui/DateInput';
+import { buildConsumosExportRows, CONSUMOS_EXPORT_COLUMNS } from '../../utils/exports/exportConsumos';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const FILTER_SCHEMA = {
   clienteId:  { type: 'string' as const, default: '' },
@@ -66,6 +69,16 @@ export const ConsumosPage = () => {
     return [{ value: '', label: 'Equipo: Todos' }, ...list.map(s => ({ value: s.id, label: s.nombre }))];
   }, [sistemas, rows, filters.clienteId]);
 
+  const exportRows = useMemo(() => buildConsumosExportRows(filtered, sufijoEstab), [filtered, sufijoEstab]);
+  const filtrosExport = filtrosAplicadosDesc({
+    Cliente: clientes.find(c => c.id === filters.clienteId)?.razonSocial,
+    Equipo: sistemas.find(s => s.id === filters.equipoId)?.nombre,
+    'Establecimiento filtrado': !!filters.establecimientoId,
+    Desde: filters.fechaDesde,
+    Hasta: filters.fechaHasta,
+    'Búsqueda': filters.busqueda ? `'${filters.busqueda}'` : '',
+  });
+
   const hasActive = !!(filters.clienteId || filters.equipoId || filters.establecimientoId || filters.fechaDesde || filters.fechaHasta || filters.busqueda);
   const th = 'px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap';
   const td = 'px-3 py-2 text-xs';
@@ -103,6 +116,13 @@ export const ConsumosPage = () => {
               Limpiar
             </button>
           )}
+          <ExportarButton
+            columnas={CONSUMOS_EXPORT_COLUMNS}
+            data={exportRows}
+            titulo="Consumos"
+            filename="consumos"
+            filtrosAplicados={filtrosExport}
+          />
         </div>
       </PageHeader>
 

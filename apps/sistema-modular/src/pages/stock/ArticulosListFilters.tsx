@@ -2,15 +2,12 @@ import { useMemo } from 'react';
 import type { CategoriaEquipoStock, Marca, TipoArticulo } from '@ags/shared';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { DepositoOption } from './hooks/useDepositoFilter';
-
-const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
-  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro',
-  HEADSPACE: 'Headspace', DENSIMETRO: 'Densimetro', GENERAL: 'General',
-};
-const TIPO_LABELS: Record<TipoArticulo, string> = {
-  repuesto: 'Repuesto', consumible: 'Consumible', equipo: 'Equipo', columna: 'Columna',
-  accesorio: 'Accesorio', muestra: 'Muestra', otro: 'Otro',
-};
+// Labels movidos al módulo de export para que el archivo Excel/PDF muestre
+// exactamente los mismos textos que los selectores.
+import {
+  CATEGORIA_ARTICULO_LABELS as CATEGORIA_LABELS,
+  TIPO_ARTICULO_LABELS as TIPO_LABELS,
+} from '../../utils/exports/exportArticulos';
 
 interface Props {
   localSearch: string;

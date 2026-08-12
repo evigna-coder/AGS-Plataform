@@ -23,6 +23,12 @@ import { sweepStockMinimoRequerimientos } from '../../utils/stockMinimoRequerimi
 import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS, ESTADO_OC_LABELS, type EstadoOC } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import {
+  REQUERIMIENTOS_EXPORT_COLUMNS,
+  buildRequerimientosExportRows,
+  buildRequerimientosFiltrosExport,
+} from '../../utils/exports/exportRequerimientos';
 
 // Estados que ya no requieren acción: fuera de la vista por defecto (UAT 2026-07-16:
 // un req ya comprado/ingresado no debe seguir figurando). 'completado' = legacy inválido.
@@ -245,6 +251,9 @@ export const RequerimientosList = () => {
 
   const isInitialLoad = loading && requerimientos.length === 0;
 
+  // Export Excel/PDF del array filtrado+ordenado que muestra la tabla.
+  const exportRows = useMemo(() => buildRequerimientosExportRows(sorted, clienteDeReq), [sorted, clienteDeReq]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -254,6 +263,13 @@ export const RequerimientosList = () => {
         actions={
           filters.tab === 'partes' ? undefined :
           <>
+            <ExportarButton
+              columnas={REQUERIMIENTOS_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Requerimientos"
+              filename="requerimientos"
+              filtrosAplicados={buildRequerimientosFiltrosExport(filters, busqueda)}
+            />
             {selectedIds.size > 0 && (
               <>
                 <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>

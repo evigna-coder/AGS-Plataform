@@ -5,8 +5,12 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import {
+  CONDICIONES_PAGO_EXPORT_COLUMNS, condicionPagoPlazoTexto,
+} from '../../utils/exports/exportCondicionesPago';
 
 export const CondicionesPago = () => {
   const goBack = useNavigateBack();
@@ -117,11 +121,8 @@ export const CondicionesPago = () => {
     }
   };
 
-  const getDiasTexto = (dias: number): string => {
-    if (dias === 0) return 'Contado';
-    if (dias === 1) return '1 día';
-    return `${dias} días`;
-  };
+  // El texto del plazo vive en el módulo de export (fuente única con Excel/PDF).
+  const getDiasTexto = condicionPagoPlazoTexto;
 
   if (loading) {
     return (
@@ -139,6 +140,12 @@ export const CondicionesPago = () => {
           <p className="text-sm text-slate-500 mt-1">Gestión de condiciones de pago precargadas</p>
         </div>
         <div className="flex gap-3">
+          <ExportarButton
+            columnas={CONDICIONES_PAGO_EXPORT_COLUMNS}
+            data={sorted}
+            titulo="Condiciones de Pago"
+            filename="condiciones-pago"
+          />
           {!showForm && (
             <Button onClick={handleNew}>
               + Nueva Condición

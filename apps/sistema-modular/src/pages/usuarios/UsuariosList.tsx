@@ -10,6 +10,8 @@ const SORT_SCHEMA = {
 };
 import { usuariosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { USUARIOS_EXPORT_COLUMNS } from '../../utils/exports/exportUsuarios';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -73,7 +75,16 @@ export const UsuariosList = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Usuarios" subtitle="Gestion de usuarios, roles y permisos" count={isInitialLoad ? undefined : users.length} />
+      <PageHeader title="Usuarios" subtitle="Gestion de usuarios, roles y permisos" count={isInitialLoad ? undefined : users.length}
+        actions={
+          <ExportarButton
+            columnas={USUARIOS_EXPORT_COLUMNS}
+            data={sortedUsers}
+            titulo="Usuarios"
+            filename="usuarios"
+          />
+        }
+      />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
