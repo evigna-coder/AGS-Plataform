@@ -15,6 +15,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { FICHAS_EXPORT_COLUMNS, estadoVisibleDeFicha, proveedorDerivadoLabel } from '../../utils/exports/exportFichas';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 /**
  * Resumen del problema reportado en la ficha — toma el descripcionProblema del
@@ -52,9 +55,9 @@ export function FichasList() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const sufijoEstab = useEstablecimientoSuffix();
-  // v2: agregamos columnas Modelo y Serie — bump invalida el cache localStorage
-  // que guardaba widths/aligns para 7 columnas (ahora son 9).
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('fichas-list-v2');
+  // v3: columna Proveedor (2026-08-12) — bump invalida el cache localStorage
+  // que guardaba widths/aligns para 9 columnas (ahora son 10).
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('fichas-list-v3');
 
   const FILTER_SCHEMA = useMemo(() => ({
     estado: { type: 'string' as const, default: '' },
@@ -98,7 +101,10 @@ export function FichasList() {
 
   const filtered = useMemo(() => {
     let result = fichas.filter(f => {
-      if (filters.estado && f.estado !== filters.estado) return false;
+      // El filtro de estado matchea contra el estado VISIBLE (2026-08-12): con
+      // algo derivado la ficha se ve —y se filtra— como "Derivado a proveedor",
+      // aunque el estado guardado sea esperando_repuesto.
+      if (filters.estado && estadoVisibleDeFicha(f) !== filters.estado) return false;
       if (filters.cliente && f.clienteId !== filters.cliente) return false;
       return true;
     });
@@ -128,6 +134,17 @@ export function FichasList() {
         count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={FICHAS_EXPORT_COLUMNS}
+              data={filtered}
+              titulo="Fichas Propiedad del Cliente"
+              filename="fichas"
+              filtrosAplicados={filtrosAplicadosDesc({
+                Cliente: clientes.find(c => c.id === filters.cliente)?.razonSocial,
+                Estado: filters.estado ? (ESTADO_FICHA_LABELS[filters.estado as EstadoFicha] ?? filters.estado) : '',
+                'Incluye entregadas': filters.showEntregadas,
+              })}
+            />
             <Button size="sm" variant="outline" onClick={() => setShowDerivacionLote(true)}>Derivar a proveedor</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva ficha</Button>
           </div>
@@ -185,7 +202,8 @@ export function FichasList() {
                   <col />
                   <col style={{ width: 130 }} />
                   <col style={{ width: 110 }} />
-                  <col style={{ width: 85 }} />
+                  <col style={{ width: 100 }} />
+                  <col style={{ width: 120 }} />
                   <col style={{ width: 78 }} />
                   <col style={{ width: 75 }} />
                   <col style={{ width: 110 }} />
@@ -208,12 +226,13 @@ export function FichasList() {
                     <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
                     <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(6)} relative`}>
-                    <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
-                    <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  <th className={`${thClass} ${getAlignClass(6)} relative`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Proveedor<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(7)} relative`}>
+                    <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
+                    <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={`${thClass} ${getAlignClass(7)} relative`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />OT Ref<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(8)} relative`}><ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} />OT Ref<div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -233,12 +252,20 @@ export function FichasList() {
                       {firstItemSerie(f) || <span className="text-slate-300">—</span>}
                     </td>
                     <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(5)}`}>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[f.estado]}`}>
-                        {ESTADO_FICHA_LABELS[f.estado]}
+                      {/* Estado VISIBLE (2026-08-12): con algo derivado se muestra
+                          "Derivado a proveedor"; el estado guardado va al tooltip. */}
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[estadoVisibleDeFicha(f)]}`}
+                        title={estadoVisibleDeFicha(f) !== f.estado ? `Estado interno: ${ESTADO_FICHA_LABELS[f.estado]}` : undefined}
+                      >
+                        {ESTADO_FICHA_LABELS[estadoVisibleDeFicha(f)]}
                       </span>
                     </td>
-                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(6)}`}>{formatDate(f.fechaIngreso)}</td>
-                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(7)}`}>
+                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(6)}`} title={proveedorDerivadoLabel(f)}>
+                      {proveedorDerivadoLabel(f) || <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(7)}`}>{formatDate(f.fechaIngreso)}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(8)}`}>
                       {f.otReferencia ? (
                         <Link to={`/ordenes-trabajo/${f.otReferencia}`} className="text-teal-600 hover:underline" onClick={e => e.stopPropagation()}>
                           {f.otReferencia}
