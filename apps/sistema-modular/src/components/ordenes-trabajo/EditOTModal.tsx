@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { RemitoServicioModal } from '../remitos/RemitoServicioModal';
 import { useEditOTForm } from '../../hooks/useEditOTForm';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
@@ -17,6 +19,12 @@ interface Props {
 
 export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved }) => {
   const h = useEditOTForm(open, otNumber, onClose, onSaved);
+  // Remito de servicio desde acá (2026-08-12): antes solo estaba en la página de
+  // detalle de la OT, a la que el listado no lleva — el botón quedaba invisible.
+  // El remito se arma por EQUIPO y consolida las OTs de ese equipo; esta OT solo
+  // aporta el contexto de arranque (cliente + equipo).
+  const [showRemitoServicio, setShowRemitoServicio] = useState(false);
+  const sistemaSel = h.sistemasFiltrados.find(s => s.id === h.form.sistemaId);
 
   const showCierreAdmin =
     h.form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || h.form.estadoAdmin === 'FINALIZADO';
@@ -28,11 +36,24 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
     : `OT-${otNumber}`;
 
   return (
+    <>
     <Modal open={open} onClose={onClose} maxWidth="xl"
       title={title}
       subtitle={h.loading ? 'Cargando...' : `${OT_ESTADO_LABELS[h.form.estadoAdmin] ?? h.form.estadoAdmin}`}
       footer={<>
         <Button variant="outline" size="sm" onClick={h.openInReportesOT}>Abrir reporte</Button>
+        {/* Deshabilitado —no oculto— sin equipo: el remito de servicio se arma
+            por equipo, y esconder el botón deja al usuario buscándolo. */}
+        <Button
+          variant="outline" size="sm"
+          onClick={() => setShowRemitoServicio(true)}
+          disabled={h.loading || !h.form.sistemaId}
+          title={h.form.sistemaId
+            ? 'Remito de servicio del equipo — permite juntar varias OTs en un mismo remito'
+            : 'La OT no tiene equipo cargado: el remito de servicio se arma por equipo'}
+        >
+          Remito servicio
+        </Button>
         {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.readOnly && (
           <Button
             size="sm"
@@ -96,5 +117,21 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         </div>
       )}
     </Modal>
+
+    <RemitoServicioModal
+      open={showRemitoServicio}
+      onClose={() => setShowRemitoServicio(false)}
+      onCreated={() => setShowRemitoServicio(false)}
+      prefill={{
+        clienteId: h.form.clienteId || undefined,
+        clienteNombre: h.otOriginal?.razonSocial,
+        sistemaId: h.form.sistemaId || undefined,
+        sistemaNombre: sistemaSel?.nombre,
+        sistemaCodigoInterno: h.otOriginal?.codigoInternoCliente
+          || sistemaSel?.codigoInternoCliente
+          || undefined,
+      }}
+    />
+    </>
   );
 };
