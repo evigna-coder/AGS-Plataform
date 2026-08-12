@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { OrdenCompra, EstadoOC } from '@ags/shared';
 import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
 import { ordenesCompraService } from '../../services/firebaseService';
+import { calificacionesService } from '../../services/calificacionesService';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
@@ -30,7 +31,18 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
     if (!newEstado) return;
     setSaving(true);
     try {
-      await ordenesCompraService.update(oc.id, { estado: newEstado });
+      // Al marcar recibida a mano, estampar fechaRecepcion si falta (2026-08-12).
+      const fechaRecepcion = oc.fechaRecepcion || new Date().toISOString();
+      await ordenesCompraService.update(oc.id, {
+        estado: newEstado,
+        ...(newEstado === 'recibida' ? { fechaRecepcion } : {}),
+      });
+      // Calificación pendiente del proveedor (best-effort, idempotente por
+      // origenKey; las OC de importación se califican por embarque, no acá).
+      if (newEstado === 'recibida') {
+        await calificacionesService.crearPendienteDesdeOC({ ...oc, fechaRecepcion })
+          .catch(err => console.warn('[OCStatusTransition] calificación pendiente falló:', err));
+      }
       setNewEstado('');
       onUpdated();
     } catch (err) {

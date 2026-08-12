@@ -2,31 +2,41 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import type { CalificacionProveedor, CriterioEvaluacion, Proveedor, EstadoCalificacion } from '@ags/shared';
-import { CRITERIOS_DEFAULT } from '@ags/shared';
+import type { CalificacionProveedor, CriterioEvaluacion, Proveedor } from '@ags/shared';
+import { CRITERIOS_DEFAULT, CRITERIOS_POR_ORIGEN, ORIGEN_CALIFICACION_LABELS } from '@ags/shared';
+import { calcEstadoCalificacion } from '../../services/calificacionesService';
+import { getCurrentUser } from '../../services/currentUser';
+import { CriteriosEditor } from './CriteriosEditor';
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Alta manual / edición de una calificada. */
   onSave: (data: Omit<CalificacionProveedor, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  /** Completar una pendiente (proveedor y refs quedan readonly). */
+  onCalificar?: (id: string, data: { criterios: CriterioEvaluacion[]; puntajeTotal: number; observaciones?: string | null; responsable: string }) => Promise<void>;
   proveedores: Proveedor[];
   editing?: CalificacionProveedor | null;
+  pendiente?: CalificacionProveedor | null;
 }
 
-const CRITERIO_DESCRIPCION: Record<string, string> = {
-  conformidad: 'El producto recibido cumple con las especificaciones técnicas, número de parte y condiciones solicitadas en la orden de compra.',
-  plazo: 'La entrega se realizó dentro del plazo acordado. Penalizar proporcionalmente por días de atraso.',
-  cantidad: 'La cantidad recibida coincide con la cantidad solicitada. Sin faltantes ni excedentes.',
-  documentacion: 'Incluye remito, certificado de análisis (CoA), MSDS, factura y toda documentación requerida.',
-  embalaje: 'El producto llegó correctamente embalado, sin daños ni contaminación. Especialmente importante para componentes sensibles.',
-  respuesta: 'Tiempo desde la emisión de la orden de compra hasta el despacho efectivo por parte del proveedor.',
-  precio: 'El precio facturado coincide con el cotizado. Sin recargos no pactados.',
-};
-
-function calcEstado(puntaje: number): EstadoCalificacion {
-  if (puntaje >= 80) return 'aprobado';
-  if (puntaje >= 60) return 'condicional';
-  return 'no_aprobado';
+/**
+ * Criterios iniciales de una pendiente: el set según el origen, con puntaje
+ * pre-sugerido desde las métricas del disparador — plazo desde diasAtraso
+ * (lineal: 0 atraso = máximo, 30+ días = 0) y cantidad desde completitudPct.
+ */
+function criteriosParaPendiente(p: CalificacionProveedor): CriterioEvaluacion[] {
+  const set = CRITERIOS_POR_ORIGEN[p.origen ?? 'manual'] ?? CRITERIOS_DEFAULT;
+  return set.map(c => {
+    let puntaje = c.pesoMax;
+    if (c.id === 'plazo' && typeof p.diasAtraso === 'number') {
+      puntaje = p.diasAtraso <= 0 ? c.pesoMax : Math.max(0, c.pesoMax - Math.ceil(c.pesoMax * p.diasAtraso / 30));
+    }
+    if (c.id === 'cantidad' && typeof p.completitudPct === 'number') {
+      puntaje = Math.max(0, Math.min(c.pesoMax, Math.round(c.pesoMax * p.completitudPct / 100)));
+    }
+    return { ...c, puntaje };
+  });
 }
 
 const emptyForm = () => ({
@@ -35,34 +45,46 @@ const emptyForm = () => ({
   ordenCompraNro: '',
   remitoNro: '',
   fechaRecepcion: new Date().toISOString().split('T')[0],
-  criterios: CRITERIOS_DEFAULT.map(c => ({ ...c, puntaje: c.pesoMax })) as CriterioEvaluacion[],
+  criterios: CRITERIOS_DEFAULT.map(c => ({ ...c })) as CriterioEvaluacion[],
   observaciones: '',
-  responsable: '',
+  responsable: getCurrentUser()?.displayName ?? '',
 });
 
-export function CalificacionModal({ open, onClose, onSave, proveedores, editing }: Props) {
+export function CalificacionModal({ open, onClose, onSave, onCalificar, proveedores, editing, pendiente }: Props) {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (editing) {
+    if (pendiente) {
+      setForm({
+        proveedorId: pendiente.proveedorId,
+        proveedorNombre: pendiente.proveedorNombre,
+        ordenCompraNro: pendiente.ordenCompraNro || '',
+        remitoNro: pendiente.remitoNro || '',
+        fechaRecepcion: pendiente.fechaRecepcion,
+        criterios: criteriosParaPendiente(pendiente),
+        observaciones: '',
+        responsable: getCurrentUser()?.displayName ?? '',
+      });
+    } else if (editing) {
       setForm({
         proveedorId: editing.proveedorId,
         proveedorNombre: editing.proveedorNombre,
         ordenCompraNro: editing.ordenCompraNro || '',
         remitoNro: editing.remitoNro || '',
         fechaRecepcion: editing.fechaRecepcion,
-        criterios: editing.criterios,
+        criterios: editing.criterios ?? CRITERIOS_DEFAULT.map(c => ({ ...c })),
         observaciones: editing.observaciones || '',
-        responsable: editing.responsable,
+        responsable: editing.responsable || '',
       });
     } else {
       setForm(emptyForm());
     }
-  }, [editing, open]);
+  }, [editing, pendiente, open]);
 
+  const readonlyRefs = !!pendiente;
   const puntajeTotal = form.criterios.reduce((sum, c) => sum + c.puntaje, 0);
-  const estado = calcEstado(puntajeTotal);
+  const estado = calcEstadoCalificacion(puntajeTotal);
 
   const updateCriterio = (id: string, puntaje: number) => {
     setForm(prev => ({
@@ -75,18 +97,27 @@ export function CalificacionModal({ open, onClose, onSave, proveedores, editing 
     if (!form.proveedorId || !form.fechaRecepcion || !form.responsable) return;
     setSaving(true);
     try {
-      await onSave({
-        proveedorId: form.proveedorId,
-        proveedorNombre: form.proveedorNombre,
-        ordenCompraNro: form.ordenCompraNro || null,
-        remitoNro: form.remitoNro || null,
-        fechaRecepcion: form.fechaRecepcion,
-        criterios: form.criterios,
-        puntajeTotal,
-        estado,
-        observaciones: form.observaciones || null,
-        responsable: form.responsable,
-      });
+      if (pendiente && onCalificar) {
+        await onCalificar(pendiente.id, {
+          criterios: form.criterios,
+          puntajeTotal,
+          observaciones: form.observaciones || null,
+          responsable: form.responsable,
+        });
+      } else {
+        await onSave({
+          proveedorId: form.proveedorId,
+          proveedorNombre: form.proveedorNombre,
+          ordenCompraNro: form.ordenCompraNro || null,
+          remitoNro: form.remitoNro || null,
+          fechaRecepcion: form.fechaRecepcion,
+          criterios: form.criterios,
+          puntajeTotal,
+          estado,
+          observaciones: form.observaciones || null,
+          responsable: form.responsable,
+        });
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -94,106 +125,91 @@ export function CalificacionModal({ open, onClose, onSave, proveedores, editing 
   };
 
   const proveedorOptions = proveedores.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre }));
-
-  const estadoColor = estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700'
-    : estado === 'condicional' ? 'bg-amber-100 text-amber-700'
-    : 'bg-red-100 text-red-700';
-
-  const estadoLabel = estado === 'aprobado' ? 'Aprobado' : estado === 'condicional' ? 'Condicional' : 'No aprobado';
+  const label = 'text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1';
+  const ctrl = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm';
+  const metricas: string[] = pendiente ? [
+    typeof pendiente.diasAtraso === 'number' ? `Atraso: ${pendiente.diasAtraso} d` : '',
+    typeof pendiente.completitudPct === 'number' ? `Completitud: ${pendiente.completitudPct}%` : '',
+    typeof pendiente.diasEnProveedor === 'number' ? `En proveedor: ${pendiente.diasEnProveedor} d` : '',
+  ].filter(Boolean) : [];
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Editar Calificación' : 'Nueva Calificación'}>
+    <Modal open={open} onClose={onClose} title={pendiente ? 'Calificar Proveedor' : editing ? 'Editar Calificación' : 'Nueva Calificación'}>
       <div className="space-y-4 p-4">
+        {pendiente && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600">
+            <span className="font-medium">{ORIGEN_CALIFICACION_LABELS[pendiente.origen ?? 'manual']}</span>
+            {' — '}{pendiente.origenLabel}
+            {metricas.length > 0 && (
+              <span className="block mt-0.5 font-mono text-[10px] text-slate-400">{metricas.join(' · ')}</span>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Proveedor *</label>
-            <SearchableSelect
-              value={form.proveedorId}
-              onChange={(v: string) => {
-                const prov = proveedores.find(p => p.id === v);
-                setForm(prev => ({ ...prev, proveedorId: v, proveedorNombre: prov?.nombre || '' }));
-              }}
-              options={proveedorOptions}
-              placeholder="Seleccionar proveedor..."
-            />
+            <label className={label}>Proveedor *</label>
+            {readonlyRefs ? (
+              <p className="text-sm font-semibold text-teal-700 py-1.5">{form.proveedorNombre}</p>
+            ) : (
+              <SearchableSelect
+                value={form.proveedorId}
+                onChange={(v: string) => {
+                  const prov = proveedores.find(p => p.id === v);
+                  setForm(prev => ({ ...prev, proveedorId: v, proveedorNombre: prov?.nombre || '' }));
+                }}
+                options={proveedorOptions}
+                placeholder="Seleccionar proveedor..."
+              />
+            )}
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Fecha recepción *</label>
-            <input type="date" value={form.fechaRecepcion}
-              onChange={e => setForm(prev => ({ ...prev, fechaRecepcion: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
+            <label className={label}>Fecha recepción *</label>
+            {readonlyRefs ? (
+              <p className="text-sm text-slate-700 py-1.5 font-mono">{form.fechaRecepcion}</p>
+            ) : (
+              <input type="date" value={form.fechaRecepcion}
+                onChange={e => setForm(prev => ({ ...prev, fechaRecepcion: e.target.value }))} className={ctrl} />
+            )}
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Orden de compra</label>
-            <input value={form.ordenCompraNro}
-              onChange={e => setForm(prev => ({ ...prev, ordenCompraNro: e.target.value }))}
-              placeholder="Nro OC"
-              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Remito</label>
-            <input value={form.remitoNro}
-              onChange={e => setForm(prev => ({ ...prev, remitoNro: e.target.value }))}
-              placeholder="Nro remito"
-              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
-          </div>
+          {(!readonlyRefs || form.ordenCompraNro) && (
+            <div>
+              <label className={label}>Orden de compra</label>
+              {readonlyRefs ? (
+                <p className="text-sm text-slate-700 py-1.5">{form.ordenCompraNro}</p>
+              ) : (
+                <input value={form.ordenCompraNro} placeholder="Nro OC" className={ctrl}
+                  onChange={e => setForm(prev => ({ ...prev, ordenCompraNro: e.target.value }))} />
+              )}
+            </div>
+          )}
+          {(!readonlyRefs || form.remitoNro) && (
+            <div>
+              <label className={label}>Remito</label>
+              {readonlyRefs ? (
+                <p className="text-sm text-slate-700 py-1.5">{form.remitoNro}</p>
+              ) : (
+                <input value={form.remitoNro} placeholder="Nro remito" className={ctrl}
+                  onChange={e => setForm(prev => ({ ...prev, remitoNro: e.target.value }))} />
+              )}
+            </div>
+          )}
         </div>
 
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Criterios de evaluación</label>
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium text-slate-400 uppercase">Criterio</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-400 uppercase w-20">Máx</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-400 uppercase w-28">Puntaje</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {form.criterios.map(c => (
-                  <tr key={c.id}>
-                    <td className="px-3 py-2 text-slate-700 group relative cursor-help" title={CRITERIO_DESCRIPCION[c.id] || ''}>
-                      <span className="border-b border-dashed border-slate-300">{c.nombre}</span>
-                    </td>
-                    <td className="px-3 py-2 text-center text-slate-400 font-mono text-xs">{c.pesoMax}</td>
-                    <td className="px-3 py-2 text-center">
-                      <input type="number" min={0} max={c.pesoMax} value={c.puntaje}
-                        onChange={e => updateCriterio(c.id, Number(e.target.value) || 0)}
-                        className="w-16 border border-slate-300 rounded px-2 py-1 text-center text-sm font-mono" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-slate-50 border-t border-slate-200">
-                <tr>
-                  <td className="px-3 py-2 font-bold text-slate-700">Total</td>
-                  <td className="px-3 py-2 text-center font-mono text-xs text-slate-400">100</td>
-                  <td className="px-3 py-2 text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold ${estadoColor}`}>
-                      {puntajeTotal} — {estadoLabel}
-                    </span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <CriteriosEditor criterios={form.criterios} puntajeTotal={puntajeTotal} estado={estado} onChange={updateCriterio} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Responsable *</label>
-            <input value={form.responsable}
-              onChange={e => setForm(prev => ({ ...prev, responsable: e.target.value }))}
-              placeholder="Iniciales o nombre"
-              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
+            <label className={label}>Responsable *</label>
+            <input value={form.responsable} placeholder="Iniciales o nombre" className={ctrl}
+              onChange={e => setForm(prev => ({ ...prev, responsable: e.target.value }))} />
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Observaciones</label>
-            <input value={form.observaciones}
-              onChange={e => setForm(prev => ({ ...prev, observaciones: e.target.value }))}
-              placeholder="Notas adicionales"
-              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
+            <label className={label}>Observaciones</label>
+            <input value={form.observaciones} placeholder="Notas adicionales" className={ctrl}
+              onChange={e => setForm(prev => ({ ...prev, observaciones: e.target.value }))} />
           </div>
         </div>
       </div>
@@ -201,7 +217,7 @@ export function CalificacionModal({ open, onClose, onSave, proveedores, editing 
       <div className="flex justify-end gap-2 px-4 py-3 bg-slate-50 border-t border-slate-200">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
         <Button size="sm" onClick={handleSubmit} disabled={saving || !form.proveedorId || !form.responsable}>
-          {saving ? 'Guardando...' : editing ? 'Actualizar' : 'Guardar'}
+          {saving ? 'Guardando...' : pendiente ? 'Calificar' : editing ? 'Actualizar' : 'Guardar'}
         </Button>
       </div>
     </Modal>

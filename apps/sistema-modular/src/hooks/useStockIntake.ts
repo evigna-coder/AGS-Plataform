@@ -326,11 +326,23 @@ export function useStockIntake(
             });
             if (touched) {
               const completa = newItems.every((oi: any) => (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0));
+              const fechaRecepcion = new Date().toISOString();
               await ordenesCompraService.update(ocDoc.id, {
                 items: newItems,
-                ...(completa ? { estado: 'recibida' as const } : {}),
+                // fechaRecepcion faltaba en este camino (el visor de entregas y
+                // la calificación la necesitan) — se estampa al completar (2026-08-12).
+                ...(completa ? { estado: 'recibida' as const, fechaRecepcion } : {}),
               });
               console.log(`[useStockIntake] OC ${ocDoc.numero} reconciliada${completa ? ' → recibida' : ' (parcial)'}`);
+
+              // Calificación pendiente del proveedor (best-effort, idempotente
+              // por origenKey — una por OC completa, 2026-08-12).
+              if (completa) {
+                const { calificacionesService } = await import('../services/calificacionesService');
+                await calificacionesService.crearPendienteDesdeOC({
+                  ...ocDoc, items: newItems, fechaRecepcion,
+                }).catch((e: unknown) => console.warn('[useStockIntake] calificación pendiente falló:', e));
+              }
 
               // Cerrar los requerimientos cuyos items de OC quedaron completos.
               await Promise.all(newItems

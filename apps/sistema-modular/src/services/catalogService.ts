@@ -436,6 +436,17 @@ export const instrumentosService = {
     const inst = await this.getById(instrumentoId);
     if (!inst) throw new Error(`Instrumento ${instrumentoId} no encontrado`);
 
+    // Capturar los datos de la derivación ANTES del update de abajo, que los
+    // borra (calibracionProveedorId etc. → null). Alimentan la calificación
+    // pendiente del proveedor post-commit (2026-08-12).
+    const calibracion = {
+      proveedorId: inst.calibracionProveedorId ?? null,
+      proveedorNombre: inst.calibracionProveedorNombre ?? null,
+      fechaEnvio: inst.calibracionFechaEnvio ?? null,
+      remitoId: inst.calibracionRemitoId ?? null,
+      remitoNumero: inst.calibracionRemitoNumero ?? null,
+    };
+
     const actor = getCurrentUserTrace();
     const historial: CertificadoHistorialEntry[] = [...(inst.certificadosHistorial ?? [])];
     if (inst.certificadoUrl && inst.certificadoStoragePath) {
@@ -490,6 +501,31 @@ export const instrumentosService = {
       calibracionFechaEnvio: null,
       calibracionObservaciones: null,
     });
+
+    // Calificación pendiente del proveedor de calibración (best-effort
+    // post-commit, idempotente por origenKey — 2026-08-12).
+    if (calibracion.proveedorId && calibracion.proveedorNombre) {
+      try {
+        const { calificacionesService } = await import('./calificacionesService');
+        const ahora = new Date().toISOString();
+        const enviado = calibracion.fechaEnvio ? new Date(calibracion.fechaEnvio).getTime() : NaN;
+        await calificacionesService.crearPendienteSiNoExiste({
+          proveedorId: calibracion.proveedorId,
+          proveedorNombre: calibracion.proveedorNombre,
+          origen: 'instrumento_retorno',
+          origenKey: `instrumento_retorno:${instrumentoId}:${calibracion.fechaEnvio ?? 'sin-fecha'}`,
+          origenId: instrumentoId,
+          origenLabel: `${inst.nombre} — retorno de calibración`,
+          fechaEvento: ahora,
+          diasEnProveedor: isNaN(enviado) ? null : Math.max(0, Math.round((Date.now() - enviado) / 86400000)),
+          instrumentoId,
+          remitoId: calibracion.remitoId,
+          remitoNro: calibracion.remitoNumero,
+        });
+      } catch (err) {
+        console.error('[catalogService] calificación pendiente del retorno falló (retorno OK):', err);
+      }
+    }
     return { url, path };
   },
 

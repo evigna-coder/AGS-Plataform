@@ -255,6 +255,19 @@ export function useIngresarStock() {
 
       await batch.commit();
 
+      // ── Calificación de proveedores (2026-08-12): al completarse la recepción
+      // del EMBARQUE, una calificación pendiente por actor (vendedor + agente de
+      // carga + despachante si están cargados). Best-effort, idempotente por
+      // origenKey — no afecta el ingreso.
+      if (recepcionCompleta) {
+        try {
+          const { calificacionesService } = await import('../services/calificacionesService');
+          await calificacionesService.crearPendientesDesdeImportacion({ ...imp, items: updatedItems });
+        } catch (calErr) {
+          console.warn('[useIngresarStock] ingreso OK, falló la calificación pendiente:', calErr);
+        }
+      }
+
       // ── Auto-reserva post-ingreso (UAT 2026-07-16): si hay presupuestos aceptados
       // esperando estos artículos (requerimientos vinculados a ppto), reservar lo
       // pendiente con el stock recién ingresado. Best-effort — no afecta el ingreso.

@@ -31,6 +31,7 @@ import { ControlSemanal } from '../../pages/control-semanal';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail, PendientesDocumentacionPage, CuotasPorFacturarPage } from '../../pages/facturacion';
 import { ControlFacturasList } from '../../pages/control-facturas';
+import { CalificacionesList } from '../../pages/calificacion-proveedores';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
 import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
@@ -206,6 +207,8 @@ function AppRoutes() {
       <Route path="/contratos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratoDetail /></ProtectedRoute>} />
       {/* Control de facturas */}
       <Route path="/control-facturas" element={<ProtectedRoute modulo="control-facturas"><ControlFacturasList /></ProtectedRoute>} />
+      {/* Calificación de proveedores */}
+      <Route path="/calificacion-proveedores" element={<ProtectedRoute modulo="calificacion-proveedores"><CalificacionesList /></ProtectedRoute>} />
       {/* Documentos QF — visible para todos los usuarios autenticados */}
       <Route path="/qf-documentos" element={<ProtectedRoute><QFDocumentosList /></ProtectedRoute>} />
       {/* Admin */}

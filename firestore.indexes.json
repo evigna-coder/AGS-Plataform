@@ -161,6 +161,22 @@
         { "fieldPath": "asignadoA", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "calificaciones_proveedor",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "proveedorId", "order": "ASCENDING" },
+        { "fieldPath": "fechaRecepcion", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calificaciones_proveedor",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estadoCiclo", "order": "ASCENDING" },
+        { "fieldPath": "fechaEvento", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

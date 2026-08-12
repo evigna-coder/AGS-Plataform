@@ -1,34 +1,24 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { calificacionesService } from '../../services/calificacionesService';
+import { calificacionesService, promedioPonderado } from '../../services/calificacionesService';
 import { proveedoresService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CalificacionModal } from './CalificacionModal';
-import type { CalificacionProveedor, Proveedor } from '@ags/shared';
+import { CalificacionesTable, type CicloTab } from './CalificacionesTable';
+import type { CalificacionProveedor, CriterioEvaluacion, EstadoCalificacion, Proveedor } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { usePrompt } from '../../components/ui/PromptDialog';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { CALIFICACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportCalificaciones';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const FILTER_SCHEMA = {
+  ciclo: { type: 'string' as const, default: 'pendiente' },
   proveedorId: { type: 'string' as const, default: '' },
   estado: { type: 'string' as const, default: '' },
-};
-
-const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
-const ESTADO_COLORS: Record<string, string> = {
-  aprobado: 'bg-emerald-100 text-emerald-700',
-  condicional: 'bg-amber-100 text-amber-700',
-  no_aprobado: 'bg-red-100 text-red-700',
-};
-
-const ESTADO_LABELS: Record<string, string> = {
-  aprobado: 'Aprobado',
-  condicional: 'Condicional',
-  no_aprobado: 'No aprobado',
 };
 
 export function CalificacionesList() {
@@ -36,11 +26,11 @@ export function CalificacionesList() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CalificacionProveedor | null>(null);
+  const [pendiente, setPendiente] = useState<CalificacionProveedor | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
-
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('calificaciones-list');
 
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('fechaRecepcion');
@@ -66,29 +56,48 @@ export function CalificacionesList() {
     return () => { unsubRef.current?.(); };
   }, [filters.proveedorId]);
 
+  const tab = filters.ciclo as CicloTab;
+  const pendientesCount = useMemo(() => items.filter(c => (c.estadoCiclo ?? 'calificada') === 'pendiente').length, [items]);
+
   const filtered = useMemo(() => {
     let result = items;
+    if (tab) result = result.filter(c => (c.estadoCiclo ?? 'calificada') === tab);
     if (filters.estado) result = result.filter(c => c.estado === filters.estado);
     return sortByField(result, sortField, sortDir);
-  }, [items, filters.estado, sortField, sortDir]);
+  }, [items, tab, filters.estado, sortField, sortDir]);
 
-  // Promedios por proveedor
+  // Promedio ponderado por proveedor sobre TODO lo suscripto (calificadas),
+  // vía el service — no sobre el set filtrado por pestaña (bug del listado viejo).
   const promedios = useMemo(() => {
-    const map: Record<string, { sum: number; count: number }> = {};
+    const porProveedor = new Map<string, CalificacionProveedor[]>();
     items.forEach(c => {
-      if (!map[c.proveedorId]) map[c.proveedorId] = { sum: 0, count: 0 };
-      map[c.proveedorId].sum += c.puntajeTotal;
-      map[c.proveedorId].count++;
+      const arr = porProveedor.get(c.proveedorId) ?? [];
+      arr.push(c);
+      porProveedor.set(c.proveedorId, arr);
     });
+    const map: Record<string, { promedio: number; count: number; estado: EstadoCalificacion }> = {};
+    porProveedor.forEach((arr, provId) => { map[provId] = promedioPonderado(arr); });
     return map;
   }, [items]);
 
   const handleSave = async (data: Omit<CalificacionProveedor, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editing) {
-      await calificacionesService.update(editing.id, data);
-    } else {
-      await calificacionesService.create(data);
-    }
+    if (editing) await calificacionesService.update(editing.id, data);
+    else await calificacionesService.create(data);
+  };
+
+  const handleCalificar = async (id: string, data: { criterios: CriterioEvaluacion[]; puntajeTotal: number; observaciones?: string | null; responsable: string }) => {
+    await calificacionesService.calificar(id, data);
+  };
+
+  const handleOmitir = async (c: CalificacionProveedor) => {
+    const motivo = await promptText({
+      title: 'Omitir calificación',
+      label: `Motivo (${c.proveedorNombre} — ${c.origenLabel ?? ''})`,
+      required: true,
+      multiline: true,
+    });
+    if (motivo === null) return;
+    await calificacionesService.omitir(c.id, motivo);
   };
 
   const handleDelete = async (id: string) => {
@@ -100,15 +109,28 @@ export function CalificacionesList() {
     { value: '', label: 'Todos' },
     ...proveedores.filter(p => p.activo).map(p => ({ value: p.id, label: p.nombre })),
   ];
-
   const estadoOptions = [
     { value: '', label: 'Todos' },
     { value: 'aprobado', label: 'Aprobado' },
     { value: 'condicional', label: 'Condicional' },
     { value: 'no_aprobado', label: 'No aprobado' },
   ];
+  const tabs: Array<{ value: CicloTab; label: string }> = [
+    { value: 'pendiente', label: `Pendientes (${pendientesCount})` },
+    { value: 'calificada', label: 'Calificadas' },
+    { value: 'omitida', label: 'Omitidas' },
+    { value: '', label: 'Todas' },
+  ];
 
   const isInitialLoad = loading && items.length === 0;
+
+  // Export Excel/PDF del array filtrado que muestra la tabla (set de columnas
+  // común a todas las pestañas; "Ciclo" identifica la etapa de cada fila).
+  const filtrosExport = filtrosAplicadosDesc({
+    'Pestaña': tab ? ({ pendiente: 'Pendientes', calificada: 'Calificadas', omitida: 'Omitidas' } as Record<string, string>)[tab] : '',
+    Proveedor: proveedores.find(p => p.id === filters.proveedorId)?.nombre,
+    Estado: ({ aprobado: 'Aprobado', condicional: 'Condicional', no_aprobado: 'No aprobado' } as Record<string, string>)[filters.estado] ?? '',
+  });
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -116,116 +138,74 @@ export function CalificacionesList() {
         title="Calificación de Proveedores"
         subtitle="Evaluación de entregas y ranking de proveedores"
         count={isInitialLoad ? undefined : filtered.length}
-        actions={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nueva calificación</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={CALIFICACIONES_EXPORT_COLUMNS}
+              data={filtered}
+              titulo="Calificación de Proveedores"
+              filename="calificaciones-proveedores"
+              filtrosAplicados={filtrosExport}
+            />
+            <Button size="sm" onClick={() => { setEditing(null); setPendiente(null); setShowModal(true); }}>+ Nueva calificación</Button>
+          </div>
+        }
       >
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {tabs.map(t => (
+              <button key={t.value || 'todas'} onClick={() => setFilter('ciclo', t.value)}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                  tab === t.value ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
           <div className="min-w-[180px]">
             <SearchableSelect value={filters.proveedorId} onChange={(v: string) => setFilter('proveedorId', v)}
               options={proveedorOptions} placeholder="Proveedor..." />
           </div>
-          <div className="min-w-[150px]">
-            <SearchableSelect value={filters.estado} onChange={(v: string) => setFilter('estado', v)}
-              options={estadoOptions} placeholder="Estado..." />
-          </div>
-          {(filters.proveedorId || filters.estado) && (
+          {(tab === 'calificada' || tab === '') && (
+            <div className="min-w-[150px]">
+              <SearchableSelect value={filters.estado} onChange={(v: string) => setFilter('estado', v)}
+                options={estadoOptions} placeholder="Estado..." />
+            </div>
+          )}
+          {(filters.proveedorId || filters.estado || tab !== 'pendiente') && (
             <button onClick={resetFilters}
               className="text-xs text-slate-400 hover:text-slate-600 underline">Limpiar</button>
           )}
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-auto px-4 pb-4">
+      <div className="flex-1 min-h-0 px-4 pb-4">
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-          <table ref={tableRef} className="tabla-compacta w-full text-sm table-fixed">
-            {colWidths ? (
-              <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-            ) : (
-              <colgroup>
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '9%' }} />
-              </colgroup>
-            )}
-            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
-              <tr>
-                <SortableHeader label="Fecha" field="fechaRecepcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
-                  <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
-                  <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                </SortableHeader>
-                <SortableHeader label="Proveedor" field="proveedorNombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
-                  <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
-                  <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                </SortableHeader>
-                <th className={`${thClass} ${getAlignClass(2)} relative`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />OC<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                <th className={`${thClass} ${getAlignClass(3)} relative`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Remito<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                <SortableHeader label="Puntaje" field="puntajeTotal" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(4)} relative`}>
-                  <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
-                  <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                </SortableHeader>
-                <th className={`${thClass} ${getAlignClass(5)} relative`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Prom. Prov.<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                <th className={`${thClass} ${getAlignClass(6)} relative`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Estado<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                <th className={`${thClass} ${getAlignClass(7)} relative`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Resp.<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                <th className={thClass + ' relative w-20'}><div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map(c => {
-                const prom = promedios[c.proveedorId];
-                const promedio = prom ? Math.round(prom.sum / prom.count) : 0;
-                const promEstado = promedio >= 80 ? 'aprobado' : promedio >= 60 ? 'condicional' : 'no_aprobado';
-                return (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className={`px-3 py-2 text-slate-600 font-mono text-xs ${getAlignClass(0)}`}>{c.fechaRecepcion}</td>
-                    <td className={`px-3 py-2 font-semibold text-teal-700 ${getAlignClass(1)}`}>{c.proveedorNombre}</td>
-                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(2)}`}>{c.ordenCompraNro || '—'}</td>
-                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(3)}`}>{c.remitoNro || '—'}</td>
-                    <td className={`px-3 py-2 font-mono font-bold ${getAlignClass(4)}`}>{c.puntajeTotal}</td>
-                    <td className={`px-3 py-2 ${getAlignClass(5)}`}>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_COLORS[promEstado]}`}>
-                        {promedio} ({prom?.count || 0})
-                      </span>
-                    </td>
-                    <td className={`px-3 py-2 ${getAlignClass(6)}`}>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_COLORS[c.estado]}`}>
-                        {ESTADO_LABELS[c.estado]}
-                      </span>
-                    </td>
-                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(7)}`}>{c.responsable}</td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center gap-1 justify-center">
-                        <button onClick={() => { setEditing(c); setShowModal(true); }}
-                          className="text-teal-600 hover:underline text-xs">Editar</button>
-                        <button onClick={() => handleDelete(c.id)}
-                          className="text-red-400 hover:text-red-600 text-xs">×</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={9} className="text-center py-8 text-slate-400">No hay calificaciones registradas</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+          <CalificacionesTable
+            items={filtered}
+            tab={tab}
+            promedios={promedios}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSort}
+            onCalificar={(c) => { setPendiente(c); setEditing(null); setShowModal(true); }}
+            onOmitir={handleOmitir}
+            onEditar={(c) => { setEditing(c); setPendiente(null); setShowModal(true); }}
+            onEliminar={handleDelete}
+          />
         )}
       </div>
 
       <CalificacionModal
         open={showModal}
-        onClose={() => { setShowModal(false); setEditing(null); }}
+        onClose={() => { setShowModal(false); setEditing(null); setPendiente(null); }}
         onSave={handleSave}
+        onCalificar={handleCalificar}
         proveedores={proveedores}
         editing={editing}
+        pendiente={pendiente}
       />
     </div>
   );

@@ -259,6 +259,11 @@ export const fichasService = {
     const now = new Date().toISOString();
     const creadoPor = getCreateTrace().createdByName ?? 'admin';
 
+    // Derivación que se está recibiendo — alimenta la calificación pendiente
+    // del proveedor post-commit (2026-08-12).
+    const derivRecibida = ficha.items.find(it => it.id === itemId)
+      ?.derivaciones.find(d => d.id === derivacionId) ?? null;
+
     const items = ficha.items.map(it => {
       if (it.id !== itemId) return it;
       const derivIdx = it.derivaciones.findIndex(d => d.id === derivacionId);
@@ -289,6 +294,32 @@ export const fichasService = {
     });
 
     await this.update(fichaId, { items });
+
+    // Calificación pendiente del proveedor (best-effort post-commit,
+    // 2026-08-12). Consolidada: UNA por ficha+proveedor — el origenKey dedupea
+    // aunque vuelvan varias derivaciones de la misma ficha al mismo proveedor.
+    if (derivRecibida?.proveedorId) {
+      try {
+        const { calificacionesService } = await import('./calificacionesService');
+        const enviado = derivRecibida.fechaEnvio ? new Date(derivRecibida.fechaEnvio).getTime() : NaN;
+        await calificacionesService.crearPendienteSiNoExiste({
+          proveedorId: derivRecibida.proveedorId,
+          proveedorNombre: derivRecibida.proveedorNombre,
+          origen: 'ficha_derivacion',
+          origenKey: `ficha_derivacion:${fichaId}:${derivRecibida.proveedorId}`,
+          origenId: fichaId,
+          origenLabel: `Ficha ${ficha.numero} — retorno de ${derivRecibida.proveedorNombre}`,
+          fechaEvento: now,
+          diasEnProveedor: isNaN(enviado) ? null : Math.max(0, Math.round((Date.now() - enviado) / 86400000)),
+          fichaId,
+          itemFichaId: itemId,
+          remitoId: derivRecibida.remitoSalidaId ?? null,
+          remitoNro: derivRecibida.remitoSalidaNumero ?? null,
+        });
+      } catch (err) {
+        console.error('[fichasService] calificación pendiente de la derivación falló (recepción OK):', err);
+      }
+    }
   },
 
   /**

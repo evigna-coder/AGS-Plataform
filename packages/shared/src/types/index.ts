@@ -3159,6 +3159,44 @@ export interface Factura {
 
 export type EstadoCalificacion = 'aprobado' | 'condicional' | 'no_aprobado' | 'sin_datos';
 
+/**
+ * Evento que originó la calificación (2026-08-12). Los disparadores automáticos
+ * crean docs `estadoCiclo: 'pendiente'` con uno de estos orígenes; 'manual' es
+ * la carga a mano desde el módulo (y el default para docs legacy sin campo).
+ */
+export type OrigenCalificacion =
+  | 'oc_recepcion'
+  | 'importacion_embarque'
+  | 'instrumento_retorno'
+  | 'ficha_derivacion'
+  | 'loaner_retorno'
+  | 'manual';
+
+export const ORIGEN_CALIFICACION_LABELS: Record<OrigenCalificacion, string> = {
+  oc_recepcion: 'OC recibida',
+  importacion_embarque: 'Embarque',
+  instrumento_retorno: 'Instrumento',
+  ficha_derivacion: 'Ficha',
+  loaner_retorno: 'Loaner',
+  manual: 'Manual',
+};
+
+export const ORIGEN_CALIFICACION_COLORS: Record<OrigenCalificacion, string> = {
+  oc_recepcion: 'bg-blue-100 text-blue-700',
+  importacion_embarque: 'bg-purple-100 text-purple-700',
+  instrumento_retorno: 'bg-cyan-100 text-cyan-700',
+  ficha_derivacion: 'bg-amber-100 text-amber-700',
+  loaner_retorno: 'bg-pink-100 text-pink-700',
+  manual: 'bg-slate-100 text-slate-600',
+};
+
+/**
+ * Ciclo de vida (2026-08-12): los disparadores crean 'pendiente'; el usuario
+ * la completa ('calificada') o la descarta con motivo ('omitida'). Docs legacy
+ * sin el campo se hidratan como 'calificada' (ya tienen puntaje).
+ */
+export type EstadoCicloCalificacion = 'pendiente' | 'calificada' | 'omitida';
+
 export interface CriterioEvaluacion {
   id: string;
   nombre: string;
@@ -3177,19 +3215,78 @@ export const CRITERIOS_DEFAULT: CriterioEvaluacion[] = [
   { id: 'precio', nombre: 'Precio facturado vs. cotizado', pesoMax: 10, puntaje: 10 },
 ];
 
+/**
+ * Set de criterios para retornos de trabajo derivado (instrumento en
+ * calibración, módulo de ficha en el proveedor, loaner derivado): lo que
+ * importa es la conformidad del trabajo y CUÁNTO TIEMPO estuvo afuera
+ * (decisión de negocio 2026-08-12). Pesos suman 100.
+ */
+export const CRITERIOS_RETORNO_PROVEEDOR: CriterioEvaluacion[] = [
+  { id: 'conformidad', nombre: 'Conformidad del trabajo', pesoMax: 30, puntaje: 30 },
+  { id: 'tiempo_proveedor', nombre: 'Tiempo en proveedor', pesoMax: 25, puntaje: 25 },
+  { id: 'documentacion', nombre: 'Documentación / certificado', pesoMax: 20, puntaje: 20 },
+  { id: 'respuesta', nombre: 'Tiempo de respuesta', pesoMax: 15, puntaje: 15 },
+  { id: 'embalaje', nombre: 'Embalaje y presentación', pesoMax: 10, puntaje: 10 },
+];
+
+/** Set de criterios que corresponde a cada origen. Umbrales 80/60 sin cambios. */
+export const CRITERIOS_POR_ORIGEN: Record<OrigenCalificacion, CriterioEvaluacion[]> = {
+  oc_recepcion: CRITERIOS_DEFAULT,
+  importacion_embarque: CRITERIOS_DEFAULT,
+  instrumento_retorno: CRITERIOS_RETORNO_PROVEEDOR,
+  ficha_derivacion: CRITERIOS_RETORNO_PROVEEDOR,
+  loaner_retorno: CRITERIOS_RETORNO_PROVEEDOR,
+  manual: CRITERIOS_DEFAULT,
+};
+
 export interface CalificacionProveedor {
   id: string;
   proveedorId: string;
   proveedorNombre: string;
   ordenCompraNro?: string | null;
   remitoNro?: string | null;
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD — para pendientes se setea con la fecha del evento (orden del listado). */
   fechaRecepcion: string;
-  criterios: CriterioEvaluacion[];
-  puntajeTotal: number;
-  estado: EstadoCalificacion;
+  /**
+   * Puntaje: null/ausentes mientras `estadoCiclo === 'pendiente'`; se completan
+   * al calificar. En docs legacy (sin estadoCiclo) siempre están presentes.
+   */
+  criterios?: CriterioEvaluacion[] | null;
+  puntajeTotal?: number | null;
+  estado?: EstadoCalificacion | null;
   observaciones?: string | null;
-  responsable: string;
+  /** Nombre para display; `responsableId` (uid) es la referencia dura. */
+  responsable?: string | null;
+  responsableId?: string | null;
+  // --- Ciclo de vida + origen (2026-08-12) ---
+  origen?: OrigenCalificacion;
+  /** Clave de dedupe del disparador (ej. 'oc_recepcion:<ocId>'). */
+  origenKey?: string | null;
+  /** Id del doc que disparó (OC, importación, remito, ficha…). */
+  origenId?: string | null;
+  /** Texto humano del evento (ej. 'OC-0042 · Agilent'). */
+  origenLabel?: string | null;
+  estadoCiclo?: EstadoCicloCalificacion;
+  omitidaMotivo?: string | null;
+  // --- Refs FK (todas opcionales, según origen) ---
+  ordenCompraId?: string | null;
+  importacionId?: string | null;
+  remitoId?: string | null;
+  fichaId?: string | null;
+  itemFichaId?: string | null;
+  instrumentoId?: string | null;
+  loanerId?: string | null;
+  // --- Métricas precalculadas por el disparador ---
+  /** ISO — momento del evento (recepción / retorno). */
+  fechaEvento?: string | null;
+  /** ISO/YYYY-MM-DD — fecha prometida (entrega estimada de la OC / arribo estimado). */
+  fechaPrometida?: string | null;
+  /** Días de atraso vs. lo prometido (negativo = llegó antes). */
+  diasAtraso?: number | null;
+  /** % recibido vs. pedido (0-100). */
+  completitudPct?: number | null;
+  /** Días que la pieza estuvo en el proveedor (retornos). */
+  diasEnProveedor?: number | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
@@ -4225,12 +4322,13 @@ export interface FichaPropiedad {
 // --- Loaner (Equipos en préstamo) ---
 // =============================================
 
-export type EstadoLoaner = 'en_base' | 'en_cliente' | 'en_transito' | 'en_recalificacion' | 'vendido' | 'baja';
+export type EstadoLoaner = 'en_base' | 'en_cliente' | 'en_transito' | 'en_proveedor' | 'en_recalificacion' | 'vendido' | 'baja';
 
 export const ESTADO_LOANER_LABELS: Record<EstadoLoaner, string> = {
   en_base: 'En base',
   en_cliente: 'En cliente',
   en_transito: 'En tránsito',
+  en_proveedor: 'En proveedor',
   en_recalificacion: 'En recalificación',
   vendido: 'Vendido',
   baja: 'Baja',
@@ -4240,10 +4338,38 @@ export const ESTADO_LOANER_COLORS: Record<EstadoLoaner, string> = {
   en_base: 'bg-green-100 text-green-800',
   en_cliente: 'bg-blue-100 text-blue-800',
   en_transito: 'bg-yellow-100 text-yellow-800',
+  en_proveedor: 'bg-fuchsia-100 text-fuchsia-800',
   en_recalificacion: 'bg-purple-100 text-purple-800',
   vendido: 'bg-slate-100 text-slate-600',
   baja: 'bg-red-100 text-red-800',
 };
+
+/**
+ * Derivación a proveedor vigente de un loaner (2026-08-12). Antes las líneas
+ * de loaner en remitos `derivacion_proveedor` eran solo documentales y la
+ * lista mentía "En base" con el módulo viajando. `alcance: 'parte'` = el
+ * módulo sigue en base pero una parte suya está en el proveedor.
+ */
+export interface LoanerEnProveedor {
+  proveedorId: string | null;
+  proveedorNombre: string | null;
+  remitoId: string;
+  remitoNumero: string;
+  fechaEnvio: string;
+  alcance: 'modulo' | 'parte';
+  parteDescripcion?: string | null;
+}
+
+/**
+ * Entrada del HISTORIAL de derivaciones a proveedor del loaner (2026-08-12) —
+ * espejo de `prestamos[]`: la vigente además vive en `enProveedor`; al
+ * registrar la vuelta se estampa `fechaRetorno` y la entrada queda como
+ * historia. Sin retorno = derivación abierta.
+ */
+export interface LoanerDerivacion extends LoanerEnProveedor {
+  id: string;
+  fechaRetorno?: string | null;
+}
 
 export interface PrestamoLoaner {
   id: string;
@@ -4340,6 +4466,10 @@ export interface Loaner {
   moduloMarca?: string | null;
   condicion: string;
   estado: EstadoLoaner;
+  /** Derivación a proveedor vigente — se setea al derivar, se limpia al volver. */
+  enProveedor?: LoanerEnProveedor | null;
+  /** Historial de derivaciones a proveedor (2026-08-12), espejo de prestamos[]. */
+  derivaciones?: LoanerDerivacion[];
   prestamos: PrestamoLoaner[];
   extracciones: ExtraccionLoaner[];
   venta?: VentaLoaner | null;
@@ -5329,6 +5459,9 @@ export interface AgendaEntry {
    *  A diferencia de los otros dos flags, pinta la celda ENTERA con el verde
    *  agua institucional — no una diagonal. */
   ventaConcretada?: boolean;
+  /** Flag ORTOGONAL (2026-08-12): visita "Per Incident" — celda ENTERA verde
+   *  oliva. Mismo comportamiento que ventaConcretada (se copia al pegar). */
+  perIncident?: boolean;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;
