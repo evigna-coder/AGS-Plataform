@@ -1,6 +1,7 @@
 import { type FC } from 'react';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
+import { esTrabajoEnBench } from '../../utils/agendaCellColor';
 
 // Tipado exhaustivo a propósito (2026-08-08): con `Record<string, string>` un
 // estado nuevo quedaba sin borde y sin error de compilación.
@@ -30,7 +31,9 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
   const vw = window.innerWidth;
   // Altura estimada REAL (2026-08-03): ~54px por card + padding. El umbral
   // fijo de 160px cortaba la lista con muchas OTs en las filas de abajo.
-  const estimatedH = entries.length * 54 + 16;
+  // Las de bench con detalle de falla suman el renglón extra (2026-08-12).
+  const estimatedH = entries.reduce(
+    (h, e) => h + 54 + (esTrabajoEnBench(e.tipoServicio) && e.notas ? 22 : 0), 16);
   const spaceBelow = vh - cellRect.bottom - 8;
   const spaceAbove = cellRect.top - 8;
   const showAbove = spaceBelow < Math.min(estimatedH, 300) && spaceAbove > spaceBelow;
@@ -69,7 +72,7 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
             className={`rounded-md border border-slate-100 border-l-[3px] ${
               entry.estadoAgenda !== 'cancelado' && entry.tipoServicio?.toLowerCase().includes('capacitaci')
                 ? 'border-l-[#e59a8e]'
-                : entry.estadoAgenda !== 'cancelado' && /bench|bch/i.test(entry.tipoServicio ?? '')
+                : entry.estadoAgenda !== 'cancelado' && esTrabajoEnBench(entry.tipoServicio)
                   ? 'border-l-[#e0c878]'
                   : BORDER[entry.estadoAgenda] ?? 'border-l-slate-400'
             } px-2.5 py-1.5 flex items-start gap-3`}
@@ -101,6 +104,14 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
               )}
               {entry.tipoServicio && (
                 <div className="text-[10px] text-slate-400 truncate">{entry.tipoServicio}</div>
+              )}
+              {/* Bench (2026-08-12): en el taller el dato que falta es QUÉ hay
+                  que hacerle al módulo. Se muestra completo (sin truncar) — es
+                  justo lo que obligaba a abrir la OT para poder leer la agenda. */}
+              {esTrabajoEnBench(entry.tipoServicio) && entry.notas && (
+                <div className="mt-0.5 text-[10px] text-[#4a3c10] bg-[#e0c878]/30 border border-[#e0c878] rounded px-1.5 py-0.5 whitespace-pre-wrap break-words">
+                  {entry.notas}
+                </div>
               )}
             </div>
             {/* Right: pago adelantado + estado */}

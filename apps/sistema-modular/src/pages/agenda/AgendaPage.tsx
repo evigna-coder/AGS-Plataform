@@ -18,6 +18,8 @@ import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
 import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/agenda/AgendaReservaModal';
 import { previsionesService } from '../../services/previsionesService';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
+import { otrasEntradasDeOTs, etiquetaEntrada } from '../../utils/agendaDuplicados';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import {
   AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
   type ClipboardData,
@@ -66,6 +68,7 @@ export const AgendaPage: FC = () => {
     diasAgs, toggleDiaAgs, primerDiaAgsEnRango,
   } = useAgenda();
 
+  const confirm = useConfirm();
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [selectedPendingOTs, setSelectedPendingOTs] = useState<Set<string>>(new Set());
@@ -370,15 +373,15 @@ export const AgendaPage: FC = () => {
       // Pegar TODOS los servicios copiados de la celda (pedido 2026-08-03).
       // Entradas viejas en el clipboard pueden no traer `entries` — fallback.
       const copiadas = cb.entries && cb.entries.length > 0 ? cb.entries : [cb.entry];
-      for (const src of copiadas) {
-        // PEGAR crea SIEMPRE una entrada nueva en la celda destino (2026-08-11).
-        // Antes, si el dia continuaba el rango de la misma OT, ESTIRABA la barra
-        // — y la barra estirada pasaba por encima de los cuartos intermedios,
-        // tapando otros eventos (caso 30022.01: pegarla en vie q3 para que
-        // siguiera DESPUES de la firma de recibos y los estudios medicos pintaba
-        // vie q1-q3 encima de ellos). Copiar es "quiero el servicio ACA", no
-        // "alarga el bloque"; para alargar esta el arrastre del borde.
-        {
+      // PEGAR crea SIEMPRE una entrada nueva en la celda destino (2026-08-11).
+      // Antes, si el dia continuaba el rango de la misma OT, ESTIRABA la barra
+      // — y la barra estirada pasaba por encima de los cuartos intermedios,
+      // tapando otros eventos (caso 30022.01: pegarla en vie q3 para que
+      // siguiera DESPUES de la firma de recibos y los estudios medicos pintaba
+      // vie q1-q3 encima de ellos). Copiar es "quiero el servicio ACA", no
+      // "alarga el bloque"; para alargar esta el arrastre del borde.
+      const pegarCopiadas = (fuentes: AgendaEntry[]) => {
+        for (const src of fuentes) {
           // Duplicado EXACTO no: si la misma OT del mismo ingeniero ya arranca
           // en esta celda, el pegado se saltea — Ctrl+V sostenido/repetido dejó
           // la 30021.01 pegada 8 veces en una celda (2026-08-11). Pegar en OTRA
@@ -405,11 +408,26 @@ export const AgendaPage: FC = () => {
             requiereInduccion: false,
             ventaConcretada: src.ventaConcretada ?? false,
             perIncident: src.perIncident ?? false,
-            notas: null,
+            // El detalle de la falla viaja con la copia (2026-08-12): es el
+            // mismo trabajo continuando otro día, como el resto de los flags.
+            notas: src.notas ?? null,
             titulo: src.titulo || null,
           });
         }
-      }
+      };
+
+      // Aviso de duplicado (2026-08-12, caso 29616.02): con el portapapeles
+      // cargado de otra OT, un Ctrl+V en la celda equivocada duplicaba el
+      // servicio en otra fecha sin decir nada. Duplicar a propósito sigue siendo
+      // válido (trabajos partidos en días sueltos) — avisa y deja seguir.
+      void (async () => {
+        const avisos = await otrasEntradasDeOTs(copiadas.map(s => s.otNumber), fechaInicio);
+        if (avisos.length === 0) { pegarCopiadas(copiadas); return; }
+        const ok = await confirm(
+          `${avisos.join('\n')}\n\nPegar acá NO mueve la entrada existente: crea una NUEVA. ¿Pegar igual?`,
+        );
+        if (ok) pegarCopiadas(copiadas);
+      })();
     } else if (cb.type === 'pending' && cb.ot) {
       const existing = entries.find(e => e.otNumber === cb.ot!.otNumber && e.ingenieroId === cell.ingenieroId);
       if (existing) {
@@ -462,12 +480,20 @@ export const AgendaPage: FC = () => {
     }
   }, [ingenieros, entries, createEntry, updateEntry, primerFeriadoEnRango, primerDiaAgsEnRango, moverNotaConEntry]);
 
-  const handleKeyDelete = useCallback(() => {
+  const handleKeyDelete = useCallback(async () => {
     const cell = selectedCellRef.current;
     if (!cell?.entry) return;
+    // Misma protección que la ✕ de la barra: con varios servicios en la celda,
+    // Del se lleva el seleccionado y hay que decir cuál es (2026-08-12).
+    if (cell.allEntries.length > 1) {
+      const ok = await confirm(
+        `En esta celda hay ${cell.allEntries.length} servicios. Se va a eliminar ${etiquetaEntrada(cell.entry)}. ¿Confirmás?`,
+      );
+      if (!ok) return;
+    }
     deleteEntry(cell.entry.id);
     setSelectedCell(null);
-  }, [deleteEntry]);
+  }, [deleteEntry, confirm]);
 
   const handleTypeStart = useCallback((char: string) => {
     const cell = selectedCellRef.current;
@@ -812,6 +838,23 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell]);
 
+  /** Detalle técnico de bench (2026-08-12): problema / falla inicial del módulo
+   *  que está en el taller. Se escribe desde la barra superior y se lee también
+   *  en la card del hover. Vive en `notas` de la entrada. */
+  const handleChangeNotas = useCallback((entryId: string, notas: string | null) => {
+    updateEntry(entryId, { notas });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: selectedCell.entry.id === entryId
+          ? { ...selectedCell.entry, notas }
+          : selectedCell.entry,
+        allEntries: selectedCell.allEntries.map(e =>
+          e.id === entryId ? { ...e, notas } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
   /** Requiere inducción (2026-08-05): flag ortogonal — SOLO la entrada marcada
    *  (a diferencia del pago adelantado, que aplica a toda la celda). */
   const handleToggleRequiereInduccion = useCallback((entryId: string, valor: boolean) => {
@@ -852,7 +895,19 @@ export const AgendaPage: FC = () => {
     setContextMenu(null);
   }, [contextMenu, createEntry]);
 
-  const handleDeleteEntry = useCallback((entryId: string) => {
+  const handleDeleteEntry = useCallback(async (entryId: string) => {
+    // Celda con varios servicios (2026-08-12): el borrado se lleva el
+    // SELECCIONADO, que no siempre es el que la persona cree — así se perdió la
+    // 30043.01 al querer sacar una entrada pegada por error. Confirmar diciendo
+    // cuál es. Con un solo servicio en la celda no molesta: borra directo.
+    const enCelda = selectedCell?.allEntries ?? [];
+    if (enCelda.length > 1) {
+      const victima = enCelda.find(e => e.id === entryId);
+      const ok = await confirm(
+        `En esta celda hay ${enCelda.length} servicios. Se va a eliminar ${victima ? etiquetaEntrada(victima) : 'la asignación seleccionada'}. ¿Confirmás?`,
+      );
+      if (!ok) return;
+    }
     deleteEntry(entryId);
     if (selectedCell && selectedCell.allEntries.length > 1) {
       const remaining = selectedCell.allEntries.filter(e => e.id !== entryId);
@@ -860,7 +915,7 @@ export const AgendaPage: FC = () => {
     } else {
       setSelectedCell(null);
     }
-  }, [deleteEntry, selectedCell]);
+  }, [deleteEntry, selectedCell, confirm]);
 
   const handleExtendEntry = useCallback((entryId: string) => {
     const entry = entries.find(e => e.id === entryId);
@@ -944,6 +999,7 @@ export const AgendaPage: FC = () => {
         onToggleRequiereInduccion={handleToggleRequiereInduccion}
         onToggleVentaConcretada={handleToggleVentaConcretada}
         onTogglePerIncident={handleTogglePerIncident}
+        onChangeNotas={handleChangeNotas}
       />
 
       <DndContext

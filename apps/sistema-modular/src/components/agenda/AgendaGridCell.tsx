@@ -240,6 +240,9 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     prev.entryVentaConcretada === next.entryVentaConcretada &&
     prev.entryPerIncident === next.entryPerIncident &&
     prev.entryTitulo === next.entryTitulo &&
+    // El detalle de bench se muestra en el popover del hover (2026-08-12): sin
+    // comparar notas, editarlo dejaba la card mostrando el texto viejo.
+    prev.entryNotas === next.entryNotas &&
     prev.isStart === next.isStart &&
     prev.isEnd === next.isEnd &&
     prev.entryCount === next.entryCount &&

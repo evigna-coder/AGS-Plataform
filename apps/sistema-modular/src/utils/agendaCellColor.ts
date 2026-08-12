@@ -53,11 +53,23 @@ interface ReglaColor {
  * Primera regla que matchea gana. El orden solo importa entre reglas que puedan
  * matchear el mismo entry.
  */
+/**
+ * Trabajo/reparación en bench: el equipo está en el taller, no en el cliente.
+ * Fuente única del criterio (la usan el color de celda, el popover y la barra
+ * superior, que además muestran el detalle de la falla — 2026-08-12).
+ * El catálogo dice "bench"; se acepta "bch".
+ */
+export const BENCH_TEST = /bench|bch/i;
+
+export function esTrabajoEnBench(tipoServicio?: string | null): boolean {
+  return BENCH_TEST.test(tipoServicio ?? '');
+}
+
 const REGLAS: ReglaColor[] = [
   // Capacitación (2026-08-03) — rosa oscuro.
   { campo: 'tipoServicio', test: /capacitaci/i, bg: 'bg-[#e59a8e]', text: 'text-[#4a1710]' },
-  // BCH (2026-08-05) — amarillo opaco. El catálogo dice "bench"; se acepta "bch".
-  { campo: 'tipoServicio', test: /bench|bch/i, bg: 'bg-[#e0c878]', text: 'text-[#4a3c10]' },
+  // BCH (2026-08-05) — amarillo opaco.
+  { campo: 'tipoServicio', test: BENCH_TEST, bg: 'bg-[#e0c878]', text: 'text-[#4a3c10]' },
   // Firma de recibos (2026-08-05) — evento mensual que reserva agenda, violeta clarito.
   { campo: 'titulo', test: /firma de recibos/i, bg: 'bg-[#d9c9f2]', text: 'text-[#3b2364]' },
   // Oficina (2026-08-06) — mismo amarillo que bench.

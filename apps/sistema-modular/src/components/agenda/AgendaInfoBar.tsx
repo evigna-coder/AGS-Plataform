@@ -1,8 +1,9 @@
-import { type FC } from 'react';
+import { type FC, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import type { SelectedCell } from '../../utils/agendaDateUtils';
+import { esTrabajoEnBench } from '../../utils/agendaCellColor';
 
 const ESTADO_ORDER: EstadoAgenda[] = ['pendiente', 'tentativo', 'tentativo_interior', 'confirmado', 'confirmado_interior', 'en_progreso', 'en_progreso_interior', 'completado', 'completado_interior', 'cancelado'];
 
@@ -20,6 +21,48 @@ interface AgendaInfoBarProps {
   onToggleRequiereInduccion?: (entryId: string, valor: boolean) => void;
   onToggleVentaConcretada?: (entryId: string, valor: boolean) => void;
   onTogglePerIncident?: (entryId: string, valor: boolean) => void;
+  /** Detalle de la falla en trabajos de bench (2026-08-12) — escribe `notas`. */
+  onChangeNotas?: (entryId: string, notas: string | null) => void;
+}
+
+/**
+ * Detalle técnico de un trabajo en bench: qué problema/falla tiene el módulo
+ * que está en el taller. Solo aparece en entradas de bench — en una visita a
+ * planta el dato relevante es el cliente, no la falla. Editable acá porque las
+ * entradas que nacen de arrastrar una OT no traen notas.
+ */
+function BenchDetalle({ entry, onChange }: {
+  entry: AgendaEntry;
+  onChange: (entryId: string, notas: string | null) => void;
+}) {
+  const [valor, setValor] = useState(entry.notas ?? '');
+  // Al cambiar de entrada (o si la edita otra PC) recargar el texto.
+  useEffect(() => { setValor(entry.notas ?? ''); }, [entry.id, entry.notas]);
+
+  const guardar = () => {
+    const limpio = valor.trim();
+    if (limpio === (entry.notas ?? '')) return;
+    onChange(entry.id, limpio || null);
+  };
+
+  return (
+    <label className="flex items-center gap-1 min-w-0 flex-1 max-w-[420px]"
+      title="Problema / falla inicial del módulo en bench">
+      <span className="text-[10px] font-mono uppercase tracking-wide text-[#7a6420] shrink-0">Falla</span>
+      <input
+        value={valor}
+        onChange={e => setValor(e.target.value)}
+        onBlur={guardar}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { guardar(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Escape') setValor(entry.notas ?? '');
+        }}
+        placeholder="Problema / falla inicial…"
+        className="min-w-0 flex-1 text-[11px] bg-[#e0c878]/25 border border-[#e0c878] rounded px-1.5 py-0.5
+                   text-[#4a3c10] placeholder:text-[#a08c50] focus:outline-none focus:ring-1 focus:ring-[#c9ab53]"
+      />
+    </label>
+  );
 }
 
 function EntryRange({ entry }: { entry: AgendaEntry }) {
@@ -41,6 +84,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onToggleRequiereInduccion,
   onToggleVentaConcretada,
   onTogglePerIncident,
+  onChangeNotas,
 }) => {
   const entry = selectedCell?.entry ?? null;
   const allEntries = selectedCell?.allEntries ?? [];
@@ -160,7 +204,13 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
 
             <EntryRange entry={entry} />
 
-            <div className="flex-1" />
+            {/* Bench (2026-08-12): el detalle técnico va acá arriba y también
+                en la card del hover — sin esto había que abrir la OT. */}
+            {esTrabajoEnBench(entry.tipoServicio) && onChangeNotas ? (
+              <BenchDetalle entry={entry} onChange={onChangeNotas} />
+            ) : (
+              <div className="flex-1" />
+            )}
 
             {clipboardLabel && (
               <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-medium shrink-0">
@@ -186,7 +236,11 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
               <button
                 onClick={() => onDeleteEntry?.(entry.id)}
                 className="px-1.5 py-0.5 rounded text-[10px] font-medium text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                title="Eliminar asignación (Del)"
+                // Nombra la entrada (2026-08-12): con varios servicios en la
+                // celda, el botón se lleva el SELECCIONADO y eso no era obvio.
+                title={hasMultiple
+                  ? `Eliminar ${entry.otNumber ? `OT ${entry.otNumber}` : (entry.titulo || 'la tarea')} — hay ${allEntries.length} servicios en esta celda (Del)`
+                  : 'Eliminar asignación (Del)'}
               >
                 ✕
               </button>
