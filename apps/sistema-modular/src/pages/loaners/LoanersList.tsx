@@ -16,6 +16,9 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
+import { ExportarButton } from '../../components/ui/ExportarButton';
+import { LOANERS_EXPORT_COLUMNS, buildLoanerExportRows } from '../../utils/exports/exportLoaners';
+import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const FILTER_SCHEMA = {
   estado: { type: 'string' as const, default: '' },
@@ -101,6 +104,13 @@ export function LoanersList() {
 
   const isInitialLoad = loading && loaners.length === 0;
 
+  // Export Excel/PDF del array filtrado que muestra la tabla.
+  const exportRows = useMemo(() => buildLoanerExportRows(filtered, sufijoEstab), [filtered, sufijoEstab]);
+  const filtrosExport = filtrosAplicadosDesc({
+    Estado: filters.estado ? (ESTADO_LOANER_LABELS[filters.estado as EstadoLoaner] ?? filters.estado) : '',
+    'Incluye inactivos': filters.showInactivos,
+  });
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -109,6 +119,13 @@ export function LoanersList() {
         count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex items-center gap-2">
+            <ExportarButton
+              columnas={LOANERS_EXPORT_COLUMNS}
+              data={exportRows}
+              titulo="Loaners"
+              filename="loaners"
+              filtrosAplicados={filtrosExport}
+            />
             <Button size="sm" variant="outline" onClick={() => setShowDerivacion(true)}>Derivar a proveedor</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
           </div>
@@ -220,8 +237,13 @@ export function LoanersList() {
                           </span>
                         )}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(6)}`}>
-                        {prestamo ? `${prestamo.clienteNombre}${sufijoEstab(prestamo.clienteId, prestamo.establecimientoId)}` : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
+                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(6)}`}
+                        title={l.enProveedor ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · Remito ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ` — parte: ${l.enProveedor.parteDescripcion ?? ''}` : ''}` : undefined}>
+                        {/* En proveedor (2026-08-12): muestra QUIÉN lo tiene y el remito;
+                            si viajó solo una parte, el módulo sigue en base y se aclara. */}
+                        {l.enProveedor
+                          ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ' (parte)' : ''}`
+                          : prestamo ? `${prestamo.clienteNombre}${sufijoEstab(prestamo.clienteId, prestamo.establecimientoId)}` : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">

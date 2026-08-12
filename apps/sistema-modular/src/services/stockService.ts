@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { runTransaction } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
@@ -1164,6 +1164,41 @@ export const remitosService = {
     batch.set(docRef('remitos', id), remitoPayload);
     batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: remitoPayload });
 
+    // Loaners derivados (2026-08-12): la línea documental sola dejaba la lista
+    // de loaners mintiendo "En base" con el módulo en el proveedor. Ahora el
+    // loaner pasa a 'en_proveedor' con el snapshot de la derivación; la vuelta
+    // (marcarLoanerRetornado) lo revierte a 'en_base'.
+    if (!isDevolucion) {
+      const loanersUnicos = new Map<string, NonNullable<typeof input.loaners>[number]>();
+      for (const l of input.loaners ?? []) if (!loanersUnicos.has(l.loanerId)) loanersUnicos.set(l.loanerId, l);
+      for (const l of loanersUnicos.values()) {
+        const snapshotDerivacion = {
+          proveedorId: input.proveedorId ?? null,
+          proveedorNombre: input.proveedorNombre ?? null,
+          remitoId: id,
+          remitoNumero: input.numero,
+          fechaEnvio: input.fecha,
+          alcance: (l.partes && l.partes.length > 0 ? 'parte' : 'modulo'),
+          parteDescripcion: l.partes && l.partes.length > 0
+            ? l.partes.map(p => p.descripcion).filter(Boolean).join(', ')
+            : null,
+        };
+        const patch = deepCleanForFirestore({
+          estado: 'en_proveedor',
+          enProveedor: snapshotDerivacion,
+          ...getUpdateTrace(),
+          updatedAt: Timestamp.now(),
+        });
+        // La entrada de HISTORIAL va con arrayUnion FUERA del deepClean (el
+        // JSON round-trip destruiría el sentinel) — espejo de prestamos[].
+        const entradaHistorial = deepCleanForFirestore({
+          id: crypto.randomUUID(), ...snapshotDerivacion, fechaRetorno: null,
+        });
+        batch.update(docRef('loaners', l.loanerId), { ...patch, derivaciones: arrayUnion(entradaHistorial) });
+        batchAudit(batch, { action: 'update', collection: 'loaners', documentId: l.loanerId, after: { ...patch, derivacionNueva: entradaHistorial } });
+      }
+    }
+
     const creadoPor = getCreateTrace().createdByName ?? 'Sistema';
 
     for (const [fichaId, itemsDeFicha] of itemsByFicha) {
@@ -1454,6 +1489,81 @@ export const remitosService = {
     }).catch(err =>
       console.error('[registrarRetornoUnidad] movimiento de retorno falló:', err),
     );
+  },
+
+  /**
+   * Marca como devuelta una línea de LOANER de un remito de derivación a
+   * proveedor (2026-08-12). Los loaners derivados son líneas documentales (el
+   * loaner no cambia de estado), así que hasta ahora no existía el evento "el
+   * loaner volvió del proveedor": este método lo crea — marca la línea
+   * `devuelto`, cierra el remito si todo quedó resuelto y dispara la
+   * calificación pendiente del proveedor (best-effort, idempotente).
+   */
+  async marcarLoanerRetornado(remitoId: string, itemId: string): Promise<void> {
+    const rSnap = await getDoc(doc(db, 'remitos', remitoId));
+    if (!rSnap.exists()) throw new Error('El remito no existe');
+    const remito = rSnap.data() as Remito;
+    const item = (remito.items ?? []).find(it => it.id === itemId);
+    if (!item?.loanerId) throw new Error('La línea no corresponde a un loaner');
+    if (item.devuelto) return;
+
+    const now = new Date().toISOString();
+    const items = (remito.items ?? []).map(it =>
+      it.id === itemId ? { ...it, devuelto: true, fechaDevolucion: now } : it,
+    );
+    const todoDevuelto = items.every(it => it.devuelto || it.consumido);
+    const remitoPatch = deepCleanForFirestore({
+      items,
+      estado: (todoDevuelto ? 'completado' : remito.estado) as EstadoRemito,
+      fechaDevolucion: todoDevuelto ? now : (remito.fechaDevolucion ?? null),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.update(docRef('remitos', remitoId), remitoPatch);
+    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: remitoId, after: remitoPatch });
+    // La vuelta revierte el loaner a base, limpia el snapshot vigente y
+    // estampa fechaRetorno en la entrada del HISTORIAL de este remito
+    // (2026-08-12) — espejo del efecto de createForItems.
+    const lSnap = await getDoc(doc(db, 'loaners', item.loanerId));
+    const derivacionesPrevias = (lSnap.exists() ? (lSnap.data().derivaciones ?? []) : []) as Array<Record<string, unknown>>;
+    const derivaciones = derivacionesPrevias.map(d =>
+      d.remitoId === remitoId && !d.fechaRetorno ? { ...d, fechaRetorno: now } : d,
+    );
+    const loanerPatch = deepCleanForFirestore({
+      estado: 'en_base',
+      enProveedor: null,
+      derivaciones,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    batch.update(docRef('loaners', item.loanerId), loanerPatch);
+    batchAudit(batch, { action: 'update', collection: 'loaners', documentId: item.loanerId, after: loanerPatch });
+    await batch.commit();
+
+    // Calificación pendiente del proveedor (best-effort post-commit).
+    if (remito.proveedorId && remito.proveedorNombre) {
+      try {
+        const { calificacionesService } = await import('./calificacionesService');
+        const salida = remito.fechaEntregaProveedor ?? remito.fechaSalida;
+        const salidaMs = salida ? new Date(salida).getTime() : NaN;
+        await calificacionesService.crearPendienteSiNoExiste({
+          proveedorId: remito.proveedorId,
+          proveedorNombre: remito.proveedorNombre,
+          origen: 'loaner_retorno',
+          origenKey: `loaner_retorno:${remitoId}:${item.loanerId}`,
+          origenId: remitoId,
+          origenLabel: `Loaner ${item.loanerCodigo ?? item.loanerId} — retorno de ${remito.proveedorNombre}`,
+          fechaEvento: now,
+          diasEnProveedor: isNaN(salidaMs) ? null : Math.max(0, Math.round((Date.now() - salidaMs) / 86400000)),
+          remitoId,
+          remitoNro: remito.numero,
+          loanerId: item.loanerId,
+        });
+      } catch (err) {
+        console.error('[marcarLoanerRetornado] calificación pendiente falló (retorno OK):', err);
+      }
+    }
   },
 
   /**

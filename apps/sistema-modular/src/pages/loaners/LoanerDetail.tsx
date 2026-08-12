@@ -4,6 +4,7 @@ import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { LoanerInfoSidebar } from '../../components/loaners/LoanerInfoSidebar';
 import { LoanerPrestamosSection } from '../../components/loaners/LoanerPrestamosSection';
+import { LoanerDerivacionesSection } from '../../components/loaners/LoanerDerivacionesSection';
 import { LoanerExtraccionesSection } from '../../components/loaners/LoanerExtraccionesSection';
 import { LoanerVentaSection } from '../../components/loaners/LoanerVentaSection';
 import { LoanerOTsSection } from '../../components/loaners/LoanerOTsSection';
@@ -208,6 +209,7 @@ export function LoanerDetail() {
           </div>
           <div className="flex-1 space-y-4">
             <LoanerPrestamosSection prestamos={loaner.prestamos} />
+            <LoanerDerivacionesSection derivaciones={loaner.derivaciones ?? []} />
             <LoanerOTsSection otIds={loaner.otIds ?? []} />
             <LoanerExtraccionesSection extracciones={loaner.extracciones} />
             <LoanerVentaSection loaner={loaner} onVender={() => setVentaOpen(true)} />
