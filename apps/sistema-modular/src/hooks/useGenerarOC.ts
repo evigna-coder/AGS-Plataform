@@ -2,6 +2,24 @@ import { useState, useCallback } from 'react';
 import { ordenesCompraService, requerimientosService, presupuestosService, leadsService, proveedoresService } from '../services/firebaseService';
 import type { RequerimientoCompra, ItemOC, Proveedor } from '@ags/shared';
 
+/**
+ * Línea de nota por requerimiento para las notas de la OC (2026-08-12):
+ * cantidad, artículo y de dónde sale (cliente/presupuesto o stock mínimo),
+ * usando el desglose consolidado si existe. Queda consultable entrando a la
+ * OC y desde "Notas" en el listado.
+ */
+function reqToNotaLinea(r: RequerimientoCompra): string {
+  const cab = `• ${r.articuloCodigo ?? r.articuloDescripcion} — ${r.cantidad} ${r.unidadMedida} (${r.numero})`;
+  const partes = (r.desglose ?? []).map(d =>
+    d.concepto === 'cliente'
+      ? `${d.cantidad} para ${d.clienteNombre || 'cliente'}${d.presupuestoNumero ? ` (Ppto ${d.presupuestoNumero})` : ''}`
+      : `${d.cantidad} stock mínimo${d.consolidaNumeros?.length ? ` (consolida ${d.consolidaNumeros.join(', ')})` : ''}`);
+  if (partes.length > 0) return `${cab}: ${partes.join(' + ')}`;
+  if (r.origen === 'stock_minimo') return `${cab}: stock mínimo`;
+  if (r.presupuestoNumero) return `${cab}: Ppto ${r.presupuestoNumero}`;
+  return cab;
+}
+
 /** Mapea un requerimiento a un ItemOC (mismo shape para OC nueva o existente). */
 function reqToItemOC(r: RequerimientoCompra): ItemOC {
   return {
@@ -37,7 +55,10 @@ export function useGenerarOC() {
       const oc = await ordenesCompraService.getById(ocId);
       if (!oc) throw new Error('Orden de compra no encontrada');
       const nuevos = selected.map(reqToItemOC);
-      await ordenesCompraService.update(ocId, { items: [...(oc.items ?? []), ...nuevos] });
+      // Las notas acumulan el detalle de lo agregado (no pisan lo que el comprador escribió).
+      const notas = [oc.notas?.trim() || null, `Agregado desde ${selected.length} requerimiento(s):`, ...selected.map(reqToNotaLinea)]
+        .filter(Boolean).join('\n');
+      await ordenesCompraService.update(ocId, { items: [...(oc.items ?? []), ...nuevos], notas });
       await Promise.all(selected.map(r =>
         requerimientosService.update(r.id, {
           estado: 'en_compra',
@@ -101,7 +122,7 @@ export function useGenerarOC() {
           fechaProforma: null,
           condicionesPago: null,
           fechaEntregaEstimada: null,
-          notas: `Generada desde ${reqs.length} requerimiento(s)`,
+          notas: [`Generada desde ${reqs.length} requerimiento(s):`, ...reqs.map(reqToNotaLinea)].join('\n'),
           items,
           estado: 'borrador',
           presupuestoIds: [],

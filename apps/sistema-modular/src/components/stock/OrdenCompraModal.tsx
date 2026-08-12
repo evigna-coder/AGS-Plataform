@@ -203,7 +203,9 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
               </div>
               <div className="col-span-2">
                 <label className={lbl}>Notas</label>
-                <textarea value={h.notas} onChange={e => h.setNotas(e.target.value)} rows={2} className={selectClass} />
+                {/* Notas del comprador (2026-08-12): cómo está armada la OC. Al generar
+                    desde requerimientos el sistema ya vuelca el detalle por artículo. */}
+                <textarea value={h.notas} onChange={e => h.setNotas(e.target.value)} rows={4} className={selectClass} />
               </div>
             </div>
             <div className="border-t border-slate-200 pt-3">
@@ -232,7 +234,12 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
             </div>
             <OCItemsTable items={oc.items} moneda={oc.moneda} readOnly />
             {oc.tipo === 'importacion' && <OCImportacionesSection importaciones={h.importaciones} />}
-            {oc.notas && <p className="text-[11px] text-slate-500"><span className="text-slate-400">Notas:</span> {oc.notas}</p>}
+            {oc.notas && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Notas</p>
+                <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed">{oc.notas}</p>
+              </div>
+            )}
           </div>
         ) : null}
       </Modal>

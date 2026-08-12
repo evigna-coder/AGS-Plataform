@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOrdenesCompra } from '../../hooks/useOrdenesCompra';
 import { OrdenCompraModal } from '../../components/stock/OrdenCompraModal';
+import { OCNotasModal } from '../../components/stock/OCNotasModal';
+import type { OrdenCompra } from '@ags/shared';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -40,6 +42,8 @@ export const OCList = () => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   // undefined = modal cerrado · null = OC nueva · string = ver/editar esa OC
   const [modalOcId, setModalOcId] = useState<string | null | undefined>(undefined);
+  // "Notas" desde el listado sin abrir la OC completa (pedido 2026-08-12).
+  const [notasOC, setNotasOC] = useState<OrdenCompra | null>(null);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
@@ -218,6 +222,15 @@ export const OCList = () => {
                         {o.fechaEntregaEstimada ? new Date(o.fechaEntregaEstimada).toLocaleDateString('es-AR') : '-'}
                       </td>
                       <td className="px-4 py-2 text-center space-x-1">
+                        {o.notas && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setNotasOC(o); }}
+                            title="Ver notas de la orden de compra"
+                            className="text-xs text-teal-600 hover:underline font-medium"
+                          >
+                            Notas
+                          </button>
+                        )}
                         {o.estado === 'borrador' && (
                           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(o.id); }}>Eliminar</Button>
                         )}
@@ -237,6 +250,7 @@ export const OCList = () => {
         onClose={() => { setModalOcId(undefined); loadOrdenes(); }}
         onSaved={loadOrdenes}
       />
+      <OCNotasModal oc={notasOC} onClose={() => setNotasOC(null)} />
     </div>
   );
 };
