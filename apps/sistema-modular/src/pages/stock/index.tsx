@@ -25,7 +25,7 @@ export { ImportacionesList } from './ImportacionesList';
 export { PagosVEPPage } from './PagosVEPPage';
 export { ImportacionEditor } from './ImportacionEditor';
 export { ImportacionDetail } from './ImportacionDetail';
-export { AsignacionRapidaPage } from './AsignacionRapidaPage';
+export { AsignacionesVistaPage } from './AsignacionesVistaPage';
 export { AsignacionesList } from './AsignacionesList';
 export { AsignacionDetail } from './AsignacionDetail';
 export { InventarioIngenieroPage } from './InventarioIngenieroPage';

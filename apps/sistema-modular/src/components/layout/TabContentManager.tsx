@@ -20,7 +20,7 @@ import { PatronesList, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
-import { StockHome, MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
+import { StockHome, MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionesVistaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
 import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
@@ -186,7 +186,7 @@ function AppRoutes() {
       <Route path="/stock/marcas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MarcasPage /></ProtectedRoute>} />
       {/* RBAC locked to ['admin', 'admin_soporte'] per 09-RESEARCH.md — planificacion is planner/Comex only */}
       <Route path="/stock/planificacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte']}><PlanificacionStockPage /></ProtectedRoute>} />
-      <Route path="/stock/asignaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionRapidaPage /></ProtectedRoute>} />
+      <Route path="/stock/asignaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesVistaPage /></ProtectedRoute>} />
       <Route path="/stock/asignaciones/historial" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesList /></ProtectedRoute>} />
       <Route path="/stock/asignaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionDetail /></ProtectedRoute>} />
       {/* Usuarios */}
