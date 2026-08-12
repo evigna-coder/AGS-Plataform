@@ -1285,6 +1285,47 @@ export const presupuestosService = {
           const qtyReq = qtyResultante < stockMinimo
             ? Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible)
             : 0;
+
+          // ── Desglose + consolidación de stock mínimo (2026-08-12, caso G1530-67950) ──
+          // qtyReq ya SUMA la reposición del mínimo, pero el requerimiento de
+          // stock_minimo que el sweep pudo haber creado antes quedaba abierto y
+          // duplicaba la compra (REQ-033 por 4 + req viejo por 1). Acordado con
+          // el comprador: el req del presupuesto absorbe el del sweep, éste se
+          // cancela referenciando la consolidación, y el desglose cliente/mínimo
+          // queda registrado en el requerimiento que sobrevive.
+          const parteCliente = Math.min(qtyReq, Math.max(item.cantidad - qtyDisponible, 0));
+          const parteMinimo = qtyReq - parteCliente;
+          let reqsMinimoPrevios: RequerimientoCompra[] = [];
+          if (qtyReq > 0) {
+            try {
+              const delArticulo = await requerimientosService.getByArticulo(item.stockArticuloId!);
+              reqsMinimoPrevios = delArticulo.filter(x =>
+                x.origen === 'stock_minimo' && !x.ordenCompraId &&
+                (x.estado === 'pendiente' || x.estado === 'aprobado'));
+            } catch (err) {
+              // Fail-safe: si el chequeo falla, no consolidar (mejor un duplicado visible
+              // que cancelar sin haber creado el reemplazo).
+              console.error('[aceptarConRequerimientos] check reqs de stock mínimo falló — no se consolida:', err);
+            }
+          }
+          const desglose = qtyReq > 0 ? [
+            ...(parteCliente > 0 ? [{
+              concepto: 'cliente' as const,
+              cantidad: parteCliente,
+              presupuestoId,
+              presupuestoNumero: pres.numero ?? null,
+              clienteNombre: clienteNombre || null,
+            }] : []),
+            ...(parteMinimo > 0 ? [{
+              concepto: 'stock_minimo' as const,
+              cantidad: parteMinimo,
+              consolidaNumeros: reqsMinimoPrevios.length > 0 ? reqsMinimoPrevios.map(x => x.numero) : null,
+            }] : []),
+          ] : null;
+          // Se consolida (cancela el req del sweep) solo si un req de este ppto
+          // quedó cubriendo el mínimo — se setea en los dos caminos de abajo.
+          let reqCubreMinimo = false;
+
           let reqsPrevios: Array<{ id: string; estado: string; cantidad: number }> | null = null;
           try {
             const reqSnap = await getDocs(query(
@@ -1304,11 +1345,15 @@ export const presupuestosService = {
           const ajustables = (reqsPrevios ?? []).filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
           if (reqsPrevios && ajustables.length > 0) {
             const [principal, ...extras] = ajustables;
-            if (qtyReq > 0 && principal.cantidad !== qtyReq) {
-              await requerimientosService.update(principal.id, {
-                cantidad: qtyReq,
-                notas: `Cantidad ajustada al aceptar ${pres.numero}: ${principal.cantidad} → ${qtyReq}.`,
-              }).catch(err => console.error('[aceptarConRequerimientos] ajuste de req previo falló:', err));
+            if (qtyReq > 0) {
+              const ajuste: Partial<RequerimientoCompra> = { desglose };
+              if (principal.cantidad !== qtyReq) {
+                ajuste.cantidad = qtyReq;
+                ajuste.notas = `Cantidad ajustada al aceptar ${pres.numero}: ${principal.cantidad} → ${qtyReq}.`;
+              }
+              await requerimientosService.update(principal.id, ajuste)
+                .then(() => { reqCubreMinimo = true; })
+                .catch(err => console.error('[aceptarConRequerimientos] ajuste de req previo falló:', err));
             } else if (qtyReq <= 0) {
               await requerimientosService.update(principal.id, {
                 estado: 'cancelado',
@@ -1324,7 +1369,9 @@ export const presupuestosService = {
           }
 
           if (reqsPrevios && reqsPrevios.length === 0 && qtyReq > 0) {
+            reqCubreMinimo = true;
             await requerimientosService.create({
+              desglose,
               articuloId: item.stockArticuloId ?? null,
               articuloCodigo: articulo?.codigo ?? null,
               articuloDescripcion: articulo?.descripcion ?? item.descripcion,
@@ -1347,6 +1394,20 @@ export const presupuestosService = {
               urgencia: 'media',
               notas: null,
             });
+          }
+
+          // Consolidación: cancelar los reqs de stock mínimo del sweep — su
+          // necesidad ya viaja en el req del presupuesto (parteMinimo). Solo se
+          // llega acá con pendiente/aprobado sin OC; en_compra/comprado es gasto
+          // comprometido y quedó afuera del filtro.
+          if (reqCubreMinimo && parteMinimo > 0) {
+            for (const prev of reqsMinimoPrevios) {
+              await requerimientosService.update(prev.id, {
+                estado: 'cancelado',
+                canceladoPor: 'consolidado_stock_minimo',
+                notas: `Consolidado al aceptar ${pres.numero}: la reposición del mínimo (${parteMinimo} u.) viaja en el requerimiento del presupuesto.`,
+              }).catch(err => console.error(`[aceptarConRequerimientos] consolidar req ${prev.numero} falló:`, err));
+            }
           }
 
           // Auto-reserva: acumular unidades por cantidad FÍSICA hasta cubrir item.cantidad.

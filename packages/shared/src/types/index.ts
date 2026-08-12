@@ -4532,6 +4532,23 @@ export const ORIGEN_REQUERIMIENTO_LABELS: Record<OrigenRequerimiento, string> = 
   patron_minimo: 'Patrón (mínimo)',
 };
 
+/**
+ * Desglose de un requerimiento consolidado (2026-08-12, caso G1530-67950):
+ * al aceptar un presupuesto, la cantidad del requerimiento absorbe la
+ * reposición de stock mínimo en un único requerimiento. Acá queda el detalle
+ * de cuánto es para el cliente y cuánto para reponer el mínimo. Es historial
+ * del momento de la consolidación — no se recalcula.
+ */
+export interface RequerimientoDesgloseLinea {
+  concepto: 'cliente' | 'stock_minimo';
+  cantidad: number;
+  presupuestoId?: string | null;
+  presupuestoNumero?: string | null;
+  clienteNombre?: string | null;
+  /** Números de requerimientos previos consolidados en éste (ej. "REQ-0031"). */
+  consolidaNumeros?: string[] | null;
+}
+
 export interface RequerimientoCompra {
   id: string;
   numero: string; // REQ-0001
@@ -4589,6 +4606,12 @@ export interface RequerimientoCompra {
    * null cuando origen != 'presupuesto' o cuando se creó pre-Phase16.
    */
   presupuestoItemId?: string | null;
+  /**
+   * (2026-08-12) Desglose cliente / stock mínimo cuando la cantidad consolida
+   * ambas necesidades (ver RequerimientoDesgloseLinea). Sparse: solo lo estampan
+   * los requerimientos generados/ajustados al aceptar un presupuesto.
+   */
+  desglose?: RequerimientoDesgloseLinea[] | null;
 }
 
 export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';

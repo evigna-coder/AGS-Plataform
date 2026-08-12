@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { RequerimientoCompra, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_COLORS, ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
@@ -56,10 +57,19 @@ export const RequerimientoRow = ({
   const isEditingCantidad = editingCell?.id === r.id && editingCell.field === 'cantidad';
   const isEditingUrgencia = editingCell?.id === r.id && editingCell.field === 'urgencia';
   const isEditingProveedor = editingCell?.id === r.id && editingCell.field === 'proveedorSugeridoId';
+  // Desglose cliente/stock mínimo (2026-08-12): click en cualquier parte de la
+  // fila despliega el detalle en una fila auxiliar debajo. Las celdas
+  // interactivas (checkbox, edición inline, acciones) frenan la propagación.
+  const [desgloseOpen, setDesgloseOpen] = useState(false);
+  const tieneDesglose = (r.desglose?.length ?? 0) > 0;
 
   return (
-    <tr className={`hover:bg-slate-50 ${selected ? 'bg-teal-50' : ''}`}>
-      <td className="px-3 py-2 text-center">
+    <>
+    <tr
+      onClick={() => tieneDesglose && setDesgloseOpen(o => !o)}
+      className={`hover:bg-slate-50 ${selected ? 'bg-teal-50' : ''} ${tieneDesglose ? 'cursor-pointer' : ''}`}
+    >
+      <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </td>
       <td className={`px-3 py-2 ${getAlignClass(1)}`}>
@@ -70,13 +80,20 @@ export const RequerimientoRow = ({
         {r.articuloCodigo && <span className="block font-mono font-semibold text-teal-800 truncate">{r.articuloCodigo}</span>}
         <span className={`block truncate ${r.articuloCodigo ? 'text-[10px] text-slate-400' : ''}`}>{r.articuloDescripcion}</span>
       </td>
-      <td className={`px-2 py-2 text-xs whitespace-nowrap ${getAlignClass(3)}`} onClick={() => isPendiente && startEdit(r, 'cantidad')}>
+      <td className={`px-2 py-2 text-xs whitespace-nowrap ${getAlignClass(3)}`} onClick={e => { if (isPendiente) { e.stopPropagation(); startEdit(r, 'cantidad'); } }}>
         {isEditingCantidad ? (
           <input type="number" min={1} value={editValue} onChange={e => setEditValue(e.target.value)}
             onBlur={saveEdit} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
             autoFocus className="border-b border-teal-400 focus:outline-none bg-transparent text-xs w-16 text-right" />
         ) : (
-          <span className={isPendiente ? 'cursor-pointer hover:text-teal-700' : ''}>{r.cantidad} {r.unidadMedida}</span>
+          <>
+            <span className={isPendiente ? 'cursor-pointer hover:text-teal-700' : ''}>{r.cantidad} {r.unidadMedida}</span>
+            {tieneDesglose && (
+              <span className="block text-[10px] text-teal-600 select-none" title="Click en la fila para ver el desglose">
+                {desgloseOpen ? '▾' : '▸'} desglose
+              </span>
+            )}
+          </>
         )}
       </td>
       <td className={`px-2 py-2 overflow-hidden ${getAlignClass(4)}`}>
@@ -110,7 +127,7 @@ export const RequerimientoRow = ({
           )
         )}
       </td>
-      <td className={`px-2 py-2 ${getAlignClass(6)}`} onClick={() => isPendiente && startEdit(r, 'urgencia')}>
+      <td className={`px-2 py-2 ${getAlignClass(6)}`} onClick={e => { if (isPendiente) { e.stopPropagation(); startEdit(r, 'urgencia'); } }}>
         {isEditingUrgencia ? (
           <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus
             className="border-b border-teal-400 focus:outline-none bg-transparent text-xs">
@@ -124,7 +141,7 @@ export const RequerimientoRow = ({
           </span>
         ) : null}
       </td>
-      <td className={`px-2 py-2 text-xs text-slate-600 ${isEditingProveedor ? '' : 'truncate'} ${getAlignClass(7)}`} title={r.proveedorSugeridoNombre ?? ''} onClick={() => isPendiente && !isEditingProveedor && startEdit(r, 'proveedorSugeridoId')}>
+      <td className={`px-2 py-2 text-xs text-slate-600 ${isEditingProveedor ? '' : 'truncate'} ${getAlignClass(7)}`} title={r.proveedorSugeridoNombre ?? ''} onClick={e => { if (isPendiente && !isEditingProveedor) { e.stopPropagation(); startEdit(r, 'proveedorSugeridoId'); } }}>
         {isEditingProveedor ? (
           <div className="flex items-center gap-1 min-w-[160px]" onClick={e => e.stopPropagation()}>
             <div className="flex-1">
@@ -150,7 +167,7 @@ export const RequerimientoRow = ({
       </td>
       <td className={`px-2 py-2 text-xs text-slate-900 truncate ${getAlignClass(8)}`} title={r.solicitadoPor}>{r.solicitadoPor}</td>
       <td className={`px-2 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(9)}`}>{formatDate(r.fechaSolicitud)}</td>
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           {r.estado === 'pendiente' && (
             <button onClick={() => onAprobar(r.id)} className="text-xs text-green-600 hover:underline font-medium">Aprobar</button>
@@ -160,6 +177,25 @@ export const RequerimientoRow = ({
         </div>
       </td>
     </tr>
+    {desgloseOpen && tieneDesglose && (
+      <tr className="bg-teal-50/40">
+        <td colSpan={11} className="px-10 py-1.5 text-[11px] text-slate-600">
+          <div className="flex flex-wrap gap-x-6 gap-y-0.5">
+            {r.desglose!.map((d, i) => (
+              <span key={i}>
+                <span className="font-semibold tabular-nums">{d.cantidad} {r.unidadMedida}</span>{' '}
+                {d.concepto === 'cliente' ? (
+                  <>para {d.clienteNombre || 'cliente'}{d.presupuestoNumero ? ` — Ppto ${d.presupuestoNumero}` : ''}</>
+                ) : (
+                  <>reposición de stock mínimo{d.consolidaNumeros?.length ? ` (consolida ${d.consolidaNumeros.join(', ')})` : ''}</>
+                )}
+              </span>
+            ))}
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   );
 };
 

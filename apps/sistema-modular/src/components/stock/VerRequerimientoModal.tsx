@@ -87,6 +87,23 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], 
           <Field label="Fecha aprobación">{fmtFecha(req.fechaAprobacion)}</Field>
         </div>
 
+        {/* Desglose cliente / stock mínimo (2026-08-12, consolidación al aceptar ppto). */}
+        {(req.desglose?.length ?? 0) > 0 && (
+          <div className="border-t border-slate-100 pt-3">
+            <p className={lbl}>Desglose de la cantidad</p>
+            <ul className="mt-1 space-y-0.5">
+              {req.desglose!.map((d, i) => (
+                <li key={i} className="text-xs text-slate-700">
+                  <span className="font-semibold tabular-nums">{d.cantidad} {req.unidadMedida}</span>{' '}
+                  {d.concepto === 'cliente'
+                    ? <>para {d.clienteNombre || 'cliente'}{d.presupuestoNumero ? ` — Ppto ${d.presupuestoNumero}` : ''}</>
+                    : <>reposición de stock mínimo{d.consolidaNumeros?.length ? ` (consolida ${d.consolidaNumeros.join(', ')})` : ''}</>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Asignación firme a proveedor (habilita el portal proveedores). */}
         <div className="border-t border-slate-100 pt-3 space-y-1.5">
           <div className="flex items-center gap-2">
