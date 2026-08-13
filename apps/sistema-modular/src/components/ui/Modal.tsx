@@ -14,6 +14,12 @@ interface ModalProps {
   closeOnBackdropClick?: boolean;
   /** Si true, el modal se puede minimizar. Default: true */
   minimizable?: boolean;
+  /**
+   * Si true, el modal se puede maximizar a toda la pantalla (2026-08-13).
+   * Pedido para las cargas largas —presupuestos y órdenes de compra—, donde el
+   * ancho fijo obliga a scrollear la tabla de items. Default: true.
+   */
+  maximizable?: boolean;
 }
 
 const widthMap = {
@@ -42,7 +48,9 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   closeOnBackdropClick = false,
   minimizable = true,
+  maximizable = true,
 }) => {
+  const [maximized, setMaximized] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   // Espejo del offset para el clamp del drag (el handler vive en un effect).
   const offsetRef = useRef(offset);
@@ -70,9 +78,19 @@ export const Modal: React.FC<ModalProps> = ({
     if (open) {
       setOffset({ x: 0, y: 0 });
       setMinimized(false);
+      setMaximized(false);
       didAutoFocus.current = false;
     }
   }, [open]);
+
+  /** Maximizar/restaurar. Al maximizar se descarta el arrastre: el modal ocupa
+   *  todo y un offset viejo lo dejaría corrido contra un borde. */
+  const toggleMaximized = useCallback(() => {
+    setMaximized(m => {
+      if (!m) setOffset({ x: 0, y: 0 });
+      return !m;
+    });
+  }, []);
 
   // Register/unregister from minimized registry (por-pestaña si hay scope,
   // global si el modal vive fuera del sistema de pestañas)
@@ -163,10 +181,12 @@ export const Modal: React.FC<ModalProps> = ({
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
+    // Maximizado no se arrastra: ya ocupa todo el área disponible.
+    if (maximized) return;
     dragging.current = true;
     dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
     e.preventDefault();
-  }, [offset]);
+  }, [offset, maximized]);
 
   useEffect(() => {
     if (!open || minimized || !isTabActive) return;
@@ -229,13 +249,19 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         ref={dialogRef}
-        className={`w-full ${widthMap[maxWidth]} bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col max-h-[90vh] relative`}
+        className={`w-full bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col relative ${
+          maximized ? 'max-w-none h-full max-h-full' : `${widthMap[maxWidth]} max-h-[90vh]`
+        }`}
         style={{ left: `${offset.x}px`, top: `${offset.y}px` }}
         onClick={e => e.stopPropagation()}
       >
         <div
-          className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3 bg-teal-700 rounded-t-xl border-b border-teal-800 cursor-grab active:cursor-grabbing select-none"
+          className={`shrink-0 flex items-center justify-between px-5 pt-4 pb-3 bg-teal-700 rounded-t-xl border-b border-teal-800 select-none ${
+            maximized ? '' : 'cursor-grab active:cursor-grabbing'
+          }`}
           onMouseDown={handleMouseDown}
+          // Doble click en la barra maximiza/restaura, como una ventana.
+          onDoubleClick={maximizable ? toggleMaximized : undefined}
         >
           <div>
             <h3 id={`modal-title-${modalId.current}`} className="text-lg font-serif font-semibold text-white tracking-tight">{title}</h3>
@@ -250,6 +276,25 @@ export const Modal: React.FC<ModalProps> = ({
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+              </button>
+            )}
+            {maximizable && (
+              <button
+                onClick={toggleMaximized}
+                className="w-7 h-7 flex items-center justify-center rounded-md text-teal-200 hover:text-white hover:bg-teal-800 transition-colors"
+                title={maximized ? 'Restaurar tamaño' : 'Maximizar (doble click en la barra)'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {maximized ? (
+                    // Restaurar: flechas hacia adentro
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9 9V4M9 9H4M9 9L4 4m11 5h5m-5 0V4m0 5l5-5M9 15v5m0-5H4m5 0l-5 5m11-5h5m-5 0v5m0-5l5 5" />
+                  ) : (
+                    // Maximizar: flechas hacia afuera
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  )}
                 </svg>
               </button>
             )}
