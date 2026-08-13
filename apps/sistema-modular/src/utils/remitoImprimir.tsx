@@ -27,7 +27,9 @@ import { clientesService, establecimientosService, remitosService } from '../ser
 import { proveedoresService } from '../services/personalService';
 import { RemitoOverlayPDF, type RemitoOverlayItem, type RemitoOverlayFieldOffsets } from '../components/remitos/pdf/RemitoOverlayPDF';
 import { printRemitoSilentOrOpen } from './remitoPdfActions';
-import { getRemitoItemCodigo, getRemitoItemDescripcion } from './inventarioToRemitoItem';
+import { getRemitoItemCodigo, lineaDescripcionRemito } from './inventarioToRemitoItem';
+import { enriquecerItemsRemito } from './enriquecerItemsRemito';
+import { razonSocialConEstablecimiento } from './razonSocialRemito';
 
 /** Destinatario/transportista del overlay (mismo shape que DatosTransportista). */
 interface OverlayParty {
@@ -111,7 +113,13 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
         cuit: proveedor?.cuit ?? '',
       }
     : {
-        razonSocial: cliente?.razonSocial ?? remito.clienteNombre ?? '',
+        // Planta entre paréntesis (2026-08-12): en un cliente multi-planta el
+        // nombre solo no dice a dónde va la mercadería. Salía en la vista de
+        // remitos pero no en el papel.
+        razonSocial: razonSocialConEstablecimiento(
+          cliente?.razonSocial ?? remito.clienteNombre ?? '',
+          establecimiento?.nombre ?? remito.establecimientoNombre,
+        ),
         // Domicilio de ENTREGA: el del establecimiento si está elegido; si no, el fiscal.
         domicilio: establecimiento?.direccion ?? cliente?.direccionFiscal ?? cliente?.direccion ?? '',
         localidad: establecimiento?.localidad ?? cliente?.localidadFiscal ?? cliente?.localidad ?? '',
@@ -126,15 +134,17 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   // Columna Producto = SOLO código de artículo / N° de parte (2026-08-07). Si
   // el equipo no tiene código va "S/C": ni el número de ficha ni el LNR del
   // loaner son códigos de producto, son internos de AGS y no se declaran nunca.
-  const items: RemitoOverlayItem[] = remito.items.map((it, i) => ({
+  // Minikits e instrumentos salían con la Descripción VACÍA (2026-08-12): la
+  // asignación guarda solo el código/nombre. Se completa desde el catálogo
+  // antes de armar las líneas — también arregla las reimpresiones viejas.
+  const itemsRemito = await enriquecerItemsRemito(remito.items)
+    .catch(err => { console.error('[imprimirRemitoStock] enriquecer items falló:', err); return remito.items; });
+
+  const items: RemitoOverlayItem[] = itemsRemito.map((it, i) => ({
     numero: i + 1,
     cantidad: it.cantidad,
     producto: getRemitoItemCodigo(it) || 'S/C',
-    descripcion: [
-      getRemitoItemDescripcion(it) || it.fichaDescripcion || '',
-      it.serie ? `S/N ${it.serie}` : null,
-      it.observaciones || null,
-    ].filter(Boolean).join(' · '),
+    descripcion: lineaDescripcionRemito(it),
   }));
 
   const now = new Date();

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Cliente, CondicionIva } from '@ags/shared';
+import type { Cliente, CondicionIva, Establecimiento } from '@ags/shared';
 import { clientesService } from '../services/clientesService';
+import { establecimientosService } from '../services/firebaseService';
+import { proveedoresService } from '../services/personalService';
+import { partyFromProveedor } from '../components/remitos/RemitoTransportistaPicker';
+import { razonSocialConEstablecimiento } from '../utils/razonSocialRemito';
 import { ordenesTrabajoService } from '../services/otService';
 import {
   remitosService,
@@ -23,12 +27,18 @@ const IVA_LABELS: Partial<Record<CondicionIva, string>> = {
   consumidor_final: 'Consumidor Final',
 };
 
-function destFromCliente(c: Cliente): DatosTransportista {
+/**
+ * Destinatario del papel. El domicilio es el de ENTREGA: el del establecimiento
+ * si se conoce, y recién si no el fiscal del cliente (2026-08-12) — mismo
+ * criterio que `imprimirRemitoStock`. Sin esto la provincia salía vacía en los
+ * clientes que la tienen cargada solo en la planta (caso YPF).
+ */
+function destFromCliente(c: Cliente, est?: Establecimiento | null): DatosTransportista {
   return {
-    razonSocial: c.razonSocial,
-    domicilio: c.direccionFiscal ?? c.direccion ?? '',
-    localidad: c.localidadFiscal ?? c.localidad ?? '',
-    provincia: c.provinciaFiscal ?? c.provincia ?? '',
+    razonSocial: razonSocialConEstablecimiento(c.razonSocial, est?.nombre),
+    domicilio: est?.direccion || c.direccionFiscal || c.direccion || '',
+    localidad: est?.localidad || c.localidadFiscal || c.localidad || '',
+    provincia: est?.provincia || c.provinciaFiscal || c.provincia || '',
     iva: c.condicionIva ? (IVA_LABELS[c.condicionIva] ?? c.condicionIva) : '',
     cuit: c.cuit ?? '',
   };
@@ -37,6 +47,8 @@ function destFromCliente(c: Cliente): DatosTransportista {
 export interface RemitoServicioPrefill {
   clienteId?: string;
   clienteNombre?: string;
+  /** Planta a la que se entrega: domicilio impreso + "(nombre)" en la razón social. */
+  establecimientoId?: string;
   sistemaId?: string;
   sistemaNombre?: string;
   sistemaCodigoInterno?: string;
@@ -101,6 +113,11 @@ interface Args {
  */
 export function useRemitoServicio({ open, prefill }: Args) {
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  // Transportista SIEMPRE AGS Analítica (2026-08-12): en un remito de servicio
+  // el traslado lo hace AGS, no un flete. Sale del catálogo de proveedores para
+  // no hardcodear domicilio/CUIT; si no está cargado, el bloque va vacío igual
+  // que antes (no bloquea la emisión).
+  const [transportista, setTransportista] = useState<DatosTransportista | null>(null);
   const [numero, setNumero] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [destinatario, setDestinatario] = useState<DatosTransportista>(EMPTY_DEST);
@@ -120,18 +137,40 @@ export function useRemitoServicio({ open, prefill }: Args) {
     void remitosService.getProximoNumeroPreimpreso().then(setNumero);
 
     if (prefill.clienteId) {
-      void clientesService.getById(prefill.clienteId).then(c => {
+      void Promise.all([
+        clientesService.getById(prefill.clienteId),
+        prefill.establecimientoId
+          ? establecimientosService.getById(prefill.establecimientoId).catch(() => null)
+          : Promise.resolve(null),
+      ]).then(([c, est]) => {
         if (!c) return;
         setCliente(c);
-        setDestinatario(destFromCliente(c));
+        setDestinatario(destFromCliente(c, est));
       });
     }
+
+    // Transportista fijo: AGS Analítica del catálogo de proveedores.
+    void proveedoresService.getAll().then(provs => {
+      const ags = provs.find(p => /ags\s*anal[íi]tica/i.test(p.nombre ?? ''))
+        ?? provs.find(p => /^ags\b/i.test((p.nombre ?? '').trim()));
+      setTransportista(ags ? partyFromProveedor(ags) : null);
+    }).catch(err => console.error('[useRemitoServicio] proveedor AGS no resuelto:', err));
 
     // Candidatos = OTs del mismo equipo; cada una aporta una línea de servicio.
     if (prefill.clienteId && prefill.sistemaId) {
       void ordenesTrabajoService.getAll({ clienteId: prefill.clienteId, sistemaId: prefill.sistemaId })
         .then(ots => {
-          setLineas(ots.map(ot => ({
+          // El PADRE es solo el agrupador visual (regla del proyecto): el
+          // trabajo vive en las hijas .NN. Sin este filtro la lista mostraba el
+          // padre además de sus items y el remito duplicaba el servicio
+          // (2026-08-12). Un número sin punto que NO tenga hijas es una OT
+          // vieja legítima y se mantiene.
+          const conHijas = new Set(
+            ots.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]),
+          );
+          const candidatas = ots.filter(o =>
+            o.estadoAdmin !== 'CANCELADA' && !conHijas.has(o.otNumber));
+          setLineas(candidatas.map(ot => ({
             key: ot.otNumber,
             selected: true,
             otNumberOrigen: ot.otNumber,
@@ -143,7 +182,7 @@ export function useRemitoServicio({ open, prefill }: Args) {
     } else {
       setLineas([]);
     }
-  }, [open, prefill.clienteId, prefill.sistemaId]);
+  }, [open, prefill.clienteId, prefill.establecimientoId, prefill.sistemaId]);
 
   const toggleLinea = (key: string) =>
     setLineas(prev => prev.map(l => l.key === key ? { ...l, selected: !l.selected } : l));
@@ -176,7 +215,7 @@ export function useRemitoServicio({ open, prefill }: Args) {
 
   return {
     // state
-    cliente, numero, fecha, destinatario, ordenClienteNumero, datoInternoCliente,
+    cliente, numero, fecha, destinatario, transportista, ordenClienteNumero, datoInternoCliente,
     lineas, observaciones, submitting, error, seleccionadas,
     // setters
     setNumero, setFecha, setDestinatario, setOrdenClienteNumero, setDatoInternoCliente,

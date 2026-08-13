@@ -1,8 +1,6 @@
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { remitosService, type RemitoServicioLinea } from '../../services/stockService';
-import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
-import { RemitoOverlayPDF } from './pdf/RemitoOverlayPDF';
 import {
   useRemitoServicio,
   buildOverlayItems,
@@ -71,9 +69,21 @@ export const RemitoServicioModal: React.FC<Props> = ({ open, onClose, onCreated,
         datoInternoCliente: s.datoInternoCliente,
         lineas,
       });
-      await openRemitoPdfInNewTab(
-        <RemitoOverlayPDF fecha={formatFecha(s.fecha)} destinatario={s.destinatario} items={items} />,
-      );
+      // Mismo camino que TODOS los demás remitos (2026-08-12): antes armaba el
+      // PDF a mano y lo abría en una pestaña, SIN los offsets calibrados contra
+      // el papel preimpreso y sin el bloque transportista — salía corrido.
+      // Import DINÁMICO a propósito: este modal cuelga del modal de OT, que vive
+      // en el chunk principal, y arrastrar acá el pipeline de impresión (pdf +
+      // movimientos + servicios) lo hace crecer hasta romper el build de vite
+      // con "Parse error @:1:1". Solo se necesita al apretar Generar.
+      const { imprimirRemitoOverlay } = await import('../../utils/remitoImprimir');
+      await imprimirRemitoOverlay({
+        fecha: formatFecha(s.fecha),
+        destinatario: s.destinatario,
+        transportista: s.transportista,
+        items,
+        observaciones: s.observaciones.trim() || null,
+      });
       onCreated();
     } catch (e) {
       s.setError(e instanceof Error ? e.message : 'No se pudo generar el remito');
@@ -130,6 +140,19 @@ export const RemitoServicioModal: React.FC<Props> = ({ open, onClose, onCreated,
             <div><span className={lbl}>IVA</span><input value={s.destinatario.iva} onChange={D('iva')} className={inp} /></div>
             <div><span className={lbl}>CUIT</span><input value={s.destinatario.cuit} onChange={D('cuit')} className={`${inp} font-mono`} /></div>
           </div>
+        </div>
+
+        {/* Transportista: fijo AGS Analítica — se muestra para que se vea qué
+            va a salir impreso, pero no se elige (2026-08-12). */}
+        <div className="flex items-baseline gap-2 text-xs">
+          <span className={`${lbl} mb-0`}>Transportista</span>
+          {s.transportista?.razonSocial ? (
+            <span className="text-slate-700">{s.transportista.razonSocial}</span>
+          ) : (
+            <span className="text-amber-600">
+              AGS Analítica no está en el catálogo de proveedores — el bloque va a salir vacío.
+            </span>
+          )}
         </div>
 
         {/* Datos que pide el cliente */}

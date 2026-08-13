@@ -3876,6 +3876,13 @@ export interface RemitoItem {
   /** Campos multi-tipo (opcionales, backward-compatible) */
   minikitId?: string | null;
   minikitCodigo?: string | null;
+  /**
+   * Nombre/descripción del minikit (2026-08-12). La asignación solo guarda el
+   * código, así que la columna Descripción del papel salía VACÍA: el getter no
+   * tenía otro campo del que tirar y devolvía el código, que ya está en su
+   * propia columna. Se completa al imprimir desde el catálogo.
+   */
+  minikitDescripcion?: string | null;
   instrumentoId?: string | null;
   instrumentoCodigo?: string | null;
   instrumentoDescripcion?: string | null;

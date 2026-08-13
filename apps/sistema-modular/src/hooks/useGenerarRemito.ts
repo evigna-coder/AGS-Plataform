@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Proveedor, WorkOrder, Loaner, UnidadStock } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva, Establecimiento, Proveedor, WorkOrder, Loaner, UnidadStock } from '@ags/shared';
 import { fichasService } from '../services/fichasService';
 import { clientesService } from '../services/clientesService';
+import { establecimientosService } from '../services/firebaseService';
+import { razonSocialConEstablecimiento } from '../utils/razonSocialRemito';
 import { proveedoresService } from '../services/personalService';
 import { ordenesTrabajoService } from '../services/firebaseService';
 import { loanersService } from '../services/loanersService';
@@ -25,12 +27,18 @@ const IVA_LABELS: Partial<Record<CondicionIva, string>> = {
   consumidor_final: 'Consumidor Final',
 };
 
-function destFromCliente(c: Cliente): DatosTransportista {
+/**
+ * Destinatario del papel. La ficha ya sabe a qué planta pertenece el equipo, así
+ * que el nombre del establecimiento va entre paréntesis en la razón social y su
+ * domicilio manda sobre el fiscal (2026-08-12) — mismo criterio que el resto de
+ * los remitos. No hace falta selector: el dato ya está en la ficha.
+ */
+function destFromCliente(c: Cliente, est?: Establecimiento | null): DatosTransportista {
   return {
-    razonSocial: c.razonSocial,
-    domicilio: c.direccionFiscal ?? c.direccion ?? '',
-    localidad: c.localidadFiscal ?? c.localidad ?? '',
-    provincia: c.provinciaFiscal ?? c.provincia ?? '',
+    razonSocial: razonSocialConEstablecimiento(c.razonSocial, est?.nombre),
+    domicilio: est?.direccion || c.direccionFiscal || c.direccion || '',
+    localidad: est?.localidad || c.localidadFiscal || c.localidad || '',
+    provincia: est?.provincia || c.provinciaFiscal || c.provincia || '',
     iva: c.condicionIva ? (IVA_LABELS[c.condicionIva] ?? c.condicionIva) : '',
     cuit: c.cuit ?? '',
   };
@@ -164,10 +172,15 @@ export function useGenerarRemito({ open, ficha, loaner = null }: Args) {
   useEffect(() => {
     if (!open) return;
     if (ficha) {
-      void clientesService.getById(ficha.clienteId).then(c => {
+      void Promise.all([
+        clientesService.getById(ficha.clienteId),
+        ficha.establecimientoId
+          ? establecimientosService.getById(ficha.establecimientoId).catch(() => null)
+          : Promise.resolve(null),
+      ]).then(([c, est]) => {
         if (!c) return;
         setCliente(c);
-        setDestinatario(destFromCliente(c));
+        setDestinatario(destFromCliente(c, est));
       });
       void fichasService.getAll({ clienteId: ficha.clienteId, activasOnly: true }).then(items => {
         setOtherFichas(items.filter(f => f.id !== ficha.id));

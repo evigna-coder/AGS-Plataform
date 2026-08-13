@@ -115,7 +115,10 @@ export function getRemitoItemDescripcion(item: RemitoItem): string {
   if (item.tipoEntidad === 'instrumento') return sinRepetir(item.instrumentoDescripcion);
   if (item.tipoEntidad === 'dispositivo') return sinRepetir(item.dispositivoDescripcion);
   if (item.tipoEntidad === 'vehiculo') return sinRepetir(item.vehiculoDescripcion);
-  if (item.tipoEntidad === 'minikit') return sinRepetir(item.minikitCodigo);
+  // Minikit (2026-08-12): antes devolvía `sinRepetir(minikitCodigo)`, que por
+  // definición es el mismo valor de la columna Código ⇒ SIEMPRE vacío. El
+  // nombre del kit lo completa `enriquecerItemsRemito` al imprimir.
+  if (item.tipoEntidad === 'minikit') return sinRepetir(item.minikitDescripcion || item.articuloDescripcion);
   // Loaner: nunca el LNR como descripción (2026-08-07) — es un identificador
   // interno, no dice qué equipo es. Si no hay descripción, mejor vacío.
   if (item.tipoEntidad === 'loaner') {
@@ -136,6 +139,19 @@ function sinCodigoRedundante(item: RemitoItem, texto: string | null | undefined)
   if (item.articuloCodigo) return (texto || '').trim();
   const { codigo, resto } = partirCodigoDescripcion(texto);
   return codigo ? resto : (texto || '').trim();
+}
+
+/**
+ * Texto EXACTO de la columna Descripción del papel: qué es el bien, su número
+ * de serie y las observaciones de la línea (2026-08-12). Vive acá —y no inline
+ * en `remitoImprimir`— para poder testearlo sin arrastrar Firebase ni el PDF.
+ */
+export function lineaDescripcionRemito(item: RemitoItem): string {
+  return [
+    getRemitoItemDescripcion(item) || item.fichaDescripcion || '',
+    item.serie ? `S/N ${item.serie}` : null,
+    item.observaciones || null,
+  ].filter(Boolean).join(' · ');
 }
 
 const TIPO_ENTIDAD_LABELS: Record<string, string> = {
