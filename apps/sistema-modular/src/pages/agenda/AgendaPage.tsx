@@ -18,6 +18,7 @@ import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
 import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/agenda/AgendaReservaModal';
 import { previsionesService } from '../../services/previsionesService';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
+import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../../utils/finDeSemana';
 import { otrasEntradasDeOTs, etiquetaEntrada } from '../../utils/agendaDuplicados';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import {
@@ -263,6 +264,12 @@ export const AgendaPage: FC = () => {
     const quarterStart = nr ? nr.startQuarter : cell.quarter;
     const quarterEnd = nr ? nr.endQuarter : cell.quarter;
 
+    // Fin de semana — ANTES de cualquier efecto, igual que feriados (2026-08-12).
+    const findePaste = primerFinDeSemanaEnRango(fechaInicio, fechaFin);
+    if (findePaste) {
+      alert(mensajeFinDeSemana(findePaste));
+      return;
+    }
     // Bloqueo duro de feriados — ANTES de cualquier efecto (el sync de la OT
     // corre en paralelo al alta de la entrada).
     const feriadoPaste = primerFeriadoEnRango(fechaInicio, fechaFin);
@@ -279,10 +286,16 @@ export const AgendaPage: FC = () => {
 
     // ── Pegar un CORTE: recrear las entradas preservando estado/notas/título ──
     if (cb.type === 'cut' && cb.entries && cb.entries.length > 0) {
-      // Feriados: validar el rango resultante de CADA entrada antes de crear nada.
+      // Feriados y fin de semana: validar el rango resultante de CADA entrada
+      // antes de crear nada (un corte de varios días puede terminar en sábado).
       for (const src of cb.entries) {
         const span = differenceInCalendarDays(parseISO(src.fechaFin), parseISO(src.fechaInicio));
         const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
+        const finde = primerFinDeSemanaEnRango(cell.fecha, end);
+        if (finde) {
+          alert(mensajeFinDeSemana(finde));
+          return;
+        }
         const fer = primerFeriadoEnRango(cell.fecha, end);
         if (fer) {
           alert(`El ${fer} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);

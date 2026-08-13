@@ -9,6 +9,7 @@ import { pendientesService } from '../services/pendientesService';
 import { deepCleanForFirestore } from '../services/firebase';
 import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT, Loaner } from '@ags/shared';
 import { presupuestoEstaAceptado, establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
+import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
 export interface CreateOTFormState {
   tipoOT: TipoOT;
@@ -392,6 +393,13 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicioId) { alert('Seleccione un tipo de servicio'); return; }
+    // Fin de semana (2026-08-12): no se coordinan servicios sábado ni domingo.
+    // Se valida acá y no solo en la agenda porque guardar la OT con fecha
+    // dispara autoCreateFromOT y la entrada nacía en el finde igual.
+    if (esFinDeSemana(form.fechaServicioAprox)) {
+      alert(mensajeFinDeSemana(form.fechaServicioAprox));
+      return;
+    }
     if (presupuestoRequerido && !form.presupuestoId && !form.motivoFacturacion) {
       alert('Debe seleccionar un presupuesto, o indicar la base de facturación (presupuesto pendiente, sin cargo o en garantía)');
       return;

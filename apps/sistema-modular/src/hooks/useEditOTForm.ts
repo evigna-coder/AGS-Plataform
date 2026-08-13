@@ -12,6 +12,7 @@ import type {
   PatronSeleccionado, Presupuesto, Establecimiento,
 } from '@ags/shared';
 import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
+import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
 export interface EditOTFormState {
   clienteId: string;
@@ -356,6 +357,13 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicio) { alert('Seleccione un tipo de servicio'); return; }
+    // Fin de semana (2026-08-12): guardar la OT con fecha sincroniza la agenda
+    // (syncFromOT mueve la entrada sin pasar por los guards de useAgenda), así
+    // que el bloqueo tiene que estar también acá.
+    if (esFinDeSemana(form.fechaServicioAprox)) {
+      alert(mensajeFinDeSemana(form.fechaServicioAprox));
+      return;
+    }
     if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId) { alert('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
 
     const cliente = clientes.find(c => c.id === form.clienteId);

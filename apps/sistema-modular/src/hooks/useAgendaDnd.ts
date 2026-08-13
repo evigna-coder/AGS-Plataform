@@ -5,6 +5,7 @@ import type { DragEndEvent, DragOverEvent, DragStartEvent, Modifier } from '@dnd
 import { addDays, differenceInCalendarDays, parseISO } from 'date-fns';
 import { ordenesTrabajoService } from '../services/otService';
 import { findEntriesAtCell, formatDateKey, type SelectedCell } from '../utils/agendaDateUtils';
+import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../utils/finDeSemana';
 import { resolveEquipoAgsId, continuaElRango, extenderRangoHacia } from '../utils/agendaOTSync';
 
 /** Keep the drag chip centered on the cursor regardless of grab origin. */
@@ -131,6 +132,15 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
     const targetIngeniero = ingenieros.find(i => i.id === targetIngenieroId);
     if (!targetIngeniero) return;
 
+    // Fin de semana (2026-08-12): nada se suelta en sábado ni domingo. Va acá
+    // además del guard de createEntry porque el sync de la OT
+    // (fechaServicioAprox + ingeniero) es paralelo al alta de la entrada: sin
+    // este corte la entrada se bloqueaba pero la OT quedaba con fecha de finde.
+    const findeTarget = primerFinDeSemanaEnRango(targetFecha, targetFecha);
+    if (findeTarget) {
+      alert(mensajeFinDeSemana(findeTarget));
+      return;
+    }
     // Bloqueo duro de feriados: nada se puede soltar sobre un día feriado.
     const feriadoTarget = primerFeriadoEnRango?.(targetFecha, targetFecha);
     if (feriadoTarget) {

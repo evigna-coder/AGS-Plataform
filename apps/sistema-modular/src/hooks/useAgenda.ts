@@ -10,6 +10,7 @@ import {
   navigatePrev,
   navigateNext,
 } from '../utils/agendaDateUtils';
+import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../utils/finDeSemana';
 
 export interface UseAgendaReturn {
   // Date navigation
@@ -260,6 +261,14 @@ export function useAgenda(): UseAgendaReturn {
 
   // CRUD with optimistic updates
   const createEntry = useCallback(async (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => {
+    // Fin de semana: bloqueo DURO (2026-08-12). No se coordina sábado ni
+    // domingo; si aparece uno es un error de tipeo o un arrastre desviado.
+    // Va PRIMERO porque no depende de datos cargados (feriados/días AGS).
+    const finde = primerFinDeSemanaEnRango(data.fechaInicio, data.fechaFin);
+    if (finde) {
+      alert(mensajeFinDeSemana(finde));
+      return '';
+    }
     const feriado = primerFeriadoEnRango(data.fechaInicio, data.fechaFin);
     if (feriado) {
       alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
@@ -293,6 +302,13 @@ export function useAgenda(): UseAgendaReturn {
       const current = entries.find(e => e.id === id);
       const inicio = data.fechaInicio ?? current?.fechaInicio ?? '';
       const fin = data.fechaFin ?? current?.fechaFin ?? '';
+      // Fin de semana (2026-08-12): mismo bloqueo que al crear. Solo cuando el
+      // cambio mueve o estira fechas — cambiar estado o notas no se toca.
+      const finde = (data.fechaInicio || data.fechaFin) ? primerFinDeSemanaEnRango(inicio, fin) : null;
+      if (finde) {
+        alert(mensajeFinDeSemana(finde));
+        return;
+      }
       const feriado = (data.fechaInicio || data.fechaFin) ? primerFeriadoEnRango(inicio, fin) : null;
       if (feriado) {
         alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
