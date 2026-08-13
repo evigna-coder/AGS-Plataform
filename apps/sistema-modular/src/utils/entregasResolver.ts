@@ -41,6 +41,25 @@ export interface EntregaRow {
   clienteId: string;
   clienteNombre: string;
   establecimientoId: string | null;
+  /**
+   * N° de parte del ítem (2026-08-13). Sale del `codigoProducto` cargado en el
+   * presupuesto y, si está vacío, del código que estampó el requerimiento. Sin
+   * esta columna había que abrir el presupuesto para saber qué pieza es.
+   */
+  codigoProducto: string | null;
+  /** FK al artículo de stock, cuando el ítem está vinculado al catálogo. */
+  stockArticuloId: string | null;
+  /**
+   * Stock REAL de hoy (2026-08-13). `disponibilidad` es una decisión congelada
+   * al presupuestar —dice "stock" para siempre aunque las unidades se hayan
+   * consumido—, así que el visor prometía entregas que no se podían cumplir
+   * (caso 5183-2067). Estos dos números se recalculan en cada carga:
+   *   - `stockReservado`: unidades reservadas PARA ESTE presupuesto (ya son de
+   *     este cliente: es lo que de verdad se puede entregar).
+   *   - `stockLibre`: unidades en estante sin dueño, disponibles para cubrir.
+   */
+  stockReservado: number;
+  stockLibre: number;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
@@ -78,6 +97,15 @@ export interface BuildEntregaRowsInput {
   ordenesCompra: Array<{ id: string; numero: string; estado?: string | null; items: Array<{ id: string; requerimientoId?: string | null }> }>;
   importaciones: Array<Pick<Importacion, 'id' | 'numero' | 'estado' | 'items'>>;
   clienteNombreById: Map<string, string>;
+  /**
+   * Stock de hoy por artículo (2026-08-13). Opcional: sin estos mapas las
+   * columnas quedan en 0 y el visor se comporta como antes.
+   *   - `stockLibrePorArticulo`: articuloId → unidades en estante sin dueño.
+   *   - `stockReservadoPorPptoArticulo`: `${presupuestoId}:${articuloId}` →
+   *     unidades ya reservadas para ese presupuesto.
+   */
+  stockLibrePorArticulo?: Map<string, number>;
+  stockReservadoPorPptoArticulo?: Map<string, number>;
   /** Inyectable para tests; default = new Date() */
   now?: Date;
 }
@@ -187,9 +215,20 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
 
       // Entregas = cumplimiento de PARTES físicas (pedido 2026-07-30): los
       // servicios (items de contratos P5, conceptos de servicio) se coordinan
-      // en la AGENDA, no acá. Solo entran items ligados a un artículo de stock
-      // o con cadena de compra (requerimiento) — el resto se saltea.
-      if (!stockArticuloId && !req) continue;
+      // en la AGENDA, no acá.
+      //
+      // El criterio era "tiene artículo de stock o requerimiento", y eso
+      // ESCONDÍA partes reales (2026-08-13, caso P1-005035-01: el presupuesto
+      // tiene 2 artículos y el visor mostraba 1). Una parte tipeada a mano con
+      // su número de parte, sin vincular al catálogo y sin requerimiento —
+      // porque había stock—, es igual de física y hay que entregarla.
+      //
+      // Ahora se EXCLUYE lo que es servicio de forma explícita, en vez de
+      // incluir solo lo que está vinculado al catálogo.
+      const esServicio = !!item.conceptoServicioId || !!item.servicioCode;
+      const codigoProducto = (item.codigoProducto ?? '').trim() || null;
+      if (esServicio) continue;
+      if (!stockArticuloId && !req && !codigoProducto) continue;
 
       const oc = req ? ocByReqId.get(req.id) ?? null : null;
       const imp = req ? impByReqId.get(req.id) ?? null : null;
@@ -210,6 +249,14 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         clienteId: ppto.clienteId,
         clienteNombre,
         establecimientoId: ppto.establecimientoId ?? null,
+        codigoProducto: codigoProducto ?? req?.articuloCodigo ?? null,
+        stockArticuloId,
+        stockReservado: stockArticuloId
+          ? (input.stockReservadoPorPptoArticulo?.get(`${ppto.id}:${stockArticuloId}`) ?? 0)
+          : 0,
+        stockLibre: stockArticuloId
+          ? (input.stockLibrePorArticulo?.get(stockArticuloId) ?? 0)
+          : 0,
         descripcion: item.descripcion,
         cantidad: item.cantidad,
         precioUnitario: item.precioUnitario,

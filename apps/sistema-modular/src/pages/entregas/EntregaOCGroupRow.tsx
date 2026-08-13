@@ -61,6 +61,9 @@ export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle })
       <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]">
         {clientes.length === 1 ? clientes[0] : `${clientes.length} clientes`}
       </td>
+      {/* Código: la fila de grupo agrupa varios artículos — el código va en
+          cada fila hija (2026-08-13). */}
+      <td className="px-3 py-2 text-xs text-slate-300">—</td>
       <td className="px-3 py-2 text-xs text-slate-700">
         <span className="inline-flex items-center gap-1.5 font-medium">
           <span className="text-slate-400 text-[10px]">{expanded ? '▾' : '▸'}</span>
@@ -68,6 +71,8 @@ export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle })
         </span>
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 text-right font-mono">{cantidadTotal}</td>
+      {/* Stock hoy: por artículo, va en cada fila hija. */}
+      <td className="px-3 py-2 text-xs text-slate-300 text-right">—</td>
       <td className="px-3 py-2 text-xs text-slate-300 text-right">—</td>
       <td className="px-3 py-2 text-xs font-mono text-slate-600">
         {pptos.length === 1 ? pptos[0] : `${pptos.length} pptos.`}

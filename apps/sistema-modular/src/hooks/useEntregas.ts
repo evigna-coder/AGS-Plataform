@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion } from '@ags/shared';
+import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion, UnidadStock } from '@ags/shared';
 import { presupuestosService } from '../services/presupuestosService';
+import { unidadesService } from '../services/stockService';
 import { requerimientosService, importacionesService } from '../services/importacionesService';
 import { ordenesCompraService } from '../services/presupuestosService';
 import { clientesService } from '../services/clientesService';
@@ -35,12 +36,15 @@ export function useEntregas(): UseEntregasReturn {
     setError(null);
     try {
       // Cargar presupuestos por estado en paralelo, luego flatten.
-      const [pptosBuckets, reqs, ocs, imps, clientes] = await Promise.all([
+      const [pptosBuckets, reqs, ocs, imps, clientes, unidades] = await Promise.all([
         Promise.all(ESTADOS_ACTIVOS.map(e => presupuestosService.getAll({ estado: e }))),
         requerimientosService.getAll().catch(() => [] as RequerimientoCompra[]),
         ordenesCompraService.getAll().catch(() => [] as any[]),
         importacionesService.getAll().catch(() => [] as Importacion[]),
         clientesService.getAll().catch(() => [] as any[]),
+        // Stock de HOY (2026-08-13): una sola lectura de unidades para toda la
+        // grilla, en vez de una consulta por fila.
+        unidadesService.getAll({ activoOnly: true }).catch(() => [] as UnidadStock[]),
       ]);
       const presupuestos = pptosBuckets.flat() as Presupuesto[];
 
@@ -59,12 +63,30 @@ export function useEntregas(): UseEntregasReturn {
         })),
       }));
 
+      // Stock real por artículo: lo LIBRE en estante y lo ya RESERVADO para
+      // cada presupuesto. Se excluye lo parado en un remito (ya salió) y lo que
+      // vive en un minikit o con un ingeniero (no está para entregar en mostrador).
+      const stockLibrePorArticulo = new Map<string, number>();
+      const stockReservadoPorPptoArticulo = new Map<string, number>();
+      for (const u of unidades as UnidadStock[]) {
+        if (u.activo === false || !u.articuloId) continue;
+        const cant = u.cantidad ?? 1;
+        if (u.estado === 'disponible' && u.ubicacion?.tipo !== 'remito') {
+          stockLibrePorArticulo.set(u.articuloId, (stockLibrePorArticulo.get(u.articuloId) ?? 0) + cant);
+        } else if (u.estado === 'reservado' && u.reservadoParaPresupuestoId) {
+          const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
+          stockReservadoPorPptoArticulo.set(k, (stockReservadoPorPptoArticulo.get(k) ?? 0) + cant);
+        }
+      }
+
       const built = buildEntregaRows({
         presupuestos,
         requerimientos: reqs as RequerimientoCompra[],
         ordenesCompra: ocsForResolver,
         importaciones: imps as Importacion[],
         clienteNombreById,
+        stockLibrePorArticulo,
+        stockReservadoPorPptoArticulo,
       });
 
       setRows(built);

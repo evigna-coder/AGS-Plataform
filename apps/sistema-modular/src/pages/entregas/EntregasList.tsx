@@ -147,8 +147,10 @@ export const EntregasList: React.FC = () => {
               <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                 <tr>
                   <SortableHeader label="Cliente"      field="clienteNombre"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Código"       field="codigoProducto"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Item"         field="descripcion"        currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Cant."        field="cantidad"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} text-right`} />
+                  <SortableHeader label="Stock hoy"    field="stockLibre"         currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} text-right`} />
                   <SortableHeader label="Valor unit."  field="precioUnitario"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} text-right`} />
                   <SortableHeader label="Presupuesto"  field="presupuestoNumero"  currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>OT#</th>

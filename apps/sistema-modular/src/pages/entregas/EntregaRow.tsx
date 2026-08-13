@@ -88,11 +88,38 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
       <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]" title={`${row.clienteNombre}${sufijoEstab(row.clienteId, row.establecimientoId)}`}>
         {row.clienteNombre}{sufijoEstab(row.clienteId, row.establecimientoId)}
       </td>
+      <td className="px-3 py-2 text-xs font-mono text-slate-700 whitespace-nowrap" title={row.codigoProducto ?? ''}>
+        {row.codigoProducto ?? <span className="text-slate-300">—</span>}
+      </td>
       <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[220px]" title={row.descripcion}>
         {row.descripcion}
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 text-right font-mono">
         {row.cantidad}
+      </td>
+      {/* Stock REAL de hoy (2026-08-13): `Disp.` es la promesa hecha al
+          presupuestar y no se recalcula nunca; acá va lo que hay. En rojo
+          cuando la promesa dice "stock" y no alcanza para cubrir la cantidad. */}
+      <td className="px-3 py-2 text-xs text-right font-mono whitespace-nowrap">
+        {row.stockArticuloId ? (
+          (() => {
+            const cubre = row.stockReservado + row.stockLibre;
+            const prometeStock = (row.disponibilidad ?? row.disponibilidadSugerida) === 'stock';
+            const falta = prometeStock && cubre < row.cantidad && !row.entregadoManual;
+            return (
+              <span
+                className={falta ? 'text-red-600 font-semibold' : 'text-slate-600'}
+                title={`${row.stockReservado} reservada(s) para este presupuesto · ${row.stockLibre} libre(s) en estante`
+                  + (falta ? `\nNo alcanza para las ${row.cantidad} comprometidas.` : '')}
+              >
+                {row.stockReservado > 0 ? `${row.stockReservado}R` : ''}
+                {row.stockReservado > 0 && row.stockLibre > 0 ? ' + ' : ''}
+                {row.stockLibre > 0 || row.stockReservado === 0 ? `${row.stockLibre}L` : ''}
+                {falta ? ' ⚠' : ''}
+              </span>
+            );
+          })()
+        ) : <span className="text-slate-300">—</span>}
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 text-right font-mono whitespace-nowrap">
         {formatMoney(row.precioUnitario, row.moneda)}
