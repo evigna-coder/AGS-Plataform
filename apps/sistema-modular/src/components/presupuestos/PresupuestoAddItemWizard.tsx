@@ -28,6 +28,8 @@ interface Resultado {
   descripcion: string;
   precio: number;
   categoriaPresupuestoId?: string | null;
+  /** Otros N° de parte del mismo artículo (envases). Solo para buscar. */
+  presentaciones?: { codigoParte: string; factor: number }[] | null;
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
@@ -64,12 +66,19 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
     ...articulos.map(a => ({
       tipo: 'articulo' as const, refId: a.id, codigo: a.codigo ?? null,
       descripcion: a.descripcion, precio: a.precioReferencia ?? 0,
+      // N° de parte de los otros envases del MISMO artículo: se presupuesta por
+      // el código del envase y el stock vive en el base (2026-08-13).
+      presentaciones: a.presentaciones ?? null,
     })),
   ], [conceptosServicio, articulos]);
 
   const term = search.trim();
   const filtered = term
-    ? catalogo.filter(r => matchesSearch(term, r.codigo, r.descripcion))
+    ? catalogo.filter(r => matchesSearch(
+        term, r.codigo, r.descripcion,
+        ...((r as { presentaciones?: { codigoParte: string }[] | null }).presentaciones ?? [])
+          .map(p => p.codigoParte),
+      ))
     : [];
 
   // Resetear el resaltado al cambiar la búsqueda.
@@ -178,8 +187,10 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
         {step === 'cantidad' && (
           <div>
             <label className={lbl}>Cantidad</label>
-            <input ref={inputRef} type="number" min={1} className={ctrl} value={cantidad}
-              onChange={e => setCantidad(Number(e.target.value) || 0)}
+            {/* Fracciones: se cotiza medio kit cuando solo se usa parte del
+                contenido (2026-08-13). `min={1}` lo impedía. */}
+            <input ref={inputRef} type="number" min={0} step="any" inputMode="decimal" className={ctrl} value={cantidad}
+              onChange={e => setCantidad(Number(e.target.value.replace(',', '.')) || 0)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setStep('precio'); } if (e.key === 'Escape') onClose(); }} />
           </div>
         )}
