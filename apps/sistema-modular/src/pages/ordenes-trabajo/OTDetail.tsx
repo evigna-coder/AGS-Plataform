@@ -299,6 +299,7 @@ export const OTDetail = () => {
         prefill={{
           clienteId: ot.clienteId || undefined,
           clienteNombre: ot.cliente?.razonSocial,
+          establecimientoId: ot.establecimientoId || undefined,
           sistemaId: ot.sistemaId || undefined,
           sistemaNombre: ot.sistema?.nombre,
           sistemaCodigoInterno: ot.codigoInternoCliente || undefined,

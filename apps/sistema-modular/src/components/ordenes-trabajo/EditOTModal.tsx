@@ -125,6 +125,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
       prefill={{
         clienteId: h.form.clienteId || undefined,
         clienteNombre: h.otOriginal?.razonSocial,
+        establecimientoId: h.form.establecimientoId || undefined,
         sistemaId: h.form.sistemaId || undefined,
         sistemaNombre: sistemaSel?.nombre,
         sistemaCodigoInterno: h.otOriginal?.codigoInternoCliente

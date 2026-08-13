@@ -284,7 +284,7 @@ export function useOTDetail(otNumber?: string) {
     ingenieroAsignadoId: form.ingenieroAsignadoId, ingenieroAsignadoNombre: form.ingenieroAsignadoNombre,
     ingenieros,
     cierreAdmin: form.cierreAdmin,
-    clienteId: form.clienteId, clientes, cliente,
+    clienteId: form.clienteId, establecimientoId: form.establecimientoId, clientes, cliente,
     contacto: form.contacto, contactos, emailPrincipal: form.emailPrincipal,
     direccion: form.direccion, localidad: form.localidad, provincia: form.provincia,
     sistemaId: form.sistemaId, sistemasFiltrados, sistema, codigoInternoCliente: form.codigoInternoCliente,

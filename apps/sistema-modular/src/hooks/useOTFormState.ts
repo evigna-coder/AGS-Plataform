@@ -40,6 +40,8 @@ export interface OTFormState {
   ingenieroAsignadoNombre: string | null;
   cierreAdmin: CierreAdministrativo;
   clienteId?: string;
+  /** Planta de la OT: la usa el remito de servicio para el domicilio de entrega. */
+  establecimientoId?: string;
   sistemaId?: string;
   moduloId?: string;
   leadId?: string | null;
@@ -109,7 +111,8 @@ export function useOTFormState() {
       ingenieroAsignadoId: ot.ingenieroAsignadoId ?? null,
       ingenieroAsignadoNombre: ot.ingenieroAsignadoNombre ?? null,
       cierreAdmin: ot.cierreAdmin ?? { ...DEFAULT_CIERRE },
-      clienteId: ot.clienteId, sistemaId: ot.sistemaId, moduloId: ot.moduloId,
+      clienteId: ot.clienteId, establecimientoId: ot.establecimientoId,
+      sistemaId: ot.sistemaId, moduloId: ot.moduloId,
       leadId: ot.leadId ?? null, presupuestoOrigenId: ot.presupuestoOrigenId ?? null,
     });
     hasUserInteracted.current = false;
