@@ -61,8 +61,11 @@ const S = StyleSheet.create({
   totLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totLabel: { fontFamily: 'Courier', fontSize: 7, letterSpacing: 0.8, color: COLORS.primaryDark },
   totValue: { fontSize: 14, fontWeight: 'bold', color: COLORS.primary },
-  notas: { marginTop: 12 },
-  notasText: { fontSize: 7, color: COLORS.textMuted },
+  /** Aviso "continúa…" al pie del área de items, sobre el footer fijo. */
+  continua: {
+    position: 'absolute', bottom: 34, right: 40,
+    fontSize: 6.5, fontStyle: 'italic', color: COLORS.textMuted,
+  },
   firmas: { flexDirection: 'row', gap: 40, marginTop: 34 },
   firma: { flex: 1, borderTopWidth: 0.75, borderTopColor: COLORS.text, paddingTop: 4 },
   firmaLabel: { fontSize: 6.5, color: COLORS.textMuted },
@@ -153,9 +156,13 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
           </View>
         </View>
 
-        {/* Tabla de items */}
+        {/* Tabla de items.
+            Corte de página (2026-08-13): una OC larga partía la FILA al medio y
+            el código quedaba en una hoja y la descripción en la siguiente.
+            `wrap={false}` por fila lo impide, y la cabecera se repite con
+            `fixed` para que la hoja 2 no salga sin títulos de columna. */}
         <View style={S.tablaWrap}>
-          <View style={S.thRow}>
+          <View style={S.thRow} fixed>
             <Text style={[S.th, S.colNum]}>#</Text>
             <Text style={[S.th, S.colCod]}>CODIGO</Text>
             <Text style={[S.th, S.colDesc]}>DESCRIPCION</Text>
@@ -167,7 +174,7 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
           {oc.items.map((item, idx) => {
             const sub = item.cantidad * (item.precioUnitario || 0);
             return (
-              <View key={item.id} style={idx % 2 === 1 ? [S.tr, S.trZebra] : S.tr}>
+              <View key={item.id} style={idx % 2 === 1 ? [S.tr, S.trZebra] : S.tr} wrap={false}>
                 <Text style={[S.td, S.colNum]}>{idx + 1}</Text>
                 <Text style={[S.tdMono, S.colCod]}>{item.articuloCodigo || '-'}</Text>
                 <Text style={[S.td, S.colDesc]}>{item.descripcion}</Text>
@@ -180,8 +187,17 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
           })}
         </View>
 
+        {/* Aviso de continuación: se dibuja en todas las hojas menos la última
+            (2026-08-13), para que quien recibe el papel sepa que sigue. */}
+        <Text
+          style={S.continua}
+          fixed
+          render={({ pageNumber, totalPages }) =>
+            pageNumber < totalPages ? 'continúa en la página siguiente…' : ''}
+        />
+
         {/* Resumen */}
-        <View style={S.sumRow}>
+        <View style={S.sumRow} wrap={false}>
           <View style={S.sumCard}>
             <View style={S.sumLine}>
               <Text style={S.sumLabel}>{esNacional ? 'Neto' : 'Subtotal'}</Text>
@@ -201,15 +217,13 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
           </View>
         </View>
 
-        {oc.notas ? (
-          <View style={S.notas}>
-            <Text style={S.cardLabel}>NOTAS</Text>
-            <Text style={S.notasText}>{oc.notas}</Text>
-          </View>
-        ) : null}
+        {/* Las NOTAS no se imprimen (2026-08-13): son internas — el comprador
+            anota ahí para quién es cada cosa y qué requerimientos consolida.
+            El proveedor no tiene por qué ver eso. Se consultan en la OC y desde
+            el link "Notas" del listado. */}
 
         {/* Firmas */}
-        <View style={S.firmas}>
+        <View style={S.firmas} wrap={false}>
           <View style={S.firma}>
             <Text style={S.firmaLabel}>Autorizado por — AGS Analitica S.A.</Text>
           </View>
