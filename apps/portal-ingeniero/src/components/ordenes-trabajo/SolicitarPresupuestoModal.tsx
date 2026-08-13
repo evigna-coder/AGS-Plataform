@@ -64,16 +64,21 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
 
   const articuloOptions = articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }));
 
-  // Válido: toda fila con parte necesita cantidad ≥ 1; al menos una parte declarada.
+  // Cantidades FRACCIONARIAS (2026-08-13): se cotiza medio kit ("0,5") cuando
+  // solo se usa una parte del contenido. Antes esto era `parseInt`, que
+  // convertía 0,5 en 0, más una validación de ≥ 1 y un `min={1}` en el input:
+  // tres frenos para el mismo caso. Se acepta coma o punto — en es-AR el
+  // teclado numérico escribe coma y `parseFloat('0,5')` da 0.
+  const aCantidad = (v: string): number => parseFloat(v.replace(',', '.')) || 0;
   const partesLimpias: ParteSolicitada[] = partes
     .filter(p => p.numeroParte.trim())
     .map(p => ({
       numeroParte: p.numeroParte.trim(),
-      cantidad: parseInt(p.cantidad, 10) || 0,
+      cantidad: aCantidad(p.cantidad),
       descripcion: p.descripcion || null,
       stockArticuloId: p.articuloId,
     }));
-  const partesValidas = partesLimpias.length > 0 && partesLimpias.every(p => p.cantidad >= 1);
+  const partesValidas = partesLimpias.length > 0 && partesLimpias.every(p => p.cantidad > 0);
 
   async function handleConfirm() {
     setStep('working');
@@ -145,9 +150,12 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
                   <input
                     className={`${inputCls} w-16 text-center`}
                     type="number"
-                    min={1}
-                    inputMode="numeric"
+                    // Fracciones de kit: 0,5 es una cantidad válida (2026-08-13).
+                    min={0}
+                    step="any"
+                    inputMode="decimal"
                     placeholder="Cant."
+                    title="Se puede pedir una fracción, ej. 0,5 de un kit"
                     value={p.cantidad}
                     onChange={e => setParte(idx, { cantidad: e.target.value })}
                   />

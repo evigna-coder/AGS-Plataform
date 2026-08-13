@@ -35,10 +35,13 @@ export function PartesForm({ parts, readOnly = false, onAdd, onUpdate, onRemove 
                   <p className="text-[11px] text-slate-400 mb-0.5">Cantidad</p>
                   <input
                     type="number"
-                    min={1}
+                    // Fracciones de kit: 0,5 es válido (2026-08-13).
+                    min={0}
+                    step="any"
+                    inputMode="decimal"
                     className={`${inp} w-full`}
                     value={p.cantidad}
-                    onChange={e => onUpdate(p.id, 'cantidad', Number(e.target.value))}
+                    onChange={e => onUpdate(p.id, 'cantidad', Number(e.target.value.replace(',', '.')) || 0)}
                     disabled={readOnly}
                   />
                 </div>

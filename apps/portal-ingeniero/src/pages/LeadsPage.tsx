@@ -131,11 +131,12 @@ export default function LeadsPage() {
       if (filters.misDerivados) return { derivadoPor: usuario.id };
       return { asignadoA: usuario.id };
     }
-    // Vista Sistema (2026-08-06): los autogenerados suelen estar asignados a
-    // otros — el "solo míos" default no aplica ahí.
-    if (urlF.vista === 'sistema') {
-      return { ...(filters.responsable ? { asignadoA: filters.responsable } : {}) };
-    }
+    // "Solo míos" aplica en LAS DOS pestañas (2026-08-13, paridad con
+    // sistema-modular, que lo arregló el 2026-08-07). Acá la vista Sistema
+    // seguía salteando el filtro por responsable, así que TODO el área veía los
+    // avisos automáticos de todos —87 abiertos en admin_soporte— sin importar a
+    // quién estuvieran asignados. Para ver los de otro está el filtro
+    // "Responsable"; para ver todos, destildar "Mis tickets".
     // Admin o con áreas: soloMios → asignadoA; misCreados/misDerivados → fetch all y filtrar client-side
     const responsableFilter = filters.soloMios && usuario
       ? usuario.id
@@ -171,13 +172,21 @@ export default function LeadsPage() {
     } else {
       result = result.filter(l => !l.esAutogenerado);
     }
-    // Visibilidad por rol: no-admin con áreas solo ve sus tickets + tickets de sus áreas
-    if (!isAdmin && usuario && extraAreas) {
+    // Visibilidad por rol: no-admin ve SUS tickets + los de las áreas que gestiona.
+    //
+    // El guard pedía `extraAreas` (2026-08-13): para un usuario sin áreas de
+    // tickets —el caso de la mayoría de los ingenieros— `extraAreas` es null y
+    // el filtro entero se salteaba, así que veía TODOS los tickets del sistema,
+    // incluidos los avisos automáticos de presupuestos, reservas de partes y
+    // demás. "Todo le llega a todos sin respetar el responsable".
+    // sistema-modular siempre filtra y usa las áreas solo como ensanche; acá
+    // ahora hace lo mismo.
+    if (!isAdmin && usuario) {
       result = result.filter(l =>
         l.asignadoA === usuario.id ||
         l.createdBy === usuario.id ||
         l.derivadoPor === usuario.id ||
-        (l.areaActual && extraAreas.has(l.areaActual))
+        (!!extraAreas && !!l.areaActual && extraAreas.has(l.areaActual))
       );
     }
     // Filtro Finalizados — EXCLUSIVO:

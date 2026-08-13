@@ -9,6 +9,7 @@ import { REPORTES_OT_URL } from '../utils/constants';
 import { formatDateShort } from '../utils/formatDate';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 import { useUrlFilters } from '../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../utils/searchTerms';
 
 const FILTER_SCHEMA = {
@@ -46,6 +47,10 @@ export default function HistorialPage() {
   const [tiposServicio, setTiposServicio] = useState<{ id: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  // Buscadores con debounce (2026-08-13): sin esto cada tecla navegaba la URL y
+  // volvía a filtrar Y ORDENAR todo el historial — el input se trababa.
+  const [searchInput, setSearchInput] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
+  const [equipoInput, setEquipoInput] = useDebouncedUrlText(filters.equipo, v => setFilter('equipo', v));
   const [sortField, setSortField] = useState<string>('fechaInicio');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const handleSort = (f: string) => {
@@ -168,9 +173,12 @@ export default function HistorialPage() {
       />
 
       <HistorialFilterBar
-        search={filters.search}
+        // Los dos campos de texto muestran el valor LOCAL (responden a cada
+        // tecla) y empujan a la URL con debounce — la lista se refiltra recién
+        // ahí. Ver useDebouncedUrlText (2026-08-13).
+        search={searchInput}
         cliente={filters.cliente}
-        equipo={filters.equipo}
+        equipo={equipoInput}
         tipoServicio={filters.tipoServicio}
         fechaDesde={filters.fechaDesde}
         fechaHasta={filters.fechaHasta}
@@ -179,9 +187,9 @@ export default function HistorialPage() {
         clientes={clientes}
         tiposServicio={tiposServicio}
         onChange={{
-          search: v => setFilter('search', v),
+          search: setSearchInput,
           cliente: v => setFilter('cliente', v),
-          equipo: v => setFilter('equipo', v),
+          equipo: setEquipoInput,
           tipoServicio: v => setFilter('tipoServicio', v),
           fechaDesde: v => setFilter('fechaDesde', v),
           fechaHasta: v => setFilter('fechaHasta', v),
