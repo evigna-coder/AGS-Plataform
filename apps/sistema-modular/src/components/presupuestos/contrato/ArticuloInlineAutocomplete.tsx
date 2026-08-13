@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { matchesSearch } from '../../../utils/searchTerms';
+import { articuloMatchesSearch } from '../../../utils/articuloSearch';
 
 export interface ArticuloMini { id: string; codigo: string; descripcion: string }
 
@@ -39,7 +39,8 @@ export const ArticuloInlineAutocomplete: React.FC<Props> = ({
   }, []);
 
   const filtered = useMemo(() => search.length >= 2
-    ? catalog.filter(a => matchesSearch(search, a.codigo, a.descripcion)).slice(0, 12)
+    // Incluye los N° de parte de las presentaciones del mismo artículo (2026-08-13).
+    ? catalog.filter(a => articuloMatchesSearch(search, a)).slice(0, 12)
     : [], [search, catalog]);
 
   const selectItem = (art: ArticuloMini) => {

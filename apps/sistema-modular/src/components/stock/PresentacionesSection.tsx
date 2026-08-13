@@ -1,10 +1,13 @@
 import type { Presentacion } from '@ags/shared';
+import { usePresentacionAlerta } from '../../hooks/usePresentacionAlerta';
 
 interface Props {
   presentaciones: Presentacion[];
   onAdd: () => void;
   onUpdate: (idx: number, patch: Partial<Presentacion>) => void;
   onRemove: (idx: number) => void;
+  /** Artículo que se está editando — se excluye del chequeo de duplicados. */
+  articuloId?: string | null;
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide';
@@ -16,7 +19,13 @@ const section = 'text-[9px] font-mono font-semibold text-teal-700/70 uppercase t
  * stock en unidad base), cada uno con su factor. Ver plan presentaciones-de-compra. El código base
  * del artículo es la unidad base (factor 1 implícito); acá se cargan las presentaciones adicionales.
  */
-export const PresentacionesSection: React.FC<Props> = ({ presentaciones, onAdd, onUpdate, onRemove }) => (
+export const PresentacionesSection: React.FC<Props> = ({ presentaciones, onAdd, onUpdate, onRemove, articuloId }) => {
+  // El N° de parte es texto (una presentación NO es otro artículo), pero si ese
+  // código ya existe como artículo suelto hay que avisarlo: queda pendiente de
+  // consolidar y el stock está partido en dos (2026-08-13).
+  const alertas = usePresentacionAlerta(presentaciones.map(p => p.codigoParte), articuloId ?? null);
+
+  return (
   <div className="space-y-2">
     <p className={section}>Presentaciones (N° de parte)</p>
     <p className="text-[10px] text-slate-400">
@@ -52,9 +61,30 @@ export const PresentacionesSection: React.FC<Props> = ({ presentaciones, onAdd, 
       </div>
     )}
 
+    {alertas.length > 0 && (
+      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 space-y-1">
+        <p className="text-[11px] font-semibold text-amber-900">
+          Estos N° de parte ya existen como artículo propio
+        </p>
+        {alertas.map(a => (
+          <p key={a.articuloId} className="text-[11px] text-amber-800">
+            <span className="font-mono font-semibold">{a.codigo}</span> — {a.descripcion}
+            {a.unidades > 0
+              ? <> · <span className="font-semibold">{a.unidades} unidad(es) en stock</span> que hay que consolidar en este artículo</>
+              : <> · sin stock cargado</>}
+          </p>
+        ))}
+        <p className="text-[10px] text-amber-700">
+          Podés guardar igual: la presentación no rompe nada. Pero mientras el artículo duplicado
+          exista, el stock queda partido en dos — se unifica con la migración de presentaciones.
+        </p>
+      </div>
+    )}
+
     <button type="button" onClick={onAdd}
       className="text-[11px] font-medium text-teal-600 hover:text-teal-800">
       + Agregar presentación
     </button>
   </div>
-);
+  );
+};

@@ -194,6 +194,7 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           onAdd={h.addPresentacion}
           onUpdate={h.updatePresentacion}
           onRemove={h.removePresentacion}
+          articuloId={articuloId}
         />
 
         {/* Equivalencia (modelo 1:1 legacy — se migra a Presentaciones) */}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import { matchesSearch } from '../../utils/searchTerms';
+import { articuloMatchesSearch } from '../../utils/articuloSearch';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { articulosService } from '../../services/stockService';
 import { marcasService } from '../../services/catalogService';
@@ -59,7 +59,8 @@ export function PlanificacionStockPage() {
   const filtered = useMemo(() => {
     const t = filters.texto.trim();
     return articulos.filter(a => {
-      if (t && !matchesSearch(t, a.codigo, a.descripcion)) {
+      // También por N° de parte de las presentaciones (2026-08-13).
+      if (t && !articuloMatchesSearch(t, a)) {
         return false;
       }
       if (filters.marcaId && a.marcaId !== filters.marcaId) return false;

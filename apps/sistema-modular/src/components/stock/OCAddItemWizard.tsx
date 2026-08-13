@@ -4,7 +4,7 @@ import type { Articulo, ItemOC } from '@ags/shared';
 import { articulosService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
-import { matchesSearch } from '../../utils/searchTerms';
+import { articuloMatchesSearch } from '../../utils/articuloSearch';
 
 interface Props {
   onAdd: (item: Partial<ItemOC>) => void;
@@ -37,7 +37,9 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
 
   const term = search.trim();
   const filtered = term
-    ? articulos.filter(a => matchesSearch(term, a.codigo, a.descripcion)).slice(0, 50)
+    // Matchea también los N° de parte de las presentaciones: se compra por el
+    // código del envase, pero el stock vive en el artículo base (2026-08-13).
+    ? articulos.filter(a => articuloMatchesSearch(term, a)).slice(0, 50)
     : [];
 
   const selectArticulo = (a: Articulo) => {
