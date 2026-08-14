@@ -131,6 +131,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         sistemaCodigoInterno: h.otOriginal?.codigoInternoCliente
           || sistemaSel?.codigoInternoCliente
           || undefined,
+        sistemaSerie: h.otOriginal?.moduloSerie || undefined,
       }}
     />
     </>

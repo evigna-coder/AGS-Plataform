@@ -303,6 +303,7 @@ export const OTDetail = () => {
           sistemaId: ot.sistemaId || undefined,
           sistemaNombre: ot.sistema?.nombre,
           sistemaCodigoInterno: ot.codigoInternoCliente || undefined,
+          sistemaSerie: ot.moduloSerie || undefined,
         }}
       />
     </div>

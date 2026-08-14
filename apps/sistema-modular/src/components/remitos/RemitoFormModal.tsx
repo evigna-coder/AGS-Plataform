@@ -43,7 +43,12 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
     if (imprimir) {
       await imprimirRemitoStock(guardado).catch(err => {
         console.error('[RemitoFormModal] imprimir falló:', err);
-        alert('El remito se guardó pero la impresión falló — reintentá desde la lista.');
+        // Mostrar el motivo REAL (2026-08-14): imprimir también aplica la salida
+        // de stock, así que casi siempre lo que falla es una unidad que ya no se
+        // puede entregar — y el cartel genérico "la impresión falló" mandaba a
+        // reintentar desde la lista, donde vuelve a fallar por lo mismo.
+        const motivo = err instanceof Error ? err.message : String(err);
+        alert(`El remito se guardó como borrador pero NO se pudo emitir:\n\n${motivo}`);
       });
     }
     onSaved();
@@ -183,6 +188,8 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
             items={h.items}
             unidades={h.unidades}
             maxCantidad={h.maxCantidad}
+            presentacionesPorArticulo={h.presentacionesPorArticulo}
+            itemsUnidadPerdida={h.itemsUnidadPerdida}
             onAdd={h.addUnidad}
             onAddManual={h.addManual}
             onUpdate={h.updateItem}

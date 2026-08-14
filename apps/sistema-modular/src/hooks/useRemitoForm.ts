@@ -3,7 +3,7 @@ import type { Remito, RemitoItem, TipoRemito, Cliente, Establecimiento, Ingenier
 import { establecimientoPerteneceACliente, establecimientoUnicoId, proveedorEsCategoria } from '@ags/shared';
 import {
   remitosService, ingenierosService, clientesService, establecimientosService,
-  unidadesService, ordenesTrabajoService,
+  unidadesService, ordenesTrabajoService, articulosService,
 } from '../services/firebaseService';
 import { proveedoresService } from '../services/personalService';
 
@@ -59,6 +59,10 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [otsCliente, setOtsCliente] = useState<string[]>([]);
+  /** Envases por artículo, para poder buscar la unidad por el N° de parte del
+   *  envase y no solo por el código base (2026-08-14). */
+  const [presentacionesPorArticulo, setPresentacionesPorArticulo] =
+    useState<Record<string, { codigoParte: string; factor: number }[]>>({});
 
   const set = useCallback(<K extends keyof RemitoFormState>(k: K, v: RemitoFormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v })), []);
@@ -81,6 +85,23 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     unidadesService.getAll()
       .then(list => setUnidades(list.filter(u => u.estado === 'disponible' || u.estado === 'reservado')))
       .catch(() => setUnidades([]));
+    // Presentaciones (2026-08-14): el stock vive en el artículo BASE, pero el
+    // que arma el remito tipea el N° de parte del envase con el que se compra o
+    // se vende (5183-2067 en vez de 5182-0715) y el buscador no devolvía nada
+    // — se terminaba cargando el ítem a mano, sin descontar stock.
+    // Solo activos: las presentaciones cuelgan del artículo BASE, que está
+    // activo — y así se reusa la misma entrada de caché que el resto de la app
+    // en vez de disparar una lectura completa del catálogo aparte.
+    articulosService.getAll()
+      .then(list => {
+        const map: Record<string, { codigoParte: string; factor: number }[]> = {};
+        for (const a of list) {
+          const ps = (a.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0);
+          if (ps.length > 0) map[a.id] = ps.map(p => ({ codigoParte: p.codigoParte, factor: p.factor }));
+        }
+        setPresentacionesPorArticulo(map);
+      })
+      .catch(() => setPresentacionesPorArticulo({}));
   }, [open]);
 
   // Prefill en edición / reset en alta
@@ -276,6 +297,26 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     setItems(prev => prev.filter(it => it.id !== id));
   }, []);
 
+  /**
+   * Ítems atados a una unidad que YA NO está disponible (2026-08-14).
+   *
+   * El borrador guarda `unidadId`; si entre que se armó y que se imprime esa
+   * pieza salió en otro remito, la unidad queda 'entregado' y la confirmación
+   * revienta ENTERA en `aplicarSalidaRemito` — el remito se guarda, la
+   * impresión falla y el error nombra un código que el usuario ni eligió
+   * ("5181-1267: la unidad no está disponible"). Se detecta acá para poder
+   * marcarlo en la tabla y frenar antes de guardar.
+   *
+   * `unidades` trae disponibles + reservadas: estar fuera de esa lista es
+   * exactamente "ya no se puede remitir". Mientras la lista no cargó no se
+   * acusa a nadie.
+   */
+  const itemsUnidadPerdida = useMemo(() => {
+    if (unidades.length === 0) return new Set<string>();
+    const vivas = new Set(unidades.map(u => u.id));
+    return new Set(items.filter(it => it.unidadId && !vivas.has(it.unidadId)).map(it => it.id));
+  }, [items, unidades]);
+
   const validar = useCallback((): string | null => {
     // El número tiene que ser el del papel. En edición se acepta el correlativo
     // interno viejo (REM-00XX) para no bloquear remitos ya emitidos.
@@ -286,8 +327,14 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     if (items.length === 0) return 'Agregá al menos un artículo';
     if (items.some(it => (it.cantidad || 0) <= 0)) return 'Hay items con cantidad 0';
     if (items.some(it => !it.unidadId && !(it.articuloDescripcion || '').trim())) return 'Hay ítems manuales sin descripción';
+    if (itemsUnidadPerdida.size > 0) {
+      const codigos = items.filter(it => itemsUnidadPerdida.has(it.id))
+        .map(it => it.articuloCodigo || it.articuloDescripcion || it.unidadId);
+      return `Estas piezas ya salieron en otro remito y no se pueden volver a entregar: ${codigos.join(', ')}.\n\n`
+        + 'Quitá esas líneas (están marcadas en rojo) y volvé a agregar el artículo desde el buscador para tomar otra unidad.';
+    }
     return null;
-  }, [form, items, remito]);
+  }, [form, items, remito, itemsUnidadPerdida]);
 
   /** Crea o actualiza el remito (borrador). Devuelve el Remito persistido o null. */
   const guardar = useCallback(async (): Promise<Remito | null> => {
@@ -345,6 +392,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   return {
     form, set, selectCliente, items, maxCantidad, saving,
     ingenieros, transportistas, clientes, establecimientosFiltrados, unidades, otsCliente,
+    presentacionesPorArticulo, itemsUnidadPerdida,
     addOt, removeOt, addUnidad, addManual, updateItem, removeItem, normalizarCantidad, guardar,
   };
 }

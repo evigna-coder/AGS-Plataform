@@ -93,10 +93,31 @@ export function getRemitoItemCodigo(item: RemitoItem): string {
       || partirCodigoDescripcion(item.loanerDescripcion).codigo
       || '';
   }
+  // Envase (2026-08-14): el cliente compra por el N° de parte del envase
+  // —"5183-2067"— y ese es el código que tiene que declarar el papel, aunque el
+  // stock se mueva en unidades del artículo base "5182-0715". Sin esto el
+  // remito salía con un código que el cliente no reconoce en su orden.
+  if (item.presentacion?.codigoParte) return item.presentacion.codigoParte;
   // Items de ficha: si no tiene código cargado, se intenta rescatar del texto.
   return item.articuloCodigo
     || partirCodigoDescripcion(item.articuloDescripcion || item.fichaDescripcion).codigo
     || '';
+}
+
+/**
+ * Cantidad que se IMPRIME en el papel (2026-08-14). `item.cantidad` está
+ * siempre en unidad base porque es lo que descuenta stock; si la línea se
+ * entrega por un envase, el papel declara envases: 10 unidades del 5182-0715
+ * entregadas como 5183-2067 ×10 se imprimen como "1".
+ *
+ * Se muestra con decimales solo cuando la división no da entera — un "0,5" en
+ * el papel es información real (medio envase), no un error de redondeo.
+ */
+export function cantidadImpresaRemito(item: RemitoItem): number | string {
+  const factor = item.presentacion?.factor;
+  if (!factor || !Number.isFinite(factor) || factor <= 0) return item.cantidad;
+  const envases = item.cantidad / factor;
+  return Number.isInteger(envases) ? envases : Number(envases.toFixed(2));
 }
 
 /**

@@ -14,7 +14,9 @@
 
 import assert from 'node:assert/strict';
 import type { RemitoItem } from '@ags/shared';
-import { getRemitoItemCodigo, lineaDescripcionRemito } from '../inventarioToRemitoItem.js';
+import {
+  getRemitoItemCodigo, lineaDescripcionRemito, cantidadImpresaRemito,
+} from '../inventarioToRemitoItem.js';
 
 const base: RemitoItem = { id: 'x', cantidad: 1, tipoItem: 'entrega', devuelto: false };
 
@@ -69,4 +71,47 @@ const articulo: RemitoItem = {
 assert.equal(getRemitoItemCodigo(articulo), 'G1530-67950');
 assert.equal(lineaDescripcionRemito(articulo), 'Válvula de purga · S/N AB-9');
 
-console.log('✅ remitoLineas: 10/10 OK');
+// ── Envase: el papel declara el código del cliente, no el del stock ─────────
+// El cliente compra 1 × 5183-2067; el stock son 10 unidades del 5182-0715.
+const porEnvase: RemitoItem = {
+  ...base, tipoEntidad: 'articulo', unidadId: 'u1', articuloId: 'a1',
+  articuloCodigo: '5182-0715', articuloDescripcion: 'Vial ámbar 2 mL',
+  cantidad: 10, presentacion: { codigoParte: '5183-2067', factor: 10 },
+};
+assert.equal(getRemitoItemCodigo(porEnvase), '5183-2067', 'imprime el N° de parte del envase');
+assert.equal(cantidadImpresaRemito(porEnvase), 1, '10 unidades base = 1 envase ×10');
+assert.equal(lineaDescripcionRemito(porEnvase), 'Vial ámbar 2 mL', 'la descripción no cambia');
+
+// Sin envase declarado: nada cambia respecto de antes.
+const porUnidad: RemitoItem = { ...porEnvase, presentacion: null };
+assert.equal(getRemitoItemCodigo(porUnidad), '5182-0715');
+assert.equal(cantidadImpresaRemito(porUnidad), 10);
+
+// Envase incompleto: se imprime el decimal real, no un redondeo silencioso.
+assert.equal(cantidadImpresaRemito({ ...porEnvase, cantidad: 15 }), 1.5);
+// Factor basura: nunca dividir por cero ni imprimir Infinity.
+assert.equal(cantidadImpresaRemito({ ...porEnvase, presentacion: { codigoParte: 'X', factor: 0 } }), 10);
+
+// ── La descripción entra en UNA línea y no se pasa del borde (2026-08-14) ────
+// El bug: se envolvía y la segunda línea se pisaba con el item siguiente. Lo que
+// se perdía era el final de la línea, o sea el N° de serie.
+const { fontSizeDescripcion, recortarDescripcion } =
+  await import('../../components/remitos/pdf/RemitoOverlayPDF.js');
+const ANCHO_PT = 280;
+const anchoDe = (t: string) => t.length * fontSizeDescripcion(t) * 0.5;
+
+for (const t of [
+  'Válvula de purga · S/N AB-9',
+  'GC 7890 SN: DE64559987   ·   Orden cliente: 4500123456   ·   Ref: LAB-CROMATO',
+  'Mantenimiento preventivo anual del cromatógrafo gaseoso con reemplazo de septa, liner y ferrules — Ppto PRE-0422',
+  'x'.repeat(500),
+]) {
+  const final = recortarDescripcion(t);
+  assert.ok(anchoDe(final) <= ANCHO_PT + 0.01, `se sale de la columna: "${final}"`);
+  assert.ok(fontSizeDescripcion(final) >= 6, 'nunca por debajo de 6pt (ilegible)');
+}
+assert.equal(fontSizeDescripcion('corto'), 8.5, 'una línea corta va al cuerpo normal');
+assert.ok(recortarDescripcion('Válvula de purga · S/N AB-9').endsWith('S/N AB-9'),
+  'una descripción normal NO se recorta: la serie tiene que estar entera');
+
+console.log('✅ remitoLineas: 23/23 OK');

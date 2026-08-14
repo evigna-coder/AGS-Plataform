@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RemitoItem, UnidadStock } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { RemitoPresentacionCell } from './RemitoPresentacionCell';
 
 interface Props {
   items: RemitoItem[];
   unidades: UnidadStock[];
   maxCantidad: Record<string, number>;
+  /** Envases por artículo: hacen buscable la unidad por el N° de parte del
+   *  envase, no solo por el código base (2026-08-14). */
+  presentacionesPorArticulo?: Record<string, { codigoParte: string; factor: number }[]>;
+  /** Ids de ítems cuya unidad ya no está disponible (salió en otro remito). */
+  itemsUnidadPerdida?: Set<string>;
   onAdd: (unidadId: string) => void;
   onAddManual: () => void;
   onUpdate: (id: string, patch: Partial<RemitoItem>) => void;
@@ -22,7 +28,10 @@ const inp = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ou
  * disponibles + tabla editable con cantidad, N° de serie y observaciones por
  * línea. Todo dentro del mismo modal — sin pantalla externa.
  */
-export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddManual, onUpdate, onRemove, onNormalizeCantidad }: Props) {
+export function RemitoItemsEditor({
+  items, unidades, maxCantidad, presentacionesPorArticulo, itemsUnidadPerdida,
+  onAdd, onAddManual, onUpdate, onRemove, onNormalizeCantidad,
+}: Props) {
   // Flujo de carga rápida (2026-08-04): elegir artículo → foco en la cantidad
   // de la fila nueva con el texto seleccionado → Enter vuelve al buscador.
   const cantidadRefs = useRef(new Map<string, HTMLInputElement>());
@@ -47,13 +56,21 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
         const reserva = u.estado === 'reservado'
           ? ` · ⚠ RESERVADO${u.reservadoParaClienteNombre ? ` ${u.reservadoParaClienteNombre}` : ''}${u.reservadoParaPresupuestoNumero ? ` (${u.reservadoParaPresupuestoNumero})` : ''}`
           : '';
+        // Envases del artículo (2026-08-14): quien arma el remito tipea el N° de
+        // parte con el que se compra o se vende —"5183-2067"— y el stock está
+        // guardado con el código base. Sin esto el buscador no devolvía nada y
+        // la pieza terminaba cargada como ítem manual, sin descontar stock.
+        const envases = presentacionesPorArticulo?.[u.articuloId] ?? [];
         return {
           value: u.id,
           label: `${u.articuloCodigo} — ${u.articuloDescripcion}${u.nroSerie ? ` · S/N ${u.nroSerie}` : ''}${u.nroLote ? ` · Lote ${u.nroLote}` : ''} (${u.cantidad ?? 1} disp. · ${u.ubicacion?.referenciaNombre || 'sin ubicación'})${reserva}`,
-          linkedCode: u.articuloCodigo ?? undefined,
+          linkedCode: [u.articuloCodigo, ...envases.map(e => e.codigoParte)].filter(Boolean).join(' '),
+          subLabel: envases.length > 0
+            ? `Envases: ${envases.map(e => `${e.codigoParte} ×${e.factor}`).join(' · ')}`
+            : undefined,
         };
       });
-  }, [unidades, items]);
+  }, [unidades, items, presentacionesPorArticulo]);
 
   return (
     <div className="space-y-2">
@@ -85,6 +102,12 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
               <tr>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase">Artículo</th>
                 <th className="px-2 py-1.5 text-center text-[10px] font-mono text-slate-500 uppercase w-16">Cant.</th>
+                {/* Envase (2026-08-14): el cliente compra por el N° de parte del
+                    envase, y ESE es el código y la cantidad que declara el papel. */}
+                <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase w-40"
+                  title="Con qué código y en qué unidad sale impresa la línea. El stock se descuenta igual en unidades del artículo base.">
+                  Se entrega como
+                </th>
                 <th className="px-2 py-1.5 text-center text-[10px] font-mono text-slate-500 uppercase w-24" title="Si el artículo vuelve, queda pendiente de retorno y puede descargarse al cerrar la OT">Destino</th>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase w-32">N° serie</th>
                 <th className="px-2 py-1.5 text-left text-[10px] font-mono text-slate-500 uppercase">Observaciones</th>
@@ -94,15 +117,26 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
             <tbody className="divide-y divide-slate-100">
               {items.map(it => {
                 const max = maxCantidad[it.id];
+                // La unidad de esta línea ya salió en otro remito: si se
+                // intenta confirmar, la transacción falla ENTERA y el error
+                // nombra este código sin decir dónde está (2026-08-14).
+                const perdida = itemsUnidadPerdida?.has(it.id) ?? false;
                 return (
-                  <tr key={it.id}>
+                  <tr key={it.id} className={perdida ? 'bg-red-50' : undefined}>
                     <td className="px-2 py-1.5">
                       {it.unidadId ? (
                         <>
-                          <span className="block font-mono font-semibold text-teal-800">{it.articuloCodigo || '—'}</span>
+                          <span className={`block font-mono font-semibold ${perdida ? 'text-red-700 line-through' : 'text-teal-800'}`}>
+                            {it.articuloCodigo || '—'}
+                          </span>
                           <span className="block text-[10px] text-slate-500 truncate max-w-[220px]" title={it.articuloDescripcion ?? ''}>
                             {it.articuloDescripcion}
                           </span>
+                          {perdida && (
+                            <span className="block text-[9px] font-medium text-red-600">
+                              Esta pieza ya salió en otro remito — quitá la línea y volvé a agregar el artículo
+                            </span>
+                          )}
                         </>
                       ) : (
                         // Ítem manual: código y descripción editables; no mueve stock.
@@ -133,6 +167,13 @@ export function RemitoItemsEditor({ items, unidades, maxCantidad, onAdd, onAddMa
                           {max} en esta unidad
                         </span>
                       )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <RemitoPresentacionCell
+                        item={it}
+                        envases={it.articuloId ? presentacionesPorArticulo?.[it.articuloId] ?? [] : []}
+                        onUpdate={onUpdate}
+                      />
                     </td>
                     <td className="px-2 py-1.5">
                       {/* Por ÍTEM, no por tipo de remito (2026-08-09): una misma

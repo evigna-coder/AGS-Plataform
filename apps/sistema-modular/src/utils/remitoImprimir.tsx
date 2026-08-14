@@ -27,7 +27,7 @@ import { clientesService, establecimientosService, remitosService } from '../ser
 import { proveedoresService } from '../services/personalService';
 import { RemitoOverlayPDF, type RemitoOverlayItem, type RemitoOverlayFieldOffsets } from '../components/remitos/pdf/RemitoOverlayPDF';
 import { printRemitoSilentOrOpen } from './remitoPdfActions';
-import { getRemitoItemCodigo, lineaDescripcionRemito } from './inventarioToRemitoItem';
+import { getRemitoItemCodigo, lineaDescripcionRemito, cantidadImpresaRemito } from './inventarioToRemitoItem';
 import { enriquecerItemsRemito } from './enriquecerItemsRemito';
 import { razonSocialConEstablecimiento } from './razonSocialRemito';
 
@@ -142,7 +142,9 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
 
   const items: RemitoOverlayItem[] = itemsRemito.map((it, i) => ({
     numero: i + 1,
-    cantidad: it.cantidad,
+    // Cantidad EN ENVASES si la línea se entrega por presentación (2026-08-14):
+    // el papel tiene que decir "5183-2067 · 1", no "5182-0715 · 10".
+    cantidad: cantidadImpresaRemito(it),
     producto: getRemitoItemCodigo(it) || 'S/C',
     descripcion: lineaDescripcionRemito(it),
   }));

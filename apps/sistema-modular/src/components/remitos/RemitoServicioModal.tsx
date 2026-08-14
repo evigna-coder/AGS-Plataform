@@ -65,6 +65,7 @@ export const RemitoServicioModal: React.FC<Props> = ({ open, onClose, onCreated,
       const items = buildOverlayItems({
         sistemaCodigoInterno: prefill.sistemaCodigoInterno,
         sistemaNombre: prefill.sistemaNombre,
+        sistemaSerie: prefill.sistemaSerie,
         ordenClienteNumero: s.ordenClienteNumero,
         datoInternoCliente: s.datoInternoCliente,
         lineas,

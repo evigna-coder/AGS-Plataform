@@ -60,6 +60,39 @@ const Y_PROVINCIA   = 375;
 const Y_IVA         = 410;
 const Y_CUIT        = 445;
 
+/**
+ * Ancho útil de la columna Descripción del papel preimpreso, en pt (2026-08-14).
+ * La descripción arranca en `COL_X.descripcion` (400) corrida 4,5 cm a la
+ * izquierda por `colDescripcionX` → ~272 pt, y el A4 mide 595: quedan ~285 pt
+ * hasta el borde de la caja de items. El `maxWidth: 380 - colDescripcionX` que
+ * había antes daba 507 pt, o sea 190 pt FUERA de la hoja — por eso el texto
+ * salía cortado justo al final, que es donde va el N° de serie.
+ */
+const DESC_ANCHO_PT = 280;
+
+/**
+ * Cuerpo de letra para que la descripción entre en UNA línea. El papel tiene
+ * renglones de alto fijo: si el texto envuelve, la segunda línea se pisa con el
+ * item siguiente y el resultado se lee cortado. Se achica hasta 6pt; más chico
+ * que eso no se lee, y ahí sí se recorta con puntos suspensivos.
+ *
+ * Helvetica promedia ~0,5 × el cuerpo por carácter.
+ */
+export function fontSizeDescripcion(texto: string): number {
+  const largo = texto.length;
+  if (largo === 0) return 8.5;
+  for (const fs of [8.5, 8, 7.5, 7, 6.5, 6]) {
+    if (largo * fs * 0.5 <= DESC_ANCHO_PT) return fs;
+  }
+  return 6;
+}
+
+/** Tope duro: ni al cuerpo más chico se sale de la columna. */
+export function recortarDescripcion(texto: string): string {
+  const maxChars = Math.floor(DESC_ANCHO_PT / (6 * 0.5));
+  return texto.length <= maxChars ? texto : `${texto.slice(0, maxChars - 1)}…`;
+}
+
 /** Tabla de items */
 const TABLE_TOP = 525;       // Y de la primera fila de datos
 const TABLE_ROW_H = 16;
@@ -219,8 +252,19 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
             <Text style={[styles.cell, { left: COL_X.item + (fo.colItemX ?? 0) + ox,        top: y }]}>{row.numero}</Text>
             <Text style={[styles.cell, { left: COL_X.cant + (fo.colCantX ?? 0) + ox,        top: y }]}>{row.cantidad}</Text>
             <Text style={[styles.cell, { left: COL_X.producto + (fo.colProductoX ?? 0) + ox,    top: y }]}>{row.producto}</Text>
-            <Text style={[styles.cell, { left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox, top: y, maxWidth: 380 - (fo.colDescripcionX ?? 0) }]}>
-              {row.descripcion}
+            {/* Descripción: UNA sola línea que se achica para entrar
+                (2026-08-14). Antes se envolvía y la segunda línea se pisaba con
+                la fila siguiente —se veía cortada— y lo que se perdía era el
+                final: justo el N° de serie, que es lo que hay que declarar. */}
+            <Text
+              style={[styles.cell, {
+                left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox,
+                top: y,
+                fontSize: fontSizeDescripcion(String(row.descripcion ?? '')),
+              }]}
+              wrap={false}
+            >
+              {recortarDescripcion(String(row.descripcion ?? ''))}
             </Text>
           </View>
         );

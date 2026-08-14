@@ -52,6 +52,8 @@ export interface RemitoServicioPrefill {
   sistemaId?: string;
   sistemaNombre?: string;
   sistemaCodigoInterno?: string;
+  /** N° de serie del equipo — se imprime junto al modelo (2026-08-14). */
+  sistemaSerie?: string;
 }
 
 /** Una línea de servicio editable en el modal (seleccionable). */
@@ -72,6 +74,8 @@ export interface LineaUI {
 export function buildOverlayItems(args: {
   sistemaCodigoInterno?: string;
   sistemaNombre?: string;
+  /** N° de serie del equipo: va pegado al modelo en la cabecera (2026-08-14). */
+  sistemaSerie?: string;
   ordenClienteNumero: string;
   datoInternoCliente: string;
   lineas: RemitoServicioLinea[];
@@ -81,10 +85,15 @@ export function buildOverlayItems(args: {
     args.ordenClienteNumero.trim() && `Orden cliente: ${args.ordenClienteNumero.trim()}`,
     args.datoInternoCliente.trim() && `Ref: ${args.datoInternoCliente.trim()}`,
   ].filter(Boolean).join('   ·   ');
+  // Modelo + N° de serie juntos (2026-08-14): "GC 7890 SN: DE64559987". La serie
+  // es lo que identifica el equipo físico y en el papel tiene que estar.
+  const serie = args.sistemaSerie?.trim();
+  const equipoConSerie = [args.sistemaNombre || equipo, serie ? `SN: ${serie}` : null]
+    .filter(Boolean).join(' ');
   const header: RemitoOverlayItem = {
     numero: '', cantidad: '',
     producto: equipo ? `Equipo: ${equipo}` : '',
-    descripcion: ref || args.sistemaNombre || '',
+    descripcion: [equipoConSerie, ref].filter(Boolean).join('   ·   '),
   };
   const rows: RemitoOverlayItem[] = args.lineas.map((l, i) => {
     const refs = [
@@ -94,7 +103,10 @@ export function buildOverlayItems(args: {
     return {
       numero: i + 1,
       cantidad: 1,
-      producto: l.servicioCode ?? '',
+      // Columna Artículo = N° de OT (2026-08-14): salía vacía porque
+      // `servicioCode` no se carga en ningún lado. La OT es el dato que
+      // identifica el servicio prestado.
+      producto: l.otNumberOrigen ? `OT ${l.otNumberOrigen}` : (l.servicioCode ?? ''),
       descripcion: refs ? `${l.servicioDescripcion} — ${refs}` : l.servicioDescripcion,
     };
   });

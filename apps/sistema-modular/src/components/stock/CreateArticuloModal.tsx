@@ -80,7 +80,16 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
     if (!form.codigo.trim()) { setCodigoDupWarning(''); return; }
     const timer = setTimeout(async () => {
       const existing = await articulosService.getByCodigo(form.codigo.trim());
-      setCodigoDupWarning(existing ? `Ya existe un articulo con codigo "${form.codigo}"` : '');
+      // El guard mira TODOS los artículos, activos o no. Si el que choca está
+      // dado de baja el mensaje tiene que decirlo (2026-08-14): al migrar a
+      // presentaciones se dan de baja los artículos-envase, y después "no
+      // aparece en el catálogo pero tampoco me deja crearlo" no se entiende.
+      setCodigoDupWarning(
+        !existing ? ''
+          : existing.activo === false
+            ? `El artículo "${form.codigo}" ya existe pero está DADO DE BAJA (por eso no aparece en el listado). Reactivalo desde Artículos → Mostrar inactivos, o dejalo así si es un envase de otro artículo.`
+            : `Ya existe un articulo con codigo "${form.codigo}"`,
+      );
     }, 500);
     return () => clearTimeout(timer);
   }, [form.codigo]);

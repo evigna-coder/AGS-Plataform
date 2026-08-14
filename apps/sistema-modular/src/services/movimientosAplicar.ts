@@ -447,7 +447,14 @@ export const movimientosAplicarService = {
         // le reservó es el caso normal, y la reserva se limpia al pasar a
         // 'entregado'. El resto de los estados sigue bloqueado.
         if (data.estado !== 'disponible' && data.estado !== 'reservado') {
-          throw new Error(`${etiqueta}: la unidad no está disponible (estado '${data.estado}')`);
+          // Mensaje accionable (2026-08-14): el anterior decía solo el estado y
+          // no aclaraba que la línea culpable puede no ser la que el usuario
+          // acaba de tocar — la validación es todo-o-nada, así que UNA pieza ya
+          // entregada bloquea el remito entero, incluidos los ítems manuales.
+          throw new Error(
+            `${etiqueta}: esa pieza ya salió en otro remito (estado '${data.estado}'), no se puede volver a entregar. `
+            + 'Editá el remito, quitá esa línea y volvé a agregar el artículo desde el buscador para tomar otra unidad.',
+          );
         }
         const qty = data.cantidad ?? 1;
         if (it.cantidad > qty) {
