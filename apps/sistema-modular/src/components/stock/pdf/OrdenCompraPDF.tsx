@@ -176,7 +176,11 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
             return (
               <View key={item.id} style={idx % 2 === 1 ? [S.tr, S.trZebra] : S.tr} wrap={false}>
                 <Text style={[S.td, S.colNum]}>{idx + 1}</Text>
-                <Text style={[S.tdMono, S.colCod]}>{item.articuloCodigo || '-'}</Text>
+                {/* El proveedor reconoce SU N° de parte: si se compra por una
+                    presentación, va ese código (Fase 2, 2026-08-13). */}
+                <Text style={[S.tdMono, S.colCod]}>
+                  {item.presentacion?.codigoParte || item.articuloCodigo || '-'}
+                </Text>
                 <Text style={[S.td, S.colDesc]}>{item.descripcion}</Text>
                 <Text style={[S.td, S.colCant]}>{item.cantidad}</Text>
                 <Text style={[S.td, S.colUnid]}>{item.unidadMedida}</Text>

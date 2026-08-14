@@ -98,8 +98,12 @@ function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
       <View style={{ flex: 1, paddingRight: 8 }}>
         <Text style={{ fontSize: ITEM_FS, color: COLORS.text }}>{item.descripcion}</Text>
-        {item.codigoProducto ? (
-          <Text style={{ fontSize: 6.5, color: COLORS.textMuted }}>{item.codigoProducto}</Text>
+        {/* Se cotiza por el N° de parte del envase: es el que el cliente ve en
+            su orden de compra (Fase 3 presentaciones, 2026-08-13). */}
+        {(item.presentacion?.codigoParte || item.codigoProducto) ? (
+          <Text style={{ fontSize: 6.5, color: COLORS.textMuted }}>
+            {item.presentacion?.codigoParte || item.codigoProducto}
+          </Text>
         ) : null}
       </View>
       <Text style={{ width: odooCols.cantidad, fontSize: ITEM_FS, color: COLORS.text, textAlign: 'center' }}>{fmt(item.cantidad)}</Text>
