@@ -10,9 +10,11 @@ import { colorDeTituloFijo } from '../../utils/agendaCellColor';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
-import { AgendaHeader } from '../../components/agenda/AgendaHeader';
+import { useUrlFilters } from '@ags/shared';
+import { AgendaHeader, type AgendaVista } from '../../components/agenda/AgendaHeader';
 import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
+import { AgendaAlmanaqueView } from '../../components/agenda/AgendaAlmanaqueView';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
 import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/agenda/AgendaReservaModal';
@@ -69,6 +71,15 @@ export const AgendaPage: FC = () => {
     diasAgs, toggleDiaAgs, primerDiaAgsEnRango,
   } = useAgenda();
 
+  // Vista + filtro de ingeniero en la URL (2026-08-14). Van por `useUrlFilters`
+  // y no por useState —regla del proyecto— para que la pestaña sobreviva a un
+  // F5 y se pueda compartir "la agenda de Fulano" pegando el link.
+  const [filters, setFilter] = useUrlFilters({
+    vista: { type: 'string', default: 'grilla' },
+    ingeniero: { type: 'string', default: '' },
+  });
+  const vista: AgendaVista = filters.vista === 'almanaque' ? 'almanaque' : 'grilla';
+
   const confirm = useConfirm();
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
@@ -98,7 +109,11 @@ export const AgendaPage: FC = () => {
       setSelectedCell(null);
     }
     setSelectionRange(null);
-  }, [anchor, zoomLevel]);
+    // `vista` incluida a propósito (2026-08-14): la lista no dibuja celdas, así
+    // que una selección heredada de la grilla quedaba invisible y activa — y el
+    // atajo Supr habría borrado esa entrada a ciegas. Sin celda seleccionada
+    // todos los atajos de `useAgendaKeyboard` cortan en seco.
+  }, [anchor, zoomLevel, vista]);
 
   // Auto-scroll selected cell into view when navigating with keyboard
   useEffect(() => {
@@ -985,6 +1000,11 @@ export const AgendaPage: FC = () => {
         onToday={goToToday}
         onSearch={() => setShowBuscador(true)}
         onPickDate={goToDate}
+        vista={vista}
+        onVistaChange={v => setFilter('vista', v)}
+        ingenieros={ingenieros}
+        ingenieroId={filters.ingeniero}
+        onIngenieroChange={id => setFilter('ingeniero', id)}
       />
 
       {showBuscador && (
@@ -1035,6 +1055,14 @@ export const AgendaPage: FC = () => {
                   <p className="text-xs text-slate-400 mt-2">Cargando agenda...</p>
                 </div>
               </div>
+            ) : vista === 'almanaque' ? (
+              // Misma data y mismo rango que la grilla — solo cambia la lectura.
+              <AgendaAlmanaqueView
+                visibleDays={visibleDays}
+                entries={entries}
+                ingenieros={ingenieros}
+                ingenieroId={filters.ingeniero}
+              />
             ) : (
               <AgendaGrid
                 ingenieros={ingenieros}

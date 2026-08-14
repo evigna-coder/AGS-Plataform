@@ -1,6 +1,9 @@
 import { type FC, useState } from 'react';
-import type { ZoomLevel } from '@ags/shared';
+import type { Ingeniero, ZoomLevel } from '@ags/shared';
 import { formatRangeLabel } from '../../utils/agendaDateUtils';
+
+/** Vistas de la agenda: planificar (grilla de cuartos) vs leer (almanaque). */
+export type AgendaVista = 'grilla' | 'almanaque';
 
 interface AgendaHeaderProps {
   anchor: Date;
@@ -12,6 +15,12 @@ interface AgendaHeaderProps {
   onSearch?: () => void;
   /** Salto rápido de fecha desde el almanaque — pedido 2026-08-03. */
   onPickDate?: (d: Date) => void;
+  /** Vista activa + filtro por ingeniero (2026-08-14). */
+  vista: AgendaVista;
+  onVistaChange: (v: AgendaVista) => void;
+  ingenieros: Ingeniero[];
+  ingenieroId: string;
+  onIngenieroChange: (id: string) => void;
 }
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -60,6 +69,11 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
   onToday,
   onSearch,
   onPickDate,
+  vista,
+  onVistaChange,
+  ingenieros,
+  ingenieroId,
+  onIngenieroChange,
 }) => {
   const rangeLabel = formatRangeLabel(anchor, zoomLevel);
   const [showAlmanaque, setShowAlmanaque] = useState(false);
@@ -135,6 +149,39 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Filtro por ingeniero — solo tiene sentido en la lista: la grilla ya
+          pinta una fila por ingeniero, y esconder filas ahí rompe la lectura de
+          carga del equipo (2026-08-14). */}
+      {vista === 'almanaque' && (
+        <select
+          value={ingenieroId}
+          onChange={e => onIngenieroChange(e.target.value)}
+          className="shrink-0 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+          title="Ver la agenda de un solo ingeniero"
+        >
+          <option value="">Todos los ingenieros</option>
+          {ingenieros.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
+        </select>
+      )}
+
+      {/* Vista: planificar vs leer */}
+      <div className="shrink-0 flex items-center rounded-md border border-slate-200 overflow-hidden">
+        {([['grilla', 'Planificación'], ['almanaque', 'Almanaque']] as const).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => onVistaChange(v)}
+            className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              vista === v ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+            title={v === 'grilla'
+              ? 'Grilla por cuartos de día — para planificar y arrastrar'
+              : 'Almanaque semanal por ingeniero, filtrable — para leer qué hay'}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
