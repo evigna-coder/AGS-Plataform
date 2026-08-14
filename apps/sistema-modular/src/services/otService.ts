@@ -1,7 +1,7 @@
-import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, orderBy, startAt, endAt, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
-import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
+import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS, presupuestoEstaAceptado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
@@ -299,6 +299,31 @@ export const ordenesTrabajoService = {
     return items;
   },
 
+  /**
+   * Hijas de una OT padre (`29994` → `29994.01`, `.02`…), 2026-08-14.
+   *
+   * El doc id ES el número de OT, así que se resuelve con un rango sobre el id
+   * en vez de leer la colección entera como `getItemsByOtPadre`. Hace falta
+   * porque el trabajo vive SIEMPRE en las hijas: quien tiene el vínculo al
+   * padre necesita bajar a ellas para mostrar estado real.
+   */
+  async getHijas(otPadre: string): Promise<WorkOrder[]> {
+    const snap = await getDocs(query(
+      collection(db, 'reportes'),
+      orderBy(documentId()),
+      // Rango [`29994.`, `29994.` + U+F8FF]: el cierre lleva el último code
+      // point de la zona privada —INVISIBLE en el editor, no lo borres— para
+      // tomar todas las hijas sin arrastrar `29995`.
+      startAt(`${otPadre}.`),
+      endAt(`${otPadre}.`),
+    ));
+    return snap.docs.map(d => ({
+      otNumber: d.id,
+      ...d.data(),
+      updatedAt: d.data().updatedAt || new Date().toISOString(),
+    } as WorkOrder));
+  },
+
   // Obtener OT por número
   async getByOtNumber(otNumber: string) {
     const otDocRef = doc(db, 'reportes', otNumber);
@@ -362,11 +387,23 @@ export const ordenesTrabajoService = {
         const items = pres.items ?? [];
         const itemsVinculados = items.map(it => it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otNumber });
         const itemsCambiaron = itemsVinculados.some((it, i) => it !== items[i]);
-        if (!yaVinculada || itemsCambiaron) {
+        // Avanzar a 'en_ejecucion' igual que el alta de OT desde el presupuesto
+        // (2026-08-14): este camino estampaba el vínculo pero dejaba el estado
+        // quieto, así que un presupuesto con OT creada y coordinada seguía
+        // figurando "aceptado" —trabajo sin empezar—. Mismo guard que
+        // `useCreateOTForm`: si todavía es borrador no se toca, porque pasar a
+        // en ejecución sin haberlo enviado es incoherente.
+        const yaAvanzado = !!pres.fechaEnvio
+          || pres.estado === 'enviado' || presupuestoEstaAceptado(pres.estado);
+        const avanzaEstado = yaAvanzado
+          && pres.estado !== 'en_ejecucion' && pres.estado !== 'pendiente_facturacion'
+          && pres.estado !== 'finalizado';
+        if (!yaVinculada || itemsCambiaron || avanzaEstado) {
           await presupuestosService.update(pres.id, {
             otsVinculadasNumbers: yaVinculada ? prev : [...prev, otNumber],
             otVinculadaNumber: otNumber,
             ...(itemsCambiaron ? { items: itemsVinculados } : {}),
+            ...(avanzaEstado ? { estado: 'en_ejecucion' as const } : {}),
           });
         }
       }

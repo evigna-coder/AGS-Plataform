@@ -21,6 +21,7 @@ import { usuariosService, getAdminSoporteAssignee } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
+import { cantidadEnUnidadBase } from '@ags/shared';
 import { atpNetoFromStockAmplio } from './atpHelpers';
 import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual } from '../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../utils/formatFecha';
@@ -1071,7 +1072,15 @@ export const presupuestosService = {
     // ── Paso 1: leer presupuesto + identificar ítems de importación ──
     const pres = await this.getById(presupuestoId);
     if (!pres) throw new Error('Presupuesto no encontrado');
-    if (pres.estado === 'aceptado') return { requerimientosIds: [] };
+    // Idempotencia: también 'en_ejecucion' (2026-08-14). Desde que la
+    // aceptación puede aterrizar directo ahí —cuando el trabajo ya arrancó—,
+    // chequear solo el literal 'aceptado' dejaba pasar una segunda aceptación
+    // que duplicaba los requerimientos condicionales. Se listan los dos
+    // estados a mano a propósito: `presupuestoEstaAceptado` incluye
+    // 'pendiente_oc', que en este flujo todavía tiene que poder aceptarse.
+    if (pres.estado === 'aceptado' || pres.estado === 'en_ejecucion') {
+      return { requerimientosIds: [] };
+    }
 
     const itemsImport = (pres.items || []).filter(
       (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
@@ -1171,9 +1180,17 @@ export const presupuestosService = {
         tx.set(reqRef, payload);
       });
 
-      // Update del presupuesto a 'aceptado'
+      // Update del presupuesto a 'aceptado' — o directo a 'en_ejecucion' si el
+      // trabajo YA arrancó (2026-08-14, caso P1-05101-01: figuraba "aceptado"
+      // teniendo una OT en agenda). La aceptación se registra muchas veces
+      // DESPUÉS de haber creado y coordinado la OT; aterrizar en 'aceptado'
+      // hacía retroceder el presupuesto una etapa y lo mostraba como trabajo
+      // sin empezar. `fechaAceptacion` se estampa igual: es el dato que se
+      // pierde si no, y de él dependen las ETAs por item.
       tx.update(presRef, deepCleanForFirestore({
-        estado: 'aceptado',
+        estado: (pres.otsVinculadasNumbers?.length || pres.otVinculadaNumber)
+          ? 'en_ejecucion'
+          : 'aceptado',
         fechaAceptacion: nowIso,                  // (Phase 16) base para computar ETA por item
         updatedAt: Timestamp.now(),
         updatedBy: actor?.uid ?? null,
@@ -1271,7 +1288,12 @@ export const presupuestosService = {
           const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0)
             + qtyEnKits;
           const stockMinimo = articulo?.stockMinimo ?? 0;
-          const qtyResultante = qtyDisponible - item.cantidad;
+          // Cantidad del ítem en UNIDADES BASE (Fase 3 presentaciones,
+          // 2026-08-13): cotizar "1 × vial de 1000" cuando ese envase vale 10
+          // compromete 10 unidades del pool, no 1. Todo lo de abajo —el
+          // faltante, el requerimiento y la reserva— trabaja en base.
+          const cantidadBase = cantidadEnUnidadBase(item.cantidad, item.presentacion);
+          const qtyResultante = qtyDisponible - cantidadBase;
 
           // Auto-req: la ACEPTACIÓN manda (2026-08-04). Si ya hay un req
           // pendiente/aprobado para este (presupuesto, artículo) — generado a
@@ -1283,7 +1305,7 @@ export const presupuestosService = {
           // (sin orderBy, sin índice) y FAIL-SAFE: si el chequeo falla, NO
           // crear ni ajustar (mejor un req de menos que duplicados).
           const qtyReq = qtyResultante < stockMinimo
-            ? Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible)
+            ? Math.max(stockMinimo - qtyResultante, cantidadBase - qtyDisponible)
             : 0;
 
           // ── Desglose + consolidación de stock mínimo (2026-08-12, caso G1530-67950) ──
@@ -1293,7 +1315,7 @@ export const presupuestosService = {
           // el comprador: el req del presupuesto absorbe el del sweep, éste se
           // cancela referenciando la consolidación, y el desglose cliente/mínimo
           // queda registrado en el requerimiento que sobrevive.
-          const parteCliente = Math.min(qtyReq, Math.max(item.cantidad - qtyDisponible, 0));
+          const parteCliente = Math.min(qtyReq, Math.max(cantidadBase - qtyDisponible, 0));
           const parteMinimo = qtyReq - parteCliente;
           let reqsMinimoPrevios: RequerimientoCompra[] = [];
           if (qtyReq > 0) {
@@ -1410,10 +1432,12 @@ export const presupuestosService = {
             }
           }
 
-          // Auto-reserva: acumular unidades por cantidad FÍSICA hasta cubrir item.cantidad.
+          // Auto-reserva: acumular unidades por cantidad FÍSICA hasta cubrir la
+          // cantidad del ítem EN UNIDADES BASE (2026-08-13: con presentación,
+          // "1 envase de 10" reserva 10 unidades del pool, no 1).
           // En la última unidad, si es un lote con más de lo necesario, reservar() splitea
           // y reserva solo la porción pedida (evita la sobre-reserva 1→2 de los lotes).
-          let restante = item.cantidad;
+          let restante = cantidadBase;
           for (const unidad of unidades) {
             if (restante <= 0) break;
             const aReservar = Math.min(unidad.cantidad ?? 1, restante);
@@ -1434,7 +1458,7 @@ export const presupuestosService = {
             }
           }
 
-          const reservado = item.cantidad - restante;
+          const reservado = cantidadBase - restante;
           // Lo que el estante no reservó puede estar cubierto por el float de kits
           // (comportamiento A): eso NO es faltante de compra, se consume del kit en terreno.
           const cubiertoPorKit = Math.min(restante, qtyEnKits);
@@ -1448,7 +1472,12 @@ export const presupuestosService = {
               cubiertoPorKit > 0 ? `${cubiertoPorKit} en minikit` : null,
               faltanteReal > 0 ? `${faltanteReal} en compra` : null,
             ].filter(Boolean).join(', ');
-            reservasResumen.push(`• ${codigo} ${desc} — ${item.cantidad} u. (${detalle})`);
+            // El aviso a Materiales habla en unidades base (lo que hay que
+            // apartar del estante), aclarando el envase cotizado si lo hubo.
+            const cotizado = item.presentacion
+              ? ` [cotizado ${item.cantidad} × ${item.presentacion.codigoParte} ×${item.presentacion.factor}]`
+              : '';
+            reservasResumen.push(`• ${codigo} ${desc} — ${cantidadBase} u.${cotizado} (${detalle})`);
           }
         } catch (itemErr) {
           console.error(`[aceptarConRequerimientos] item ${item.stockArticuloId} falló:`, itemErr);

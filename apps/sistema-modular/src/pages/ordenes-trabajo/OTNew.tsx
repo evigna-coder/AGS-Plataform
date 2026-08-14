@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService, presupuestosService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, TipoServicio, TipoOT, PresupuestoItem } from '@ags/shared';
+import { presupuestoEstaAceptado } from '@ags/shared';
 import { deepCleanForFirestore } from '../../services/firebase';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -274,10 +275,19 @@ export const OTNew = () => {
           const itemsVinculados = (presActual?.items ?? []).map((it: PresupuestoItem) =>
             it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: formData.otNumber },
           );
+          // Avanzar a 'en_ejecucion' con el MISMO guard que `useCreateOTForm`
+          // (2026-08-14): esta alta estampaba el vínculo pero no el estado, así
+          // que el presupuesto quedaba "aceptado" con la OT ya creada. Si
+          // todavía es borrador no se toca —pasar a en ejecución sin haberlo
+          // enviado es incoherente— y el recordatorio de envío lo flaggea.
+          const estadoActual = presActual?.estado;
+          const yaAvanzado = !!presActual?.fechaEnvio
+            || estadoActual === 'enviado' || presupuestoEstaAceptado(estadoActual);
           await presupuestosService.update(presupuestoIdFromUrl, deepCleanForFirestore({
             otVinculadaNumber: formData.otNumber,
             otsVinculadasNumbers: nextList,
             items: itemsVinculados,
+            ...(yaAvanzado ? { estado: 'en_ejecucion' } : {}),
           }) as any);
         } catch (err) {
           console.error('Error vinculando presupuesto:', err);
