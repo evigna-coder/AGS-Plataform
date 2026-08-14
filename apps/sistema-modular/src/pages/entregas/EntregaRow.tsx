@@ -96,6 +96,13 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 text-right font-mono">
         {row.cantidad}
+        {/* Envase cotizado: la cantidad es de envases, el stock se mide en
+            unidades base (Fase 3 presentaciones, 2026-08-13). */}
+        {row.presentacionCodigo && (
+          <span className="block text-[9px] text-slate-400" title={`Cotizado por ${row.presentacionCodigo}`}>
+            = {row.cantidadBase} u.
+          </span>
+        )}
       </td>
       {/* Stock REAL de hoy (2026-08-13): `Disp.` es la promesa hecha al
           presupuestar y no se recalcula nunca; acá va lo que hay. En rojo
@@ -105,12 +112,13 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
           (() => {
             const cubre = row.stockReservado + row.stockLibre;
             const prometeStock = (row.disponibilidad ?? row.disponibilidadSugerida) === 'stock';
-            const falta = prometeStock && cubre < row.cantidad && !row.entregadoManual;
+            // Contra unidades BASE: cotizar 1 envase de 10 necesita 10.
+            const falta = prometeStock && cubre < row.cantidadBase && !row.entregadoManual;
             return (
               <span
                 className={falta ? 'text-red-600 font-semibold' : 'text-slate-600'}
                 title={`${row.stockReservado} reservada(s) para este presupuesto · ${row.stockLibre} libre(s) en estante`
-                  + (falta ? `\nNo alcanza para las ${row.cantidad} comprometidas.` : '')}
+                  + (falta ? `\nNo alcanza para las ${row.cantidadBase} unidades comprometidas.` : '')}
               >
                 {row.stockReservado > 0 ? `${row.stockReservado}R` : ''}
                 {row.stockReservado > 0 && row.stockLibre > 0 ? ' + ' : ''}

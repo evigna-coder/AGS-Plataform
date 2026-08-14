@@ -238,6 +238,32 @@ test('[ENT-11] sin mapas de stock (o ítem sin artículo) las columnas quedan en
   assert.equal(rows[0].stockLibre, 0);
 });
 
+test('[ENT-12] item cotizado por envase: la comparación de stock va en unidades base', () => {
+  // Fase 3 presentaciones (2026-08-13): 2 envases de 10 comprometen 20 unidades
+  // del pool. Si la fila comparara los 2 envases contra el stock, un artículo
+  // con 5 unidades pareceria cubierto.
+  const ppto = makePresupuestoBase({
+    id: 'PPTO-1',
+    items: [makeItem({
+      id: 'ITEM-1', cantidad: 2, disponibilidad: 'stock', stockArticuloId: 'ART-1',
+      presentacion: { codigoParte: '5183-2067', factor: 10 },
+    })],
+  });
+  const rows = buildEntregaRows({
+    presupuestos: [ppto],
+    requerimientos: [],
+    ordenesCompra: [],
+    importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    stockLibrePorArticulo: new Map([['ART-1', 5]]),
+    now: FIXTURE_NOW,
+  });
+  assert.equal(rows[0].cantidad, 2, 'la cantidad cotizada se muestra tal cual (envases)');
+  assert.equal(rows[0].cantidadBase, 20, '2 envases de 10 = 20 unidades base');
+  assert.equal(rows[0].presentacionCodigo, '5183-2067');
+  assert.ok(rows[0].stockLibre < rows[0].cantidadBase, 'con 5 en estante NO alcanza');
+});
+
 test('[ENT-09] sin código propio, la columna cae al código que estampó el requerimiento', () => {
   const ppto = makePresupuestoBase({
     items: [makeItem({ id: 'ITEM-1', codigoProducto: null })],

@@ -15,6 +15,7 @@ import type {
   Importacion,
   Disponibilidad,
 } from '@ags/shared';
+import { cantidadEnUnidadBase } from '@ags/shared';
 
 export type Semaforo = 'verde' | 'amarillo' | 'rojo' | 'entregado' | 'sin_eta';
 
@@ -61,7 +62,16 @@ export interface EntregaRow {
   stockReservado: number;
   stockLibre: number;
   descripcion: string;
+  /** Cantidad tal como se cotizó (envases si el ítem lleva presentación). */
   cantidad: number;
+  /**
+   * Unidades BASE que compromete la línea (Fase 3 presentaciones, 2026-08-13).
+   * Es contra este número que hay que comparar el stock: cotizar 1 envase de 10
+   * compromete 10 unidades del pool.
+   */
+  cantidadBase: number;
+  /** Envase cotizado, para mostrarlo al lado de la cantidad. */
+  presentacionCodigo: string | null;
   precioUnitario: number;
   moneda: 'USD' | 'ARS' | 'EUR' | null;
   disponibilidad: Disponibilidad | null;
@@ -259,6 +269,8 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
           : 0,
         descripcion: item.descripcion,
         cantidad: item.cantidad,
+        cantidadBase: cantidadEnUnidadBase(item.cantidad, item.presentacion),
+        presentacionCodigo: item.presentacion?.codigoParte ?? null,
         precioUnitario: item.precioUnitario,
         moneda: (item.moneda ?? null) as EntregaRow['moneda'],
         disponibilidad: (item.disponibilidad ?? null) as EntregaRow['disponibilidad'],
