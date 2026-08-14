@@ -2,7 +2,7 @@ import type { Sistema, ModuloSistema, WorkOrder } from '@ags/shared';
 import { useOTVinculos } from '../../hooks/useOTVinculos';
 import { useKitIngeniero } from '../../hooks/useKitIngeniero';
 import { EquipoCard, TareasPendientesCard, ConfiguracionCard } from './detalle/EquipoSection';
-import { PresupuestoOCCard, MaterialesCard, ProblemaCard } from './detalle/VinculosSection';
+import { PresupuestoOCCard, MaterialesCard, ProblemaCard, FacturacionCard } from './detalle/VinculosSection';
 import { KitIngenieroCard } from './detalle/KitSection';
 
 interface Props {
@@ -29,6 +29,9 @@ export default function OTDetalleTab({ ot, sistema, modulos }: Props) {
       </div>
       <div className="space-y-3">
         <PresupuestoOCCard ot={ot} presupuestos={presupuestos} />
+        {/* Pegado a Presupuesto/OC: las dos responden "qué se le cobra al
+            cliente por esto", y se leen juntas. */}
+        <FacturacionCard ot={ot} />
         <MaterialesCard materiales={materiales} reservas={reservas} declarados={ot.materialesParaServicio} />
         <KitIngenieroCard items={kit.items} loading={kit.loading} />
       </div>

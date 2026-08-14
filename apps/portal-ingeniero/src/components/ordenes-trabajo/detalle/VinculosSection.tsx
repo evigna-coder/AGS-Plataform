@@ -74,6 +74,24 @@ export function MaterialesCard({ materiales, reservas, declarados }: {
   );
 }
 
+/**
+ * Comentario para facturación cargado por administración al crear la OT
+ * (2026-08-14). Estaba solo en el back-office, pero es información que el
+ * ingeniero necesita EN CAMPO: dice qué se le factura al cliente y cómo —qué
+ * entra en el presupuesto, qué se cobra aparte, qué no se cobra—, y sin verlo
+ * termina prometiendo en el lugar algo que después no coincide con la factura.
+ */
+export function FacturacionCard({ ot }: { ot: WorkOrder }) {
+  if (!ot.comentarioFacturacion?.trim()) return null;
+  return (
+    <GCard label="Para facturación">
+      <p className="text-[13px] text-slate-800 leading-relaxed whitespace-pre-wrap">
+        {ot.comentarioFacturacion}
+      </p>
+    </GCard>
+  );
+}
+
 /** Problema / falla reportada por el cliente. */
 export function ProblemaCard({ ot }: { ot: WorkOrder & { problemaFallaInicial?: string } }) {
   if (!ot.problemaFallaInicial) return null;
