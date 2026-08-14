@@ -8,8 +8,9 @@ import { reservasService } from '../services/stockService';
 import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type {
   Articulo, CondicionUnidad, Proveedor, PosicionStock, Minikit, Ingeniero,
-  TipoOrigenDestino, UnidadStock, MovimientoStock,
+  TipoOrigenDestino, UnidadStock, MovimientoStock, PresentacionUsada,
 } from '@ags/shared';
+import { cantidadEnUnidadBase } from '@ags/shared';
 
 export interface UbicOption {
   key: string;
@@ -25,7 +26,14 @@ export type IntakeStep = 'cantidad' | 'condicion' | 'ubicacion' | 'serie' | 'lot
 interface Draft {
   articulo: Articulo;
   step: IntakeStep;
+  /** Cantidad TAL COMO SE RECIBE: si hay presentación, son envases, no unidades base. */
   cantidad: number;
+  /**
+   * Envase recibido (Fase 2 presentaciones, 2026-08-13). Recibir "1 × 5183-2067"
+   * de un envase ×10 tiene que dar de alta 10 unidades del artículo base, no 1.
+   * null = se recibe por la unidad base.
+   */
+  presentacion: PresentacionUsada | null;
   condicion: CondicionUnidad;
   ubicacion: { tipo: TipoOrigenDestino; id: string; nombre: string } | null;
   series: string[];
@@ -36,11 +44,18 @@ interface Draft {
 export interface IntakeItem {
   key: string;
   articulo: Articulo;
+  /** Cantidad en la unidad en que se recibe (envases si hay presentación). */
   cantidad: number;
+  presentacion: PresentacionUsada | null;
   condicion: CondicionUnidad;
   ubicacion: { tipo: TipoOrigenDestino; id: string; nombre: string };
   series: string[];
   lote: string;
+}
+
+/** Unidades BASE que da de alta un renglón — la conversión vive en shared. */
+export function unidadesBaseDeItem(it: Pick<IntakeItem, 'cantidad' | 'presentacion'>): number {
+  return cantidadEnUnidadBase(it.cantidad, it.presentacion);
 }
 
 let _seq = 0;
@@ -172,7 +187,7 @@ export function useStockIntake(
   const startArticulo = async (articulo: Articulo) => {
     setError('');
     setDraft({
-      articulo, step: 'cantidad', cantidad: 1, condicion: 'nuevo',
+      articulo, step: 'cantidad', cantidad: 1, presentacion: null, condicion: 'nuevo',
       ubicacion: null, series: [], serieInput: '', lote: '',
     });
     const [unidades, movs] = await Promise.all([
@@ -188,7 +203,7 @@ export function useStockIntake(
   const commitDraft = (d: Draft) => {
     const item: IntakeItem = {
       key: `i${++_seq}`,
-      articulo: d.articulo, cantidad: d.cantidad, condicion: d.condicion,
+      articulo: d.articulo, cantidad: d.cantidad, presentacion: d.presentacion, condicion: d.condicion,
       ubicacion: d.ubicacion!, series: d.series, lote: d.lote,
     };
     setItems(prev => [...prev, item]);
@@ -240,7 +255,11 @@ export function useStockIntake(
 
   const removeItem = (key: string) => setItems(prev => prev.filter(i => i.key !== key));
 
-  const totalUnidades = useMemo(() => items.reduce((acc, it) => acc + (it.articulo.requiereNumeroSerie ? it.series.length : it.cantidad), 0), [items]);
+  // Total en unidades BASE: es lo que realmente entra al stock (2026-08-13).
+  const totalUnidades = useMemo(
+    () => items.reduce((acc, it) => acc + (it.articulo.requiereNumeroSerie ? it.series.length : unidadesBaseDeItem(it)), 0),
+    [items],
+  );
 
   const confirmFinalize = async () => {
     if (items.length === 0) { setError('Agregá al menos un artículo'); return; }
@@ -263,6 +282,9 @@ export function useStockIntake(
       const desp = despachoNumero.trim() || null;
 
       const units: Omit<UnidadStock, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+      // Presentación por unidad creada, en paralelo a `units` — se denormaliza
+      // en el movimiento para poder auditar la conversión.
+      const unitPresentacion: (PresentacionUsada | null)[] = [];
       for (const it of items) {
         const base = {
           articuloId: it.articulo.id, articuloCodigo: it.articulo.codigo, articuloDescripcion: it.articulo.descripcion,
@@ -272,12 +294,21 @@ export function useStockIntake(
           ordenCompraNumero: oc, despachoImportacionNumero: desp,
           observaciones: null, activo: true,
         };
+        // Al pool SIEMPRE entran unidades BASE (2026-08-13): recibir 1 envase
+        // de 10 da de alta 10. Con N° de serie no aplica conversión — cada
+        // serie es una unidad física, y un envase serializado no tiene sentido.
+        const cantidadBase = unidadesBaseDeItem(it);
         if (it.articulo.requiereNumeroSerie) {
-          for (const s of it.series) units.push({ ...base, nroSerie: s, nroLote: it.lote.trim() || null, cantidad: 1 });
+          for (const s of it.series) {
+            units.push({ ...base, nroSerie: s, nroLote: it.lote.trim() || null, cantidad: 1 });
+            unitPresentacion.push(it.presentacion);
+          }
         } else if (it.articulo.requiereNumeroLote) {
-          units.push({ ...base, nroSerie: null, nroLote: it.lote.trim() || null, cantidad: it.cantidad });
+          units.push({ ...base, nroSerie: null, nroLote: it.lote.trim() || null, cantidad: cantidadBase });
+          unitPresentacion.push(it.presentacion);
         } else {
-          units.push({ ...base, nroSerie: null, nroLote: null, cantidad: it.cantidad });
+          units.push({ ...base, nroSerie: null, nroLote: null, cantidad: cantidadBase });
+          unitPresentacion.push(it.presentacion);
         }
       }
       const ids = await unidadesService.createMany(units);
@@ -292,6 +323,8 @@ export function useStockIntake(
           remitoId: null, otNumber: null,
           ordenCompraNumero: oc, despachoImportacionNumero: desp,
           nroSerie: units[i].nroSerie ?? null, nroLote: units[i].nroLote ?? null,
+          // Rastro de la conversión: "1 × 5183-2067 ×10 = 10" (2026-08-13).
+          presentacion: unitPresentacion[i] ?? null,
           motivo: 'Ingreso de stock', creadoPor,
         })));
       } catch (movErr) {
@@ -307,22 +340,32 @@ export function useStockIntake(
           const ocs = await ordenesCompraService.getAll().catch(() => [] as any[]);
           const ocDoc = ocs.find((o: any) => (o.numero || '').trim().toLowerCase() === oc.toLowerCase());
           if (ocDoc && ocDoc.estado !== 'cancelada') {
+            // La conciliación se hace en UNIDADES BASE de los dos lados
+            // (2026-08-13): el ítem de la OC puede estar expresado en envases
+            // ("1 × 5183-2067 ×10") y el ingreso en otro envase o suelto. Sin
+            // esto, recibir 10 sueltos contra un ítem de 1 envase marcaba la OC
+            // como sobre-recibida, y recibir 1 envase contra 10 sueltos la
+            // dejaba eternamente incompleta.
             const recibidoPorArticulo = new Map<string, number>();
             for (const it of items) {
-              const qty = it.articulo.requiereNumeroSerie ? it.series.length : it.cantidad;
+              const qty = it.articulo.requiereNumeroSerie ? it.series.length : unidadesBaseDeItem(it);
               recibidoPorArticulo.set(it.articulo.id, (recibidoPorArticulo.get(it.articulo.id) ?? 0) + qty);
             }
             let touched = false;
             const newItems = (ocDoc.items ?? []).map((oi: any) => {
               if (!oi.articuloId) return oi;
-              const restante = recibidoPorArticulo.get(oi.articuloId) ?? 0;
-              if (restante <= 0) return oi;
-              const pendiente = Math.max((oi.cantidad ?? 0) - (oi.cantidadRecibida ?? 0), 0);
-              const aplicar = Math.min(restante, pendiente);
-              if (aplicar <= 0) return oi;
-              recibidoPorArticulo.set(oi.articuloId, restante - aplicar);
+              const restanteBase = recibidoPorArticulo.get(oi.articuloId) ?? 0;
+              if (restanteBase <= 0) return oi;
+              const factor = oi.presentacion?.factor > 0 ? oi.presentacion.factor : 1;
+              // Pendiente del ítem, convertido a base para comparar.
+              const pendienteBase = Math.max(((oi.cantidad ?? 0) - (oi.cantidadRecibida ?? 0)) * factor, 0);
+              const aplicarBase = Math.min(restanteBase, pendienteBase);
+              if (aplicarBase <= 0) return oi;
+              recibidoPorArticulo.set(oi.articuloId, restanteBase - aplicarBase);
               touched = true;
-              return { ...oi, cantidadRecibida: (oi.cantidadRecibida ?? 0) + aplicar };
+              // `cantidadRecibida` se guarda en la MISMA unidad que `cantidad`
+              // del ítem (envases), para que la OC se lea coherente.
+              return { ...oi, cantidadRecibida: (oi.cantidadRecibida ?? 0) + aplicarBase / factor };
             });
             if (touched) {
               const completa = newItems.every((oi: any) => (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0));

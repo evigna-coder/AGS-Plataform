@@ -23,7 +23,8 @@ import {
   buildUnidadesFiltrosExport, CONDICION_UNIDAD_LABELS as CONDICION_LABELS,
   ESTADO_UNIDAD_LABELS as ESTADO_LABELS, UNIDADES_AGG_EXPORT_COLUMNS, UNIDADES_DETALLE_EXPORT_COLUMNS,
 } from '../../utils/exports/exportUnidades';
-import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Presentacion } from '@ags/shared';
+import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Presentacion, Articulo } from '@ags/shared';
+import { PresentacionSearchHint } from '../../components/stock/PresentacionSearchHint';
 
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 
@@ -70,12 +71,16 @@ export const UnidadesList = () => {
   }, []);
   // Presentaciones por artículo (para el badge en la lista). Solo se guardan los que las tienen.
   const [presentacionesByArticulo, setPresentacionesByArticulo] = useState<Map<string, Presentacion[]>>(new Map());
+  // Catálogo completo: además del badge, alimenta el aviso que traduce una
+  // búsqueda por N° de parte de envase (2026-08-13).
+  const [articulosCatalogo, setArticulosCatalogo] = useState<Articulo[]>([]);
   useEffect(() => {
     articulosService.getAll()
       .then(arts => {
         const m = new Map<string, Presentacion[]>();
         for (const a of arts) if ((a.presentaciones?.length ?? 0) > 0) m.set(a.id, a.presentaciones!);
         setPresentacionesByArticulo(m);
+        setArticulosCatalogo(arts);
       })
       .catch(err => console.error('Error cargando presentaciones:', err));
   }, []);
@@ -135,12 +140,19 @@ export const UnidadesList = () => {
     if (!filters.estado) list = list.filter(u => !UNIDAD_FUERA_DE_STOCK.includes(u.estado));
     if (filters.deposito) list = list.filter(u => u.ubicacion?.referenciaId === filters.deposito);
     if (debouncedSearch) {
+      // Matchea también los N° de parte de los envases del artículo
+      // (2026-08-13): buscar "5183-2067" tiene que traer el stock del base, no
+      // vacío — si no, el que no conoce el modelo cree que no hay nada.
       list = list.filter(u =>
-        matchesSearch(debouncedSearch, u.articuloCodigo, u.articuloDescripcion, u.nroSerie, u.nroLote, u.reservadoParaPresupuestoNumero, u.reservadoParaClienteNombre)
+        matchesSearch(
+          debouncedSearch, u.articuloCodigo, u.articuloDescripcion, u.nroSerie, u.nroLote,
+          u.reservadoParaPresupuestoNumero, u.reservadoParaClienteNombre,
+          ...(presentacionesByArticulo.get(u.articuloId) ?? []).map(p => p.codigoParte),
+        )
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [unidades, filters.estado, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir]);
+  }, [unidades, filters.estado, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir, presentacionesByArticulo]);
 
   const aggregated = useMemo((): AggRow[] => {
     const byArticulo = new Map<string, AggRow>();
@@ -233,6 +245,17 @@ export const UnidadesList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4 flex flex-col">
+        {/* Buscó por el N° de parte de un envase: traducirle a unidades base
+            para que no concluya que no hay stock (2026-08-13). */}
+        <PresentacionSearchHint
+          search={debouncedSearch}
+          articulos={articulosCatalogo}
+          stockBase={id => {
+            const rows = unidades.filter(u =>
+              u.articuloId === id && u.activo !== false && !UNIDAD_FUERA_DE_STOCK.includes(u.estado));
+            return rows.length === 0 ? 0 : rows.reduce((a, u) => a + (u.cantidad ?? 1), 0);
+          }}
+        />
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (

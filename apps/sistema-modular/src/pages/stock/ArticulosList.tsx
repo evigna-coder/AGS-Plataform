@@ -18,6 +18,7 @@ import { ArticulosListFilters } from './ArticulosListFilters';
 import { ArticulosListRow } from './ArticulosListRow';
 import { useEquivalenciaListExpansion } from './hooks/useEquivalenciaListExpansion';
 import { useDepositoFilter } from './hooks/useDepositoFilter';
+import { PresentacionSearchHint } from '../../components/stock/PresentacionSearchHint';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { ARTICULOS_EXPORT_COLUMNS, buildArticulosExportRows, buildArticulosFiltrosExport } from '../../utils/exports/exportArticulos';
@@ -198,6 +199,12 @@ export const ArticulosList = () => {
           depositos={depositos}
         />
       </PageHeader>
+
+      {/* Buscó por el N° de parte de un envase: aclararle que el stock se
+          cuenta en el artículo base (2026-08-13). */}
+      <div className="px-5">
+        <PresentacionSearchHint search={debouncedSearch} articulos={articulos} />
+      </div>
 
       {selectedIds.size > 0 && (
         <div className="mx-5 mb-2 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad } from '@ags/shared';
-import { MONEDA_SIMBOLO } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad, PresentacionUsada } from '@ags/shared';
+import { MONEDA_SIMBOLO, cantidadEnUnidadBase } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
@@ -28,8 +28,8 @@ interface Resultado {
   descripcion: string;
   precio: number;
   categoriaPresupuestoId?: string | null;
-  /** Otros N° de parte del mismo artículo (envases). Solo para buscar. */
-  presentaciones?: { codigoParte: string; factor: number }[] | null;
+  /** Otros N° de parte del mismo artículo (envases): buscar + cotizar por envase. */
+  presentaciones?: { codigoParte: string; factor: number; descripcion?: string | null; activo?: boolean }[] | null;
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
@@ -42,6 +42,10 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const [search, setSearch] = useState('');
   const [sel, setSel] = useState<Resultado | null>(null);
   const [cantidad, setCantidad] = useState(1);
+  // Envase cotizado (Fase 3 presentaciones, 2026-08-13): el precio de la línea
+  // es POR ENVASE; la reserva y el descuento van en unidades base.
+  const [presentaciones, setPresentaciones] = useState<{ codigoParte: string; factor: number; descripcion?: string | null; activo?: boolean }[]>([]);
+  const [presentacion, setPresentacion] = useState<PresentacionUsada | null>(null);
   const [precio, setPrecio] = useState<number | null>(null);
   const [descuento, setDescuento] = useState(0);
   const [factor, setFactor] = useState<number | null>(null);
@@ -94,11 +98,18 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const selectResultado = (r: Resultado) => {
     setSel(r);
     if (r.precio) setPrecio(r.precio);
+    // Envases del artículo (Fase 3, 2026-08-13): se cotiza por el N° de parte
+    // con el que se vende; el stock se compromete en el pool del base.
+    const activas = (r.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0);
+    setPresentaciones(activas);
+    const buscada = activas.find(p => p.codigoParte.toLowerCase().includes(term.toLowerCase()));
+    setPresentacion(term && buscada ? { codigoParte: buscada.codigoParte, factor: buscada.factor } : null);
     setStep('cantidad');
   };
   const selectLibre = () => {
     if (!search.trim()) return;
     setSel({ tipo: 'concepto', refId: '', codigo: null, descripcion: search.trim(), precio: 0 });
+    setPresentaciones([]); setPresentacion(null);
     setStep('cantidad');
   };
 
@@ -118,6 +129,8 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
       onAdd({ ...base, conceptoServicioId: sel.refId || null, itemRequiereImportacion: false });
     } else {
       // Artículo de stock: disponibilidad automática por ATP.
+      // Con presentación, la comparación es contra las unidades BASE que
+      // compromete la línea (Fase 3, 2026-08-13).
       let disponibilidad: Disponibilidad = 'post_facturacion';
       let etaDiasEstimados: number | null = null;
       try {
@@ -126,10 +139,12 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
         // a_importar con stock en mano (regresión del wizard; mismo bug que el
         // AddItemModal viejo, arreglado en v1.14.0 con este helper).
         const atp = atpFromStockAmplio(stock);
-        disponibilidad = atp > 0 ? 'stock' : 'a_importar';
-        etaDiasEstimados = atp > 0 ? 0 : 30;
+        // El ATP tiene que cubrir las unidades BASE de la línea, no los envases.
+        const necesarias = cantidadEnUnidadBase(cantidad || 1, presentacion);
+        disponibilidad = atp >= necesarias && atp > 0 ? 'stock' : 'a_importar';
+        etaDiasEstimados = disponibilidad === 'stock' ? 0 : 30;
       } catch { /* defaults */ }
-      onAdd({ ...base, stockArticuloId: sel.refId, disponibilidad, etaDiasEstimados });
+      onAdd({ ...base, stockArticuloId: sel.refId, disponibilidad, etaDiasEstimados, presentacion });
     }
     onClose();
   };
@@ -192,6 +207,34 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
             <input ref={inputRef} type="number" min={0} step="any" inputMode="decimal" className={ctrl} value={cantidad}
               onChange={e => setCantidad(Number(e.target.value.replace(',', '.')) || 0)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setStep('precio'); } if (e.key === 'Escape') onClose(); }} />
+            {/* Envase cotizado (Fase 3, 2026-08-13). El precio del paso siguiente
+                es POR ENVASE; el stock se compromete en unidades base. */}
+            {presentaciones.length > 0 && (
+              <div className="mt-3">
+                <label className={lbl}>Presentación (se cotiza por)</label>
+                <select
+                  className={ctrl}
+                  value={presentacion?.codigoParte ?? ''}
+                  onChange={e => {
+                    const p = presentaciones.find(x => x.codigoParte === e.target.value);
+                    setPresentacion(p ? { codigoParte: p.codigoParte, factor: p.factor } : null);
+                  }}
+                >
+                  <option value="">{sel?.codigo ?? 'Unidad base'} — unidad base (×1)</option>
+                  {presentaciones.map(p => (
+                    <option key={p.codigoParte} value={p.codigoParte}>
+                      {p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})
+                    </option>
+                  ))}
+                </select>
+                {presentacion && (
+                  <p className="text-[11px] text-teal-700 mt-1">
+                    Compromete <span className="font-semibold">{cantidadEnUnidadBase(cantidad || 1, presentacion)}</span>
+                    {' '}unidad(es) de <span className="font-mono">{sel?.codigo}</span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

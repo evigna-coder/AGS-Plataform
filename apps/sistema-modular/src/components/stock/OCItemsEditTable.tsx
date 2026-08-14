@@ -54,7 +54,16 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
               {items.map((item, idx) => (
                 <tr key={item.id}>
                   <td className="px-2 py-1 text-xs text-slate-400">{idx + 1}</td>
-                  <td className="px-2 py-1 text-xs font-mono text-slate-500">{item.articuloCodigo || '—'}</td>
+                  {/* Se compra por el N° de parte del envase; el stock entra al
+                      artículo base, que se muestra abajo (2026-08-13). */}
+                  <td className="px-2 py-1 text-xs font-mono text-slate-500">
+                    {item.presentacion?.codigoParte || item.articuloCodigo || '—'}
+                    {item.presentacion && (
+                      <span className="block text-[9px] text-teal-700 font-sans" title="Envase de compra — el stock entra al artículo base">
+                        ×{item.presentacion.factor} → {item.articuloCodigo}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-2 py-1">
                     <input value={item.descripcion} onChange={e => onUpdate(item.id, 'descripcion', e.target.value)}
                       className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="Descripcion del item" />

@@ -1221,6 +1221,14 @@ export interface PresupuestoItem {
   factor?: number | null;
   /** FK opcional a artículos de stock (integración futura) */
   stockArticuloId?: string | null;
+  /**
+   * Envase que se le cotiza al cliente (Fase 3 presentaciones, 2026-08-13).
+   * `stockArticuloId` sigue siendo el artículo BASE —donde vive el stock— y acá
+   * va el N° de parte con el que se vende, con su factor congelado: el precio
+   * de la línea es POR ENVASE, y la reserva y el descuento de stock son
+   * `cantidad × factor` unidades base. Ausente = se cotiza por la unidad base.
+   */
+  presentacion?: PresentacionUsada | null;
   /** FK opcional al catálogo de conceptos de servicio */
   conceptoServicioId?: string | null;
   // --- Vinculación a equipo/módulo (para presupuestos de contrato) ---
@@ -1448,6 +1456,14 @@ export interface ItemOC {
   porcentajeIva?: number | null;
   requerimientoId?: string | null;
   notas?: string | null;
+  /**
+   * Envase que se le compra al proveedor (Fase 2 presentaciones, 2026-08-13).
+   * `articuloId` sigue siendo el artículo BASE —donde vive el stock— y acá va el
+   * N° de parte que el proveedor reconoce, con su factor congelado. El PDF de la
+   * OC imprime este código; el ingreso suma `cantidad × factor` al pool base.
+   * Ausente = se compra por la unidad base.
+   */
+  presentacion?: PresentacionUsada | null;
 }
 
 export interface OrdenCompra {
@@ -3350,6 +3366,39 @@ export interface Presentacion {
   activo?: boolean;
 }
 
+/**
+ * Presentación CONGELADA en un documento (ítem de OC, movimiento de stock) —
+ * Fase 2, 2026-08-13. Se guarda el código y el factor usados en el momento de
+ * la transacción, no una referencia al catálogo: si mañana alguien corrige el
+ * factor de la presentación, una OC vieja no puede cambiar de significado ni
+ * un ingreso pasado recalcularse distinto. Mismo criterio que el snapshot del
+ * transportista en los remitos.
+ *
+ * Ausente = se transaccionó por la unidad base (factor 1 implícito).
+ */
+export interface PresentacionUsada {
+  codigoParte: string;
+  /** Unidades base por 1 de esta presentación, al momento de la transacción. */
+  factor: number;
+}
+
+/**
+ * Unidades BASE que representa una cantidad expresada en una presentación.
+ * Sin presentación (o con factor inválido) la cantidad ya está en unidad base.
+ *
+ * Es el único lugar donde se hace esta multiplicación: comprar "1 × 5183-2067"
+ * cuando esa presentación vale 10 tiene que ingresar 10 al pool, y esa cuenta
+ * no puede quedar repetida a mano en cada pantalla.
+ */
+export function cantidadEnUnidadBase(
+  cantidad: number,
+  presentacion?: PresentacionUsada | null,
+): number {
+  const factor = presentacion?.factor;
+  if (!factor || !Number.isFinite(factor) || factor <= 0) return cantidad;
+  return cantidad * factor;
+}
+
 export interface ArticuloEquivalencia {
   /** FK → articulos (del lado de uso) */
   articuloIdDestino: string;
@@ -3776,6 +3825,13 @@ export interface MovimientoStock {
    * Solo los movimientos NUEVOS (y los que entren por migración) los traen; los
    * históricos previos a esta denormalización quedan sin serie/lote (se ven como "—").
    */
+  /**
+   * Envase por el que se transaccionó, con su factor (Fase 2 presentaciones,
+   * 2026-08-13). `cantidad` SIEMPRE va en unidad base; esto deja el rastro de
+   * cómo se llegó a ese número ("1 × 5183-2067 ×10 = 10"), que es lo primero
+   * que se necesita el día que un stock no cierre.
+   */
+  presentacion?: PresentacionUsada | null;
   nroSerie?: string | null;
   nroLote?: string | null;
   motivo?: string | null;
@@ -3863,7 +3919,19 @@ export interface RemitoItem {
   articuloId?: string;
   articuloCodigo?: string;
   articuloDescripcion?: string;
+  /** SIEMPRE en unidad base — es lo que se descuenta del stock. Lo que se
+   *  IMPRIME puede ser otro número: ver `presentacion`. */
   cantidad: number;
+  /**
+   * Envase con el que se le entrega al cliente (Fase 3 presentaciones,
+   * 2026-08-14). El cliente compra por el N° de parte del envase —"5183-2067"—
+   * y el papel tiene que declarar ESE código y la cantidad en envases, aunque
+   * el stock se mueva en unidades base del artículo 5182-0715.
+   *
+   * `cantidad` sigue en unidad base (10) y acá va el factor congelado (×10):
+   * el remito imprime "5183-2067 · 1". Ausente = se entrega por la unidad base.
+   */
+  presentacion?: PresentacionUsada | null;
   tipoItem: TipoRemitoItem;
   devuelto: boolean;
   fechaDevolucion?: string | null;

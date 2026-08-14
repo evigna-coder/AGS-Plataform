@@ -46,8 +46,25 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
                   <tr key={item.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-xs text-slate-400">{idx + 1}</td>
                     <td className="px-3 py-2 text-xs text-slate-700">{item.descripcion}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500 font-mono">{item.articuloCodigo || '-'}</td>
-                    <td className="px-3 py-2 text-xs text-slate-700 text-center tabular-nums">{item.cantidad}</td>
+                    {/* Se compra por el N° de parte del envase; el stock entra
+                        al artículo base (Fase 2 presentaciones, 2026-08-13). */}
+                    <td className="px-3 py-2 text-xs text-slate-500 font-mono">
+                      {item.presentacion?.codigoParte || item.articuloCodigo || '-'}
+                      {item.presentacion && (
+                        <span className="block text-[9px] text-teal-700 font-sans"
+                          title="Envase de compra — el stock entra al artículo base">
+                          ×{item.presentacion.factor} → {item.articuloCodigo}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-700 text-center tabular-nums">
+                      {item.cantidad}
+                      {item.presentacion && (
+                        <span className="block text-[9px] text-slate-400">
+                          = {item.cantidad * item.presentacion.factor} u.
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-center tabular-nums">
                       <span className={`text-xs ${isComplete ? 'text-green-600 font-medium' : isPartial ? 'text-amber-600' : 'text-slate-500'}`}>
                         {item.cantidadRecibida}

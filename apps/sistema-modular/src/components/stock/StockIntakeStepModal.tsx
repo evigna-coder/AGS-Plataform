@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
-import type { CondicionUnidad } from '@ags/shared';
+import type { CondicionUnidad, Presentacion, PresentacionUsada } from '@ags/shared';
+import { cantidadEnUnidadBase } from '@ags/shared';
 import type { UbicOption } from '../../hooks/useStockIntake';
 import { matchesSearch } from '../../utils/searchTerms';
 
@@ -10,9 +11,16 @@ const CONDICION_LABELS: Record<CondicionUnidad, string> = {
 };
 
 interface Draft {
-  articulo: { codigo: string; descripcion: string };
+  articulo: {
+    codigo: string;
+    descripcion: string;
+    requiereNumeroSerie?: boolean;
+    presentaciones?: Presentacion[] | null;
+  };
   step: string;
   cantidad: number;
+  /** Envase recibido; null = unidad base (Fase 2 presentaciones, 2026-08-13). */
+  presentacion: PresentacionUsada | null;
   condicion: CondicionUnidad;
   series: string[];
   serieInput: string;
@@ -74,14 +82,51 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
           <span className="text-[10px] text-slate-300 font-mono">{draft.step === 'serie' ? `serie ${draft.series.length + 1} de ${draft.cantidad}` : `paso ${stepNum}`}</span>
         </div>
 
-        {draft.step === 'cantidad' && (
-          <div>
-            <label className={lbl}>Cantidad</label>
-            <input ref={inputRef as any} type="number" min={1} className={ctrl} value={draft.cantidad}
-              onFocus={e => e.currentTarget.select()}
-              onChange={e => onPatch({ cantidad: Number(e.target.value) || 0 })} onKeyDown={onKey} />
-          </div>
-        )}
+        {draft.step === 'cantidad' && (() => {
+          // Envase recibido (Fase 2 presentaciones, 2026-08-13): al pool entran
+          // SIEMPRE unidades base, así que recibir 1 envase de 10 da de alta 10.
+          // Con N° de serie no se ofrece: cada serie es una unidad física.
+          const presentaciones = (draft.articulo.presentaciones ?? [])
+            .filter(p => p.activo !== false && p.factor > 0);
+          const mostrarEnvases = presentaciones.length > 0 && !draft.articulo.requiereNumeroSerie;
+          const base = cantidadEnUnidadBase(draft.cantidad, draft.presentacion);
+          return (
+            <div className="space-y-3">
+              {mostrarEnvases && (
+                <div>
+                  <label className={lbl}>Envase recibido</label>
+                  <select
+                    className={ctrl}
+                    value={draft.presentacion?.codigoParte ?? ''}
+                    onChange={e => {
+                      const p = presentaciones.find(x => x.codigoParte === e.target.value);
+                      onPatch({ presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null });
+                    }}
+                  >
+                    <option value="">{draft.articulo.codigo} — unidad base (×1)</option>
+                    {presentaciones.map(p => (
+                      <option key={p.codigoParte} value={p.codigoParte}>
+                        {p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className={lbl}>Cantidad {draft.presentacion ? '(envases)' : ''}</label>
+                <input ref={inputRef as any} type="number" min={0} step="any" inputMode="decimal" className={ctrl} value={draft.cantidad}
+                  onFocus={e => e.currentTarget.select()}
+                  onChange={e => onPatch({ cantidad: Number(e.target.value.replace(',', '.')) || 0 })} onKeyDown={onKey} />
+                {draft.presentacion && (
+                  <p className="text-[11px] text-teal-700 mt-1">
+                    Entran <span className="font-semibold">{base}</span> unidad(es) al stock de{' '}
+                    <span className="font-mono">{draft.articulo.codigo}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {draft.step === 'condicion' && (
           <div>
