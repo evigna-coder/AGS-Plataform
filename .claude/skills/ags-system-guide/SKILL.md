@@ -14,7 +14,7 @@ description: >
 
 # AGS Plataform — System Guide
 
-> **Last verified against codebase:** 2026-06-23 (commit `d678c8e`).
+> **Last verified against codebase:** 2026-08-15 (commit `f5a865a`, release v1.61.0).
 > **Skill type:** domain knowledge (per `[ketzal88/claude-code-framework]`: *"domain knowledge that activates contextually"*).
 > **Scope:** stable architecture + module map + entity catalog. Volatile module status lives in `memory/`; canonical invariants live in `[.claude/rules/]`.
 
@@ -150,9 +150,9 @@ Para definiciones de tipos completas (campos, enums, labels, helpers), leer `ref
 | `Cliente` | CUIT o `LEGACY-{uuid}` | `clientes` | `condicionIva`, `requiereTrazabilidad`, contactos[] |
 | `Establecimiento` | auto | `establecimientos` | `clienteCuit`, `direccion`, `lat`/`lng` |
 | `Sistema` | auto | `sistemas` | `agsVisibleId` (para QR), `categoriaId`, `configuracionGC` si gaseoso |
-| `WorkOrder` | `otNumber` (5 dígitos + opc `.NN`) | `workorders` | `status` técnico (`BORRADOR`/`FINALIZADO`) + `estadoAdmin` (`OTEstadoAdmin`, 7 estados) + `cierreAdmin`, `tipoOT`, `articulos`, signatures |
+| `WorkOrder` | `otNumber` (5 dígitos + opc `.NN`) | **`reportes`** | `status` técnico (`BORRADOR`/`FINALIZADO`) + `estadoAdmin` (`OTEstadoAdmin`, 7 estados) + `cierreAdmin`, `tipoOT`, `articulos`, signatures |
 | `Lead` (Ticket) | auto | `leads` | `area`, `prioridad`, `estado`, `motivoLlamado`, `source` (qr/portal/manual) |
-| `Presupuesto` | `PRE-XXXX` | `presupuestos` | `tipo`, `moneda` (incl MIXTA para contrato), `items[]`, `cantidadCuotasPorMoneda` |
+| `Presupuesto` | `{CATEGORIA}-{6 dígitos}-{revisión}` p.ej. `P1-005101-01` (`formatPresupuestoNumero`) | `presupuestos` | `estado`: `borrador→enviado→pendiente_oc/aceptado→en_ejecucion→pendiente_facturacion→finalizado`. **`pendiente_oc` ES un aceptado** (`presupuestoEstaAceptado`). `tipo`, `moneda` (incl MIXTA), `items[]`, `presentacion` por ítem |
 | `Contrato` | auto | `contratos` | servicios por sistema, fechas inicio/fin |
 | `TableCatalogEntry` | auto | `tableCatalog` | `tableType`, `columns[]`, `validationRules[]`, `status` (`published`/`draft`) |
 | `TipoEquipoPlantilla` | auto | `tiposEquipoPlantillas` | `componentes[]` (S/L), `servicios[]` (precio default) |
@@ -203,12 +203,81 @@ Las tablas dinámicas (protocolos, checklists, instrumentos referenciados) viven
 | `checklist` | Items Yes/No/NA con anidamiento (depth 0-3) |
 | `text` | Texto libre (RichTextEditor) |
 | `signatures` | Placeholders de firmas |
+| `cover` | Carátula del protocolo (con `coverExtraFields[]`) |
 
 **Column types**: `text_input`, `number_input`, `checkbox`, `fixed_text`, `date_input`, `pass_fail`, `select_input`.
 
 **Validation rules**: auto-cálculo PASS/FAIL via `vs_spec`, operadores NMT/NLT, rangos numéricos.
 
-Solo `status: 'published'` se sirve a técnicos. Admins gestionan en `/table-catalog` (sistema-modular).
+Solo `status: 'published'` se sirve a técnicos (`draft` / `published` / `archived`).
+Admins gestionan en **`/table-catalog`** — ojo, la carpeta del código es
+`pages/protocol-catalog/` y los componentes se llaman `TableCatalog*`: **cuatro
+nombres para la misma cosa** (ruta, carpeta, componente, colección). Al buscar,
+probá los cuatro.
+
+**Agrupación**: las tablas se agrupan en `TableProject` (proyectos) y se filtran
+por `sysType` + `modelos[]`. En campo, `TableSelectorPanel` muestra las de ese
+`sysType` y descarta las que declaran `modelos` que no matchean el equipo.
+
+**Lo que NO tiene** (verificado 2026-08-15, importa antes de prometer algo):
+sin versionado ni historial al publicar, sin "dónde se usa esta tabla", sin
+tests, y `validateForPublish` solo chequea nombre / sysType / columnas no vacías
+/ reglas completas — no valida que las filas plantilla cubran las columnas ni
+que las condiciones de visibilidad apunten a columnas existentes.
+
+---
+
+## Qué cambió desde la última verificación (2026-06-23 → 2026-08-15)
+
+Ocho semanas, de v1.2x a **v1.61.0**. Lo que cambia respuestas:
+
+- **Presentaciones de compra/venta** (fases 1–3). Un artículo base tiene
+  `presentaciones[]` (`{codigoParte, factor}`); OC, ingreso, ítem de presupuesto,
+  movimiento y **ítem de remito** guardan `PresentacionUsada` con el factor
+  CONGELADO. Toda multiplicación pasa por `cantidadEnUnidadBase`. El stock vive
+  SIEMPRE en el artículo base. Reemplaza al modelo viejo de *equivalencias*, que
+  sigue existiendo pero está de salida.
+- **Remitos**: numeración doble (`REM-` interno vs talonario preimpreso), impresión
+  por overlay calibrado (`RemitoOverlayPDF`), remito de servicio desde la OT.
+- **Control semanal** (`/control-semanal`): 3 secciones — agenda vs cierres,
+  presupuestos, cruce con facturación. La de presupuestos se divide en *de la
+  semana* vs *arrastre* (2026-08-15).
+- **Agenda**: segunda vista **almanaque** (semana × ingeniero) además de la grilla
+  de cuartos. Filtros y vista en la URL vía `useUrlFilters`.
+- **Navegación**: `useNavigateBack` prioriza dónde estabas (state.from → history →
+  padre declarado → raíz). `navigateInActiveTab` estampa el origen solo.
+- **OT**: hoja imprimible desde el listado y el editor (`OTPrintablePDF`), distinta
+  del informe técnico de `reportes-ot`. Regla reafirmada: **la OT padre es solo
+  agrupador visual**, el trabajo vive en las hijas `.NN`.
+- **Portal**: el comentario de facturación de la OT ahora lo ve el ingeniero.
+- **Facturación**: `pendiente_oc` cuenta como aceptado en todos los gates.
+
+---
+
+## Salud del código (medido 2026-08-15)
+
+Números, no impresiones. Sirven para calibrar cuánto pesa una propuesta de refactor.
+
+| | sistema-modular | portal-ingeniero | reportes-ot |
+|---|---|---|---|
+| Archivos `.ts`/`.tsx` | 852 | 131 | 121 |
+| Líneas | 143.274 | 16.600 | 27.671 |
+| `.tsx` > 250 líneas (viola la regla) | **84** | 8 | 18 |
+| `console.log` en runtime | 184 | 0 | 90 |
+| `any` explícitos | 498 | 10 | 78 |
+
+Los tres peores archivos por app: `AgendaPage.tsx` (1327), `PresupuestosList.tsx`
+(884) · `CrearLeadModal.tsx` (552), `LeadsPage.tsx` (550) ·
+**`CatalogTableView.tsx` (2617)**, `ProtocolTable.tsx` (1171).
+
+**Código muerto confirmado en sistema-modular** (ni import estático ni dinámico):
+`PresupuestoSidebar.tsx` (269), `usePendientes.ts`, `useStock.ts`, `useLoaners.ts`,
+`useFichas.ts`, `useRemitos.ts`, `useRequerimientos.ts`, `useGenerarRequerimientos.ts`,
+`cuotasFacturacionTemplates.ts`, `desarraigo.ts`, `jornadasViajeService.ts`,
+`patronesAutoRequerimiento.ts`, `StockAmplioIndicator.tsx`, `Toast.tsx`,
+`TokenAutoRefresher.tsx`, `FichaAccesoriosSection.tsx`, `AgendaEntryChip.tsx`,
+`useProtocolCatalog.ts`. **Antes de "arreglar" alguno de estos, verificá que se
+use**: varios son hooks viejos que quedaron cuando la lógica se movió a la página.
 
 ---
 
