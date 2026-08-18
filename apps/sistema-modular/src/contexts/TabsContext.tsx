@@ -193,6 +193,11 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // vía parent declarado (path pelado, ej. '/clientes') pisa los filtros que
   // useUrlFilters había persistido en la query string de esa lista.
   const tabSearches = useRef(new Map<string, Map<string, string>>());
+  // Por tab: la ubicación actual COMPLETA (pathname + search). Es lo que se
+  // estampa como `from` al navegar desde acá — un ref y no el estado `tabs`
+  // para que `navigateInActiveTab` lea el valor fresco sin recrearse en cada
+  // cambio de ruta.
+  const tabPathsRef = useRef(new Map<string, string>());
 
   const registerTabNavigate = useCallback((tabId: string, navigate: NavigateFunction | null) => {
     if (navigate) {
@@ -231,6 +236,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!byPath) { byPath = new Map(); tabSearches.current.set(tabId, byPath); }
     byPath.set(pathname, search);
     const fullPath = pathname + search;
+    tabPathsRef.current.set(tabId, fullPath);
     setTabs(prev => {
       const tab = prev.find(t => t.id === tabId);
       if (!tab) return prev;
@@ -250,9 +256,26 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const activeTab = tabs.find(t => t.id === activeTabId);
   const activeTabPath = activeTab?.path || '/clientes';
 
+  /**
+   * Navega dentro de la pestaña activa estampando de dónde se sale
+   * (2026-08-14).
+   *
+   * El `from` se inyecta acá y no en cada call site: hay una decena repartidos
+   * —agenda, control semanal, KPIs, OTs vinculadas a un presupuesto— y ninguno
+   * lo pasaba, así que `useNavigateBack` caía al padre estático del destino y
+   * te dejaba en el listado de OT en vez de devolverte a la agenda. Como sale
+   * de `tabPaths`, incluye la query string: los filtros vuelven con vos.
+   *
+   * Un `state.from` explícito del caller gana: sabe algo que el contexto no.
+   */
   const navigateInActiveTab = useCallback((to: string | number, options?: { replace?: boolean; state?: any }) => {
     const nav = tabNavigators.current.get(activeTabId);
-    if (nav) nav(to as any, options);
+    if (!nav) return;
+    if (typeof to === 'number' || options?.state?.from) { nav(to as any, options); return; }
+    const desde = tabPathsRef.current.get(activeTabId);
+    nav(to as any, desde
+      ? { ...options, state: { ...(options?.state ?? {}), from: desde } }
+      : options);
   }, [activeTabId]);
 
   const goBackInActiveTab = useCallback(() => {
@@ -286,6 +309,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     tabGoBackers.current.delete(closingId);
     tabParents.current.delete(closingId);
     tabSearches.current.delete(closingId);
+    tabPathsRef.current.delete(closingId);
   }, [activeTabId]);
 
   const switchTab = useCallback((id: string) => {

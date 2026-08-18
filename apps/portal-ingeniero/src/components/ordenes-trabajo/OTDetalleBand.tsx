@@ -73,7 +73,10 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
     <div className="shrink-0 bg-gradient-to-br from-teal-700 to-teal-900 text-white px-4 pt-1.5 pb-2.5 sm:px-5">
       <div className="max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-5">
-          <button onClick={onBack} className={NAV_LINK_CLS}>← Mis OT</button>
+          {/* "Volver" y no "Mis OT" (2026-08-14): el boton hace history back,
+              asi que si entraste desde la agenda te devuelve a la agenda — el
+              cartel prometia otra cosa. */}
+          <button onClick={onBack} className={NAV_LINK_CLS}>← Volver</button>
           <Link to="/agenda" className={NAV_LINK_CLS}>Agenda</Link>
         </div>
 
