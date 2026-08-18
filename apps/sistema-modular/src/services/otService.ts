@@ -50,7 +50,6 @@ function buildAvisoFacturacionBody(
 export const ordenesTrabajoService = {
   // Generar siguiente número de OT con transacción atómica (counter doc pattern)
   async getNextOtNumber(): Promise<string> {
-    console.log('🔢 Generando siguiente número de OT (transacción)...');
     const counterRef = doc(db, '_counters', 'otNumber');
 
     const nextOt = await runTransaction(db, async (transaction) => {
@@ -81,13 +80,11 @@ export const ordenesTrabajoService = {
       return String(next).padStart(5, '0');
     });
 
-    console.log(`✅ Siguiente OT: ${nextOt}`);
     return nextOt;
   },
 
   // Generar siguiente número de item con transacción atómica
   async getNextItemNumber(otPadre: string): Promise<string> {
-    console.log(`🔢 Generando siguiente item para OT ${otPadre} (transacción)...`);
     const counterRef = doc(db, '_counters', `otItem_${otPadre}`);
 
     const nextItemNumber = await runTransaction(db, async (transaction) => {
@@ -118,7 +115,6 @@ export const ordenesTrabajoService = {
       return `${otPadre}.${String(next).padStart(2, '0')}`;
     });
 
-    console.log(`✅ Siguiente item: ${nextItemNumber}`);
     return nextItemNumber;
   },
 
@@ -160,7 +156,6 @@ export const ordenesTrabajoService = {
 
   // Obtener todas las OTs (con filtros opcionales)
   async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
-    console.log('📥 Cargando órdenes de trabajo desde Firestore...');
     let q = query(collection(db, 'reportes'));
 
     // Aplicar filtros si existen
@@ -192,7 +187,6 @@ export const ordenesTrabajoService = {
       return itemB - itemA;
     });
 
-    console.log(`✅ ${ordenes.length} órdenes de trabajo cargadas`);
     return ordenes;
   },
 
@@ -708,7 +702,6 @@ export const ordenesTrabajoService = {
   // unidad de trabajo real. Esto previene la UX inconsistente de OTs
   // parent-only que confunden agenda/cierre técnico/admin.
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
-    console.log('📝 Creando orden de trabajo:', otData.otNumber);
 
     const isParent = !otData.otNumber.includes('.');
     const otDocRef = doc(db, 'reportes', otData.otNumber);
@@ -734,7 +727,6 @@ export const ordenesTrabajoService = {
     batch.set(otDocRef, cleanedData);
     batchAudit(batch, { action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData });
     await batch.commit();
-    console.log('✅ Orden de trabajo creada exitosamente');
 
     // Si es parent: auto-crear primer item child .01 con copia de los datos.
     // El child ES la work unit (lo que aparece en list/agenda por filter rule
@@ -773,7 +765,7 @@ export const ordenesTrabajoService = {
         // Recursive call — el child entra con dot, no se re-auto-creará.
         await this.create(childData as any);
         hijaAutoCreada = childNumber;
-        console.log(`✅ Auto-creado item .01 del parent ${otData.otNumber}: ${childNumber}`);
+        console.log(`[otService.create] auto-creado item .01 del parent ${otData.otNumber}: ${childNumber}`);
       } catch (err) {
         console.error('[otService] Auto-create .01 failed (parent queda sin child):', err);
       }

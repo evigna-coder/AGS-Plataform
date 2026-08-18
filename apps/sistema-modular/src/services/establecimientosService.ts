@@ -37,7 +37,6 @@ export const contactosEstablecimientoService = {
 // Servicio para Establecimientos (colección global; clienteCuit = id del cliente)
 export const establecimientosService = {
   async create(clienteCuit: string, data: Omit<Establecimiento, 'id' | 'clienteCuit' | 'createdAt' | 'updatedAt'>) {
-    console.log('📝 Creando establecimiento:', data.nombre, 'para cliente', clienteCuit);
     const payload = cleanFirestoreData({
       clienteCuit,
       ...data,

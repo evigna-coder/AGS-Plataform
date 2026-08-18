@@ -292,7 +292,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     if (form.clienteId) {
       const filtrados = establecimientos.filter(e => establecimientoPerteneceACliente(e, form.clienteId));
       setEstablecimientosFiltrados(filtrados);
-      contactosService.getByCliente(form.clienteId).then(c => { console.log('[OT] contactos cargados:', c.length); setContactos(c); }).catch(err => { console.error('[OT] Error contactos:', err); setContactos([]); });
+      contactosService.getByCliente(form.clienteId).then(c => { setContactos(c); }).catch(err => { console.error('[OT] Error contactos:', err); setContactos([]); });
       presupuestosService.getAll({ clienteId: form.clienteId }).then(pres => {
         setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado'));
       }).catch(() => setPresupuestosCliente([]));

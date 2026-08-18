@@ -12,7 +12,6 @@ export const tiposServicioService = {
     const cached = getCached<TipoServicio[]>(cacheKey);
     if (cached) return cached;
 
-    console.log('📥 Cargando tipos de servicio...');
     const querySnapshot = await getDocs(collection(db, 'tipos_servicio'));
     const tipos = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -22,7 +21,6 @@ export const tiposServicioService = {
     })) as TipoServicio[];
 
     tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    console.log(`✅ ${tipos.length} tipos de servicio cargados`);
     setCache(cacheKey, tipos);
     return tipos;
   },

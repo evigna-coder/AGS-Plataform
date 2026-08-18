@@ -30,11 +30,10 @@ export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnl
 
   // Cargar contactos del cliente cuando se abre el modal (para sugerir/autocompletar).
   useEffect(() => {
-    console.log('[ContactosTicketSection] modal abierto:', showModal, '| clienteId:', clienteId);
     if (!showModal || !clienteId) { setClienteContactos([]); return; }
     let active = true;
     contactosService.getByCliente(clienteId)
-      .then(list => { if (active) { console.log('[ContactosTicketSection] contactos del cliente:', list.length, list); setClienteContactos(list); } })
+      .then(list => { if (active) { setClienteContactos(list); } })
       .catch(err => { console.error('[ContactosTicketSection] error:', err); if (active) setClienteContactos([]); });
     return () => { active = false; };
   }, [showModal, clienteId]);

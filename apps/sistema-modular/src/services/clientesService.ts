@@ -8,7 +8,6 @@ import { getCached, setCache, invalidateCache } from './serviceCache';
 export const clientesService = {
   // Crear cliente. Si data.cuit existe se usa como id (normalizado); si no, id = LEGACY-{uuid}, cuit = null.
   async create(clienteData: Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'>) {
-    console.log('📝 Creando cliente:', clienteData.razonSocial);
     const rawCuit = clienteData.cuit ?? '';
     const normalized = normalizeCuit(rawCuit);
     const id = normalized
@@ -93,7 +92,6 @@ export const clientesService = {
 
   // Buscar clientes (por razón social o CUIT)
   async search(term: string) {
-    console.log('🔍 Buscando clientes con término:', term);
     const allClientes = await this.getAll(false);
     const termLower = term.toLowerCase();
     return allClientes.filter(c =>
@@ -202,12 +200,10 @@ export const clientesService = {
 export const contactosService = {
   // Crear contacto
   async create(clienteId: string, contactoData: Omit<ContactoCliente, 'id'>) {
-    console.log('📝 Creando contacto para cliente:', clienteId);
     const docRef = await addDoc(collection(db, 'clientes', clienteId, 'contactos'), {
       ...contactoData,
       esPrincipal: contactoData.esPrincipal || false,
     });
-    console.log('✅ Contacto creado exitosamente con ID:', docRef.id);
     return docRef.id;
   },
 
@@ -216,14 +212,12 @@ export const contactosService = {
   // en los establecimientos del cliente (establecimientos/{estId}/contactos).
   // Devuelve la unión de ambos sin duplicados.
   async getByCliente(clienteId: string) {
-    console.log('[contactos] getByCliente:', clienteId);
     // 1. Legacy: clientes/{id}/contactos
     const legacySnap = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
     const legacy = legacySnap.docs.map(d => ({
       id: d.id,
       ...d.data(),
     })) as ContactoCliente[];
-    console.log('[contactos] legacy:', legacy.length);
 
     // 2. Establecimientos del cliente → sus contactos
     // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
@@ -237,11 +231,9 @@ export const contactosService = {
       estIds.add(d.id);
       return true;
     });
-    console.log('[contactos] establecimientos encontrados:', estDocs.length, estDocs.map(d => ({ id: d.id, nombre: d.data().nombre, clienteCuit: d.data().clienteCuit, clienteId: d.data().clienteId })));
     const estContactos: ContactoCliente[] = [];
     for (const estDoc of estDocs) {
       const ctSnap = await getDocs(collection(db, 'establecimientos', estDoc.id, 'contactos'));
-      console.log(`[contactos] establecimiento ${estDoc.id} (${estDoc.data().nombre}) → ${ctSnap.size} contactos`);
       ctSnap.docs.forEach(d => {
         const data = d.data();
         estContactos.push({

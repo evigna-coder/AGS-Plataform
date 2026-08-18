@@ -9,7 +9,6 @@ import { getCached, setCache, invalidateCache } from './serviceCache';
 export const categoriasEquipoService = {
   // Crear categoria
   async create(categoriaData: Omit<CategoriaEquipo, 'id'>) {
-    console.log('Creando categoria:', categoriaData.nombre);
     const payload = {
       ...categoriaData,
       ...getCreateTrace(),
@@ -21,7 +20,6 @@ export const categoriasEquipoService = {
     batchAudit(batch, { action: 'create', collection: 'categorias_equipo', documentId: ref.id, after: payload });
     await batch.commit();
     invalidateCache("categorias_equipo");
-    console.log('Categoria creada exitosamente con ID:', ref.id);
     return ref.id;
   },
 
@@ -106,7 +104,6 @@ export const categoriasEquipoService = {
 export const categoriasModuloService = {
   // Crear categoria de modulo
   async create(categoriaData: Omit<CategoriaModulo, 'id'>) {
-    console.log('Creando categoria de modulo:', categoriaData.nombre);
     const payload = {
       ...categoriaData,
       ...getCreateTrace(),
@@ -123,7 +120,6 @@ export const categoriasModuloService = {
 
   // Obtener todas las categorias de modulos
   async getAll() {
-    console.log('Cargando categorias de modulos desde Firestore...');
     const q = query(collection(db, 'categorias_modulo'));
     const querySnapshot = await getDocs(q);
     const categorias = querySnapshot.docs.map(doc => ({
@@ -139,7 +135,6 @@ export const categoriasModuloService = {
     // Ordenar en memoria
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    console.log(`${categorias.length} categorias de modulos cargadas`);
     return categorias;
   },
 
@@ -204,7 +199,6 @@ export const sistemasService = {
     if (!sistemaData.establecimientoId) {
       throw new Error('sistemasService.create: establecimientoId es requerido');
     }
-    console.log('Creando sistema:', sistemaData.nombre);
     // deepCleanForFirestore strippea undefined (ej. `software` vacío llega como
     // undefined desde el modal) preservando los Timestamp. Mismo patrón que el
     // create de módulo. Firestore rechaza undefined en WriteBatch.set().
@@ -347,7 +341,6 @@ export const sistemasService = {
    * apuntando a un sistema borrado y los reportes técnicos se rompían.
    */
   async delete(id: string) {
-    console.log('Eliminando sistema:', id);
 
     // Pre-validación de referencias activas
     const [otsSnap, ppsSnap] = await Promise.all([
@@ -371,7 +364,6 @@ export const sistemasService = {
       const modulosSnapshot = await getDocs(collection(db, 'sistemas', id, 'modulos'));
       const deletePromises = modulosSnapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(deletePromises);
-      console.log(`${modulosSnapshot.docs.length} modulos eliminados`);
     } catch (error) {
       console.error('Error eliminando modulos:', error);
       // Continuar con la eliminacion del sistema aunque falle la eliminacion de modulos
@@ -382,7 +374,6 @@ export const sistemasService = {
     batch.delete(docRef('sistemas', id));
     batchAudit(batch, { action: 'delete', collection: 'sistemas', documentId: id });
     await batch.commit();
-    console.log('Sistema eliminado exitosamente');
   },
 
   /**
@@ -679,7 +670,6 @@ export const sistemasService = {
 export const modulosService = {
   // Crear modulo (subcollection — uses addDoc directly)
   async create(sistemaId: string, moduloData: Omit<ModuloSistema, 'id' | 'sistemaId'>) {
-    console.log('Creando modulo para sistema:', sistemaId);
 
     const cleanedData = deepCleanForFirestore({
       ...moduloData,
@@ -689,7 +679,6 @@ export const modulosService = {
     });
 
     const ref = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), cleanedData);
-    console.log('Modulo creado exitosamente con ID:', ref.id);
     return ref.id;
   },
 
@@ -755,7 +744,6 @@ export const modulosService = {
 
   // Mover modulo a otro sistema
   async move(sourceSistemaId: string, moduloId: string, targetSistemaId: string) {
-    console.log(`Moviendo modulo ${moduloId} de ${sourceSistemaId} a ${targetSistemaId}`);
     const modulo = await this.getById(sourceSistemaId, moduloId);
     if (!modulo) throw new Error('Modulo no encontrado');
     const { id: _id, sistemaId: _sid, ...data } = modulo;
@@ -764,7 +752,6 @@ export const modulosService = {
     const batch = createBatch();
     batchAudit(batch, { action: 'update', collection: 'modulos', documentId: moduloId, after: { movedFrom: sourceSistemaId, movedTo: targetSistemaId, newId } });
     await batch.commit();
-    console.log(`Modulo movido exitosamente. Nuevo ID: ${newId}`);
     return newId;
   },
 

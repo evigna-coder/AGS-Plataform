@@ -10,8 +10,6 @@ import './index.css';
 // por IPC. Si el main no inicializó Sentry (DSN vacío), esto queda no-op.
 Sentry.init({});
 
-console.log('[ENV CHECK]', import.meta.env.MODE, import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
-
 // Registrar Service Worker para notificaciones push
 initNotifications();
 

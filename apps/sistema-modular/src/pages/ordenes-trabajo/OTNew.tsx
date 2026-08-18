@@ -144,7 +144,6 @@ export const OTNew = () => {
     
     // Pre-llenar datos del cliente y sistema
     // Los datos se usarán cuando se abra en reportes-ot
-    console.log('Datos pre-cargados:', { cliente, sistema });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

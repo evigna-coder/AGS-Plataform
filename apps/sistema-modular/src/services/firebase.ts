@@ -58,9 +58,6 @@ const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName])
 if (missingVars.length > 0) {
   console.warn('⚠️ Variables de entorno de Firebase faltantes:', missingVars);
   console.warn('Copia el archivo .env.local desde apps/reportes-ot/ o crea uno nuevo');
-} else {
-  console.log('%c✅ Variables de entorno de Firebase cargadas correctamente', 'color: green; font-weight: bold');
-  console.log('%c📋 Project ID: ' + firebaseConfig.projectId, 'color: blue; font-weight: bold');
 }
 
 export let app: ReturnType<typeof initializeApp>;
@@ -97,7 +94,6 @@ try {
       localCache: memoryLocalCache(),
       experimentalAutoDetectLongPolling: true,
     });
-    console.log('%c✅ Firestore inicializado (memoria + auto-detect long-polling)', 'color: green; font-weight: bold');
   } catch (innerErr) {
     console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
     db = getFirestore(app);
@@ -112,10 +108,6 @@ try {
   // 2 min alcanza para archivos grandes y devuelve el error real en tiempo humano.
   storage.maxUploadRetryTime = 120_000;
   storage.maxOperationRetryTime = 30_000;
-
-  if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
-    console.log('%c⚡ Electron keyboard router unstick activo', 'color: gray');
-  }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
   if (app! && !db!) {

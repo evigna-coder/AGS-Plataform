@@ -101,7 +101,6 @@ export const presupuestosService = {
 
   // Obtener todos los presupuestos
   async getAll(filters?: { clienteId?: string; estado?: Presupuesto['estado'] }) {
-    console.log('📥 Cargando presupuestos desde Firestore...');
     let q = query(collection(db, 'presupuestos'));
 
     // Aplicar filtros primero
@@ -138,7 +137,6 @@ export const presupuestosService = {
       return dateB - dateA;
     });
 
-    console.log(`✅ ${presupuestos.length} presupuestos cargados`);
     return presupuestos;
   },
 
@@ -256,7 +254,6 @@ export const presupuestosService = {
 
   // Crear presupuesto
   async create(presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
-    console.log('📝 Creando presupuesto...');
 
     // Categoría P1–P5: derivada del tipo salvo que venga explícita (el modal la
     // fija para tipo 'partes', donde P2/P3 depende del destino).
@@ -289,8 +286,6 @@ export const presupuestosService = {
     batch.set(presRef, payload);
     batchAudit(batch, { action: 'create', collection: 'presupuestos', documentId: presRef.id, after: payload });
     await batch.commit();
-
-    console.log('✅ Presupuesto creado exitosamente con ID:', presRef.id);
 
     // Cambio de lógica 2026-07-25: crear un presupuesto (borrador) YA NO genera
     // requerimientos automáticos. Las partes de presupuestos borrador/enviado se ven
@@ -371,7 +366,7 @@ export const presupuestosService = {
         count++;
       }
     }
-    if (count > 0) console.log(`✅ ${count} requerimiento(s) generados para ${presupuestoNumero}`);
+    if (count > 0) console.log(`[presupuestos] ${count} requerimiento(s) generados para ${presupuestoNumero}`);
     return count;
   },
 
@@ -2651,7 +2646,7 @@ export const presupuestosService = {
       },
     });
 
-    console.log(`✅ Revisión creada: ${newNumero} (anulado: ${original.numero})`);
+    console.log(`[presupuestos] revisión creada: ${newNumero} (anulado: ${original.numero})`);
     return result;
   },
 
@@ -3012,7 +3007,6 @@ export const ordenesCompraService = {
 export const categoriasPresupuestoService = {
   // Obtener todas las categorías
   async getAll() {
-    console.log('📥 Cargando categorías de presupuesto...');
     const querySnapshot = await getDocs(collection(db, 'categorias_presupuesto'));
     const categorias = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -3022,7 +3016,6 @@ export const categoriasPresupuestoService = {
     })) as CategoriaPresupuesto[];
 
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    console.log(`✅ ${categorias.length} categorías de presupuesto cargadas`);
     return categorias;
   },
 
@@ -3084,7 +3077,6 @@ export const categoriasPresupuestoService = {
 export const condicionesPagoService = {
   // Obtener todas las condiciones
   async getAll() {
-    console.log('📥 Cargando condiciones de pago...');
     const querySnapshot = await getDocs(collection(db, 'condiciones_pago'));
     const condiciones = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -3092,7 +3084,6 @@ export const condicionesPagoService = {
     })) as CondicionPago[];
 
     condiciones.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    console.log(`✅ ${condiciones.length} condiciones de pago cargadas`);
     return condiciones;
   },
 
