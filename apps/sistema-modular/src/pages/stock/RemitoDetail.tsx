@@ -61,7 +61,7 @@ export const RemitoDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDescarga, setShowDescarga] = useState(false);
   // Confirmar aplica el movimiento real de stock (I4); ver useRemitoAcciones.
-  const { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma } = useRemitoAcciones(id, remito);
+  const { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma, anularRemito } = useRemitoAcciones(id, remito);
 
   useEffect(() => {
     if (!id) return;
@@ -141,6 +141,14 @@ export const RemitoDetail = () => {
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => transition('completado_parcial')} disabled={acting}>Parcial</Button>
               </>
+            )}
+            {/* Anular: única reversa de la salida de stock (2026-08-17). Solo
+                sobre remitos ya emitidos — un borrador se elimina y listo. */}
+            {remito.estado !== 'borrador' && remito.estado !== 'cancelado' && (
+              <Button size="sm" variant="outline" onClick={() => void anularRemito()} disabled={acting}
+                className="text-red-600 border-red-200 hover:bg-red-50">
+                {acting ? 'Procesando...' : 'Anular'}
+              </Button>
             )}
             <Button variant="ghost" size="sm" onClick={goBack}>Volver</Button>
           </div>

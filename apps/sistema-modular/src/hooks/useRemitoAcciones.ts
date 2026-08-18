@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePrompt } from '../components/ui/PromptDialog';
 import { remitosService, ordenesTrabajoService } from '../services/firebaseService';
 import {
   movimientosAplicarService, remitoMueveStock, itemRemitoConEfectoAplicado,
@@ -15,9 +16,12 @@ import type { Remito, RemitoItem, EstadoRemito } from '@ags/shared';
  *   cuyo stock ya se movió en su propio flujo) solo cambia el estado.
  * - "Marcar devuelto" de un item 'sale_y_vuelve' con efecto aplicado registra
  *   el retorno real (unidad vuelve a su ubicación de origen + movimiento).
+ * - "Anular" revierte la salida completa: el stock vuelve de donde salió y el
+ *   remito queda `cancelado` con motivo (2026-08-17).
  */
 export function useRemitoAcciones(id: string | undefined, remito: Remito | null) {
   const [acting, setActing] = useState(false);
+  const promptText = usePrompt();
 
   const transition = async (estado: EstadoRemito, extra?: Partial<Remito>) => {
     if (!id || !remito) return;
@@ -117,7 +121,37 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
     } finally { setActing(false); }
   };
 
-  return { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma };
+  /**
+   * Anula el remito devolviendo el stock a su posición de origen. Pide el
+   * motivo y es obligatorio: un remito anulado sin razón es indistinguible de
+   * un error de carga cuando alguien lo mira seis meses después.
+   */
+  const anularRemito = async () => {
+    if (!id || !remito) return;
+    const motivo = await promptText({
+      title: `Anular remito ${remito.numero}`,
+      label: 'Motivo de la anulación',
+      placeholder: 'Ej: se cargó como entrega y en realidad vuelve',
+      required: true,
+      multiline: true,
+      confirmLabel: 'Anular y devolver el stock',
+    });
+    if (motivo === null) return;
+    setActing(true);
+    try {
+      const revertidas = await movimientosAplicarService.anularRemito({
+        remito, motivo, creadoPor: nombreUsuarioActual(),
+      });
+      alert(revertidas === 0
+        ? 'Remito anulado. No había stock que devolver (remito documental).'
+        : `Remito anulado. ${revertidas} unidad(es) devueltas a su posición de origen.`);
+    } catch (e) {
+      console.error('Error anulando remito:', e);
+      alert(e instanceof Error ? e.message : 'Error al anular el remito');
+    } finally { setActing(false); }
+  };
+
+  return { acting, transition, confirmarRemito, toggleDevuelto, subirFirma, quitarFirma, anularRemito };
 }
 
 /** Leyenda del efecto de stock del remito, para el detalle. */
