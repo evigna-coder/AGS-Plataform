@@ -400,6 +400,22 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       alert(mensajeFinDeSemana(form.fechaServicioAprox));
       return;
     }
+    // Cupo del contrato (2026-08-17): "1 preventivo por equipo por año" se
+    // valida ACÁ y bloquea. Antes el único control era `incrementVisitas`, que
+    // tira error si se pasa del máximo — pero el caller lo tenía envuelto en un
+    // `.catch(console.error)`: la OT se creaba igual y la visita ni se contaba.
+    if (form.contratoId) {
+      const { contratosService } = await import('../services/contratosService');
+      const cupo = await contratosService.validarCupoOT(form.contratoId, {
+        sistemaId: form.sistemaId || null,
+        tipoServicio: tiposServicio.find(t => t.id === form.tipoServicioId)?.nombre ?? null,
+        fecha: form.fechaServicioAprox || undefined,
+      }).catch(() => ({ allowed: true } as const));
+      if (!cupo.allowed) {
+        alert(`No se puede crear la OT bajo este contrato.\n\n${cupo.reason}`);
+        return;
+      }
+    }
     if (presupuestoRequerido && !form.presupuestoId && !form.motivoFacturacion) {
       alert('Debe seleccionar un presupuesto, o indicar la base de facturación (presupuesto pendiente, sin cargo o en garantía)');
       return;

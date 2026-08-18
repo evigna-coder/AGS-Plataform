@@ -1175,6 +1175,15 @@ export const ordenesTrabajoService = {
       console.error(`[cancelarItem] limpiando agenda de ${otNumber}:`, err);
     }
 
+    // Devolver la visita al contrato (2026-08-17): la OT cancelada no se hizo,
+    // así que no puede seguir consumiendo el cupo. Best-effort — la cancelación
+    // ya está commiteada y no se revierte por esto.
+    if (ot.contratoId) {
+      const { contratosService } = await import('./contratosService');
+      await contratosService.decrementVisitas(ot.contratoId).catch(err =>
+        console.error(`[cancelarItem] devolver visita al contrato ${ot.contratoId}:`, err));
+    }
+
     logBusinessEvent({
       eventName: 'ot.item_cancelado',
       collection: 'ordenes_trabajo',

@@ -126,6 +126,35 @@ export const EditContratoModal: React.FC<Props> = ({ open, contrato, onClose, on
               </button>
             ))}
           </div>
+          {/* Cupo anual POR EQUIPO (2026-08-17): "preventivo 1" = uno para cada
+              equipo del contrato por año, no uno para todo el contrato. Vacío =
+              sin tope (el caso de los correctivos). */}
+          {servicios.length > 0 && (
+            <div className="mt-2.5 border border-slate-200 rounded-lg divide-y divide-slate-100">
+              <div className="px-2.5 py-1.5 bg-slate-50 flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500 flex-1">
+                  Cantidad anual por equipo
+                </span>
+                <span className="text-[10px] text-slate-400">vacío = sin tope</span>
+              </div>
+              {servicios.map(s => (
+                <div key={s.tipoServicioId} className="px-2.5 py-1.5 flex items-center gap-3">
+                  <span className="text-xs text-slate-700 flex-1 truncate">{s.tipoServicioNombre}</span>
+                  <input
+                    type="number" min={1} placeholder="—"
+                    value={s.cantidadAnualPorEquipo ?? ''}
+                    onChange={e => {
+                      const v = e.target.value.trim();
+                      const n = v === '' ? null : Math.max(1, Number(v) || 1);
+                      setServicios(prev => prev.map(x =>
+                        x.tipoServicioId === s.tipoServicioId ? { ...x, cantidadAnualPorEquipo: n } : x));
+                    }}
+                    className="w-20 border border-slate-200 rounded px-2 py-1 text-xs text-center" />
+                  <span className="text-[10px] text-slate-400 w-24">por equipo/año</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

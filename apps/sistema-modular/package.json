@@ -30,6 +30,7 @@
     "test:finde": "tsx src/utils/__tests__/finDeSemana.test.ts",
     "test:remito-lineas": "tsx src/utils/__tests__/remitoLineas.test.ts",
     "test:presentaciones": "tsx src/utils/__tests__/presentaciones.test.ts",
+    "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"

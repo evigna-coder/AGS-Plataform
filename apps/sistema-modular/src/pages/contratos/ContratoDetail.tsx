@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { contratosService, sistemasService } from '../../services/firebaseService';
+import { ContratoCupoSection } from '../../components/contratos/ContratoCupoSection';
 import type { Contrato, EstadoContrato } from '@ags/shared';
 import { ESTADO_CONTRATO_LABELS, ESTADO_CONTRATO_COLORS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -124,6 +125,9 @@ export const ContratoDetail = () => {
           ))}
         </div>
       </Card>
+
+      {/* Cupo por equipo y servicio del año de contrato vigente (2026-08-17). */}
+      <ContratoCupoSection contrato={contrato} nombreSistema={nombreSistema} />
 
       {/* Sistemas cubiertos */}
       {contrato.sistemaIds.length > 0 && (

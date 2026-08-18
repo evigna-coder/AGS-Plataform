@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
-import type { Contrato, EstadoContrato } from '@ags/shared';
+import type { Contrato, EstadoContrato, WorkOrder } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -217,7 +217,77 @@ export const contratosService = {
     });
   },
 
-  /** Validate if an OT can be created under this contract */
+  /**
+   * Devuelve una visita al contrato (2026-08-17).
+   *
+   * `incrementVisitas` no tenía inversa: cancelar la OT liberaba la agenda pero
+   * la visita quedaba consumida. Dos coordinaciones canceladas y reprogramadas
+   * hacían que un contrato de 12 informara 14. El desvío se acumulaba en
+   * silencio y lo iba a notar el cliente antes que nosotros.
+   *
+   * A diferencia del incremento, acá NO se exige contrato activo ni vigente: se
+   * está devolviendo algo, y un contrato que venció entre la creación y la
+   * cancelación tiene todo el derecho a recuperar su visita. Nunca baja de 0.
+   */
+  async decrementVisitas(id: string): Promise<number> {
+    const contratoRef = doc(db, 'contratos', id);
+    return runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(contratoRef);
+      if (!snap.exists()) throw new Error('Contrato no encontrado');
+      const current = snap.data().visitasUsadas || 0;
+      if (current <= 0) return 0;
+      const next = current - 1;
+      transaction.update(contratoRef, {
+        visitasUsadas: next,
+        updatedAt: Timestamp.now(),
+        ...getUpdateTrace(),
+      });
+      return next;
+    });
+  },
+
+  /**
+   * OTs imputadas a este contrato. Una lectura acotada — son decenas, no miles.
+   */
+  async otsDelContrato(contratoId: string): Promise<WorkOrder[]> {
+    const { ordenesTrabajoService } = await import('./otService');
+    const todas = await ordenesTrabajoService.getAll();
+    return todas.filter(o => o.contratoId === contratoId);
+  },
+
+  /**
+   * ¿Se puede crear esta OT bajo este contrato? (2026-08-17)
+   *
+   * Reemplaza a `validateOTCreation` —que además no la llamaba nadie— con el
+   * cupo por EQUIPO y por AÑO DE CONTRATO. La cuenta sale de las OTs, no del
+   * contador `visitasUsadas`: ese subía al crear y no bajaba al cancelar, así
+   * que hace rato dejó de ser confiable.
+   */
+  async validarCupoOT(
+    contratoId: string,
+    destino: { sistemaId?: string | null; tipoServicio?: string | null; fecha?: string },
+  ): Promise<{ allowed: boolean; reason?: string; restantesTrasCrear?: number | null }> {
+    const contrato = await this.getById(contratoId);
+    if (!contrato) return { allowed: false, reason: 'Contrato no encontrado' };
+    const [{ puedeCrearOTBajoContrato }, ots] = await Promise.all([
+      import('../utils/contratoCupo'),
+      this.otsDelContrato(contratoId),
+    ]);
+    return puedeCrearOTBajoContrato(contrato, ots, destino);
+  },
+
+  /** Consumo del año de contrato vigente, una fila por equipo × servicio. */
+  async consumoDelAnioVigente(contratoId: string, fecha?: string) {
+    const contrato = await this.getById(contratoId);
+    if (!contrato) return [];
+    const [{ consumoDelAnio }, ots] = await Promise.all([
+      import('../utils/contratoCupo'),
+      this.otsDelContrato(contratoId),
+    ]);
+    return consumoDelAnio(contrato, ots, fecha);
+  },
+
+  /** @deprecated Sin callers. Usar `validarCupoOT`, que mira el cupo por equipo. */
   async validateOTCreation(contratoId: string, tipoServicioNombre?: string): Promise<{ allowed: boolean; reason?: string }> {
     const contrato = await this.getById(contratoId);
     if (!contrato) return { allowed: false, reason: 'Contrato no encontrado' };
