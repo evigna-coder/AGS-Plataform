@@ -103,6 +103,68 @@ export const patronesService = {
     return toPatron(snap.id, snap.data());
   },
 
+  /**
+   * Patrón asociado a un artículo del catálogo (2026-08-18). `null` si ese
+   * artículo no entra como patrón. Un artículo tiene a lo sumo un patrón: si
+   * hubiera más de uno se devuelve el primero por código, para que el ingreso
+   * sea determinístico en vez de elegir al azar.
+   */
+  async getByArticuloId(articuloId: string): Promise<Patron | null> {
+    if (!articuloId) return null;
+    const { db } = await getFirebaseModules();
+    const snap = await getDocs(query(
+      collection(db, 'patrones'),
+      where('articuloId', '==', articuloId),
+      where('activo', '==', true),
+    ));
+    if (snap.empty) return null;
+    const items = snap.docs.map(d => toPatron(d.id, d.data()));
+    items.sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
+    return items[0];
+  },
+
+  /**
+   * Da de alta (o engorda) un lote al recibir el artículo asociado
+   * (2026-08-18). Es el puente OC → patrón: recibir 1 kit de cafeínas deja 3
+   * ampollas en el lote, sin pasar por stock.
+   *
+   * Si el lote YA existe se le suma la cantidad en vez de duplicarlo — dos
+   * compras del mismo lote del fabricante son el mismo lote físico. Los datos
+   * del certificado solo se pisan si venían vacíos: la carga vieja manda.
+   */
+  async registrarLoteDesdeIngreso(patronId: string, entrada: {
+    lote: string;
+    cantidad: number;
+    fechaVencimiento?: string | null;
+    notas?: string | null;
+  }): Promise<void> {
+    const patron = await this.getById(patronId);
+    if (!patron) throw new Error('El patrón ya no existe');
+    const codigo = entrada.lote.trim();
+    if (!codigo) throw new Error('El lote del patrón no puede quedar vacío');
+    if (!(entrada.cantidad > 0)) throw new Error('La cantidad del lote tiene que ser mayor a cero');
+
+    const lotes = [...(patron.lotes ?? [])];
+    const idx = lotes.findIndex(l => (l.lote ?? '').trim().toLowerCase() === codigo.toLowerCase());
+    if (idx >= 0) {
+      const prev = lotes[idx];
+      lotes[idx] = {
+        ...prev,
+        cantidad: (prev.cantidad ?? 0) + entrada.cantidad,
+        fechaVencimiento: prev.fechaVencimiento ?? entrada.fechaVencimiento ?? null,
+        notas: prev.notas ?? entrada.notas ?? null,
+      };
+    } else {
+      lotes.push({
+        lote: codigo,
+        cantidad: entrada.cantidad,
+        fechaVencimiento: entrada.fechaVencimiento ?? null,
+        notas: entrada.notas ?? null,
+      });
+    }
+    await this.update(patronId, { lotes });
+  },
+
   async create(data: Omit<Patron, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const { createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace } = await getFirebaseModules();
     const id = crypto.randomUUID();

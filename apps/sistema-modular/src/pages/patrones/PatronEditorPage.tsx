@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { PatronArticuloVinculoSection } from './PatronArticuloVinculoSection';
 import { PatronComponentesEditor } from './PatronComponentesEditor';
 import { PatronComponentesAlertBanner } from './PatronComponentesAlertBanner';
 import { PatronLotesBajaSection } from './PatronLotesBajaSection';
@@ -69,6 +70,10 @@ export const PatronEditorPage = () => {
   const confirm = useConfirm();
   // Phase 14 BOM-04 — componentes declarativos (BOM) del patrón.
   const [componentes, setComponentes] = useState<ComponentePatron[]>([]);
+  // Entrada por compra (2026-08-18): de qué artículo entra y cuántas unidades
+  // de patrón deja cada unidad comprada.
+  const [articuloId, setArticuloId] = useState<string | null>(null);
+  const [unidadesPorCompra, setUnidadesPorCompra] = useState<number | null>(null);
 
   /**
    * Codigos que no pueden renombrarse porque algún lote ya tiene consumos
@@ -127,6 +132,8 @@ export const PatronEditorPage = () => {
         setLotesBaja(p.lotesBaja ?? []);
         savedLoteCodigos.current = new Set(p.lotes.map(l => l.lote));
         setComponentes(p.componentes ?? []);
+        setArticuloId(p.articuloId ?? null);
+        setUnidadesPorCompra(p.unidadesPorUnidadDeCompra ?? null);
         setLoading(false);
       });
     }
@@ -189,6 +196,8 @@ export const PatronEditorPage = () => {
         categorias,
         lotes,
         componentes,
+        articuloId,
+        unidadesPorUnidadDeCompra: unidadesPorCompra,
         activo: true,
       };
       const savedId = await savePatron(data, id);
@@ -424,6 +433,19 @@ export const PatronEditorPage = () => {
 
         {/* Historial de lotes dados de baja (vencidos / agotados / baja manual) */}
         {!isNew && <PatronLotesBajaSection entries={lotesBaja} />}
+
+        {/* Entrada por compra: el puente OC → patrón (2026-08-18) */}
+        <Card>
+          <PatronArticuloVinculoSection
+            articuloId={articuloId}
+            unidadesPorUnidadDeCompra={unidadesPorCompra}
+            tieneBom={componentes.length > 0}
+            onChange={patch => {
+              if ('articuloId' in patch) setArticuloId(patch.articuloId ?? null);
+              if ('unidadesPorUnidadDeCompra' in patch) setUnidadesPorCompra(patch.unidadesPorUnidadDeCompra ?? null);
+            }}
+          />
+        </Card>
 
         {/* Componentes (BOM) — Phase 14 BOM-04 */}
         <Card>

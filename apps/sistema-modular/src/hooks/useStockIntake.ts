@@ -8,9 +8,10 @@ import { reservasService } from '../services/stockService';
 import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type {
   Articulo, CondicionUnidad, Proveedor, PosicionStock, Minikit, Ingeniero,
-  TipoOrigenDestino, UnidadStock, MovimientoStock, PresentacionUsada,
+  TipoOrigenDestino, UnidadStock, MovimientoStock, PresentacionUsada, Patron,
 } from '@ags/shared';
-import { cantidadEnUnidadBase } from '@ags/shared';
+import { cantidadEnUnidadBase, unidadesPatronDesdeCompra } from '@ags/shared';
+import { patronesService } from '../services/patronesService';
 
 export interface UbicOption {
   key: string;
@@ -39,6 +40,14 @@ interface Draft {
   series: string[];
   serieInput: string;
   lote: string;
+  /**
+   * Patrón asociado al artículo (2026-08-18). Si viene, este renglón NO da de
+   * alta stock: da de alta un LOTE del patrón. Se resuelve al elegir el
+   * artículo para poder avisarlo en la UI antes de cargar nada.
+   */
+  patron: Patron | null;
+  /** Vencimiento del lote — solo aplica al renglón que entra como patrón. */
+  vencimiento: string;
 }
 
 export interface IntakeItem {
@@ -51,6 +60,8 @@ export interface IntakeItem {
   ubicacion: { tipo: TipoOrigenDestino; id: string; nombre: string };
   series: string[];
   lote: string;
+  patron: Patron | null;
+  vencimiento: string;
 }
 
 /** Unidades BASE que da de alta un renglón — la conversión vive en shared. */
@@ -189,11 +200,17 @@ export function useStockIntake(
     setDraft({
       articulo, step: 'cantidad', cantidad: 1, presentacion: null, condicion: 'nuevo',
       ubicacion: null, series: [], serieInput: '', lote: '',
+      patron: null, vencimiento: '',
     });
-    const [unidades, movs] = await Promise.all([
+    const [unidades, movs, patron] = await Promise.all([
       unidadesService.getByArticulo(articulo.id),
       movimientosService.getAll({ articuloId: articulo.id }).catch(() => [] as MovimientoStock[]),
+      patronesService.getByArticuloId(articulo.id).catch(() => null),
     ]);
+    // Sin patrón el flujo es el de siempre. Con patrón, el lote es obligatorio
+    // aunque el artículo no lo exija: un lote de patrón sin número no se puede
+    // rastrear ni vincular a su certificado.
+    if (patron) setDraft(prev => (prev ? { ...prev, patron } : prev));
     setDraftUbic(buildUbicOptions(unidades, movs));
   };
 
@@ -205,6 +222,7 @@ export function useStockIntake(
       key: `i${++_seq}`,
       articulo: d.articulo, cantidad: d.cantidad, presentacion: d.presentacion, condicion: d.condicion,
       ubicacion: d.ubicacion!, series: d.series, lote: d.lote,
+      patron: d.patron, vencimiento: d.vencimiento,
     };
     setItems(prev => [...prev, item]);
     setDraft(null); setDraftUbic([]);
@@ -215,7 +233,10 @@ export function useStockIntake(
     if (!draft) return;
     const d = draft;
     const reqSerie = !!d.articulo.requiereNumeroSerie;
-    const reqLote = !!d.articulo.requiereNumeroLote;
+    // Un renglón que entra como patrón SIEMPRE pasa por el paso de lote, aunque
+    // el artículo no lo exija (2026-08-18): un lote de patrón sin número no se
+    // puede rastrear ni colgarle el certificado.
+    const reqLote = !!d.articulo.requiereNumeroLote || !!d.patron;
 
     if (d.step === 'cantidad') {
       if (!d.cantidad || d.cantidad < 1) { setError('La cantidad debe ser al menos 1'); return; }
@@ -268,7 +289,7 @@ export function useStockIntake(
     // un item con requiereNumeroSerie y series vacías crearía 0 unidades en silencio.
     const desactualizados = items.filter(it =>
       (it.articulo.requiereNumeroSerie && it.series.length === 0) ||
-      (it.articulo.requiereNumeroLote && !it.lote.trim()));
+      ((it.articulo.requiereNumeroLote || !!it.patron) && !it.lote.trim()));
     if (desactualizados.length > 0) {
       setError(
         `El catálogo cambió durante la carga: ${desactualizados.map(i => i.articulo.codigo).join(', ')} ` +
@@ -285,7 +306,15 @@ export function useStockIntake(
       // Presentación por unidad creada, en paralelo a `units` — se denormaliza
       // en el movimiento para poder auditar la conversión.
       const unitPresentacion: (PresentacionUsada | null)[] = [];
-      for (const it of items) {
+
+      // Renglones que entran como PATRÓN (2026-08-18): no generan unidades de
+      // stock. El artículo se recibe —la OC se concilia igual, más abajo— pero
+      // la existencia pasa a vivir como lote del patrón. Una sola existencia:
+      // contarlo de los dos lados sería contarlo dos veces.
+      const itemsPatron = items.filter(it => it.patron);
+      const itemsStock = items.filter(it => !it.patron);
+
+      for (const it of itemsStock) {
         const base = {
           articuloId: it.articulo.id, articuloCodigo: it.articulo.codigo, articuloDescripcion: it.articulo.descripcion,
           condicion: it.condicion, estado: 'disponible' as const,
@@ -311,7 +340,19 @@ export function useStockIntake(
           unitPresentacion.push(it.presentacion);
         }
       }
-      const ids = await unidadesService.createMany(units);
+      // Alta de los lotes de patrón. Va ANTES del stock a propósito: si el
+      // patrón falla queremos enterarnos sin haber creado ya las unidades.
+      for (const it of itemsPatron) {
+        const cantidadPatron = unidadesPatronDesdeCompra(it.patron!, unidadesBaseDeItem(it));
+        await patronesService.registrarLoteDesdeIngreso(it.patron!.id, {
+          lote: it.lote.trim(),
+          cantidad: cantidadPatron,
+          fechaVencimiento: it.vencimiento.trim() || null,
+          notas: oc ? `Ingreso por OC ${oc}` : 'Ingreso manual',
+        });
+      }
+
+      const ids = units.length > 0 ? await unidadesService.createMany(units) : [];
 
       try {
         await Promise.all(ids.map((unidadId, i) => movimientosService.create({

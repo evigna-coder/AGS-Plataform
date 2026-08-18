@@ -25,6 +25,9 @@ interface Draft {
   series: string[];
   serieInput: string;
   lote: string;
+  /** Patrón asociado al artículo; si viene, el renglón da de alta un LOTE de patrón. */
+  patron?: { codigoArticulo: string; descripcion: string; unidadesPorUnidadDeCompra?: number | null; componentes?: unknown[] } | null;
+  vencimiento?: string;
 }
 
 interface Props {
@@ -174,10 +177,36 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
         )}
 
         {draft.step === 'lote' && (
-          <div>
-            <label className={lbl}>Nº de lote</label>
-            <input ref={inputRef as any} className={ctrl + ' font-mono'} value={draft.lote}
-              onChange={e => onPatch({ lote: e.target.value })} onKeyDown={onKey} />
+          <div className="space-y-3">
+            <div>
+              <label className={lbl}>Nº de lote</label>
+              <input ref={inputRef as any} className={ctrl + ' font-mono'} value={draft.lote}
+                onChange={e => onPatch({ lote: e.target.value })} onKeyDown={onKey} />
+            </div>
+            {/* Renglón que entra como patrón (2026-08-18): no va a stock, da de
+                alta un lote del patrón. Se avisa acá —con la cuenta hecha— para
+                que nadie descubra recién al confirmar que el kit valía 3. */}
+            {draft.patron && (
+              <>
+                <div>
+                  <label className={lbl}>Vencimiento del lote</label>
+                  <input type="date" className={ctrl} value={draft.vencimiento ?? ''}
+                    onChange={e => onPatch({ vencimiento: e.target.value })} />
+                </div>
+                <div className="bg-teal-50/70 border border-teal-200 rounded-lg px-3 py-2">
+                  <p className="text-[11px] text-teal-900 font-medium">
+                    Entra como patrón · {draft.patron.codigoArticulo}
+                  </p>
+                  <p className="text-[10px] text-teal-800/90 mt-0.5">{draft.patron.descripcion}</p>
+                  <p className="text-[10px] text-teal-800/90 mt-1">
+                    {(draft.patron.componentes?.length ?? 0) > 0
+                      ? 'El kit se desglosa por su BOM al consumirse.'
+                      : `${cantidadEnUnidadBase(draft.cantidad, draft.presentacion)} × ${draft.patron.unidadesPorUnidadDeCompra ?? 1} = ${cantidadEnUnidadBase(draft.cantidad, draft.presentacion) * (draft.patron.unidadesPorUnidadDeCompra ?? 1)} unidad(es) de patrón`}
+                  </p>
+                  <p className="text-[10px] text-teal-700/70 mt-1">No se da de alta stock del artículo.</p>
+                </div>
+              </>
+            )}
           </div>
         )}
 
