@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { deleteDoc, addDoc, updateDoc } from './firebase';
 import type { Cliente, ContactoCliente } from '@ags/shared';
-import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, auditUpdate, logBusinessEvent, docRef as firestoreDocRef, onSnapshot } from './firebase';
+import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, auditUpdate, logBusinessEvent, docRef as firestoreDocRef, onSnapshot, cleanFirestoreData } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
@@ -146,11 +146,16 @@ export const clientesService = {
     if (!beforeSnap.exists()) throw new Error(`Cliente ${id} no encontrado`);
     const before = beforeSnap.data();
 
-    const payload = {
+    // cleanFirestoreData (2026-08-17): sin esto, un campo que llega `undefined`
+    // —el caso típico es un cliente viejo sin `pais` o sin `rubro`, que el form
+    // reenvía tal cual— hace que Firestore rechace TODO el update con un error
+    // que no nombra el campo. Se veía como "Error al guardar el cliente" y no
+    // había forma de saber cuál era. Regla del proyecto: nunca `undefined`.
+    const payload = cleanFirestoreData({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    };
+    });
     const after = { ...before, ...payload };
 
     const batch = createBatch();

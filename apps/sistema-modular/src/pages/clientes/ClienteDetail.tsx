@@ -35,16 +35,17 @@ export const ClienteDetail = () => {
           setFormData({
             razonSocial: clienteData.razonSocial,
             cuit: clienteData.cuit || '',
-            pais: clienteData.pais,
+            pais: clienteData.pais ?? '',
             direccionFiscal: clienteData.direccionFiscal ?? clienteData.direccion ?? '',
             localidadFiscal: clienteData.localidadFiscal ?? clienteData.localidad ?? '',
             provinciaFiscal: clienteData.provinciaFiscal ?? clienteData.provincia ?? '',
             codigoPostalFiscal: clienteData.codigoPostalFiscal ?? clienteData.codigoPostal ?? '',
-            rubro: clienteData.rubro,
+            rubro: clienteData.rubro ?? '',
             condicionIva: clienteData.condicionIva || '',
             ingresosBrutos: clienteData.ingresosBrutos || '',
             convenioMultilateral: clienteData.convenioMultilateral || false,
             requiereTrazabilidad: clienteData.requiereTrazabilidad || false,
+            requisitoFacturacion: clienteData.requisitoFacturacion ?? 'ninguno',
             notas: clienteData.notas || '',
             activo: clienteData.activo,
           });
@@ -107,6 +108,10 @@ export const ClienteDetail = () => {
         rubro: formData.rubro,
         convenioMultilateral: formData.convenioMultilateral || false,
         requiereTrazabilidad: formData.requiereTrazabilidad || false,
+        // 2026-08-17: faltaba en el payload. El selector estaba en la sidebar y
+        // se podia elegir, pero al guardar el campo no viajaba — cambiar el
+        // requisito de facturacion de un cliente no tenia ningun efecto.
+        requisitoFacturacion: formData.requisitoFacturacion || 'ninguno',
         activo: formData.activo,
       };
       if (formData.cuit?.trim()) clienteData.cuit = formData.cuit.trim();
