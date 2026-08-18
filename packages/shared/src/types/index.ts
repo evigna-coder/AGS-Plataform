@@ -207,6 +207,12 @@ export interface WorkOrder {
   /** Certificación del cliente que liberó esta OT (clientes 'certificacion'). Trazabilidad. */
   certificacionId?: string | null;
   certificacionNumero?: string | null;
+  /**
+   * Archivo de la certificación que habilitó a facturar (2026-08-17). Viaja con
+   * la OT para que Facturación lo tenga a mano sin ir a buscarlo: es el papel
+   * que justifica el cobro, igual que la OC del cliente en un presupuesto.
+   */
+  certificacionArchivoUrl?: string | null;
   contratoId?: string | null;
   problemaFallaInicial?: string;
   ingenieroAsignadoId?: string | null;
@@ -411,6 +417,12 @@ export type TipoEstablecimiento = 'planta' | 'sucursal' | 'oficina' | 'laborator
 
 export interface Establecimiento {
   id: string;
+  /**
+   * Cómo pide certificación esta planta (2026-08-17). Ausente = `por_servicio`.
+   * Solo aplica si el cliente tiene `requisitoFacturacion === 'certificacion'`;
+   * define CUÁNDO se pide, no si hace falta.
+   */
+  modalidadCertificacion?: ModalidadCertificacion | null;
   clienteCuit: string;
   /**
    * Campo legacy de migración: algunos establecimientos viejos quedaron asociados
@@ -3116,16 +3128,24 @@ export interface Proveedor {
 
 // --- Control de Facturas (cuentas a pagar liviano) ---
 
-export type EstadoFactura = 'pendiente' | 'aprobada' | 'pagada';
+/**
+ * `rechazada` (2026-08-17): la factura NO se paga — no correspondía, vino
+ * duplicada, o el importe está mal. Es un cierre, no una baja silenciosa: lleva
+ * motivo obligatorio y finaliza el ticket de validación. Antes no existía y una
+ * factura que no había que pagar quedaba pendiente para siempre (caso FAC-00010).
+ */
+export type EstadoFactura = 'pendiente' | 'aprobada' | 'pagada' | 'rechazada';
 
 export const FACTURA_ESTADO_LABELS: Record<EstadoFactura, string> = {
   pendiente: 'Pendiente',
+  rechazada: 'Rechazada',
   aprobada: 'Aprobada',
   pagada: 'Pagada',
 };
 
 export const FACTURA_ESTADO_COLORS: Record<EstadoFactura, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
+  rechazada: 'bg-red-100 text-red-700',
   aprobada: 'bg-blue-100 text-blue-700',
   pagada: 'bg-emerald-100 text-emerald-700',
 };
@@ -3135,8 +3155,8 @@ export interface ComentarioFactura {
   texto: string;
   autor: string;
   fecha: string; // ISO
-  /** 'aprobacion' = comentario dejado al aprobar la factura (2026-08-03). */
-  tipo?: 'aprobacion' | null;
+  /** 'aprobacion' = comentario al aprobar; 'rechazo' = motivo del rechazo (2026-08-17). */
+  tipo?: 'aprobacion' | 'rechazo' | null;
 }
 
 /**
@@ -3912,6 +3932,31 @@ export type EstadoRemito =
 
 export type TipoRemitoItem = 'sale_y_vuelve' | 'entrega';
 
+/**
+ * Tipos de remito cuyo contenido VUELVE aunque sus items digan 'entrega'
+ * (2026-08-17). En una derivación el equipo está en el taller del proveedor y
+ * el retorno se registra por otro camino (`marcarRetornoRemitoItem`); en un
+ * loaner, el módulo es de AGS y siempre regresa. No se pueden cerrar al emitir.
+ */
+const TIPOS_REMITO_CON_RETORNO = new Set<TipoRemito>(['derivacion_proveedor', 'loaner_salida']);
+
+/**
+ * `true` si de este remito no vuelve NADA: se emite y se termina (2026-08-17).
+ *
+ * El caso: una entrega al cliente, una devolución de su equipo o un remito de
+ * servicio no tienen retorno posible. Como el cierre del remito dependía de que
+ * sus items se marcaran `devuelto`, quedaban abiertos para siempre — se
+ * acumulaban en la lista sin que hubiera acción posible que los sacara.
+ */
+export function remitoSinRetorno(
+  remito: Pick<Remito, 'tipo' | 'items'>,
+): boolean {
+  if (TIPOS_REMITO_CON_RETORNO.has(remito.tipo)) return false;
+  const items = remito.items ?? [];
+  if (items.length === 0) return false;
+  return items.every(i => i.tipoItem !== 'sale_y_vuelve');
+}
+
 export interface RemitoItem {
   id: string;
   /** Stock-related fields. Opcionales: items de remito de ficha (devolución/derivación) no usan stock — usan los campos `ficha*` más abajo. */
@@ -4113,6 +4158,113 @@ export interface Remito {
  * A fin de mes se envía el listado de servicios; el cliente devuelve la
  * certificación, que cubre N OTs y las libera para facturación de una vez.
  */
+/**
+ * Cómo pide certificación un establecimiento (2026-08-17).
+ *
+ * `por_servicio` — se pide al cerrar cada OT, una por una. Es el default y el
+ *   caso del establecimiento ex-CTA de YPF.
+ * `por_lote` — se junta un período (típicamente el mes), se arma un resumen con
+ *   todas las OTs pendientes y se manda a certificar en bloque.
+ *
+ * Vive en el ESTABLECIMIENTO y no en el contrato porque es cómo trabaja esa
+ * planta: no cambia si el mismo cliente firma otro contrato. Un contrato con
+ * tres plantas puede tener las dos modalidades conviviendo — el caso de YPF.
+ */
+export type ModalidadCertificacion = 'por_servicio' | 'por_lote';
+
+export const MODALIDAD_CERTIFICACION_LABELS: Record<ModalidadCertificacion, string> = {
+  por_servicio: 'Por servicio (una por OT)',
+  por_lote: 'Por lote (resumen periódico)',
+};
+
+/** Estado de una OT dentro de un pedido de certificación. */
+export type EstadoOTCertificacion = 'pendiente' | 'certificada' | 'objetada' | 'no_facturable';
+
+export const ESTADO_OT_CERTIFICACION_LABELS: Record<EstadoOTCertificacion, string> = {
+  pendiente: 'Pendiente',
+  certificada: 'Certificada',
+  objetada: 'Objetada',
+  no_facturable: 'No se factura',
+};
+
+/**
+ * Una OT dentro del paquete. La unidad de certificación es la OT, no el
+ * paquete: el cliente puede certificar 7 de 8 y la objetada sigue viva sin
+ * trabar el cobro de las otras.
+ */
+export interface ItemCertificacion {
+  otNumber: string;
+  estado: EstadoOTCertificacion;
+  /** Por qué se objetó, o por qué se decide no facturarla. */
+  motivo?: string | null;
+  /** Cuándo se resolvió (ISO). */
+  fechaResolucion?: string | null;
+  /**
+   * Texto que ve el CLIENTE en el resumen (2026-08-17). Se toma de la OT al
+   * armar el pedido y queda EDITABLE: lo que se manda a certificar se redacta
+   * para quien lo firma, no se copia crudo del sistema. Editarlo no toca la OT.
+   */
+  establecimientoNombre?: string | null;
+  equipo?: string | null;
+  descripcionServicio?: string | null;
+  /** Fecha del servicio, como referencia para el cliente. */
+  fechaServicio?: string | null;
+}
+
+/** Un importe certificado, en su moneda. */
+export interface ImporteCertificado {
+  moneda: MonedaPresupuesto;
+  monto: number;
+}
+
+/**
+ * Una certificación RECIBIDA del cliente (2026-08-17).
+ *
+ * Un lote puede tener VARIAS: el cliente puede devolver un documento por
+ * establecimiento, o separar por moneda. Cada una trae su número, su papel y
+ * los importes que habilita a facturar — y ese importe, no el del presupuesto,
+ * es el que se factura.
+ */
+export interface CertificacionRecibida {
+  id: string;
+  numero?: string | null;
+  /** Fecha del documento del cliente (ISO). */
+  fecha: string;
+  archivoUrl?: string | null;
+  archivoPath?: string | null;
+  /** Puede haber montos en más de una moneda en el mismo documento. */
+  importes: ImporteCertificado[];
+  observaciones?: string | null;
+}
+
+/** Ciclo del pedido: se puede armar ANTES de tener el papel del cliente. */
+export type EstadoCertificacion = 'solicitada' | 'recibida' | 'cerrada';
+
+/**
+ * Totales por moneda de un lote. Se suman las certificaciones recibidas, no
+ * los presupuestos: lo que se factura es lo que el cliente certificó.
+ */
+export function totalesCertificados(
+  recibidas: CertificacionRecibida[] | null | undefined,
+): ImporteCertificado[] {
+  const acc = new Map<MonedaPresupuesto, number>();
+  for (const c of recibidas ?? []) {
+    for (const i of c.importes ?? []) {
+      if (!i.moneda || !Number.isFinite(i.monto)) continue;
+      acc.set(i.moneda, (acc.get(i.moneda) ?? 0) + i.monto);
+    }
+  }
+  return [...acc.entries()]
+    .filter(([, monto]) => monto !== 0)
+    .map(([moneda, monto]) => ({ moneda, monto }));
+}
+
+export const ESTADO_CERTIFICACION_LABELS: Record<EstadoCertificacion, string> = {
+  solicitada: 'Enviada al cliente',
+  recibida: 'Certificación recibida',
+  cerrada: 'Cerrada',
+};
+
 export interface Certificacion {
   id: string;
   /** N° de certificación del cliente (opcional). */
@@ -4121,9 +4273,38 @@ export interface Certificacion {
   clienteNombre?: string | null;
   /** Fecha de la certificación (ISO). */
   fecha: string;
-  /** OTs cubiertas por esta certificación (se liberan al registrarla). */
+  /**
+   * OTs cubiertas. Se mantiene como índice plano para las consultas existentes;
+   * el estado de cada una vive en `items`.
+   */
   otNumbers: string[];
-  /** Escaneo/archivo de la certificación en Storage. */
+  /**
+   * Estado POR OT (2026-08-17). Ausente en las certificaciones registradas
+   * antes de este cambio: ahí `otNumbers` ya venían todas certificadas, porque
+   * el único camino era registrar el papel que ya había llegado.
+   */
+  items?: ItemCertificacion[] | null;
+  /** Ciclo del pedido. Ausente = registro directo del papel recibido. */
+  estado?: EstadoCertificacion | null;
+  /** Período del lote, `YYYY-MM`. Solo en modalidad por lote. */
+  periodo?: string | null;
+  /** Establecimientos que abarca — quien arma el resumen decide cuáles. */
+  establecimientoIds?: string[] | null;
+  contratoId?: string | null;
+  contratoNumero?: string | null;
+  /**
+   * Certificaciones RECIBIDAS del cliente para este lote (2026-08-17). Varias
+   * por lote: el cliente puede mandar un documento por planta o separar por
+   * moneda. El importe a facturar sale de acá — ver `totalesCertificados`.
+   */
+  recibidas?: CertificacionRecibida[] | null;
+  /** Solicitudes de facturacion generadas desde este lote. Evita mandarlo dos veces. */
+  solicitudesIds?: string[] | null;
+  /**
+   * Escaneo/archivo. LEGACY: era el único documento posible antes de admitir
+   * varias certificaciones por lote. Se sigue leyendo para no romper los
+   * registros ya cargados; lo nuevo va en `recibidas`.
+   */
   archivoUrl?: string | null;
   archivoPath?: string | null;
   observaciones?: string | null;
@@ -4131,6 +4312,36 @@ export interface Certificacion {
   updatedAt: string;
   createdBy?: string | null;
   createdByName?: string | null;
+}
+
+/**
+ * Certificaciones recibidas de un lote, tolerando el formato viejo de un solo
+ * archivo suelto en `archivoUrl`.
+ */
+export function recibidasDeCertificacion(
+  cert: Pick<Certificacion, 'recibidas' | 'archivoUrl' | 'archivoPath' | 'numero' | 'fecha'>,
+): CertificacionRecibida[] {
+  if (cert.recibidas?.length) return cert.recibidas;
+  if (!cert.archivoUrl) return [];
+  return [{
+    id: 'legacy',
+    numero: cert.numero ?? null,
+    fecha: cert.fecha,
+    archivoUrl: cert.archivoUrl,
+    archivoPath: cert.archivoPath ?? null,
+    importes: [],
+  }];
+}
+
+/** Items de una certificación, tolerando los registros viejos sin `items`. */
+export function itemsDeCertificacion(cert: Pick<Certificacion, 'items' | 'otNumbers'>): ItemCertificacion[] {
+  if (cert.items?.length) return cert.items;
+  return (cert.otNumbers ?? []).map(otNumber => ({ otNumber, estado: 'certificada' as const }));
+}
+
+/** Una certificación se cierra cuando ninguna OT quedó pendiente. */
+export function certificacionResuelta(cert: Pick<Certificacion, 'items' | 'otNumbers'>): boolean {
+  return itemsDeCertificacion(cert).every(i => i.estado !== 'pendiente');
 }
 
 // =============================================
@@ -5993,6 +6204,35 @@ export interface ServicioContrato {
   tipoServicioId: string;
   tipoServicioNombre: string;
   entregables?: string[] | null;
+  /**
+   * Cupo ANUAL de este servicio POR EQUIPO (2026-08-17).
+   *
+   * "Mantenimiento preventivo: 1" significa uno por equipo por año de contrato,
+   * no uno para todo el contrato. Se consume al crear la OT y el contador
+   * arranca de cero en cada aniversario de `fechaInicio`.
+   *
+   * `null` / ausente = sin cupo: el servicio está incluido y se puede pedir las
+   * veces que haga falta (correctivos, por ejemplo).
+   */
+  cantidadAnualPorEquipo?: number | null;
+}
+
+/**
+ * Año de contrato (base 0) al que pertenece una fecha: 0 es el primer año desde
+ * `fechaInicio`, 1 el segundo, etc. El cupo por servicio se renueva en el
+ * ANIVERSARIO del contrato, no el 1 de enero.
+ *
+ * Fechas en `YYYY-MM-DD`. Una fecha anterior al inicio devuelve 0 — no existe
+ * el año -1, y un caso así es un dato mal cargado, no un ciclo distinto.
+ */
+export function anioDeContrato(fechaInicio: string, fecha: string): number {
+  const [ai, mi, di] = fechaInicio.slice(0, 10).split('-').map(Number);
+  const [af, mf, df] = fecha.slice(0, 10).split('-').map(Number);
+  if (!ai || !af) return 0;
+  let anios = af - ai;
+  // Todavía no llegó el aniversario dentro de ese año calendario.
+  if (mf < mi || (mf === mi && df < di)) anios -= 1;
+  return Math.max(0, anios);
 }
 
 export interface Contrato {
