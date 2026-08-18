@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import {
+  cargarSeriesDeItems, serieDeItemAsignacion, type SeriesPorUnidad,
+} from '../../utils/asignacionSeries';
 import { useParams, Link } from 'react-router-dom';
 import { asignacionesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -29,11 +32,19 @@ export const AsignacionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showInventario, setShowInventario] = useState(false);
+  /** unidadId → N° de serie (2026-08-14): la serie no vive en el item de la
+   *  asignación sino en el doc de la unidad, y sin ella no se sabe qué pieza
+   *  concreta hay que devolver. */
+  const [series, setSeries] = useState<SeriesPorUnidad>({});
 
   const loadData = useCallback(async (silent = false) => {
     if (!id) return;
     if (!silent) setLoading(true);
-    try { setAsg(await asignacionesService.getById(id)); }
+    try {
+      const a = await asignacionesService.getById(id);
+      setAsg(a);
+      if (a) setSeries(await cargarSeriesDeItems(a.items).catch(() => ({})));
+    }
     catch (err) { console.error('Error:', err); }
     finally { if (!silent) setLoading(false); }
   }, [id]);
@@ -126,7 +137,8 @@ export const AsignacionDetail = () => {
           <Card compact title={`Items activos (${itemsActivos.length})`}>
             <div className="space-y-2">
               {itemsActivos.map(item => (
-                <ItemRow key={item.id} item={item} onDevolver={handleDevolver} onConsumir={handleConsumir} saving={saving} />
+                <ItemRow key={item.id} item={item} serie={serieDeItemAsignacion(item, series)}
+                  onDevolver={handleDevolver} onConsumir={handleConsumir} saving={saving} />
               ))}
             </div>
           </Card>
@@ -136,7 +148,7 @@ export const AsignacionDetail = () => {
           <Card compact title={`Finalizados (${itemsFinalizados.length})`}>
             <div className="space-y-2">
               {itemsFinalizados.map(item => (
-                <ItemRow key={item.id} item={item} saving={saving} />
+                <ItemRow key={item.id} item={item} serie={serieDeItemAsignacion(item, series)} saving={saving} />
               ))}
             </div>
           </Card>
@@ -148,8 +160,9 @@ export const AsignacionDetail = () => {
   );
 };
 
-const ItemRow = ({ item, onDevolver, onConsumir, saving }: {
+const ItemRow = ({ item, serie, onDevolver, onConsumir, saving }: {
   item: ItemAsignacion;
+  serie?: string | null;
   onDevolver?: (item: ItemAsignacion) => void;
   onConsumir?: (item: ItemAsignacion) => void;
   saving: boolean;
@@ -164,6 +177,12 @@ const ItemRow = ({ item, onDevolver, onConsumir, saving }: {
       <div className="flex items-center gap-2 min-w-0">
         <span className="font-mono text-[11px] text-teal-700 font-semibold">{codigo}</span>
         <span className="text-xs text-slate-700 truncate">{desc}</span>
+        {serie && (
+          <span className="font-mono text-[10px] text-slate-700 bg-white border border-slate-300 px-1 py-0.5 rounded shrink-0"
+            title={`N° de serie ${serie}`}>
+            S/N {serie}
+          </span>
+        )}
         <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded">{item.tipo}</span>
         {item.permanente && <span className="text-[10px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded">Permanente</span>}
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[item.estado]}`}>{item.estado}</span>

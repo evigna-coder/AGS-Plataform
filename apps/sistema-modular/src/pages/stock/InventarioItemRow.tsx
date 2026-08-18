@@ -4,6 +4,9 @@ import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 
 interface Props {
   item: InventarioItem;
+  /** N° de serie de la pieza — sin esto dos unidades del mismo artículo son
+   *  indistinguibles al momento de devolver (2026-08-14). */
+  serie?: string | null;
   saving: boolean;
   /** Selección múltiple para devolver en lote (2026-08-11). */
   selected?: boolean;
@@ -14,7 +17,7 @@ interface Props {
   onTransferir: () => void;
 }
 
-export const InventarioItemRow = ({ item, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: Props) => {
+export const InventarioItemRow = ({ item, serie, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: Props) => {
   const codigo = item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
   const desc = descripcionItemAsignacion(item);
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
@@ -29,6 +32,14 @@ export const InventarioItemRow = ({ item, saving, selected, onToggleSelect, onDe
         )}
         <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{codigo}</span>
         <span className="text-xs text-slate-700 truncate">{desc}</span>
+        {/* La serie NO se trunca ni se abrevia: es el dato con el que se
+            identifica la pieza al devolverla (2026-08-14). */}
+        {serie && (
+          <span className="font-mono text-[10px] text-slate-700 bg-white border border-slate-300 px-1 py-0.5 rounded shrink-0"
+            title={`N° de serie ${serie}`}>
+            S/N {serie}
+          </span>
+        )}
         <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded shrink-0">{item.tipo}</span>
         {item.permanente && <span className="text-[10px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded shrink-0">Perm</span>}
         {item.clienteNombre && <span className="text-[10px] text-slate-400 shrink-0">→ {item.clienteNombre}</span>}

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
-import { Link } from 'react-router-dom';
+import { seriesDesdeUnidades, serieDeItemAsignacion } from '../../utils/asignacionSeries';
+import { InventarioItemRow } from '../../pages/stock/InventarioItemRow';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -28,6 +29,9 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
   const [actionValue, setActionValue] = useState('');
   const [showRemitoModal, setShowRemitoModal] = useState(false);
 
+  // Las unidades del ingeniero ya vienen cargadas por el hook: la serie sale de
+  // ahí, sin una lectura extra (2026-08-14).
+  const series = useMemo(() => seriesDesdeUnidades(unidades), [unidades]);
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
   const devolvibles = visibleItems.filter(i => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida > 0);
   const todosSeleccionados = devolvibles.length > 0 && devolvibles.every(i => seleccion.has(i.id));
@@ -118,7 +122,8 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
             ) : (
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
                 {visibleItems.map(item => (
-                  <ItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                  <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                    serie={serieDeItemAsignacion(item, series)}
                     selected={seleccion.has(item.id)} onToggleSelect={() => toggleSeleccion(item.id)}
                     onDevolver={handleDevolver} onConsumir={handleConsumir}
                     onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
@@ -168,56 +173,6 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
     </>
   );
 };
-
-// ── Item row ──
-
-const ItemRow = ({ item, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: {
-  item: InventarioItem; saving: boolean;
-  selected?: boolean;
-  onToggleSelect?: () => void;
-  onDevolver: (item: InventarioItem) => void;
-  onConsumir: (item: InventarioItem) => void;
-  onReasignarCliente: () => void;
-  onTransferir: () => void;
-}) => {
-  const codigo = getItemCodigo(item);
-  const desc = getItemDesc(item);
-  const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
-
-  return (
-    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${selected ? 'bg-teal-50 border border-teal-200' : 'bg-slate-50'}`}>
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        {onToggleSelect && remaining > 0 && (
-          <input type="checkbox" checked={!!selected} onChange={onToggleSelect}
-            className="w-3.5 h-3.5 accent-teal-600 shrink-0" />
-        )}
-        <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{codigo}</span>
-        <span className="text-xs text-slate-700 truncate">{desc}</span>
-        <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded shrink-0">{item.tipo}</span>
-        {item.permanente && <span className="text-[10px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded shrink-0">Perm</span>}
-        {item.clienteNombre && <span className="text-[10px] text-slate-400 shrink-0">→ {item.clienteNombre}</span>}
-        <Link to={`/stock/asignaciones/${item.asignacionId}`} className="text-teal-500 hover:underline font-mono text-[10px] shrink-0 ml-auto">
-          {item.asignacionNumero}
-        </Link>
-      </div>
-      {remaining > 0 && (
-        <div className="flex gap-1 shrink-0 ml-3">
-          <ActionBtn label="Devolver" onClick={() => onDevolver(item)} disabled={saving} />
-          {!item.permanente && <ActionBtn label="Consumir" onClick={() => onConsumir(item)} disabled={saving} />}
-          <ActionBtn label="Cliente" onClick={onReasignarCliente} disabled={saving} />
-          <ActionBtn label="Transferir" onClick={onTransferir} disabled={saving} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ActionBtn = ({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) => (
-  <button onClick={onClick} disabled={disabled}
-    className="px-2 py-0.5 text-[10px] font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 transition-colors">
-    {label}
-  </button>
-);
 
 // ── Helpers ──
 

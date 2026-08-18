@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -10,6 +10,7 @@ import {
   buildInventarioIngenieroFiltrosExport, INVENTARIO_INGENIERO_EXPORT_COLUMNS,
 } from '../../utils/exports/exportInventarioIngeniero';
 import { InventarioItemRow } from './InventarioItemRow';
+import { seriesDesdeUnidades, serieDeItemAsignacion } from '../../utils/asignacionSeries';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
 
@@ -34,6 +35,9 @@ export const InventarioIngenieroPage = () => {
   const [actionValue, setActionValue] = useState('');
   const [showRemitoModal, setShowRemitoModal] = useState(false);
 
+  // Serie de cada pieza a partir de las unidades ya cargadas (2026-08-14): sin
+  // ella, dos unidades del mismo artículo son indistinguibles al devolver.
+  const series = useMemo(() => seriesDesdeUnidades(unidades), [unidades]);
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
   const devolvibles = visibleItems.filter(i => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida > 0);
   const todosSeleccionados = devolvibles.length > 0 && devolvibles.every(i => seleccion.has(i.id));
@@ -154,6 +158,7 @@ export const InventarioIngenieroPage = () => {
             <div className="space-y-1">
               {visibleItems.map(item => (
                 <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                  serie={serieDeItemAsignacion(item, series)}
                   selected={seleccion.has(item.id)} onToggleSelect={() => toggleSeleccion(item.id)}
                   onDevolver={handleDevolver} onConsumir={handleConsumir}
                   onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
