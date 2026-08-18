@@ -3,7 +3,7 @@ import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, logAudit, runTransaction,
 } from './firebase';
-import { ubicacionDeRemito, remitoSinRetorno } from '@ags/shared';
+import { ubicacionDeRemito, itemsARevertirEnAnulacion } from '@ags/shared';
 import type {
   Articulo, EstadoUnidad, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
   TipoUbicacionStock, UbicacionStock, UnidadStock,
@@ -425,9 +425,6 @@ export const movimientosAplicarService = {
     const destinoRemito: PuntoMovimiento = {
       tipo: 'remito', id: ubicRemito.referenciaId, nombre: ubicRemito.referenciaNombre,
     };
-    const destinoEntrega: PuntoMovimiento = remito.tipo === 'entrega_cliente'
-      ? { tipo: 'cliente', id: remito.clienteId ?? '', nombre: remito.clienteNombre ?? 'Cliente' }
-      : { tipo: 'ingeniero', id: remito.ingenieroId, nombre: remito.ingenieroNombre || 'Ingeniero' };
 
     const unidadesAfectadas = await runTransaction(db, async (tx) => {
       // 1) READS — todos antes de cualquier write (regla de tx Firestore).
@@ -474,22 +471,17 @@ export const movimientosAplicarService = {
         const unidadRef = docRef('unidades', it.unidadId!);
         let unidadMovidaId = it.unidadId!;
 
-        if (it.tipoItem === 'entrega') {
-          tx.update(unidadRef, deepCleanForFirestore(it.cantidad >= qty
-            ? {
-                estado: 'entregado' as EstadoUnidad,
-                // La reserva se cumplió al entregar: si no se limpia, la unidad
-                // queda 'entregado' arrastrando el presupuesto que la reservaba
-                // (2026-08-07, al permitir remitir piezas reservadas).
-                reservadoParaPresupuestoId: null,
-                reservadoParaPresupuestoNumero: null,
-                reservadoParaClienteId: null,
-                reservadoParaClienteNombre: null,
-                ...getUpdateTrace(), updatedAt: now,
-              }
-            : { cantidad: qty - it.cantidad, ...getUpdateTrace(), updatedAt: now }));
-        } else {
-          // "Sale y vuelve" → posición provisoria del remito (2026-08-09).
+        {
+          // Emitir MUEVE, no da de baja (2026-08-18). Las dos clases de línea
+          // salen igual: la unidad viaja a la posición provisoria del remito y
+          // ahí espera. La baja real la da el consumo contra la OT.
+          //
+          // Antes una línea 'entrega' pasaba la unidad a `entregado` con un
+          // egreso definitivo acá mismo. Eso la dejaba fuera del alcance del
+          // cierre administrativo —que exige la unidad `disponible`— y por eso
+          // no había forma de descargarla: el remito quedaba abierto para
+          // siempre. La diferencia entre las dos clases NO es cuándo se
+          // descuenta, es si la devolución es un desenlace posible.
           const nuevaUbic: UbicacionStock = { ...ubicRemito };
           if (it.cantidad < qty) {
             // Split de lote: la porción que sale viaja en un doc nuevo.
@@ -506,9 +498,11 @@ export const movimientosAplicarService = {
           }
         }
 
-        const destino = it.tipoItem === 'entrega' ? destinoEntrega : destinoRemito;
+        // Las dos clases salen como TRANSFERENCIA al remito (2026-08-18): el
+        // egreso/consumo definitivo lo asienta la descarga contra la OT.
+        const destino = destinoRemito;
         tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
-          tipo: (it.tipoItem === 'entrega' ? 'egreso' : 'transferencia') as TipoMovimiento,
+          tipo: 'transferencia' as TipoMovimiento,
           unidadId: unidadMovidaId,
           articuloId: data.articuloId ?? it.articuloId ?? '',
           articuloCodigo: data.articuloCodigo ?? it.articuloCodigo ?? '',
@@ -522,7 +516,7 @@ export const movimientosAplicarService = {
           remitoId: remito.id,
           otNumber,
           motivo: it.tipoItem === 'entrega'
-            ? `Remito ${remito.numero} — entrega`
+            ? `Remito ${remito.numero} — salida para entrega (pendiente de descargar en OT)`
             : `Remito ${remito.numero} — salida transitoria (sale y vuelve)`,
           creadoPor,
           ...getCreateTrace(),
@@ -539,14 +533,15 @@ export const movimientosAplicarService = {
         };
       });
 
-      // Si de este remito no vuelve nada, nace CERRADO (2026-08-17): una
-      // entrega al cliente no tiene retorno posible, y esperar que alguien
-      // marque sus items como devueltos lo dejaba abierto para siempre.
-      const cerradoAlEmitir = remitoSinRetorno({ tipo: remito.tipo, items: itemsFinales as RemitoItem[] });
+      // Emitir NUNCA cierra el remito (2026-08-18): queda 'confirmado' hasta
+      // que se descargue contra la OT. Hubo un intento de cerrarlo acá cuando
+      // ninguna línea volvía —para frenar la acumulación de remitos abiertos—
+      // pero el problema real era otro: las líneas 'entrega' no se podían
+      // descargar, así que no había forma de cerrarlas. El cierre lo da el
+      // consumo, no la impresión.
       tx.update(docRef('remitos', remito.id), deepCleanForFirestore({
-        estado: cerradoAlEmitir ? 'completado' : 'confirmado',
+        estado: 'confirmado',
         items: itemsFinales,
-        ...(cerradoAlEmitir ? { fechaDevolucion: now } : {}),
         ...getUpdateTrace(), updatedAt: now,
       }));
       return afectadas;
@@ -587,7 +582,7 @@ export const movimientosAplicarService = {
     const aResolver = remito.items.filter(it => porItem.has(it.id));
     for (const it of aResolver) {
       const etiqueta = it.articuloCodigo || it.articuloDescripcion || it.id;
-      if (!itemRemitoConEfectoAplicado(it) || it.tipoItem !== 'sale_y_vuelve') {
+      if (!itemRemitoConEfectoAplicado(it)) {
         throw new Error(`${etiqueta}: este item no tiene efecto de stock aplicado — descargarlo desde su flujo de origen`);
       }
       if (it.devuelto || it.consumido) throw new Error(`${etiqueta}: el item ya está resuelto`);
@@ -721,8 +716,11 @@ export const movimientosAplicarService = {
             : res.devolver > 0 ? { devuelto: true, fechaDevolucion: nowIso } : {}),
         };
       });
+      // Cuenta las dos clases de línea (2026-08-18): si solo mirara
+      // 'sale_y_vuelve', un remito con entregas sin descargar se daría por
+      // completado con material todavía sin imputar a ninguna OT.
       const pendientes = itemsFinales.some(it =>
-        itemRemitoConEfectoAplicado(it) && it.tipoItem === 'sale_y_vuelve' && !it.devuelto && !it.consumido);
+        itemRemitoConEfectoAplicado(it) && !it.devuelto && !it.consumido);
       tx.update(docRef('remitos', remito.id), deepCleanForFirestore({
         items: itemsFinales,
         estado: pendientes ? 'completado_parcial' : 'completado',
@@ -851,5 +849,114 @@ export const movimientosAplicarService = {
 
     logAudit({ action: 'update', collection: 'remitos', documentId: remito.id });
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: unidadId });
+  },
+  /**
+   * Anula un remito ya emitido y DEVUELVE el stock al lugar de donde salió
+   * (2026-08-17).
+   *
+   * Emitir un remito era la única operación de stock del sistema sin reversa:
+   * si te equivocabas de línea ("Queda" en vez de "Vuelve") o de artículo, la
+   * unidad quedaba `entregado` para siempre y el único parche era un Ingreso
+   * manual, que crea una unidad NUEVA — serie duplicada y un fantasma en el
+   * historial diciendo que el cliente lo recibió.
+   *
+   * La reversa usa la metadata que `aplicarSalidaRemito` dejó en cada item
+   * (`salidaUnidadId` / `salidaCantidad` / `salidaUbicacionOrigen`), así que
+   * devuelve exactamente el doc que salió y a la posición de la que salió.
+   *
+   * Qué NO hace, a propósito:
+   * - No restaura la reserva de presupuesto que la salida limpió: esa
+   *   información no se guarda en el item y adivinarla sería peor que no
+   *   hacerlo. Si la unidad estaba reservada, hay que volver a reservarla.
+   * - No toca items ya devueltos (su stock ya volvió) ni documentales.
+   * - Se niega si algún item fue CONSUMIDO: ahí hubo un consumo real y
+   *   resucitar ese stock falsearía las existencias. Ese caso se corrige por
+   *   otro lado, no anulando el papel.
+   */
+  async anularRemito(params: { remito: Remito; motivo: string; creadoPor: string }): Promise<number> {
+    const { remito, motivo, creadoPor } = params;
+    if (remito.estado === 'cancelado') throw new Error('El remito ya está anulado');
+    const items = (remito.items ?? []) as RemitoItemAplicado[];
+
+    const consumidos = items.filter(it => it.consumido);
+    if (consumidos.length > 0) {
+      throw new Error(
+        `No se puede anular: ${consumidos.length} item(s) figuran consumidos. ` +
+        'Un consumo real ya descontó ese stock; anular el remito lo devolvería por duplicado.',
+      );
+    }
+
+    const aRevertir = itemsARevertirEnAnulacion(items) as RemitoItemAplicado[];
+    const now = new Date().toISOString();
+    const revertidas: string[] = [];
+
+    await runTransaction(db, async (tx) => {
+      // Fase de lecturas primero: Firestore prohíbe leer después de escribir
+      // dentro de una transacción.
+      const leidas = await Promise.all(aRevertir.map(async (it) => {
+        const uid = it.salidaUnidadId ?? it.unidadId!;
+        const snap = await tx.get(docRef('unidades', uid));
+        if (!snap.exists()) throw new Error(`La unidad del item ${it.articuloCodigo ?? uid} ya no existe en stock`);
+        return { it, uid, data: snap.data() as UnidadStock };
+      }));
+
+      for (const { it, uid, data } of leidas) {
+        const cantidadSalida = it.salidaCantidad ?? it.cantidad;
+        const origen = it.salidaUbicacionOrigen ?? UBICACION_FALLBACK;
+
+        if (it.tipoItem === 'entrega') {
+          // Unidad entera: volvió a estar disponible. Parcial (split de
+          // cantidad sobre el mismo doc): se le suma lo que había salido.
+          tx.update(docRef('unidades', uid), deepCleanForFirestore(
+            data.estado === 'entregado'
+              ? { estado: 'disponible' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now }
+              : { cantidad: (data.cantidad ?? 0) + cantidadSalida, ...getUpdateTrace(), updatedAt: now },
+          ));
+        } else {
+          // 'sale_y_vuelve': la unidad está en la ubicación provisoria del
+          // remito — vuelve a la posición de origen.
+          tx.update(docRef('unidades', uid), deepCleanForFirestore({
+            ubicacion: origen, ...getUpdateTrace(), updatedAt: now,
+          }));
+        }
+
+        tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
+          tipo: 'devolucion' as TipoMovimiento,
+          unidadId: uid,
+          articuloId: data.articuloId ?? it.articuloId ?? '',
+          articuloCodigo: data.articuloCodigo ?? it.articuloCodigo ?? '',
+          articuloDescripcion: data.articuloDescripcion ?? it.articuloDescripcion ?? '',
+          cantidad: cantidadSalida,
+          nroSerie: data.nroSerie ?? null, nroLote: data.nroLote ?? null,
+          origenTipo: 'remito' as TipoOrigenDestino,
+          origenId: remito.id,
+          origenNombre: `Remito ${remito.numero}`,
+          destinoTipo: origen.tipo as TipoOrigenDestino,
+          destinoId: origen.referenciaId,
+          destinoNombre: origen.referenciaNombre,
+          remitoId: remito.id,
+          motivo: `Remito ${remito.numero} anulado — ${motivo}`,
+          creadoPor,
+          ...getCreateTrace(),
+          createdAt: now,
+        }));
+        revertidas.push(uid);
+      }
+
+      tx.update(docRef('remitos', remito.id), deepCleanForFirestore({
+        estado: 'cancelado',
+        motivoAnulacion: motivo,
+        anuladoPor: creadoPor,
+        fechaAnulacion: now,
+        // La salida dejó de tener efecto: sin esto, un reintento de la reversa
+        // volvería a sumar el stock.
+        items: items.map(it => (aRevertir.includes(it) ? { ...it, stockAplicado: false } : it)),
+        ...getUpdateTrace(), updatedAt: now,
+      }));
+    });
+
+    logAudit({ action: 'update', collection: 'remitos', documentId: remito.id });
+    for (const uid of revertidas) logAudit({ action: 'update', collection: 'unidades_stock', documentId: uid });
+    return revertidas.length;
   },
 };

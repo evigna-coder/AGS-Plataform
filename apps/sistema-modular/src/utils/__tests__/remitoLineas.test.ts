@@ -114,4 +114,30 @@ assert.equal(fontSizeDescripcion('corto'), 8.5, 'una línea corta va al cuerpo n
 assert.ok(recortarDescripcion('Válvula de purga · S/N AB-9').endsWith('S/N AB-9'),
   'una descripción normal NO se recorta: la serie tiene que estar entera');
 
-console.log('✅ remitoLineas: 23/23 OK');
+// ── Emitir NUNCA cierra el remito (2026-08-18) ───────────────────────────────
+// Hubo una regla `remitoSinRetorno` que cerraba al emitir los remitos sin
+// líneas que volvieran, para frenar la acumulación de remitos abiertos. Estaba
+// mal: el remito lo cierra el consumo contra la OT, no la impresión. Se eliminó.
+// El helper de abajo es el que quedó y es el que hay que cuidar.
+
+// ── Qué se revierte al ANULAR un remito (2026-08-17) ─────────────────────────
+// Cada exclusión de esta lista evita inventar stock. Un falso positivo acá
+// duplica existencias sin que nadie se entere hasta el próximo inventario.
+const { itemsARevertirEnAnulacion } = await import('@ags/shared');
+const item = (extra: Record<string, unknown>) =>
+  ({ id: 'x', tipoItem: 'entrega', devuelto: false, cantidad: 1,
+     unidadId: 'u1', articuloId: 'a1', ...extra }) as unknown as RemitoItem;
+
+assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true })]).length, 1,
+  'una salida aplicada se revierte');
+assert.equal(itemsARevertirEnAnulacion([item({})]).length, 0,
+  'sin stockAplicado no salió nada: no hay qué devolver');
+assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, devuelto: true })]).length, 0,
+  'ya devuelto: revertirlo otra vez DUPLICA el stock');
+assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, consumido: true })]).length, 0,
+  'consumido: ese stock se gastó de verdad, no vuelve');
+assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, tipoItem: 'sale_y_vuelve' })]).length, 1,
+  'sale_y_vuelve todavía afuera: vuelve a su posición de origen');
+assert.equal(itemsARevertirEnAnulacion([]).length, 0, 'remito sin items');
+
+console.log('✅ remitoLineas: 29/29 OK');

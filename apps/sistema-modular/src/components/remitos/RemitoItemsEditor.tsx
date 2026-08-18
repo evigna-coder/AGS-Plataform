@@ -178,13 +178,20 @@ export function RemitoItemsEditor({
                     <td className="px-2 py-1.5">
                       {/* Por ÍTEM, no por tipo de remito (2026-08-09): una misma
                           entrega puede llevar una lámpara que vuelve y un filtro
-                          que no. Solo lo que "vuelve" queda pendiente de retorno
-                          y aparece como origen en el cierre administrativo. */}
+                          que no.
+
+                          Las dos clases quedan PENDIENTES hasta que el cierre
+                          administrativo de la OT las consuma — lo que cambia es
+                          el desenlace posible: lo que "puede volver" admite
+                          devolución, lo que "queda en el cliente" no. Los labels
+                          nombran eso y no el movimiento físico (2026-08-18):
+                          "Vuelve"/"Queda" se leían como si "Queda" cerrara el
+                          asunto, cuando también hay que descargarlo. */}
                       <select value={it.tipoItem}
                         onChange={e => onUpdate(it.id, { tipoItem: e.target.value as RemitoItem['tipoItem'] })}
-                        className={`${inp} text-center`}>
-                        <option value="sale_y_vuelve">Vuelve</option>
-                        <option value="entrega">Queda</option>
+                        className={inp}>
+                        <option value="sale_y_vuelve">Puede volver</option>
+                        <option value="entrega">Queda en el cliente</option>
                       </select>
                     </td>
                     <td className="px-2 py-1.5">

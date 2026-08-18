@@ -38,6 +38,25 @@ export const OT_ESTADO_LABELS: Record<OTEstadoAdmin, string> = {
   CANCELADA: 'Cancelada',
 };
 
+/**
+ * Clases Tailwind del badge de estado de OT. Única fuente — estaba copiado en
+ * 9 componentes entre sistema-modular y portal-ingeniero, y ya había derivado
+ * (dos listas de pendientes usaban un tono más claro sin que nadie lo decidiera).
+ * `BORRADOR` no es un OTEstadoAdmin pero aparece como estado efectivo en el
+ * badge, por eso el Record es de string.
+ */
+export const OT_ESTADO_COLORS: Record<string, string> = {
+  CREADA: 'bg-slate-100 text-slate-600',
+  ASIGNADA: 'bg-blue-100 text-blue-700',
+  COORDINADA: 'bg-violet-100 text-violet-700',
+  EN_CURSO: 'bg-amber-100 text-amber-700',
+  CIERRE_TECNICO: 'bg-orange-100 text-orange-700',
+  CIERRE_ADMINISTRATIVO: 'bg-cyan-100 text-cyan-700',
+  FINALIZADO: 'bg-emerald-100 text-emerald-700',
+  CANCELADA: 'bg-red-100 text-red-700',
+  BORRADOR: 'bg-amber-100 text-amber-700',
+};
+
 export const OT_ESTADO_ORDER: OTEstadoAdmin[] = [
   'CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO',
   'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
@@ -2861,6 +2880,50 @@ export interface Patron {
   updatedByName?: string | null;
   /** Phase 14 BOM-01 — BOM declarativo del patrón. Vacío/omitido = legacy sin desagregación. */
   componentes?: ComponentePatron[];
+
+  /**
+   * Artículo por el que este patrón ENTRA a la casa (2026-08-18).
+   *
+   * Todos los patrones se compran por orden de compra, pero hasta ahora no
+   * había forma de decir que el artículo recibido *era* este patrón: el único
+   * puente era que `codigoArticulo` coincidiera por texto con el código de la
+   * parte, atadura que se corta sola si alguien corrige el catálogo y no avisa
+   * a nadie. Con el FK, recibir el artículo da de alta el lote del patrón.
+   */
+  articuloId?: string | null;
+
+  /**
+   * Cuántas unidades de patrón entran por cada unidad de artículo comprada
+   * (2026-08-18). Ausente o null = 1.
+   *
+   * El caso que lo motiva: un kit de cafeínas se compra de a 1 kit pero como
+   * patrón son 3 ampollas. Metanol o agua HPLC son 1 a 1.
+   *
+   * Para un patrón CON BOM el kit sigue valiendo 1: el desglose en sustancias
+   * lo dan los `componentes` con su `cantidadPorKit`, no este factor. Poner las
+   * dos cosas multiplicaría dos veces.
+   */
+  unidadesPorUnidadDeCompra?: number | null;
+}
+
+/**
+ * Unidades de patrón que da de alta recibir `cantidadBase` unidades del
+ * artículo asociado (2026-08-18).
+ *
+ * Se aplica DESPUÉS de la conversión por envase (`cantidadEnUnidadBase`): la
+ * presentación lleva envases → unidad base de artículo, y esto lleva unidad
+ * base → unidades de patrón. Componer al revés cuenta mal.
+ *
+ * Un patrón con BOM ignora el factor: el kit vale 1 y el desglose lo da el BOM.
+ */
+export function unidadesPatronDesdeCompra(
+  patron: Pick<Patron, 'unidadesPorUnidadDeCompra' | 'componentes'>,
+  cantidadBase: number,
+): number {
+  if ((patron.componentes?.length ?? 0) > 0) return cantidadBase;
+  const factor = patron.unidadesPorUnidadDeCompra;
+  if (typeof factor !== 'number' || !Number.isFinite(factor) || factor <= 0) return cantidadBase;
+  return cantidadBase * factor;
 }
 
 // =============================================
@@ -3932,31 +3995,6 @@ export type EstadoRemito =
 
 export type TipoRemitoItem = 'sale_y_vuelve' | 'entrega';
 
-/**
- * Tipos de remito cuyo contenido VUELVE aunque sus items digan 'entrega'
- * (2026-08-17). En una derivación el equipo está en el taller del proveedor y
- * el retorno se registra por otro camino (`marcarRetornoRemitoItem`); en un
- * loaner, el módulo es de AGS y siempre regresa. No se pueden cerrar al emitir.
- */
-const TIPOS_REMITO_CON_RETORNO = new Set<TipoRemito>(['derivacion_proveedor', 'loaner_salida']);
-
-/**
- * `true` si de este remito no vuelve NADA: se emite y se termina (2026-08-17).
- *
- * El caso: una entrega al cliente, una devolución de su equipo o un remito de
- * servicio no tienen retorno posible. Como el cierre del remito dependía de que
- * sus items se marcaran `devuelto`, quedaban abiertos para siempre — se
- * acumulaban en la lista sin que hubiera acción posible que los sacara.
- */
-export function remitoSinRetorno(
-  remito: Pick<Remito, 'tipo' | 'items'>,
-): boolean {
-  if (TIPOS_REMITO_CON_RETORNO.has(remito.tipo)) return false;
-  const items = remito.items ?? [];
-  if (items.length === 0) return false;
-  return items.every(i => i.tipoItem !== 'sale_y_vuelve');
-}
-
 export interface RemitoItem {
   id: string;
   /** Stock-related fields. Opcionales: items de remito de ficha (devolución/derivación) no usan stock — usan los campos `ficha*` más abajo. */
@@ -4055,6 +4093,34 @@ export interface RemitoItem {
   serie?: string | null;
   /** Observaciones libres de la línea (rework remitos 2026-07-31). */
   observaciones?: string | null;
+  /**
+   * Metadata que estampa `aplicarSalidaRemito` al emitir el remito, para que el
+   * retorno y la anulación sepan qué doc mover y adónde. Se persiste en el doc
+   * del remito (2026-08-17: subida desde `movimientosAplicar`, la anulación la
+   * necesita desde código puro).
+   */
+  stockAplicado?: boolean;
+  /** Doc de unidad efectivamente movido (difiere de `unidadId` si hubo split de lote). */
+  salidaUnidadId?: string | null;
+  salidaCantidad?: number | null;
+  /** Ubicación de la unidad ANTES de la salida — destino del retorno o la anulación. */
+  salidaUbicacionOrigen?: UbicacionStock | null;
+}
+
+/**
+ * Items cuya salida hay que REVERTIR al anular un remito (2026-08-17).
+ *
+ * Se excluyen cuatro casos, y cada exclusión evita inventar stock:
+ * - documental (sin `unidadId`, o de una asignación/ficha): su efecto se
+ *   registró en otro flujo, o la mercadería es del cliente.
+ * - sin `stockAplicado`: borrador, nunca salió nada.
+ * - `devuelto`: ya volvió por el retorno normal; revertirlo otra vez lo duplica.
+ * - `consumido`: hubo un consumo real, ese stock se gastó de verdad.
+ */
+export function itemsARevertirEnAnulacion(items: RemitoItem[] | undefined): RemitoItem[] {
+  return (items ?? []).filter(it =>
+    !!it.unidadId && !it.asignacionId && !it.tipoEntidad
+    && it.stockAplicado === true && !it.devuelto && !it.consumido);
 }
 
 export interface Remito {
@@ -4110,6 +4176,16 @@ export interface Remito {
     iva: string;
     cuit: string;
   } | null;
+  /**
+   * Anulación del remito (2026-08-17). El remito emitido por error se anula
+   * devolviendo el stock a su posición de origen — ver
+   * `movimientosAplicarService.anularRemito`. El papel queda en el sistema como
+   * `cancelado`, nunca se borra: el número ya se consumió del talonario.
+   */
+  motivoAnulacion?: string | null;
+  anuladoPor?: string | null;
+  fechaAnulacion?: string | null;
+
   /**
    * Remito de servicio (tipo `'servicio'`): equipo al que refieren los servicios
    * (el remito se arma por equipo, consolidando N OTs → 1 remito) y los datos

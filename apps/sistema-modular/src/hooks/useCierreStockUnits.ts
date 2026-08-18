@@ -85,7 +85,10 @@ function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?:
   const out: RemitoItemOrigen[] = [];
   for (const r of remitos) {
     for (const it of r.items ?? []) {
-      if (it.tipoItem !== 'sale_y_vuelve' || it.devuelto || it.consumido) continue;
+      // Las dos clases de línea se descargan contra la OT (2026-08-18). Antes
+      // esto filtraba a 'sale_y_vuelve' y por eso una entrega al cliente nunca
+      // aparecía como origen en el cierre: no había forma de imputarla.
+      if (it.devuelto || it.consumido) continue;
       const matchArticulo = (articulo && it.articuloId === articulo.id)
         || (!!cod && normCodigo(it.articuloCodigo) === cod);
       if (!matchArticulo) continue;
@@ -144,6 +147,12 @@ export function useCierreStockUnits(articulos: Part[]): {
       // Patrones (activos) — colección chica de estándares/materiales de referencia.
       // Se cargan una vez y se matchean por código contra las partes del cierre.
       const patrones = await patronesService.getAll({ activoOnly: true }).catch(() => []);
+      // Índice por FK (2026-08-18): es el vínculo declarado y es el que manda.
+      // El índice por código de abajo queda como respaldo para los patrones que
+      // todavía no tienen el artículo cargado — atarlos por texto se rompía
+      // solo cuando alguien corregía el catálogo.
+      const patronPorArticulo = new Map<string, Patron>();
+      for (const pt of patrones) if (pt.articuloId) patronPorArticulo.set(pt.articuloId, pt);
       const patronPorCodigo = new Map<string, Patron>();
       for (const p of patrones) patronPorCodigo.set(normCodigo(p.codigoArticulo), p);
 
@@ -169,7 +178,9 @@ export function useCierreStockUnits(articulos: Part[]): {
           // por la opción "Remito N° …" de abajo, que descuenta del remito.
           unidades = todas.filter(unidadCuentaComoDisponible);
         }
-        const patron = patronPorCodigo.get(normCodigo(part.codigo)) ?? null;
+        const patron = (articulo ? patronPorArticulo.get(articulo.id) : null)
+          ?? patronPorCodigo.get(normCodigo(part.codigo))
+          ?? null;
         result[part.id] = {
           articulo, requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
           patron, patronLotes: patron ? patronLotesDisponibles(patron) : [],
