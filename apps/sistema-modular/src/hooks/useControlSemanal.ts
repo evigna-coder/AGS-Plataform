@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AgendaEntry, Cliente, CondicionPago, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { esOTCerradaTecnicamente } from '@ags/shared';
 import { tieneOCDelCliente } from '../utils/analitica/presupuestosMetrics';
+import { OT_ESTADO_ORDER } from '../utils/agendaOTSync';
 import {
   agendaService, clientesService, condicionesPagoService, facturacionService, ordenesTrabajoService, presupuestosService,
 } from '../services/firebaseService';
@@ -31,8 +32,27 @@ export interface PresupuestoControlRow {
   listoParaAviso: boolean;
   /** Condición de pago anticipada: figura en el control aunque ninguna OT haya cerrado. */
   pagoAnticipado: boolean;
-  /** Aceptado SIN ninguna OT abierta (2026-08-04): crear OT o entregar partes. */
-  sinOtAbierta: boolean;
+  /**
+   * Aceptado y SIN NINGUNA OT AGENDADA (2026-08-15).
+   *
+   * Antes era `nums.size === 0` — "sin ninguna OT creada"—, y ese no es el
+   * pedido: un presupuesto con la OT ya creada pero nunca coordinada no entraba
+   * por acá (tiene OT) ni por `otsEnSemana` (no está en la agenda de la semana),
+   * así que se caía del control salvo que además tuviera trabajo hecho. Justo
+   * el caso que un control semanal tiene que cazar.
+   */
+  sinOtAgendada: boolean;
+  /**
+   * OTs del ppto que EXISTEN pero nunca se coordinaron (2026-08-15). Distingue
+   * los dos casos que caen bajo `sinOtAgendada`, porque la acción es distinta:
+   * vacío = no hay ninguna OT, hay que crearla; con números = la OT está creada
+   * y lo que falta es meterla en la agenda.
+   */
+  otsSinAgendar: string[];
+  /** Fecha (yyyy-mm-dd) de la visita si esta agendada para OTRA semana
+   *  (2026-08-15). Sirve para decir "agendada 28/08" en vez de tratarla como
+   *  pendiente de coordinar. */
+  agendadaOtraSemana: string | null;
   /** OTs del ppto agendadas en la semana visible (2026-08-04): ancla el ppto al control de esa semana. */
   otsEnSemana: string[];
   /** OTs de ENTREGA DE PARTES del ppto sin entregar (2026-08-04): como nunca se
@@ -42,6 +62,15 @@ export interface PresupuestoControlRow {
    *  portal: la creación desde el portal implica aceptación del cliente — hay
    *  que ponerle precios/aceptarlo y pasarlo a facturar). */
   sinAceptar: boolean;
+  /**
+   * Entra al control SOLO por trabajo ya realizado y sin facturar (2026-08-15).
+   *
+   * No es de esta semana: arrastra desde que cerró la OT y va a seguir
+   * apareciendo todas las semanas hasta que se facture. Se separa en su propio
+   * bloque para que no se mezcle con el trabajo de la semana — mezclados, la
+   * sección "tenía muchos" y no se distinguía qué pasaba ahora.
+   */
+  arrastre: boolean;
 }
 
 /** Sección 3 (2026-08-05): cruce "pasado a facturar vs facturado" — lo confirma
@@ -134,10 +163,19 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
+  /** otNumber → fecha de su entrada de agenda más temprana (todas las semanas). */
+  const [fechaAgendaPorOt, setFechaAgendaPorOt] = useState<Map<string, string>>(new Map());
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Agenda COMPLETA por OT (2026-08-15): saber si una OT está agendada NO se
+  // puede resolver con `entries`, que solo trae la semana visible, ni con el
+  // estadoAdmin de la OT — hay OTs coordinadas en agenda cuyo estado nunca
+  // avanzó a COORDINADA. Es el mismo bug que ya cazaron en la cola de agenda
+  // (UAT 2026-07-30) y para el que existe esta suscripción global.
+  useEffect(() => agendaService.subscribeFechaPorOt(setFechaAgendaPorOt), []);
 
   // Agenda de la semana: suscripción realtime por rango (mismo mecanismo que useAgenda).
   useEffect(() => {
@@ -258,7 +296,26 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       // (c) los que tienen una ENTREGA DE PARTES sin entregar (la entrega no se
       // agenda ni cierra sola, así que sin esto el ppto desaparecía del control
       // apenas se creaba la OT de entrega).
-      const sinOtAbierta = enUniversoTrabajo && nums.size === 0;
+      // "Agendada" se decide contra la AGENDA REAL, no contra el estadoAdmin:
+      // hay OTs con entrada de agenda cuyo estado nunca avanzó a COORDINADA, y
+      // usar el estado las mostraba como sin agendar (caso P1-005059-01, con la
+      // visita puesta para fin de agosto, apareciendo en el control de esta
+      // semana). Una OT ya cerrada tampoco necesita agenda.
+      const tieneAlgunaAgendada = [...nums].some(n => {
+        if (fechaAgendaPorOt.has(n)) return true;
+        const e = otByNumber.get(n)?.estadoAdmin;
+        return !!e && OT_ESTADO_ORDER[e] >= OT_ESTADO_ORDER.COORDINADA;
+      });
+      const sinOtAgendada = enUniversoTrabajo && !tieneAlgunaAgendada;
+      // Las que existen pero no están en la agenda. Vacío + `sinOtAgendada` ⇒
+      // no hay ninguna OT creada, que es otra acción distinta.
+      const otsSinAgendar = sinOtAgendada ? [...nums].filter(n => otByNumber.has(n)).sort() : [];
+      // Agendada, pero para OTRA semana: no es trabajo de esta semana. Se guarda
+      // para poder decirlo en la fila en vez de esconderlo.
+      const agendadaOtraSemana = [...nums]
+        .map(n => fechaAgendaPorOt.get(n))
+        .filter((f): f is string => !!f && (f < weekStart || f > weekEnd))
+        .sort()[0] ?? null;
       const otsEnSemana = [...nums].filter(n => otsAgendadasSemana.has(n)).sort();
       const entregasPpto = [...nums]
         .filter(n => {
@@ -269,8 +326,14 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       // (2026-08-11: los pre-aceptación —borrador/enviado— ya no entran al
       // universo; el flag `sinAceptar` queda en false y su badge no se muestra.)
       const sinAceptar = false;
-      if (!tieneTrabajoRealizado && !enUniversoAnticipada && !sinOtAbierta
-        && otsEnSemana.length === 0 && entregasPpto.length === 0) continue;
+      // Los cuatro criterios que el usuario define como "trabajo de la semana"
+      // (2026-08-15): sin OT agendada, pago anticipado, OT agendada en la semana
+      // visible, y entrega de partes pendiente.
+      const deLaSemana = enUniversoAnticipada || sinOtAgendada
+        || otsEnSemana.length > 0 || entregasPpto.length > 0;
+      if (!tieneTrabajoRealizado && !deLaSemana) continue;
+      // Arrastre = entra SOLO porque hay trabajo hecho sin facturar.
+      const arrastre = !deLaSemana;
 
       const avisoEnviado = pptosConAviso.has(p.id);
       const otsPendientes = [...nums]
@@ -292,13 +355,15 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
         avisoEnviado, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
-        sinOtAbierta, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
+        sinOtAgendada, otsSinAgendar, agendadaOtraSemana, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
+        arrastre,
       });
     }
     // Listos primero, después trabados, enviados al final; dentro de cada grupo por número.
     const rank = (r: PresupuestoControlRow) => r.avisoEnviado ? 2 : r.listoParaAviso ? 0 : 1;
     return rows.sort((a, b) => rank(a) - rank(b) || a.presupuesto.numero.localeCompare(b.presupuesto.numero));
-  }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones, entries]);
+  }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones, entries,
+      fechaAgendaPorOt, weekStart, weekEnd]);
 
   // ── Sección 3: cruce con facturación (2026-08-05) ──
   // "Todo lo que se pasó para facturar, ¿se facturó?" — universo: solicitudes
@@ -343,13 +408,16 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   }), [facturacionRows]);
 
   const presupuestoKpis = useMemo(() => ({
-    conTrabajo: presupuestoRows.length,
+    conTrabajo: presupuestoRows.filter(r => !r.arrastre).length,
     listosSinAviso: presupuestoRows.filter(r => r.listoParaAviso).length,
     esperandoOTs: presupuestoRows.filter(r => !r.avisoEnviado && r.otsPendientes.length > 0).length,
     sinOC: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOC).length,
     anticipadas: presupuestoRows.filter(r => r.pagoAnticipado && !r.avisoEnviado).length,
-    sinOtAbierta: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOtAbierta).length,
+    sinOtAgendada: presupuestoRows.filter(r => !r.avisoEnviado && r.sinOtAgendada).length,
     sinAceptar: presupuestoRows.filter(r => !r.avisoEnviado && r.sinAceptar).length,
+    // KPI "En control" cuenta SOLO lo de la semana: el arrastre tiene su propio
+    // bloque y su propio contador (2026-08-15).
+    arrastre: presupuestoRows.filter(r => r.arrastre).length,
   }), [presupuestoRows]);
 
   return {

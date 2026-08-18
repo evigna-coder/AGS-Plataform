@@ -156,6 +156,26 @@ export const agendaService = {
     }, err => console.error('agenda otNumbers subscription error:', err));
   },
 
+  /**
+   * otNumber → fecha de inicio de su entrada más TEMPRANA no cancelada
+   * (2026-08-15). Variante de `subscribeOtNumbersAsignados` que además dice
+   * CUÁNDO: el control semanal necesita distinguir "no está agendada" de
+   * "está agendada para dentro de tres semanas", que no es lo mismo y no se
+   * trabaja igual. Global sin rango, a propósito.
+   */
+  subscribeFechaPorOt(callback: (fechas: Map<string, string>) => void): () => void {
+    return onSnapshot(collection(db, 'agendaEntries'), snap => {
+      const m = new Map<string, string>();
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (!data.otNumber || data.estadoAgenda === 'cancelado') continue;
+        const prev = m.get(data.otNumber);
+        if (!prev || String(data.fechaInicio) < prev) m.set(data.otNumber, String(data.fechaInicio));
+      }
+      callback(m);
+    }, err => console.error('agenda fechaPorOt subscription error:', err));
+  },
+
   async create(data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>): Promise<string> {
     // Cinturón (2026-08-04): una entrada de UN día con quarterEnd < quarterStart
     // es un rango invertido — no ocupa ninguna celda y queda INVISIBLE en la

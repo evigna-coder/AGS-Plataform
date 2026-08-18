@@ -1,14 +1,15 @@
+import { useState } from 'react';
 import type { Presupuesto } from '@ags/shared';
-import { ESTADO_PRESUPUESTO_COLORS, ESTADO_PRESUPUESTO_LABELS, MONEDA_SIMBOLO, OT_ESTADO_LABELS } from '@ags/shared';
 import type { PresupuestoControlRow } from '../../hooks/useControlSemanal';
-import { StatusBadge } from '../ui/StatusBadge';
 import { EmptyState } from '../ui/EmptyState';
-import { Button } from '../ui/Button';
-import { ComentarioInline } from './ComentarioInline';
+import { PresupuestosControlTabla } from './PresupuestosControlTabla';
 
 interface Props {
   rows: PresupuestoControlRow[];
-  kpis: { conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number; anticipadas: number; sinOtAbierta: number; sinAceptar: number };
+  kpis: {
+    conTrabajo: number; listosSinAviso: number; esperandoOTs: number; sinOC: number;
+    anticipadas: number; sinOtAgendada: number; sinAceptar: number; arrastre: number;
+  };
   mostrarEnviados: boolean;
   onToggleEnviados: (v: boolean) => void;
   onOpenPresupuesto: (id: string) => void;
@@ -19,8 +20,6 @@ interface Props {
   onSaveComentario: (presupuestoId: string, comentario: string) => Promise<void>;
 }
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
 const Kpi = ({ label, value, tone }: { label: string; value: number; tone: string }) => (
   <div className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 flex items-center justify-between gap-2">
     <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">{label}</p>
@@ -28,173 +27,70 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
   </div>
 );
 
-const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
-  if (row.avisoEnviado) return <p className="text-[10px] text-emerald-600 font-medium">✓ Aviso enviado</p>;
-  const items: React.ReactNode[] = [];
-  if (row.pagoAnticipado) {
-    items.push(
-      <p key="anticipo" className="text-[10px] text-purple-700 font-medium">
-        Pago anticipado — se factura antes del servicio (ej. esperando ingreso de importación)
-      </p>,
-    );
-  }
-  // Sin aceptar con OT realizada (2026-08-05, caso portal): la creación desde
-  // el portal implica aceptación — hay que ponerle precios y procesarlo.
-  if (row.sinAceptar) {
-    items.push(
-      <p key="sinaceptar" className="text-[10px] text-violet-700 font-medium">
-        OT realizada con presupuesto sin aceptar — completar precios y aceptarlo (portal: la creación implica aceptación del cliente)
-      </p>,
-    );
-  }
-  // Aceptado sin ninguna OT abierta (2026-08-04): crear la OT o entregar partes.
-  if (row.sinOtAbierta) {
-    items.push(
-      <p key="sinot" className="text-[10px] text-orange-600 font-medium">
-        Sin OT abierta — crear OT o entregar partes
-      </p>,
-    );
-  }
-  // Entrega de partes sin entregar (2026-08-04): ancla el ppto al control.
-  if (row.entregasPendientes.length > 0) {
-    items.push(
-      <p key="entregas" className="text-[10px] text-orange-600 font-medium">
-        Entrega de partes pendiente: {row.entregasPendientes.map(n => `OT-${n}`).join(', ')}
-      </p>,
-    );
-  }
-  if (row.otsEnSemana.length > 0) {
-    items.push(
-      <p key="semana" className="text-[10px] text-teal-700">
-        Agendada esta semana: {row.otsEnSemana.map(n => `OT-${n}`).join(', ')}
-      </p>,
-    );
-  }
-  if (row.otsPendientes.length > 0) {
-    items.push(
-      <p key="ots" className="text-[10px] text-red-600">
-        Pendiente cierre: {row.otsPendientes
-          .map(o => `${o.otNumber} (${o.estadoAdmin ? OT_ESTADO_LABELS[o.estadoAdmin] : 'Sin estado'})`)
-          .join(', ')}
-      </p>,
-    );
-  }
-  if (row.sinOC) items.push(<p key="oc" className="text-[10px] text-amber-600">Pendiente OC del cliente</p>);
-  if (row.listoParaAviso) items.push(<p key="listo" className="text-[10px] text-teal-700 font-medium">Listo — falta generar el aviso</p>);
-  if (items.length === 0) return <span className="text-[10px] text-slate-300">—</span>;
-  return <div className="space-y-0.5">{items}</div>;
-};
-
+/**
+ * Sección 2 del control semanal, en DOS bloques (2026-08-15).
+ *
+ * Arriba, el trabajo de la semana: sin OT agendada, agendados en la semana
+ * visible, entregas pendientes y pagos anticipados. Abajo, plegado, el arrastre
+ * — presupuestos con el trabajo ya hecho y sin facturar, que reaparecen todas
+ * las semanas hasta que se resuelvan.
+ *
+ * Estaban mezclados y el arrastre es el grueso: la sección mostraba "muchos" y
+ * no se distinguía qué había pasado ESTA semana, que es para lo que se mira.
+ */
 export const PresupuestosControlSection: React.FC<Props> = ({
   rows, kpis, mostrarEnviados, onToggleEnviados, onOpenPresupuesto, onGenerarAviso, generandoId,
   onSaveComentario,
 }) => {
+  const [verArrastre, setVerArrastre] = useState(false);
   const enviados = rows.filter(r => r.avisoEnviado);
   const visibles = mostrarEnviados ? rows : rows.filter(r => !r.avisoEnviado);
+  const semana = visibles.filter(r => !r.arrastre);
+  const arrastre = visibles.filter(r => r.arrastre);
+
+  const tabla = (rs: PresupuestoControlRow[]) => (
+    <PresupuestosControlTabla rows={rs} onOpenPresupuesto={onOpenPresupuesto}
+      onGenerarAviso={onGenerarAviso} generandoId={generandoId} onSaveComentario={onSaveComentario} />
+  );
 
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-          2 · Presupuestos aceptados: trabajo realizado, agendados esta semana, sin OT abierta, entrega pendiente o pago anticipado
+          2 · Presupuestos de la semana: sin OT agendada, agendados esta semana, entrega pendiente o pago anticipado
         </p>
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={mostrarEnviados}
-            onChange={e => onToggleEnviados(e.target.checked)}
-            className="rounded border-slate-300"
-          />
+          <input type="checkbox" checked={mostrarEnviados} onChange={e => onToggleEnviados(e.target.checked)}
+            className="rounded border-slate-300" />
           Mostrar enviados ({enviados.length})
         </label>
       </div>
 
       <div className="grid grid-cols-7 gap-2">
-        <Kpi label="En control" value={kpis.conTrabajo} tone="text-slate-700" />
+        <Kpi label="De la semana" value={kpis.conTrabajo} tone="text-slate-700" />
         <Kpi label="Listos sin aviso" value={kpis.listosSinAviso} tone="text-teal-700" />
         <Kpi label="Esperando otras OTs" value={kpis.esperandoOTs} tone="text-red-600" />
-        <Kpi label="Sin aceptar" value={kpis.sinAceptar} tone="text-violet-700" />
-        <Kpi label="Sin OT abierta" value={kpis.sinOtAbierta} tone="text-orange-600" />
+        <Kpi label="Sin OT agendada" value={kpis.sinOtAgendada} tone="text-orange-600" />
         <Kpi label="Sin OC del cliente" value={kpis.sinOC} tone="text-amber-600" />
         <Kpi label="Pago anticipado" value={kpis.anticipadas} tone="text-purple-700" />
+        <Kpi label="Arrastre" value={kpis.arrastre} tone="text-slate-400" />
       </div>
 
-      {visibles.length === 0 ? (
-        <EmptyState message={rows.length === 0
-          ? 'Ningún presupuesto con OTs cerradas ni pago anticipado pendiente de facturación'
-          : 'Todos los avisos a facturación fueron enviados'} />
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="tabla-compacta w-full">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className={thClass}>Presupuesto</th>
-                <th className={thClass}>Cliente</th>
-                <th className={thClass}>Total</th>
-                <th className={thClass}>Estado</th>
-                <th className={thClass}>Qué falta</th>
-                <th className={`${thClass} w-56`}>Comentario (soporte)</th>
-                <th className={`${thClass} text-right`}>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.map(row => {
-                const p = row.presupuesto;
-                const sym = MONEDA_SIMBOLO[p.moneda as keyof typeof MONEDA_SIMBOLO] || '$';
-                return (
-                  <tr key={p.id} className={`border-b border-slate-100 last:border-0 ${row.avisoEnviado ? 'bg-emerald-50/40' : ''}`}>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <button
-                        onClick={() => onOpenPresupuesto(p.id)}
-                        className="text-xs font-semibold text-teal-700 hover:text-teal-900 hover:underline"
-                        title="Abrir el presupuesto"
-                      >
-                        {p.numero}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]">{row.clienteNombre}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap tabular-nums">
-                      {sym} {(p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
-                        <StatusBadge
-                          label={ESTADO_PRESUPUESTO_LABELS[p.estado]}
-                          colorClass={ESTADO_PRESUPUESTO_COLORS[p.estado]}
-                        />
-                        {row.pagoAnticipado && (
-                          <span
-                            className="text-[9px] font-mono font-semibold uppercase tracking-wide bg-purple-100 text-purple-700 rounded-full px-1.5 py-0.5"
-                            title="Condición de pago anticipada — se factura antes del servicio"
-                          >
-                            Anticip.
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2"><QueFalta row={row} /></td>
-                    <td className="px-3 py-2">
-                      {/* Comentario del estado (2026-08-05): "quedó pendiente una
-                          entrega", "falta un paso", etc. Guarda con blur/Enter. */}
-                      <ComentarioInline id={p.id} valor={p.comentarioControlSemanal || ''}
-                        placeholder="Comentario…" onSave={onSaveComentario} />
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
-                      {row.listoParaAviso && (
-                        <Button
-                          size="sm"
-                          onClick={() => onGenerarAviso(p)}
-                          disabled={generandoId !== null}
-                        >
-                          {generandoId === p.id ? 'Generando…' : 'Generar aviso'}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {semana.length === 0
+        ? <EmptyState message="Esta semana no hay presupuestos que trabajar" />
+        : tabla(semana)}
+
+      {arrastre.length > 0 && (
+        <div className="pt-1">
+          <button onClick={() => setVerArrastre(v => !v)}
+            className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wide text-slate-400 hover:text-slate-600">
+            <span>{verArrastre ? '▾' : '▸'}</span>
+            Arrastre · trabajo hecho sin facturar ({arrastre.length})
+            <span className="normal-case font-sans text-slate-300">
+              — no son de esta semana; siguen apareciendo hasta que se facturen
+            </span>
+          </button>
+          {verArrastre && <div className="mt-2">{tabla(arrastre)}</div>}
         </div>
       )}
     </section>
