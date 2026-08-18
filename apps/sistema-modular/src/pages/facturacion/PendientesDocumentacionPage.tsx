@@ -9,6 +9,8 @@ import { Button } from '../../components/ui/Button';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { RegistrarCertificacionModal } from '../../components/certificaciones/RegistrarCertificacionModal';
+import { SolicitarCertificacionModal } from '../../components/certificaciones/SolicitarCertificacionModal';
+import { CertificacionesAbiertasSection } from '../../components/certificaciones/CertificacionesAbiertasSection';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS } from '../../utils/exports/exportPendientesDocumentacion';
 
@@ -45,6 +47,10 @@ export const PendientesDocumentacionPage = () => {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [certGrupo, setCertGrupo] = useState<Grupo | null>(null);
+  /** Grupo para el que se está armando un pedido de certificación por lote. */
+  const [loteGrupo, setLoteGrupo] = useState<Grupo | null>(null);
+  /** Fuerza el refresco de los pedidos abiertos cuando cambia lo retenido. */
+  const [refrescoCerts, setRefrescoCerts] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +86,10 @@ export const PendientesDocumentacionPage = () => {
         }
       />
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Pedidos ya enviados al cliente, para resolver OT por OT cuando
+            vuelve la certificación (2026-08-17). */}
+        <CertificacionesAbiertasSection key={refrescoCerts} onResuelta={() => void load()} />
+
         {loading ? (
           <p className="text-slate-400 text-sm">Cargando...</p>
         ) : grupos.length === 0 ? (
@@ -95,7 +105,14 @@ export const PendientesDocumentacionPage = () => {
                 <span className="text-[11px] text-slate-400">{g.ots.length} OT{g.ots.length !== 1 ? 's' : ''}</span>
               </div>
               {g.requisito === 'certificacion' && (
-                <Button size="sm" onClick={() => setCertGrupo(g)} disabled={acting}>Registrar certificación</Button>
+                <div className="flex gap-1.5 shrink-0">
+                  {/* Dos caminos según cómo certifica la planta: pedir el lote
+                      y esperar, o registrar el papel que ya llegó. */}
+                  <Button size="sm" variant="outline" onClick={() => setLoteGrupo(g)} disabled={acting}>
+                    Solicitar por lote
+                  </Button>
+                  <Button size="sm" onClick={() => setCertGrupo(g)} disabled={acting}>Registrar certificación</Button>
+                </div>
               )}
             </div>
             <div className="space-y-1">
@@ -117,6 +134,16 @@ export const PendientesDocumentacionPage = () => {
           </Card>
         ))}
       </div>
+      {loteGrupo && (
+        <SolicitarCertificacionModal
+          open={!!loteGrupo}
+          onClose={() => setLoteGrupo(null)}
+          onCreated={() => { setLoteGrupo(null); setRefrescoCerts(n => n + 1); void load(); }}
+          clienteId={loteGrupo.clienteId}
+          clienteNombre={loteGrupo.clienteNombre}
+          ots={loteGrupo.ots}
+        />
+      )}
       {certGrupo && (
         <RegistrarCertificacionModal
           open={!!certGrupo}
