@@ -202,6 +202,31 @@ export const presupuestosService = {
     return null;
   },
 
+  /**
+   * Presupuesto por NUMERO (`PRE-0421.01`), 2026-08-14.
+   *
+   * La OT guarda el numero en `budgets[]`, no el doc id. Hasta ahora resolverlo
+   * significaba `getAll()` + `.find()` —la coleccion entera para levantar un
+   * documento—; esto es un where acotado y no necesita indice compuesto.
+   */
+  async getByNumero(numero: string): Promise<Presupuesto | null> {
+    const n = (numero ?? '').trim();
+    if (!n) return null;
+    const snap = await getDocs(query(collection(db, 'presupuestos'), where('numero', '==', n)));
+    const d = snap.docs[0];
+    if (!d) return null;
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      estado: migrateEstado(data.estado),
+      createdAt: toISO(data.createdAt, ''),
+      updatedAt: toISO(data.updatedAt, ''),
+      validUntil: toISO(data.validUntil),
+      fechaEnvio: toISO(data.fechaEnvio),
+    } as Presupuesto;
+  },
+
   /** Real-time subscription to a single presupuesto by ID. Returns unsubscribe function. */
   subscribeById(
     id: string,

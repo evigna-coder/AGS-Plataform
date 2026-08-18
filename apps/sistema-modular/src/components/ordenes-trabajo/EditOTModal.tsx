@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { RemitoServicioModal } from '../remitos/RemitoServicioModal';
+import { OTImprimirButton } from './OTImprimirButton';
 import { useEditOTForm } from '../../hooks/useEditOTForm';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
@@ -42,6 +43,10 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
       subtitle={h.loading ? 'Cargando...' : `${OT_ESTADO_LABELS[h.form.estadoAdmin] ?? h.form.estadoAdmin}`}
       footer={<>
         <Button variant="outline" size="sm" onClick={h.openInReportesOT}>Abrir reporte</Button>
+        {/* Hoja de la OT: el trabajo A REALIZAR + la configuracion del equipo,
+            para que acompañe al modulo en el bench (2026-08-14). No es el
+            reporte tecnico — ese sale por "Abrir reporte". */}
+        <OTImprimirButton otNumber={otNumber} variante="boton" />
         {/* Deshabilitado —no oculto— sin equipo: el remito de servicio se arma
             por equipo, y esconder el botón deja al usuario buscándolo. */}
         <Button

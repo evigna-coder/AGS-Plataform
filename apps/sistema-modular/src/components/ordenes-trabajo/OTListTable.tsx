@@ -5,6 +5,7 @@ import { ColAlignIcon } from '../ui/ColAlignIcon';
 import type { ColAlign } from '../../hooks/useResizableColumns';
 import { OTStatusBadge } from './OTStatusBadge';
 import { OTReporteButton } from './OTReporteButton';
+import { OTImprimirButton } from './OTImprimirButton';
 import type { GroupedOT } from '../../hooks/useOTListData';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { fechaLocalYMD, formatFechaAR } from '../../utils/formatFecha';
@@ -201,6 +202,7 @@ export const OTListTable: React.FC<Props> = ({
                 <td className="px-2 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-0.5">
                     <OTReporteButton ot={ot} />
+                    <OTImprimirButton otNumber={ot.otNumber} />
                     {!isItem && (
                       <button onClick={() => onNewItem(ot)}
                         className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1 py-0.5 rounded hover:bg-teal-50"
