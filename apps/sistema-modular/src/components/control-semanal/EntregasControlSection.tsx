@@ -1,5 +1,5 @@
+import { OT_ESTADO_COLORS, OT_ESTADO_LABELS } from '@ags/shared';
 import type { WorkOrder } from '@ags/shared';
-import { OT_ESTADO_LABELS } from '@ags/shared';
 import { StatusBadge } from '../ui/StatusBadge';
 
 interface Props {
@@ -9,13 +9,6 @@ interface Props {
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
-const ESTADO_BADGE: Record<string, string> = {
-  CREADA: 'bg-slate-100 text-slate-500',
-  ASIGNADA: 'bg-blue-100 text-blue-600',
-  COORDINADA: 'bg-violet-100 text-violet-600',
-  EN_CURSO: 'bg-amber-100 text-amber-600',
-};
 
 // createdAt viene como string ISO en OTs nuevas, pero en docs legacy puede ser
 // Timestamp de Firestore o faltar — tolerar cualquier forma sin romper.
@@ -88,7 +81,7 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, on
                 <td className="px-3 py-2 whitespace-nowrap">
                   <StatusBadge
                     label={OT_ESTADO_LABELS[ot.estadoAdmin ?? 'CREADA'] ?? ot.estadoAdmin ?? 'Creada'}
-                    colorClass={ESTADO_BADGE[ot.estadoAdmin ?? 'CREADA'] ?? 'bg-slate-100 text-slate-500'}
+                    colorClass={OT_ESTADO_COLORS[ot.estadoAdmin ?? 'CREADA'] ?? 'bg-slate-100 text-slate-500'}
                   />
                 </td>
                 <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">{fmtFecha(ot.createdAt)}</td>

@@ -1,15 +1,8 @@
 import { type FC, useState, useMemo } from 'react';
+import { OT_ESTADO_COLORS, OT_ESTADO_LABELS } from '@ags/shared';
 import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
-import { OT_ESTADO_LABELS } from '@ags/shared';
 import { useDraggable } from '@dnd-kit/core';
 import { matchesSearch } from '../../utils/searchTerms';
-
-const ESTADO_BADGE: Record<string, string> = {
-  CREADA: 'bg-slate-100 text-slate-500',
-  ASIGNADA: 'bg-blue-100 text-blue-600',
-  COORDINADA: 'bg-violet-100 text-violet-600',
-  EN_CURSO: 'bg-amber-100 text-amber-600',
-};
 
 interface AgendaPendingSidebarProps {
   pendingOTs: WorkOrder[];
@@ -111,7 +104,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
               <button
                 key={est}
                 onClick={() => setEstadoFilter(estadoFilter === est ? '' : est)}
-                className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${estadoFilter === est ? 'bg-slate-700 text-white' : `${ESTADO_BADGE[est] || 'bg-slate-100 text-slate-500'} hover:opacity-80`}`}
+                className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${estadoFilter === est ? 'bg-slate-700 text-white' : `${OT_ESTADO_COLORS[est] || 'bg-slate-100 text-slate-500'} hover:opacity-80`}`}
               >
                 {OT_ESTADO_LABELS[est as OTEstadoAdmin] || est} ({count})
               </button>
@@ -174,7 +167,7 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
   });
 
   const estadoAdmin = ot.estadoAdmin || 'CREADA';
-  const badgeClass = ESTADO_BADGE[estadoAdmin] || 'bg-slate-100 text-slate-500';
+  const badgeClass = OT_ESTADO_COLORS[estadoAdmin] || 'bg-slate-100 text-slate-500';
 
   return (
     <div

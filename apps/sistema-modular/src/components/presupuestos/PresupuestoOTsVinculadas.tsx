@@ -2,7 +2,7 @@ import React from 'react';
 import { useTabs } from '../../contexts/TabsContext';
 import { ordenesTrabajoService } from '../../services/firebaseService';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
-import { OT_ESTADO_LABELS, type OTEstadoAdmin, type Presupuesto, type WorkOrder } from '@ags/shared';
+import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, type OTEstadoAdmin, type Presupuesto, type WorkOrder } from '@ags/shared';
 
 interface Props {
   /** Lista de OT numbers vinculadas al presupuesto (array nuevo). */
@@ -12,17 +12,6 @@ interface Props {
   /** Número del presupuesto — habilita el join por `budgets` de la OT. */
   presupuestoNumero?: string | null;
 }
-
-const ESTADO_COLORS: Record<string, string> = {
-  CREADA: 'bg-slate-100 text-slate-600',
-  ASIGNADA: 'bg-blue-100 text-blue-700',
-  COORDINADA: 'bg-violet-100 text-violet-700',
-  EN_CURSO: 'bg-amber-100 text-amber-700',
-  CIERRE_TECNICO: 'bg-orange-100 text-orange-700',
-  CIERRE_ADMINISTRATIVO: 'bg-cyan-100 text-cyan-700',
-  FINALIZADO: 'bg-emerald-100 text-emerald-700',
-  CANCELADA: 'bg-red-100 text-red-700',
-};
 
 /** dd/mm — la fecha en que se trabajó; si no hay, la coordinada; si no, el alta. */
 function fechaCorta(ot: WorkOrder): string {
@@ -132,7 +121,7 @@ export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers
                 <div className="shrink-0 flex items-center gap-1.5">
                   {fecha && <span className="text-[10px] font-mono text-slate-400">{fecha}</span>}
                   {estado && (
-                    <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-medium rounded-full ${ESTADO_COLORS[estado] ?? 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-medium rounded-full ${OT_ESTADO_COLORS[estado] ?? 'bg-slate-100 text-slate-600'}`}>
                       {OT_ESTADO_LABELS[estado] ?? estado}
                     </span>
                   )}
