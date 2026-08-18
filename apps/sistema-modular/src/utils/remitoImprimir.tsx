@@ -1,4 +1,5 @@
 import type { Remito } from '@ags/shared';
+import { remitoSinRetorno } from '@ags/shared';
 import { movimientosAplicarService, remitoMueveStock } from '../services/movimientosAplicar';
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 
@@ -82,7 +83,11 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
     if (remitoMueveStock(remito)) {
       await movimientosAplicarService.aplicarSalidaRemito({ remito, creadoPor: nombreUsuarioActual() });
     } else {
-      await remitosService.update(remito.id, { estado: 'confirmado' });
+      // Documental (sin items de stock): si no vuelve nada, se cierra al
+      // emitirse — no hay devolución que esperar (2026-08-17).
+      await remitosService.update(remito.id, {
+        estado: remitoSinRetorno(remito) ? 'completado' : 'confirmado',
+      });
     }
   }
 

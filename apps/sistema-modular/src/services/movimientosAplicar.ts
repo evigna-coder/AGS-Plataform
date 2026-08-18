@@ -3,7 +3,7 @@ import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, logAudit, runTransaction,
 } from './firebase';
-import { ubicacionDeRemito } from '@ags/shared';
+import { ubicacionDeRemito, remitoSinRetorno } from '@ags/shared';
 import type {
   Articulo, EstadoUnidad, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
   TipoUbicacionStock, UbicacionStock, UnidadStock,
@@ -539,8 +539,15 @@ export const movimientosAplicarService = {
         };
       });
 
+      // Si de este remito no vuelve nada, nace CERRADO (2026-08-17): una
+      // entrega al cliente no tiene retorno posible, y esperar que alguien
+      // marque sus items como devueltos lo dejaba abierto para siempre.
+      const cerradoAlEmitir = remitoSinRetorno({ tipo: remito.tipo, items: itemsFinales as RemitoItem[] });
       tx.update(docRef('remitos', remito.id), deepCleanForFirestore({
-        estado: 'confirmado', items: itemsFinales, ...getUpdateTrace(), updatedAt: now,
+        estado: cerradoAlEmitir ? 'completado' : 'confirmado',
+        items: itemsFinales,
+        ...(cerradoAlEmitir ? { fechaDevolucion: now } : {}),
+        ...getUpdateTrace(), updatedAt: now,
       }));
       return afectadas;
     });

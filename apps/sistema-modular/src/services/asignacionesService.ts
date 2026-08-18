@@ -148,7 +148,11 @@ export const asignacionesService = {
       try {
         const { remitosService } = await import('./firebaseService');
         const remito = await remitosService.getById(asg.remitoId);
-        if (remito && (remito.estado === 'en_transito' || remito.estado === 'completado_parcial')) {
+        // El guard mira "sigue afuera", no una lista de estados (2026-08-17): el
+        // camino normal de emisión deja el remito en 'confirmado', que no estaba
+        // contemplado — se devolvía todo y el remito quedaba abierto para
+        // siempre. Solo los ya cerrados quedan fuera.
+        if (remito && !['completado', 'cancelado'].includes(remito.estado)) {
           const nowIso = new Date().toISOString();
           const devueltasUnidades = new Set(reciénDevueltos.map(({ item }) => item.unidadId).filter(Boolean));
           const devueltosOtros = new Set(
@@ -329,7 +333,11 @@ export const asignacionesService = {
       try {
         const { remitosService } = await import('./firebaseService');
         const remito = await remitosService.getById(asg.remitoId);
-        if (remito && (remito.estado === 'en_transito' || remito.estado === 'completado_parcial')) {
+        // El guard mira "sigue afuera", no una lista de estados (2026-08-17): el
+        // camino normal de emisión deja el remito en 'confirmado', que no estaba
+        // contemplado — se devolvía todo y el remito quedaba abierto para
+        // siempre. Solo los ya cerrados quedan fuera.
+        if (remito && !['completado', 'cancelado'].includes(remito.estado)) {
           const consumidasUnidades = new Set(reciénConsumidos.map(i => i.unidadId).filter(Boolean));
           const consumidosOtros = new Set(
             reciénConsumidos.flatMap(i => [i.instrumentoId, i.minikitId, i.dispositivoId].filter(Boolean)));
