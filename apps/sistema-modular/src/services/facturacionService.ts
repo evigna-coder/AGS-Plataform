@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
-import type { SolicitudFacturacion, SolicitudFacturacionEstado } from '@ags/shared';
+import type { SolicitudFacturacion, SolicitudFacturacionEstado, TicketArea, TicketEstado } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot, runTransaction } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -20,6 +20,66 @@ function parseSolicitud(d: any, id: string): SolicitudFacturacion {
     fechaCobro: toISO(d.fechaCobro),
     fechaVencimientoCae: toISO(d.fechaVencimientoCae),
   };
+}
+
+/**
+ * Ticket de aviso cuando se carga una factura (2026-08-17).
+ *
+ * El circuito comercial moría acá: Administración registraba la factura y el
+ * sistema no le avisaba a nadie. El presupuesto quedaba esperando a que alguien
+ * volviera a mirarlo, y de ahí el arrastre que se veía en el control semanal.
+ *
+ * Vuelve a Administración Soporte, asignado a Esteban Vigna. Best-effort por
+ * diseño: la factura ya está registrada, un fallo del aviso no puede revertirla.
+ */
+async function crearTicketFacturaCargada(
+  sol: SolicitudFacturacion,
+  hito: 'facturada' | 'cobrada' = 'facturada',
+): Promise<void> {
+  const esCobro = hito === 'cobrada';
+  const [{ leadsService }, { getAvisoFacturaAssignee }] = await Promise.all([
+    import('./leadsService'),
+    import('./personalService'),
+  ]);
+  const responsable = await getAvisoFacturaAssignee();
+  const ots = (sol.otNumbers ?? []).filter(Boolean);
+  const detalle = [
+    sol.numeroFactura ? `Factura ${sol.numeroFactura}` : 'Factura cargada',
+    sol.presupuestoNumero ? `Ppto ${sol.presupuestoNumero}` : null,
+    ots.length ? `OT ${ots.join(', ')}` : null,
+  ].filter(Boolean).join(' · ');
+
+  await leadsService.create({
+    clienteId: sol.clienteId ?? null,
+    contactoId: null,
+    razonSocial: sol.clienteNombre || '',
+    contactos: [], contacto: '', email: '', telefono: '',
+    motivoLlamado: 'administracion',
+    motivoContacto: `${esCobro ? 'Cobro registrado' : 'Factura cargada'} — ${sol.presupuestoNumero || 'presupuesto'}`,
+    descripcion: `Administración ${esCobro ? 'registró el COBRO' : 'cargó la factura'} del presupuesto ${sol.presupuestoNumero}`
+      + `${sol.clienteNombre ? ` (${sol.clienteNombre})` : ''}.`
+      + `${sol.numeroFactura ? `\n\nN° de factura: ${sol.numeroFactura}` : ''}`
+      + `${sol.fechaFactura ? `\nFecha: ${sol.fechaFactura.slice(0, 10)}` : ''}`
+      + `${ots.length ? `\nOT(s): ${ots.join(', ')}` : ''}`
+      + `\n\nCerrar el circuito: verificar que el presupuesto quede finalizado.`,
+    ultimaObservacion: `${esCobro ? 'COBRADA · ' : ''}${detalle}`,
+    sistemaId: null, moduloId: null,
+    estado: 'nuevo' as TicketEstado,
+    postas: [],
+    asignadoA: responsable?.id ?? null,
+    asignadoNombre: responsable?.nombre ?? null,
+    derivadoPor: 'administracion' as TicketArea,
+    areaActual: 'admin_soporte' as TicketArea,
+    esAutogenerado: true,
+    accionPendiente: `${esCobro ? 'Cobro registrado' : 'Factura cargada'} — cerrar el circuito de ${sol.presupuestoNumero || 'este presupuesto'}`,
+    adjuntos: [],
+    presupuestosIds: sol.presupuestoId ? [sol.presupuestoId] : [],
+    otIds: ots,
+    finalizadoAt: null,
+    prioridad: 'media',
+    proximoContacto: null,
+    valorEstimado: null,
+  } as any);
 }
 
 export const facturacionService = {
@@ -135,6 +195,17 @@ export const facturacionService = {
         } catch (err) {
           console.warn('[facturacionService.update] restaurar otsListasParaFacturar tras anulación falló:', err);
         }
+      }
+
+      // ── Aviso de FACTURA CARGADA (2026-08-17) ────────────────────────────
+      // Cargar la factura no avisaba a nadie: el circuito moría en
+      // Administración y el presupuesto quedaba esperando a que alguien se
+      // acordara de volver. Ahora el ticket vuelve a Administración Soporte
+      // (Esteban Vigna) para cerrarlo. Best-effort: si falla, la factura ya
+      // quedó registrada — el aviso no puede voltear el estado.
+      if ((data.estado === 'facturada' || data.estado === 'cobrada') && sol) {
+        await crearTicketFacturaCargada(sol, data.estado).catch(err =>
+          console.error('[facturacionService.update] aviso de facturación falló:', err));
       }
 
       if (sol?.presupuestoId) {

@@ -34,6 +34,8 @@ export const FacturacionList = () => {
     search:     { type: 'string' as const, default: '' },
     cliente:    { type: 'string' as const, default: '' },
     estado:     { type: 'string' as const, default: '' },
+    // Las cobradas están finalizadas: son archivo, no trabajo (2026-08-17).
+    verCobradas: { type: 'boolean' as const, default: false },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
     sortField:  { type: 'string' as const, default: 'createdAt' },
@@ -95,6 +97,8 @@ export const FacturacionList = () => {
     let result = solicitudes.filter(s => {
       if (filters.cliente && s.clienteId !== filters.cliente) return false;
       if (filters.estado && s.estado !== filters.estado) return false;
+      // Ocultas por defecto, salvo que se las pida explícitamente por filtro.
+      if (!filters.verCobradas && !filters.estado && s.estado === 'cobrada') return false;
       if (filters.fechaDesde && s.createdAt < filters.fechaDesde) return false;
       if (filters.fechaHasta && s.createdAt > filters.fechaHasta + 'T23:59:59') return false;
       return true;
@@ -120,7 +124,8 @@ export const FacturacionList = () => {
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
-  const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta);
+  const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta || filters.verCobradas);
+  const cobradasOcultas = solicitudes.filter(s => s.estado === 'cobrada').length;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -167,6 +172,14 @@ export const FacturacionList = () => {
               placeholder="Estado"
             />
           </div>
+          {/* Las cobradas están terminadas — se muestran solo si se piden
+              (2026-08-17). El contador dice cuántas hay escondidas. */}
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" checked={filters.verCobradas}
+              onChange={e => setFilter('verCobradas', e.target.checked)}
+              className="w-3.5 h-3.5 accent-teal-600" />
+            Ver cobradas{cobradasOcultas > 0 ? ` (${cobradasOcultas})` : ''}
+          </label>
           <input
             type="date"
             value={filters.fechaDesde}

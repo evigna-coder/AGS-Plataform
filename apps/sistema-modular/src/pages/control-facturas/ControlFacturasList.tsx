@@ -3,6 +3,7 @@ import { FACTURA_ESTADO_LABELS, FACTURA_ESTADO_COLORS } from '@ags/shared';
 import type { Factura } from '@ags/shared';
 import { facturasService } from '../../services/facturasService';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePrompt } from '../../components/ui/PromptDialog';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -96,7 +97,27 @@ export const ControlFacturasList = () => {
 
   const hasAdvanced = !!(filters.proveedor || filters.desde || filters.hasta);
 
+  const promptText = usePrompt();
   const actor = usuario?.displayName ?? 'Sistema';
+  /**
+   * Rechazo con motivo obligatorio (2026-08-17): cierra el pendiente de una
+   * factura que no se va a pagar — duplicada, no correspondía, importe mal.
+   */
+  const rechazar = async (f: Factura) => {
+    const motivo = await promptText({
+      title: `Rechazar factura ${f.numero ?? ''}`,
+      label: 'Motivo del rechazo',
+      placeholder: 'Duplicada, no corresponde, importe incorrecto…',
+      confirmLabel: 'Rechazar factura',
+    });
+    if (motivo === null) return;
+    if (!motivo.trim()) { alert('El rechazo necesita un motivo'); return; }
+    setBusyId(f.id);
+    try { await facturasService.rechazar(f.id, motivo, actor); }
+    catch (err) { console.error(err); alert(err instanceof Error ? err.message : 'Error al rechazar'); }
+    finally { setBusyId(null); }
+  };
+
   const marcarPagada = async (f: Factura) => {
     setBusyId(f.id);
     try { await facturasService.marcarPagada(f.id, actor); }
@@ -217,10 +238,18 @@ export const ControlFacturasList = () => {
                           Previsualizar
                         </a>
                         {f.estado === 'pendiente' && (
-                          <button onClick={() => setAprobando(f)} disabled={busyId === f.id}
-                            className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50 disabled:opacity-50">
-                            Aprobar
-                          </button>
+                          <>
+                            <button onClick={() => setAprobando(f)} disabled={busyId === f.id}
+                              className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50 disabled:opacity-50">
+                              Aprobar
+                            </button>
+                            {/* Rechazar (2026-08-17): no correspondía, vino duplicada,
+                                el importe está mal. Cierra el pendiente con motivo. */}
+                            <button onClick={() => void rechazar(f)} disabled={busyId === f.id}
+                              className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50 disabled:opacity-50">
+                              Rechazar
+                            </button>
+                          </>
                         )}
                         {f.estado === 'aprobada' && (
                           <button onClick={() => marcarPagada(f)} disabled={busyId === f.id}

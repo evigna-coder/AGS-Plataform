@@ -479,12 +479,29 @@ export async function getResponsablesOT(): Promise<Ingeniero[]> {
  * (el caller deja asignadoA en null y el área 'admin_soporte' auto-asigna por config).
  */
 export async function getAdminSoporteAssignee(): Promise<{ id: string; nombre: string } | null> {
-  const EMAIL = 'mbarrios@agsanalitica.com';
+  return getUsuarioPorEmail('mbarrios@agsanalitica.com');
+}
+
+/**
+ * Assignee de los avisos de FACTURA CARGADA (2026-08-17): Esteban Vigna.
+ * El ticket vuelve de Administración a Administración Soporte para cerrar el
+ * circuito comercial — sin esto, facturar no le avisaba a nadie.
+ */
+export async function getAvisoFacturaAssignee(): Promise<{ id: string; nombre: string } | null> {
+  return getUsuarioPorEmail('evigna@agsanalitica.com');
+}
+
+/**
+ * Usuario por email, para no hardcodear uids. `null` si no está — el caller
+ * deja `asignadoA` vacío y el área auto-asigna por configuración.
+ */
+export async function getUsuarioPorEmail(email: string): Promise<{ id: string; nombre: string } | null> {
+  const target = email.toLowerCase();
   try {
-    const u = (await usuariosService.getAll()).find(x => (x.email || '').toLowerCase() === EMAIL);
+    const u = (await usuariosService.getAll()).find(x => (x.email || '').toLowerCase() === target);
     return u ? { id: u.id, nombre: u.displayName || u.email } : null;
   } catch (err) {
-    console.warn('[getAdminSoporteAssignee] no se pudo resolver:', err);
+    console.warn(`[getUsuarioPorEmail] no se pudo resolver ${email}:`, err);
     return null;
   }
 }

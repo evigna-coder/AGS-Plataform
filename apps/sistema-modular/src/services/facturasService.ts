@@ -285,6 +285,59 @@ export const facturasService = {
     }
   },
 
+  /**
+   * RECHAZA una factura: no se paga (2026-08-17).
+   *
+   * No correspondia, vino duplicada, o el importe esta mal. Es un cierre con
+   * motivo obligatorio, no una baja silenciosa — y finaliza el ticket de
+   * validacion, igual que aprobar. Sin esto una factura que no habia que pagar
+   * quedaba pendiente para siempre (caso FAC-00010).
+   */
+  async rechazar(id: string, motivo: string, actor?: string): Promise<void> {
+    const texto = motivo.trim();
+    if (!texto) throw new Error('El rechazo necesita un motivo');
+    const comentario: ComentarioFactura = {
+      texto, autor: actor ?? 'Sistema', fecha: new Date().toISOString(), tipo: 'rechazo',
+    };
+    const batch = createBatch();
+    batch.update(docRef(COLLECTION, id), {
+      estado: 'rechazada' as EstadoFactura,
+      comentarios: arrayUnion(deepCleanForFirestore(comentario)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: { estado: 'rechazada', actor: actor ?? null, motivo: texto } });
+    await batch.commit();
+    logBusinessEvent({ eventName: 'factura.rechazada', collection: COLLECTION, documentId: id, details: { actor: actor ?? null, motivo: texto } });
+
+    const factura = await this.getById(id);
+    if (!factura) return;
+    await this._avisarCreador(
+      factura,
+      `Factura ${factura.numero ?? ''} de ${factura.proveedorNombre} RECHAZADA por ${actor ?? 'Sistema'}`,
+      texto,
+    );
+    // Rechazar tambien cierra la validacion: el trabajo era decidir, y se decidio.
+    if (factura.ticketId) {
+      try {
+        const user = getCurrentUserTrace();
+        await leadsService.finalizar(factura.ticketId, {
+          id: crypto.randomUUID(),
+          fecha: new Date().toISOString(),
+          deUsuarioId: user?.uid ?? 'system',
+          deUsuarioNombre: user?.name ?? 'Sistema',
+          aUsuarioId: user?.uid ?? 'system',
+          aUsuarioNombre: user?.name ?? 'Sistema',
+          comentario: `Factura ${factura.numero ?? ''} RECHAZADA — "${texto}". No se paga.`,
+          estadoAnterior: 'nuevo',
+          estadoNuevo: 'finalizado',
+        });
+      } catch (err) {
+        console.error('[facturasService.rechazar] finalizar ticket fallo (no bloquea):', err);
+      }
+    }
+  },
+
   async marcarPagada(id: string, actor?: string): Promise<void> {
     const batch = createBatch();
     batch.update(docRef(COLLECTION, id), {
