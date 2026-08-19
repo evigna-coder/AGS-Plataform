@@ -248,8 +248,26 @@ export const loanersService = {
     await batch.commit();
   },
 
+  /** Disponibles para PRESTAR: solo los que están en base. */
   async getDisponibles(): Promise<Loaner[]> {
     return this.getAll({ estado: 'en_base', activoOnly: true });
+  },
+
+  /**
+   * Loaners a los que se les puede abrir una OT (2026-08-18): todos los que
+   * siguen siendo de AGS, sin importar dónde estén.
+   *
+   * No es lo mismo que `getDisponibles`. Un módulo derivado al proveedor o
+   * prestado a un cliente no está disponible para prestar, pero es
+   * exactamente sobre el que hay trabajo que documentar — el picker de OT
+   * usaba `getDisponibles` y por eso un LNR en proveedor no aparecía.
+   *
+   * Quedan afuera `vendido` (ya no es nuestro; el trabajo sobre eso es una OT
+   * sobre el equipo del cliente) y `baja` (fin de vida).
+   */
+  async getParaOT(): Promise<Loaner[]> {
+    const todos = await this.getAll({ activoOnly: true });
+    return todos.filter(l => l.estado !== 'vendido' && l.estado !== 'baja');
   },
 
   /** Registra el préstamo y devuelve el id generado (necesario para vincular fotos de salida). */
