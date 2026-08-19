@@ -2,6 +2,7 @@ import type { RemitoItem, Minikit } from '@ags/shared';
 import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shared';
 import { minikitsService } from '../services/stockService';
 import { instrumentosService } from '../services/catalogService';
+import { asignacionesService } from '../services/asignacionesService';
 
 /** "termometro" → "Termómetro". Sirve para instrumentos y para patrones. */
 function etiquetaCategoria(categorias: string[] | undefined): string {
@@ -41,12 +42,34 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
     items.filter(i => i.tipoEntidad === 'instrumento' && i.instrumentoId)
       .map(i => i.instrumentoId as string),
   )];
-  if (minikitIds.length === 0 && minikitCodigos.length === 0 && instrumentoIds.length === 0) return items;
+  // Columnas cromatográficas (2026-08-19): el item del remito NO trae ningún
+  // dato de la columna —ni id, ni código, ni serie—, solo el vínculo con la
+  // asignación. Todo vive del lado de `asignaciones`, así que se resuelven por
+  // ahí. Por eso salían con "S/C" en Código y la Descripción vacía.
+  const columnaAsigIds = [...new Set(
+    items.filter(i => i.tipoEntidad === 'columna' && i.asignacionId && !i.columnaDescripcion)
+      .map(i => i.asignacionId as string),
+  )];
+  if (minikitIds.length === 0 && minikitCodigos.length === 0
+    && instrumentoIds.length === 0 && columnaAsigIds.length === 0) return items;
 
-  const [minikits, instrumentos] = await Promise.all([
+  const [minikits, instrumentos, asignaciones] = await Promise.all([
     Promise.all(minikitIds.map(id => minikitsService.getById(id).catch(() => null))),
     Promise.all(instrumentoIds.map(id => instrumentosService.getById(id).catch(() => null))),
+    Promise.all(columnaAsigIds.map(id => asignacionesService.getById(id).catch(() => null))),
   ]);
+  /** asignacionItemId → datos de la columna, tomados de la asignación. */
+  const columnaPorAsigItem = new Map<string, { codigo: string | null; descripcion: string | null; serie: string | null }>();
+  for (const asg of asignaciones) {
+    for (const ai of (asg?.items ?? [])) {
+      if (ai.tipo !== 'columna') continue;
+      columnaPorAsigItem.set(ai.id, {
+        codigo: ai.columnaCodigo ?? null,
+        descripcion: ai.columnaDescripcion ?? null,
+        serie: ai.columnaSerie ?? null,
+      });
+    }
+  }
   const minikitPorId = new Map(minikits.filter(Boolean).map(m => [m!.id, m!]));
   const minikitPorCodigo = new Map<string, Minikit>();
   if (minikitCodigos.length > 0) {
@@ -64,7 +87,28 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
         ? minikitPorId.get(item.minikitId)
         : minikitPorCodigo.get((item.minikitCodigo || '').trim().toLowerCase());
       if (!mk) return item;
-      return { ...item, minikitDescripcion: mk.nombre || mk.descripcion || null };
+      // El primero de los dos que NO sea el código (2026-08-19). Varios minikits
+      // tienen `nombre` IGUAL al código —MKGC2 se llama "MKGC2"— y el texto útil
+      // está en `descripcion` ("Minikit GC 2"). Tomando `nombre` primero, el
+      // filtro anti-repetición lo borraba y la Descripción salía vacía: el kit se
+      // pisaba a sí mismo.
+      const cod = (item.minikitCodigo || mk.codigo || '').trim().toLowerCase();
+      const util = [mk.descripcion, mk.nombre]
+        .map(t => (t || '').trim())
+        .find(t => t && t.toLowerCase() !== cod);
+      return { ...item, minikitDescripcion: util || null };
+    }
+    if (item.tipoEntidad === 'columna' && !item.columnaDescripcion) {
+      const col = item.asignacionItemId ? columnaPorAsigItem.get(item.asignacionItemId) : null;
+      if (!col) return item;
+      return {
+        ...item,
+        columnaCodigo: item.columnaCodigo || col.codigo,
+        columnaDescripcion: col.descripcion,
+        // La serie va a la línea de descripción del papel, igual que en los
+        // instrumentos: es el dato que identifica la unidad física.
+        serie: item.serie || col.serie,
+      };
     }
     if (item.tipoEntidad === 'instrumento' && item.instrumentoId) {
       const ins = instrumentoPorId.get(item.instrumentoId);

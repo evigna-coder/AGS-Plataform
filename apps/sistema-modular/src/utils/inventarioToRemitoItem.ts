@@ -83,6 +83,9 @@ export function getRemitoItemCodigo(item: RemitoItem): string {
   // salía vacía y el código aparecía en Descripción.
   if (item.tipoEntidad === 'instrumento') return item.instrumentoCodigo || item.instrumentoDescripcion || '';
   if (item.tipoEntidad === 'dispositivo') return item.dispositivoCodigo || '';
+  // Columna cromatográfica (2026-08-19): salía 'S/C' porque no tenía rama. Su
+  // código de artículo lo completa `enriquecerItemsRemito` desde el catálogo.
+  if (item.tipoEntidad === 'columna') return item.columnaCodigo || '';
   if (item.tipoEntidad === 'vehiculo') return item.vehiculoCodigo || '';
   if (item.tipoEntidad === 'minikit') return item.minikitCodigo || '';
   // Loaner: SIEMPRE el código de artículo. El identificador interno del loaner
@@ -136,6 +139,7 @@ export function getRemitoItemDescripcion(item: RemitoItem): string {
   if (item.tipoEntidad === 'instrumento') return sinRepetir(item.instrumentoDescripcion);
   if (item.tipoEntidad === 'dispositivo') return sinRepetir(item.dispositivoDescripcion);
   if (item.tipoEntidad === 'vehiculo') return sinRepetir(item.vehiculoDescripcion);
+  if (item.tipoEntidad === 'columna') return sinRepetir(item.columnaDescripcion);
   // Minikit (2026-08-12): antes devolvía `sinRepetir(minikitCodigo)`, que por
   // definición es el mismo valor de la columna Código ⇒ SIEMPRE vacío. El
   // nombre del kit lo completa `enriquecerItemsRemito` al imprimir.
@@ -183,6 +187,9 @@ const TIPO_ENTIDAD_LABELS: Record<string, string> = {
   dispositivo: 'Dispositivo',
   vehiculo: 'Vehículo',
   patron: 'Patrón',
+  // Faltaba (2026-08-19): el badge caía al valor crudo y se veía 'columna' en
+  // minúscula al lado de 'Instrumento' y 'Minikit'.
+  columna: 'Columna',
 };
 
 export function getTipoEntidadLabel(tipo: string): string {

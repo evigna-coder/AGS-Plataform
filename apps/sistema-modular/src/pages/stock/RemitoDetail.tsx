@@ -4,6 +4,7 @@ import { remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { getRemitoItemCodigo, getRemitoItemDescripcion, getTipoEntidadLabel } from '../../utils/inventarioToRemitoItem';
+import { enriquecerItemsRemito } from '../../utils/enriquecerItemsRemito';
 import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -67,6 +68,18 @@ export const RemitoDetail = () => {
     if (!id) return;
     setLoading(true);
     const unsub = remitosService.subscribeById(id, (data) => {
+      // Mismo enriquecido que la impresión (2026-08-19): la pantalla mostraba el
+      // dato CRUDO —instrumentos, minikits y columnas sin descripción— mientras
+      // el papel salía completo, porque `enriquecerItemsRemito` solo corría al
+      // imprimir. Dos vistas del mismo remito diciendo cosas distintas.
+      // Best-effort: si el enriquecido falla se muestra lo que había.
+      if (data) {
+        enriquecerItemsRemito(data.items)
+          .then(items => setRemito({ ...data, items }))
+          .catch(() => setRemito(data))
+          .finally(() => setLoading(false));
+        return;
+      }
       setRemito(data);
       setLoading(false);
     }, (err) => {

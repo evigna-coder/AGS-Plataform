@@ -136,6 +136,23 @@ assert.equal(limpiar('Vicente López', 'Vicente López', null), 'Vicente López'
 assert.equal(limpiar('', 'X', 'Y'), '', 'vacío queda vacío');
 assert.equal(limpiar('Calle 1', null, null), 'Calle 1', 'sin localidad ni provincia no rompe');
 
+// ── El minikit no puede pisarse a sí mismo (2026-08-19) ──────────────────────
+// Varios minikits tienen `nombre` IGUAL al código: MKGC2 se llama "MKGC2", y el
+// texto útil está en `descripcion` ("Minikit GC 2"). Tomando `nombre` primero,
+// el filtro que evita repetir el código en las dos columnas lo borraba y la
+// Descripción salía VACÍA en el papel y en las tres vistas.
+const elegirTextoMinikit = (cod: string, nombre: string, descripcion: string) =>
+  [descripcion, nombre].map(t => (t || '').trim())
+    .find(t => t && t.toLowerCase() !== cod.trim().toLowerCase()) || null;
+
+assert.equal(elegirTextoMinikit('MKGC2', 'MKGC2', 'Minikit GC 2'), 'Minikit GC 2',
+  'con el nombre igual al codigo, gana la descripcion');
+assert.equal(elegirTextoMinikit('MKLC1', 'Kit HPLC basico', ''), 'Kit HPLC basico',
+  'sin descripcion, cae al nombre');
+assert.equal(elegirTextoMinikit('MKGC2', 'mkgc2', 'MKGC2'), null,
+  'si los dos son el codigo (ignorando mayusculas) queda vacio, no repite');
+assert.equal(elegirTextoMinikit('MK1', '', ''), null, 'sin datos, null');
+
 // ── Emitir NUNCA cierra el remito (2026-08-18) ───────────────────────────────
 // Hubo una regla `remitoSinRetorno` que cerraba al emitir los remitos sin
 // líneas que volvieran, para frenar la acumulación de remitos abiertos. Estaba
@@ -162,4 +179,4 @@ assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, tipoItem: 's
   'sale_y_vuelve todavía afuera: vuelve a su posición de origen');
 assert.equal(itemsARevertirEnAnulacion([]).length, 0, 'remito sin items');
 
-console.log('✅ remitoLineas: 35/35 OK');
+console.log('✅ remitoLineas: 39/39 OK');

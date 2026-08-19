@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import type { Remito, RemitoItem } from '@ags/shared';
 import { getRemitoItemCodigo, getRemitoItemDescripcion } from '../../utils/inventarioToRemitoItem';
+import { enriquecerItemsRemito } from '../../utils/enriquecerItemsRemito';
 
 /** Estado resuelto de un item para el desplegable de la lista (2026-08-04). */
 function estadoItem(it: RemitoItem): { label: string; cls: string } {
@@ -24,6 +26,22 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
   remito: Remito;
   clientePorFicha?: Map<string, string>;
 }) {
+  /**
+   * Mismo enriquecido que el papel y el detalle (2026-08-19). Este desplegable
+   * mostraba el dato CRUDO: instrumentos, minikits y columnas salían con "—"
+   * mientras el papel salía completo. Tres vistas del mismo remito, tres
+   * resultados distintos.
+   */
+  const [items, setItems] = useState<RemitoItem[]>(remito.items ?? []);
+  useEffect(() => {
+    let vivo = true;
+    setItems(remito.items ?? []);
+    enriquecerItemsRemito(remito.items ?? [])
+      .then(e => { if (vivo) setItems(e); })
+      .catch(() => { /* se muestra lo crudo */ });
+    return () => { vivo = false; };
+  }, [remito.items]);
+
   if ((remito.items?.length ?? 0) === 0) {
     return <p className="text-[11px] text-slate-400 px-4 py-2">Sin items.</p>;
   }
@@ -31,7 +49,7 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
   // dueño, ya está en la fila de arriba y repetirla es ruido.
   const duenoDe = (it: RemitoItem): string =>
     (it.fichaId ? clientePorFicha?.get(it.fichaId) : null) || 'AGS';
-  const dueños = new Set(remito.items.map(duenoDe));
+  const dueños = new Set(items.map(duenoDe));
   const mostrarCliente = dueños.size > 1;
 
   /**
@@ -60,7 +78,7 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {remito.items.map(it => {
+        {items.map(it => {
           const e = estadoItem(it);
           return (
             <tr key={it.id}>
