@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   articulosService, unidadesService, movimientosService,
   posicionesStockService, minikitsService, ingenierosService, proveedoresService,
@@ -76,8 +76,16 @@ export function useStockIntake(
   onClose: () => void,
   onCreated: () => void,
   creadoPor: string = 'Admin',
-  /** Recepción desde una OC: precarga proveedor y N° de OC (UAT 2026-07-16). */
-  preset?: { proveedorId?: string; ocNumero?: string },
+  /**
+   * Recepción desde una OC: precarga proveedor, N° de OC y los renglones que
+   * todavía no entraron (2026-08-18). Sin `pendientes` el operador tenía que
+   * buscar a mano cada artículo que el sistema ya sabía que estaba pendiente.
+   */
+  preset?: {
+    proveedorId?: string;
+    ocNumero?: string;
+    pendientes?: { articuloId: string; cantidad: number }[];
+  },
 ) {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedorId, setProveedorId] = useState('');
@@ -195,10 +203,10 @@ export function useStockIntake(
     });
   };
 
-  const startArticulo = async (articulo: Articulo) => {
+  const startArticulo = async (articulo: Articulo, cantidadInicial = 1) => {
     setError('');
     setDraft({
-      articulo, step: 'cantidad', cantidad: 1, presentacion: null, condicion: 'nuevo',
+      articulo, step: 'cantidad', cantidad: cantidadInicial, presentacion: null, condicion: 'nuevo',
       ubicacion: null, series: [], serieInput: '', lote: '',
       patron: null, vencimiento: '',
     });
@@ -274,6 +282,88 @@ export function useStockIntake(
     }
   };
 
+  /**
+   * Precarga de los renglones de la OC (2026-08-18).
+   *
+   * Abrir el ingreso desde una orden y tener que buscar cada artículo a mano
+   * es rehacer el trabajo de cargar la orden: el sistema ya sabe qué se pidió
+   * y cuánto falta. Entran todos, editables y con la ✕ para sacar el que no
+   * llegó.
+   *
+   * La ubicación se propone con la que más stock tiene de ese artículo hoy —
+   * que es donde casi siempre va — y si el artículo nunca tuvo stock queda
+   * vacía y la fila pide que la completes. Serie y lote no se adivinan.
+   */
+  const precargaHecha = useRef(false);
+  useEffect(() => { if (!open) precargaHecha.current = false; }, [open]);
+  useEffect(() => {
+    const pend = preset?.pendientes ?? [];
+    // Espera a los catálogos de ubicación: `articulos` llega por subscribe (rápido)
+    // y las posiciones por un Promise.all aparte. Sin esta guarda la precarga
+    // corría antes y `buildUbicOptions` devolvía una lista VACÍA — la fila
+    // quedaba sin desplegable y era imposible elegir destino (2026-08-18).
+    if (!open || precargaHecha.current || pend.length === 0
+      || articulos.length === 0 || posiciones.length === 0) return;
+    precargaHecha.current = true;
+    (async () => {
+      const byId = new Map(articulos.map(a => [a.id, a]));
+      const nuevos: IntakeItem[] = [];
+      const conSerie: string[] = [];
+      const opciones: Record<string, UbicOption[]> = {};
+      for (const p of pend) {
+        const articulo = byId.get(p.articuloId);
+        if (!articulo || p.cantidad <= 0) continue;
+        // Los que piden N° de serie NO se precargan: hay que tipear una serie
+        // por unidad y eso vive en el wizard. Precargarlos dejaría una fila
+        // imposible de completar desde la tabla.
+        if (articulo.requiereNumeroSerie) { conSerie.push(articulo.codigo); continue; }
+        const [unidades, movs] = await Promise.all([
+          unidadesService.getByArticulo(articulo.id).catch(() => [] as UnidadStock[]),
+          movimientosService.getAll({ articuloId: articulo.id }).catch(() => [] as MovimientoStock[]),
+        ]);
+        const opts = buildUbicOptions(unidades, movs);
+        opciones[articulo.id] = opts;
+        const sugerida = opts.find(o => !o.historica) ?? opts[0] ?? null;
+        nuevos.push({
+          key: `i${++_seq}`,
+          articulo,
+          cantidad: p.cantidad,
+          presentacion: null,
+          condicion: 'nuevo',
+          ubicacion: sugerida
+            ? { tipo: sugerida.tipo, id: sugerida.id, nombre: sugerida.nombre }
+            : { tipo: 'posicion' as TipoOrigenDestino, id: '', nombre: '' },
+          series: [],
+          lote: '',
+          patron: null,
+          vencimiento: '',
+        });
+      }
+      // Resolver el patrón de cada uno: define si el renglón va a stock o a lote.
+      await Promise.all(nuevos.map(async (n) => {
+        n.patron = await patronesService.getByArticuloId(n.articulo.id).catch(() => null);
+      }));
+      setUbicOptionsPorArticulo(opciones);
+      setItems(prev => (prev.length > 0 ? prev : nuevos));
+      if (conSerie.length > 0) {
+        setError(`${conSerie.join(', ')} lleva${conSerie.length === 1 ? '' : 'n'} N° de serie: agregalo${conSerie.length === 1 ? '' : 's'} desde el buscador.`);
+      }
+    })();
+  }, [open, articulos, posiciones, minikits, ingenieros, preset?.pendientes]);
+
+  const [ubicOptionsPorArticulo, setUbicOptionsPorArticulo] = useState<Record<string, UbicOption[]>>({});
+
+  /**
+   * Todas las ubicaciones internas, sin contar stock. Respaldo del desplegable
+   * por fila: un artículo sin historial no genera opciones propias, y sin esto
+   * la celda quedaba muerta.
+   */
+  const ubicOptionsBase = useMemo(() => buildUbicOptions([], []), [posiciones, minikits, ingenieros]);
+
+  /** Edición inline de un renglón ya cargado (cantidad, ubicación, lote…). */
+  const updateItem = (key: string, patch: Partial<IntakeItem>) =>
+    setItems(prev => prev.map(i => (i.key === key ? { ...i, ...patch } : i)));
+
   const removeItem = (key: string) => setItems(prev => prev.filter(i => i.key !== key));
 
   // Total en unidades BASE: es lo que realmente entra al stock (2026-08-13).
@@ -291,9 +381,20 @@ export function useStockIntake(
       (it.articulo.requiereNumeroSerie && it.series.length === 0) ||
       ((it.articulo.requiereNumeroLote || !!it.patron) && !it.lote.trim()));
     if (desactualizados.length > 0) {
-      setError(
-        `El catálogo cambió durante la carga: ${desactualizados.map(i => i.articulo.codigo).join(', ')} ` +
-        'ahora exige N° de serie/lote. Quitá ese renglón (✕) y volvé a agregarlo — el resto de la carga se conserva.');
+      // Los precargados desde la OC se completan en la misma fila; los que
+      // vinieron del wizard hay que rehacerlos porque el catálogo cambió.
+      const soloLote = desactualizados.every(i => !i.articulo.requiereNumeroSerie);
+      setError(soloLote
+        ? `Completá el N° de lote de: ${desactualizados.map(i => i.articulo.codigo).join(', ')}`
+        : `El catálogo cambió durante la carga: ${desactualizados.map(i => i.articulo.codigo).join(', ')} `
+          + 'ahora exige N° de serie. Quitá ese renglón (✕) y volvé a agregarlo — el resto de la carga se conserva.');
+      return;
+    }
+    // Los renglones precargados desde una OC pueden llegar sin ubicación
+    // (artículo que nunca tuvo stock): sin destino no se puede dar de alta.
+    const sinUbicacion = items.filter(it => !it.ubicacion?.id);
+    if (sinUbicacion.length > 0) {
+      setError(`Elegí la ubicación de: ${sinUbicacion.map(i => i.articulo.codigo).join(', ')}`);
       return;
     }
     setSaving(true); setError('');
@@ -350,6 +451,31 @@ export function useStockIntake(
           fechaVencimiento: it.vencimiento.trim() || null,
           notas: oc ? `Ingreso por OC ${oc}` : 'Ingreso manual',
         });
+
+        // Asiento del ingreso (2026-08-18). La primera versión de esto solo
+        // creaba el lote: la compra entraba sin ningún rastro en
+        // `movimientosStock`, así que no había forma de contestar "de dónde
+        // salió este lote" ni de ver la compra en el listado de movimientos.
+        // Pasó con la OC SIN001 — 10 unidades de metanol sin un solo asiento.
+        // `unidadId` va vacío a propósito: un lote de patrón no es una unidad
+        // de stock, y apuntar a una inexistente sería peor que no apuntar.
+        await movimientosService.create({
+          tipo: 'ingreso',
+          unidadId: '',
+          articuloId: it.articulo.id,
+          articuloCodigo: it.articulo.codigo,
+          articuloDescripcion: it.articulo.descripcion,
+          cantidad: cantidadPatron,
+          origenTipo: 'proveedor', origenId: prov?.id ?? '', origenNombre: prov?.nombre ?? 'Ingreso manual',
+          destinoTipo: 'ajuste', destinoId: it.patron!.id,
+          destinoNombre: `Patrón ${it.patron!.codigoArticulo} — lote ${it.lote.trim()}`,
+          remitoId: null, otNumber: null,
+          ordenCompraNumero: oc, despachoImportacionNumero: desp,
+          nroSerie: null, nroLote: it.lote.trim(),
+          presentacion: it.presentacion ?? null,
+          motivo: `Ingreso como patrón — lote ${it.lote.trim()}`,
+          creadoPor,
+        }).catch(err => console.warn('[useStockIntake] asiento del ingreso a patrón falló:', err));
       }
 
       const ids = units.length > 0 ? await unidadesService.createMany(units) : [];
@@ -482,7 +608,7 @@ export function useStockIntake(
 
   return {
     proveedores, proveedorId, setProveedorId, articulos,
-    items, removeItem, totalUnidades,
+    items, removeItem, updateItem, ubicOptionsPorArticulo, ubicOptionsBase, totalUnidades,
     draft, draftUbic, startArticulo, patchDraft, cancelDraft, advance,
     finalizing, setFinalizing, ocNumero, setOcNumero, despachoNumero, setDespachoNumero,
     saving, error, confirmFinalize,

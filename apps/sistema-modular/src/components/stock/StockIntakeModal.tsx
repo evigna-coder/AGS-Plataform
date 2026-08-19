@@ -10,8 +10,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
-  /** Recepción desde una OC: precarga proveedor y N° de OC. */
-  preset?: { proveedorId?: string; ocNumero?: string };
+  /** Recepción desde una OC: proveedor, N° de OC y renglones pendientes. */
+  preset?: {
+    proveedorId?: string;
+    ocNumero?: string;
+    pendientes?: { articuloId: string; cantidad: number }[];
+  };
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
@@ -35,6 +39,10 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
     () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
     [h.articulos],
   );
+
+  /** Opciones de ubicación de un artículo: las suyas si tiene historial, si no la lista completa. */
+  const ubicOptsDe = (articuloId: string) =>
+    (h.ubicOptionsPorArticulo[articuloId]?.length ? h.ubicOptionsPorArticulo[articuloId] : h.ubicOptionsBase);
 
   return (
     <Modal open={open} onClose={onClose} title="Ingresar stock" maxWidth="xl"
@@ -85,12 +93,71 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
               ) : h.items.map(it => (
                 <tr key={it.key} className="hover:bg-slate-50">
                   <td className="px-2 py-1.5 font-mono text-teal-700 font-semibold">{it.articulo.codigo}</td>
-                  <td className="px-2 py-1.5 text-slate-700 truncate max-w-[200px]">{it.articulo.descripcion}</td>
-                  <td className="px-2 py-1.5 text-right font-semibold">{it.articulo.requiereNumeroSerie ? it.series.length : it.cantidad}</td>
+                  <td className="px-2 py-1.5 text-slate-700 truncate max-w-[200px]">
+                    {it.articulo.descripcion}
+                    {it.patron && (
+                      <span className="ml-1 text-[9px] font-mono uppercase text-teal-700 bg-teal-50 border border-teal-200 rounded px-1">
+                        patrón
+                      </span>
+                    )}
+                  </td>
+                  {/* Cantidad y ubicación editables en la fila (2026-08-18): la
+                      carga viene precargada desde la OC y casi siempre lo único
+                      que hay que tocar es "llegaron 8 de 10" o mover el destino. */}
+                  <td className="px-2 py-1.5 text-right">
+                    {it.articulo.requiereNumeroSerie ? (
+                      <span className="font-semibold">{it.series.length}</span>
+                    ) : (
+                      <input type="number" min={1} value={it.cantidad}
+                        onChange={e => h.updateItem(it.key, { cantidad: Math.max(1, Number(e.target.value) || 1) })}
+                        onFocus={e => e.currentTarget.select()}
+                        className="w-14 text-right border border-slate-200 rounded px-1 py-0.5 font-semibold
+                                   focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                    )}
+                  </td>
                   <td className="px-2 py-1.5 text-slate-600 capitalize">{it.condicion.replace('_', ' ')}</td>
-                  <td className="px-2 py-1.5 text-slate-600">{it.ubicacion.nombre}</td>
-                  <td className="px-2 py-1.5 font-mono text-slate-500 truncate max-w-[160px]">
-                    {it.series.length > 0 ? it.series.join(', ') : it.lote || '—'}
+                  <td className="px-2 py-1.5 text-slate-600 min-w-[190px]">
+                    {/* SearchableSelect y no <select> nativo: la lista de
+                        ubicaciones es larga y hay que poder tipear para
+                        encontrarla. Su desplegable va por portal con position
+                        fixed, así que no lo recorta el overflow de la tabla. */}
+                    <div className={it.ubicacion.id ? '' : 'rounded-lg ring-1 ring-amber-400 bg-amber-50'}>
+                      <SearchableSelect
+                        value={it.ubicacion.id}
+                        onChange={v => {
+                          const o = ubicOptsDe(it.articulo.id).find(x => x.id === v);
+                          h.updateItem(it.key, o
+                            ? { ubicacion: { tipo: o.tipo, id: o.id, nombre: o.nombre } }
+                            : { ubicacion: { tipo: 'posicion', id: '', nombre: '' } });
+                        }}
+                        options={ubicOptsDe(it.articulo.id).map(o => ({
+                          value: o.id,
+                          label: o.nombre,
+                          subLabel: o.count > 0 ? `${o.count} u. en stock` : (o.historica ? 'sin stock actual' : undefined),
+                        }))}
+                        placeholder="Elegí ubicación…"
+                      />
+                    </div>
+                  </td>
+                  {/* Lote editable en la fila: un renglón precargado desde la OC
+                      llega sin lote y sin él no se puede finalizar. El
+                      vencimiento solo aplica al que entra como patrón. */}
+                  <td className="px-2 py-1.5 font-mono text-slate-500">
+                    {it.articulo.requiereNumeroSerie ? (
+                      <span className="truncate block max-w-[160px]">{it.series.join(', ') || '—'}</span>
+                    ) : (it.articulo.requiereNumeroLote || it.patron) ? (
+                      <div className="flex items-center gap-1">
+                        <input value={it.lote} placeholder="N° lote"
+                          onChange={e => h.updateItem(it.key, { lote: e.target.value })}
+                          className={`w-24 border rounded px-1 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-teal-400
+                            ${it.lote.trim() ? 'border-slate-200' : 'border-amber-400 bg-amber-50'}`} />
+                        {it.patron && (
+                          <input type="date" value={it.vencimiento} title="Vencimiento del lote"
+                            onChange={e => h.updateItem(it.key, { vencimiento: e.target.value })}
+                            className="border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                        )}
+                      </div>
+                    ) : '—'}
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     <button onClick={() => h.removeItem(it.key)} className="text-slate-300 hover:text-red-500 text-sm leading-none">×</button>

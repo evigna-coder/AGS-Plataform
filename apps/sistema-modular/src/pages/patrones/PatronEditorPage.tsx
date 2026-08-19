@@ -9,6 +9,8 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { PatronArticuloVinculoSection } from './PatronArticuloVinculoSection';
+import { ConvertirStockAPatronModal } from '../../components/patrones/ConvertirStockAPatronModal';
+import { nombreUsuarioActual } from '../../services/asignacionesStockHelpers';
 import { PatronComponentesEditor } from './PatronComponentesEditor';
 import { PatronComponentesAlertBanner } from './PatronComponentesAlertBanner';
 import { PatronLotesBajaSection } from './PatronLotesBajaSection';
@@ -73,6 +75,7 @@ export const PatronEditorPage = () => {
   // Entrada por compra (2026-08-18): de qué artículo entra y cuántas unidades
   // de patrón deja cada unidad comprada.
   const [articuloId, setArticuloId] = useState<string | null>(null);
+  const [showConvertir, setShowConvertir] = useState(false);
   const [unidadesPorCompra, setUnidadesPorCompra] = useState<number | null>(null);
 
   /**
@@ -318,6 +321,19 @@ export const PatronEditorPage = () => {
           </div>
         </Card>
 
+        {/* Entrada por compra: el puente OC → patrón (2026-08-18) */}
+        <Card>
+          <PatronArticuloVinculoSection
+            articuloId={articuloId}
+            unidadesPorUnidadDeCompra={unidadesPorCompra}
+            tieneBom={componentes.length > 0}
+            onChange={patch => {
+              if ('articuloId' in patch) setArticuloId(patch.articuloId ?? null);
+              if ('unidadesPorUnidadDeCompra' in patch) setUnidadesPorCompra(patch.unidadesPorUnidadDeCompra ?? null);
+            }}
+          />
+        </Card>
+
         {/* BOM-06: alert inline si algún (lote, componente) cayó al mínimo. Self-hides. */}
         <PatronComponentesAlertBanner patron={patronSnapshot} />
 
@@ -325,6 +341,14 @@ export const PatronEditorPage = () => {
         <Card>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-700">Lotes ({lotes.length})</h2>
+            {/* Convertir stock existente (2026-08-18): el puente OC → patrón
+                solo actúa al ingresar, así que lo comprado ANTES de declarar el
+                vínculo quedaba varado en el depósito sin forma de pasarlo. */}
+            {!isNew && articuloId && (
+              <Button size="sm" variant="outline" onClick={() => setShowConvertir(true)}>
+                Convertir stock a lote
+              </Button>
+            )}
             <Button size="sm" variant="secondary" onClick={addLote}>+ Agregar lote</Button>
           </div>
 
@@ -434,18 +458,20 @@ export const PatronEditorPage = () => {
         {/* Historial de lotes dados de baja (vencidos / agotados / baja manual) */}
         {!isNew && <PatronLotesBajaSection entries={lotesBaja} />}
 
-        {/* Entrada por compra: el puente OC → patrón (2026-08-18) */}
-        <Card>
-          <PatronArticuloVinculoSection
-            articuloId={articuloId}
-            unidadesPorUnidadDeCompra={unidadesPorCompra}
-            tieneBom={componentes.length > 0}
-            onChange={patch => {
-              if ('articuloId' in patch) setArticuloId(patch.articuloId ?? null);
-              if ('unidadesPorUnidadDeCompra' in patch) setUnidadesPorCompra(patch.unidadesPorUnidadDeCompra ?? null);
+        {/* Conversión de stock existente a lote */}
+        {!isNew && id && (
+          <ConvertirStockAPatronModal
+            open={showConvertir}
+            onClose={() => setShowConvertir(false)}
+            onConvertido={() => { setShowConvertir(false); window.location.reload(); }}
+            patron={{
+              id, codigoArticulo, descripcion, marca, categorias, lotes,
+              activo: true, createdAt: '', updatedAt: '',
+              componentes, articuloId, unidadesPorUnidadDeCompra: unidadesPorCompra,
             }}
+            creadoPor={nombreUsuarioActual()}
           />
-        </Card>
+        )}
 
         {/* Componentes (BOM) — Phase 14 BOM-04 */}
         <Card>

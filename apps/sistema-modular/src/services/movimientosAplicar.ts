@@ -3,9 +3,9 @@ import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, logAudit, runTransaction,
 } from './firebase';
-import { ubicacionDeRemito, itemsARevertirEnAnulacion } from '@ags/shared';
+import { ubicacionDeRemito, itemsARevertirEnAnulacion, unidadesPatronDesdeCompra } from '@ags/shared';
 import type {
-  Articulo, EstadoUnidad, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
+  Articulo, EstadoUnidad, Patron, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
   TipoUbicacionStock, UbicacionStock, UnidadStock,
 } from '@ags/shared';
 
@@ -873,6 +873,82 @@ export const movimientosAplicarService = {
    *   resucitar ese stock falsearía las existencias. Ese caso se corrige por
    *   otro lado, no anulando el papel.
    */
+  /**
+   * Convierte stock EXISTENTE de un artículo en un lote de patrón (2026-08-18).
+   *
+   * El puente OC → patrón solo actúa en el momento del ingreso: si el vínculo
+   * con el patrón se declara DESPUÉS de haber comprado, todo lo que ya está en
+   * el depósito queda varado, sin forma de pasarlo. Y ese es el caso normal al
+   * empezar, porque se vinculan patrones de artículos que se venían comprando
+   * hace años.
+   *
+   * Consume las unidades de la ubicación indicada y da de alta (o engorda) el
+   * lote, con su asiento en `movimientosStock`. Una sola existencia de punta a
+   * punta: lo que sale del stock es exactamente lo que entra al lote.
+   *
+   * Devuelve cuántas unidades base se convirtieron.
+   */
+  async convertirStockAPatron(params: {
+    patron: Patron;
+    unidades: UnidadStock[];
+    cantidad: number;
+    lote: string;
+    fechaVencimiento?: string | null;
+    creadoPor: string;
+  }): Promise<number> {
+    const { patron, cantidad, creadoPor } = params;
+    const lote = params.lote.trim();
+    if (!lote) throw new Error('El lote del patrón no puede quedar vacío');
+    if (!(cantidad > 0)) throw new Error('La cantidad tiene que ser mayor a cero');
+
+    const disponibles = params.unidades.filter(u => u.activo !== false && u.estado === 'disponible');
+    const total = disponibles.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+    if (total < cantidad) {
+      throw new Error(`Solo hay ${total} unidad(es) disponibles en esa ubicación y pediste convertir ${cantidad}`);
+    }
+
+    const destino: PuntoMovimiento = {
+      tipo: 'ajuste', id: patron.id, nombre: `Patrón ${patron.codigoArticulo} — lote ${lote}`,
+    };
+
+    // Se descuenta unidad por unidad (FIFO por el orden recibido) reusando el
+    // mismo camino que cualquier egreso: cada una deja su asiento.
+    let restante = cantidad;
+    let convertidas = 0;
+    for (const u of disponibles) {
+      if (restante <= 0) break;
+      const aDeducir = Math.min(restante, u.cantidad ?? 1);
+      const hecho = await this.deducirUnidad({
+        unidad: u,
+        aDeducir,
+        tipoMov: 'egreso',
+        estadoFinal: 'consumido',
+        destino,
+        otNumber: null,
+        motivo: `Conversión a patrón ${patron.codigoArticulo} — lote ${lote}`,
+        creadoPor,
+      });
+      convertidas += hecho;
+      restante -= hecho;
+    }
+
+    // El lote se crea DESPUÉS de descontar: si algo falla a mitad quedan
+    // unidades descontadas sin lote —visible y corregible— en vez de un lote
+    // inflado con stock que sigue figurando disponible.
+    // El factor del patrón aplica igual que en el ingreso desde la OC: lo que
+    // sale del stock son unidades de ARTÍCULO, lo que entra son unidades de
+    // PATRÓN. Un kit descontado deja N ampollas.
+    const enElLote = unidadesPatronDesdeCompra(patron, convertidas);
+    const { patronesService } = await import('./patronesService');
+    await patronesService.registrarLoteDesdeIngreso(patron.id, {
+      lote,
+      cantidad: enElLote,
+      fechaVencimiento: params.fechaVencimiento ?? null,
+      notas: `Convertido desde stock (${convertidas} u. de artículo)`,
+    });
+    return convertidas;
+  },
+
   async anularRemito(params: { remito: Remito; motivo: string; creadoPor: string }): Promise<number> {
     const { remito, motivo, creadoPor } = params;
     if (remito.estado === 'cancelado') throw new Error('El remito ya está anulado');
