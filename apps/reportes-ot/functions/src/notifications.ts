@@ -11,7 +11,11 @@ import { getMessaging } from 'firebase-admin/messaging';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'sistema';
+// Copia local del tipo de @ags/shared (las functions no comparten el paquete).
+// Faltaban 'compras' y 'materiales', que SÍ estaban en AREA_LABELS de abajo: el
+// Record no tipaba y `tsc` fallaba, o sea que las functions no compilaban ni se
+// podían deployar (2026-08-19). Si se agrega un area en shared, va acá también.
+type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'compras' | 'materiales' | 'sistema';
 
 /**
  * Mapa de rol → áreas de ticket que ese rol puede gestionar.
