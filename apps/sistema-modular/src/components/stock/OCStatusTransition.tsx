@@ -27,6 +27,14 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
 
   const allowedStates = VALID_TRANSITIONS[oc.estado] || [];
 
+  /**
+   * Cuánto de la OC todavía no entró a stock (2026-08-18). Marcar 'recibida'
+   * acá NO da de alta nada: si además falta ingresar, la OC queda cerrada con
+   * mercadería que el sistema no tiene. Pasó con SIN001.
+   */
+  const faltaIngresar = (oc.items ?? []).reduce(
+    (acc, it) => acc + Math.max(0, (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0)), 0);
+
   const handleConfirm = async () => {
     if (!newEstado) return;
     setSaving(true);
@@ -94,6 +102,18 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
           </div>
         )}
       </div>
+      {newEstado === 'recibida' && faltaIngresar > 0 && (
+        <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] text-amber-900 font-medium">
+            Quedan {faltaIngresar} unidad(es) sin ingresar a stock.
+          </p>
+          <p className="text-[10px] text-amber-800/90 mt-0.5">
+            Este cambio de estado NO da de alta mercadería. El alta se hace con
+            «Ingresar stock de esta OC», en el detalle de la orden. Si marcás
+            recibida sin ingresar, la OC queda cerrada y el stock no existe.
+          </p>
+        </div>
+      )}
     </Modal>
   );
 };

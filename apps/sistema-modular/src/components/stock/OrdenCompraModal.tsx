@@ -9,6 +9,7 @@ import { OCItemsEditTable } from './OCItemsEditTable';
 import { OCAddItemWizard } from './OCAddItemWizard';
 import { OCItemsTable } from './OCItemsTable';
 import { OCStatusTransition } from './OCStatusTransition';
+import { StockIntakeModal } from './StockIntakeModal';
 import { OCImportacionesSection } from './OCImportacionesSection';
 import { EnviarOrdenCompraModal } from './EnviarOrdenCompraModal';
 import { ImportacionModal } from './ImportacionModal';
@@ -46,6 +47,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
   const h = useOrdenCompraForm(ocId, open, prefill);
   const confirm = useConfirm();
   const [showTransition, setShowTransition] = useState(false);
+  const [showIntake, setShowIntake] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [showImportacion, setShowImportacion] = useState(false);
@@ -57,6 +59,22 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
   const editable = !oc || editing;             // form editable: OC nueva o en modo edición
   const puedeEditar = !oc || oc.estado !== 'cancelada';  // se puede editar en cualquier estado salvo cancelada
   const canReceive = !!oc && (oc.estado === 'enviada_proveedor' || oc.estado === 'embarcada');
+
+  /**
+   * Ingreso de stock desde el modal (2026-08-18). Antes solo existía en la
+   * página de detalle, así que quien trabajaba desde el listado —que abre
+   * ESTE modal— no tenía forma de ingresar la mercadería y terminaba usando
+   * "Registrar recepción", que solo movía el estado.
+   *
+   * Depende de que FALTE mercadería, no del estado: marcar la OC 'recibida'
+   * no da de alta nada y no puede dejarla encerrada. Cuando ya entró todo el
+   * botón desaparece, y eso evita ingresar la misma OC dos veces.
+   */
+  const faltaIngresar = (oc?.items ?? []).reduce(
+    (acc, it) => acc + Math.max(0, (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0)), 0);
+  const canIntake = !!oc && oc.tipo === 'nacional'
+    && oc.estado !== 'borrador' && oc.estado !== 'cancelada'
+    && faltaIngresar > 0;
   const proveedorOC = oc ? h.proveedores.find(p => p.id === oc.proveedorId) ?? null : null;
   const sym = oc ? (MONEDA_SYM[oc.moneda] || '$') : '$';
 
@@ -116,8 +134,18 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
       {oc?.tipo === 'importacion' && (
         <Button variant="outline" size="sm" onClick={handleCrearImportacion}>+ Crear importacion</Button>
       )}
+      {/* "Cambiar estado", NO "Registrar recepcion" (2026-08-18): este boton
+          solo mueve el estado de la OC, no da de alta nada. El nombre viejo
+          hacia creer que la mercaderia habia entrado — una OC quedo marcada
+          recibida con cero unidades en stock. El alta real es "Ingresar stock
+          de esta OC", en el detalle. */}
+      {canIntake && (
+        <Button size="sm" onClick={() => setShowIntake(true)}>
+          Ingresar stock ({faltaIngresar})
+        </Button>
+      )}
       {canReceive && (
-        <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Registrar recepcion</Button>
+        <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Cambiar estado</Button>
       )}
       <Button size="sm" onClick={onClose}>Cerrar</Button>
     </>
@@ -245,12 +273,28 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
       </Modal>
 
       {oc && (
-        <OCStatusTransition
-          oc={oc}
-          open={showTransition}
-          onClose={() => setShowTransition(false)}
-          onUpdated={() => { setShowTransition(false); h.reload(); onSaved?.(); }}
-        />
+        <>
+          {/* Alta real de la mercadería: crea las unidades (o el lote de patrón
+              si el artículo está vinculado) y concilia `cantidadRecibida`. */}
+          <StockIntakeModal
+            open={showIntake}
+            onClose={() => setShowIntake(false)}
+            onCreated={() => { setShowIntake(false); h.reload(); onSaved?.(); }}
+            preset={{
+              proveedorId: oc.proveedorId || undefined,
+              ocNumero: oc.numero,
+              pendientes: (oc.items ?? [])
+                .filter(it => it.articuloId && (it.cantidad ?? 0) > (it.cantidadRecibida ?? 0))
+                .map(it => ({ articuloId: it.articuloId!, cantidad: (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0) })),
+            }}
+          />
+          <OCStatusTransition
+            oc={oc}
+            open={showTransition}
+            onClose={() => setShowTransition(false)}
+            onUpdated={() => { setShowTransition(false); h.reload(); onSaved?.(); }}
+          />
+        </>
       )}
 
       {oc && (

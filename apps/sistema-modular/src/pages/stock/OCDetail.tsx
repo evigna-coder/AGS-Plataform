@@ -55,6 +55,24 @@ export const OCDetail = () => {
   const canEdit = oc.estado === 'borrador';
   const canReceive = oc.estado === 'enviada_proveedor' || oc.estado === 'embarcada';
 
+  /**
+   * Ingreso de stock: depende de si FALTA mercadería, no del estado de la OC
+   * (2026-08-18).
+   *
+   * Antes colgaba de `canReceive`, y eso hacía una puerta de una sola
+   * dirección: marcabas la OC 'recibida' —que no da de alta nada— y el botón
+   * de ingreso desaparecía, sin transición de vuelta. La OC quedaba cerrada
+   * con cero unidades y sin forma de cargarlas. Pasó con SIN001.
+   *
+   * De paso cierra el agujero opuesto: cuando ya entró todo, el botón se va y
+   * no se puede ingresar la misma OC dos veces.
+   */
+  const faltaIngresar = (oc.items ?? []).reduce(
+    (acc, it) => acc + Math.max(0, (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0)), 0);
+  const canIntake = oc.tipo === 'nacional'
+    && oc.estado !== 'borrador' && oc.estado !== 'cancelada'
+    && faltaIngresar > 0;
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
@@ -96,8 +114,10 @@ export const OCDetail = () => {
                 + Crear Importacion
               </Button>
             )}
-            {canReceive && oc.tipo === 'nacional' && (
-              <Button size="sm" onClick={() => setShowIntake(true)}>Ingresar stock de esta OC</Button>
+            {canIntake && (
+              <Button size="sm" onClick={() => setShowIntake(true)}>
+                Ingresar stock de esta OC ({faltaIngresar})
+              </Button>
             )}
             {canReceive && (
               <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Cambiar estado</Button>
@@ -138,7 +158,13 @@ export const OCDetail = () => {
         open={showIntake}
         onClose={() => setShowIntake(false)}
         onCreated={() => { setShowIntake(false); loadOC(); }}
-        preset={{ proveedorId: oc.proveedorId || undefined, ocNumero: oc.numero }}
+        preset={{
+          proveedorId: oc.proveedorId || undefined,
+          ocNumero: oc.numero,
+          pendientes: (oc.items ?? [])
+            .filter(it => it.articuloId && (it.cantidad ?? 0) > (it.cantidadRecibida ?? 0))
+            .map(it => ({ articuloId: it.articuloId!, cantidad: (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0) })),
+        }}
       />
 
     </div>
