@@ -43,14 +43,20 @@ interface WeekBlockProps {
   entriesForDay: (date: string) => AgendaEntry[];
   isCurrentWeek: boolean;
   showEngineer?: boolean;
+  /** false = se esconden los días ya pasados (default de la vista). */
+  incluirPasados?: boolean;
 }
 
-function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: WeekBlockProps) {
+/** 'YYYY-MM-DD' de hoy en zona local — comparar strings evita el corrimiento UTC. */
+const hoyStr = () => formatDate(new Date());
+
+function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer, incluirPasados }: WeekBlockProps) {
+  const hoy = hoyStr();
   const days = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekStart, i);
     const dayStr = formatDate(day);
     return { day, dayStr, dayEntries: entriesForDay(dayStr), dayIndex: i };
-  });
+  }).filter(d => incluirPasados || d.dayStr >= hoy);
 
   if (!days.some(d => d.dayEntries.length > 0)) return null;
 
@@ -112,8 +118,17 @@ export default function AgendaPage() {
   const { loading, weekStart, entriesForDay, loadMore, weeksAhead, entries,
           isAdmin, showMine, toggleShowMine, ingenieros } = useAgenda();
 
+  /**
+   * La agenda abre en HOY (2026-08-19).
+   *
+   * Arrancaba en `i = -1`, así que lo primero que se veía era la semana pasada y
+   * había que deslizarse para encontrar el día. Ahora empieza en la semana
+   * actual y, dentro de ella, se esconden los días ya pasados. Lo anterior no se
+   * borra: está detrás del botón, porque a veces hay que mirar atrás.
+   */
+  const [verAnteriores, setVerAnteriores] = useState(false);
   const weeks: Date[] = [];
-  for (let i = -1; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
+  for (let i = verAnteriores ? -1 : 0; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
 
   const currentWeekStr = formatDate(weekStart);
   // Grid only on desktop (>=768px) — mobile always shows list view
@@ -167,6 +182,12 @@ export default function AgendaPage() {
           <EmptyState message="No hay visitas programadas" />
         ) : (
           <>
+            <div className="text-center pb-2">
+              <button onClick={() => setVerAnteriores(v => !v)}
+                className="text-[11px] text-slate-400 hover:text-teal-600 hover:underline">
+                {verAnteriores ? 'Ocultar días anteriores' : '↑ Ver días anteriores'}
+              </button>
+            </div>
             {weeks.map(ws => (
               <WeekBlock
                 key={formatDate(ws)}
@@ -174,6 +195,7 @@ export default function AgendaPage() {
                 entriesForDay={entriesForDay}
                 isCurrentWeek={formatDate(ws) === currentWeekStr}
                 showEngineer={isAdmin && !showMine}
+                incluirPasados={verAnteriores}
               />
             ))}
             <div className="text-center py-4">
