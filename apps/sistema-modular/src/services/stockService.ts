@@ -2530,11 +2530,18 @@ export const reservasService = {
     solicitadoPorNombre: string;
     /** Pptos vinculados a la OT que cierra — habilita el dedupe contra reservas (I2). */
     presupuestoIds?: string[];
-  }): Promise<{ deducidas: number; cubiertasPorReserva: number }> {
+    /**
+     * Motivos por los que una selección NO se pudo descontar (2026-08-19).
+     * Antes se tragaban con un `console.error` y la OT cerraba "bien" con el
+     * stock intacto: nadie se enteraba hasta el inventario. Ahora suben al
+     * cierre y terminan en las notas.
+     */
+  }): Promise<{ deducidas: number; cubiertasPorReserva: number; fallos: string[] }> {
     // Pool de reservas de los pptos vinculados, para el dedupe I2. Best-effort: si la
     // lectura de un ppto falla, el dedupe queda parcial (peor caso = comportamiento previo).
     const unidadesReservadas = new Map<string, UnidadStock>();
     const poolPorArticulo = new Map<string, number>();
+    const fallos: string[] = [];
     for (const pid of params.presupuestoIds ?? []) {
       try {
         for (const u of await this.getByPresupuesto(pid)) {
@@ -2560,7 +2567,9 @@ export const reservasService = {
             solicitadoPorNombre: params.solicitadoPorNombre,
           });
         } catch (err) {
+          const motivo = err instanceof Error ? err.message : String(err);
           console.error(`[entregarSeleccionesCierre] consumo desde remito ${selection.remitoNumero ?? selection.remitoId} falló:`, err);
+          fallos.push(`${selection.partCodigo ?? 'item'} desde remito ${selection.remitoNumero ?? selection.remitoId}: ${motivo}`);
         }
         continue;
       }
@@ -2614,7 +2623,7 @@ export const reservasService = {
       });
       deducidas += r.deducidas;
     }
-    return { deducidas, cubiertasPorReserva };
+    return { deducidas, cubiertasPorReserva, fallos };
   },
 
   /**
@@ -2674,9 +2683,30 @@ async function consumirSeleccionDesdeRemito(params: {
   const consumir = Math.min(selection.cantidad ?? 1, pendiente);
   if (consumir <= 0) return 0;
 
-  if (item.asignacionId) {
-    const { asignacionesService } = await import('./firebaseService');
-    const asg = await asignacionesService.getById(item.asignacionId);
+  // Vínculo con la asignación: por id si el item lo tiene, y si no —remitos
+  // viejos que nunca lo estamparon— buscándola por la unidad (2026-08-19).
+  //
+  // Sin este fallback el item caía al camino de STOCK, que exige la unidad
+  // 'disponible' o 'reservado'. Pero una unidad que salió por asignaciones está
+  // 'asignado', así que rebotaba siempre: el consumo fallaba, el error se
+  // tragaba y la OT cerraba con el material todavía en poder del ingeniero
+  // (caso REM-0037 / OT 30055.01).
+  const { asignacionesService } = await import('./firebaseService');
+  let asignacionId = item.asignacionId ?? null;
+  if (!asignacionId && item.unidadId) {
+    const todas = await asignacionesService.getAll().catch(() => []);
+    // Con saldo pendiente: lo ya consumido o devuelto no sirve como origen.
+    const encontrada = todas.find(a => (a.items ?? []).some(ai =>
+      ai.unidadId === item.unidadId
+      && ai.cantidad - (ai.cantidadConsumida ?? 0) - (ai.cantidadDevuelta ?? 0) > 0));
+    if (encontrada) {
+      asignacionId = encontrada.id;
+      console.log(`[consumirSeleccionDesdeRemito] remito ${remito.numero}: item sin asignacionId, resuelto por unidad → ${encontrada.id}`);
+    }
+  }
+
+  if (asignacionId) {
+    const asg = await asignacionesService.getById(asignacionId);
     if (!asg) throw new Error(`La asignación del remito ${remito.numero} ya no existe`);
     const ai = (item.asignacionItemId ? asg.items.find(a => a.id === item.asignacionItemId) : undefined)
       ?? asg.items.find(a =>

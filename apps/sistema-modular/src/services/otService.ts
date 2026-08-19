@@ -1828,6 +1828,7 @@ export const ordenesTrabajoService = {
       // existencia de selections/presupuestos vinculados.
       let totalProcesadas = 0;
       let seleccionesSinStock = 0;      // pedidas por selección manual y no descontadas
+      const fallosSeleccion: string[] = [];   // motivo por el que cada una no se descontó
       const pptosDiferidos = new Set<string>(); // camino B pospuesto a la última OT (I1)
 
       // Camino A — SELECCIÓN manual del cierre (entrega de partes).
@@ -1839,7 +1840,7 @@ export const ordenesTrabajoService = {
       const seleccionesSolicitadas = stockSelections.reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
       if (stockSelections.length > 0) {
         try {
-          const { deducidas, cubiertasPorReserva } = await reservasService.entregarSeleccionesCierre({
+          const { deducidas, cubiertasPorReserva, fallos } = await reservasService.entregarSeleccionesCierre({
             selections: stockSelections,
             otNumber,
             clienteId: ot.clienteId ?? null,
@@ -1849,6 +1850,10 @@ export const ordenesTrabajoService = {
           });
           totalProcesadas += deducidas;
           seleccionesSinStock = Math.max(0, seleccionesSolicitadas - deducidas - cubiertasPorReserva);
+          // El MOTIVO del fallo, no solo el conteo: "sin disponible o error" no
+          // alcanza para saber si falta stock, si la unidad cambió de estado o
+          // si el vínculo con la asignación se rompió (2026-08-19).
+          fallosSeleccion.push(...fallos);
           if (deducidas > 0) {
             console.log(`[cerrarAdmin] ${deducidas} unidad(es) descontada(s) por selección manual en OT ${otNumber}`);
           }
@@ -1925,7 +1930,8 @@ export const ordenesTrabajoService = {
 
       const lineasStock: string[] = [];
       if (seleccionesSinStock > 0) {
-        lineasStock.push(`[stock] ${seleccionesSinStock} u. de la selección manual no se descontaron (sin disponible o error) — revisar y ajustar a mano.`);
+        lineasStock.push(`[stock] ${seleccionesSinStock} u. de la selección manual no se descontaron — revisar y ajustar a mano.`);
+        for (const f of fallosSeleccion) lineasStock.push(`[stock] · ${f}`);
       }
       if (pendientesPpto > 0) {
         lineasStock.push(`[stock] ${pendientesPpto} u. de presupuesto sin descontar al cierre (sin stock reservado — ¿mercadería aún no ingresada?). ${marcarDeducido ? 'Ajustar a mano.' : 'Re-cerrar la OT cuando el stock esté reservado para completar la entrega.'}`);
