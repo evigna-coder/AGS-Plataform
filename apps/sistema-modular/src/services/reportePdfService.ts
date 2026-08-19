@@ -73,7 +73,27 @@ async function resolveReportePdf(otNumber: string): Promise<ResolvedReportePdf |
     const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
     if (ot?.pdfUrl) {
       const path = storagePathFromDownloadUrl(ot.pdfUrl);
-      if (path) return { path, url: ot.pdfUrl };
+      if (path) {
+        // URL FRESCA desde el path, no la guardada (2026-08-19).
+        //
+        // En Storage, sobrescribir un archivo ROTA su token de descarga: la URL
+        // vieja queda muerta y responde 403 "Permission denied". Y este PDF se
+        // sobrescribe seguido — al anexar un documento al reporte y al
+        // regenerarlo desde reportes-ot. El visor del cierre mostraba el JSON
+        // del error en lugar del reporte (OT-28554.06).
+        //
+        // El path es estable; el token no. Si la lectura falla se cae a la URL
+        // guardada, que para los archivos nunca sobrescritos sigue sirviendo.
+        try {
+          const fresh = await getDownloadURL(ref(storage, path));
+          return { path, url: fresh };
+        } catch {
+          // El path guardado no se pudo leer (archivo movido, ruta legacy).
+          // Se sigue a los candidatos en vez de devolver la URL muerta: mostrar
+          // un 403 es peor que buscar el archivo donde sí puede estar.
+          console.warn(`[reportePdf] ${otNumber}: la pdfUrl guardada apunta a '${path}' y no se pudo leer; probando rutas candidatas`);
+        }
+      }
     }
   } catch {
     // sigue al fallback por paths
