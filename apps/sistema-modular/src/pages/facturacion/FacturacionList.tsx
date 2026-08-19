@@ -19,6 +19,13 @@ import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
+/**
+ * Estados terminales: no son trabajo pendiente, son archivo. Se esconden de la
+ * vista por defecto para que la lista muestre solo lo accionable — una anulada
+ * ocupa el mismo lugar visual que una pendiente y no hay nada que hacer con ella.
+ */
+const ESTADOS_CERRADOS = new Set<string>(['cobrada', 'anulada']);
+
 export const FacturacionList = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -34,8 +41,9 @@ export const FacturacionList = () => {
     search:     { type: 'string' as const, default: '' },
     cliente:    { type: 'string' as const, default: '' },
     estado:     { type: 'string' as const, default: '' },
-    // Las cobradas están finalizadas: son archivo, no trabajo (2026-08-17).
-    verCobradas: { type: 'boolean' as const, default: false },
+    // Cobradas y anuladas están terminadas: son archivo, no trabajo
+    // (2026-08-17, ampliado a las anuladas el 2026-08-18).
+    verCerradas: { type: 'boolean' as const, default: false },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
     sortField:  { type: 'string' as const, default: 'createdAt' },
@@ -97,8 +105,9 @@ export const FacturacionList = () => {
     let result = solicitudes.filter(s => {
       if (filters.cliente && s.clienteId !== filters.cliente) return false;
       if (filters.estado && s.estado !== filters.estado) return false;
-      // Ocultas por defecto, salvo que se las pida explícitamente por filtro.
-      if (!filters.verCobradas && !filters.estado && s.estado === 'cobrada') return false;
+      // Ocultas por defecto, salvo que se las pida explícitamente por filtro
+      // (elegir 'Anulada' en el desplegable de estado las muestra igual).
+      if (!filters.verCerradas && !filters.estado && ESTADOS_CERRADOS.has(s.estado)) return false;
       if (filters.fechaDesde && s.createdAt < filters.fechaDesde) return false;
       if (filters.fechaHasta && s.createdAt > filters.fechaHasta + 'T23:59:59') return false;
       return true;
@@ -124,8 +133,8 @@ export const FacturacionList = () => {
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
-  const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta || filters.verCobradas);
-  const cobradasOcultas = solicitudes.filter(s => s.estado === 'cobrada').length;
+  const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta || filters.verCerradas);
+  const cerradasOcultas = solicitudes.filter(s => ESTADOS_CERRADOS.has(s.estado)).length;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -172,13 +181,14 @@ export const FacturacionList = () => {
               placeholder="Estado"
             />
           </div>
-          {/* Las cobradas están terminadas — se muestran solo si se piden
-              (2026-08-17). El contador dice cuántas hay escondidas. */}
-          <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" checked={filters.verCobradas}
-              onChange={e => setFilter('verCobradas', e.target.checked)}
+          {/* Cobradas y anuladas están terminadas — se muestran solo si se
+              piden (2026-08-17/18). El contador dice cuántas hay escondidas. */}
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer whitespace-nowrap"
+            title="Cobradas y anuladas">
+            <input type="checkbox" checked={filters.verCerradas}
+              onChange={e => setFilter('verCerradas', e.target.checked)}
               className="w-3.5 h-3.5 accent-teal-600" />
-            Ver cobradas{cobradasOcultas > 0 ? ` (${cobradasOcultas})` : ''}
+            Ver cerradas{cerradasOcultas > 0 ? ` (${cerradasOcultas})` : ''}
           </label>
           <input
             type="date"
