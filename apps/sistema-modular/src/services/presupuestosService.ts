@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
-import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero, ESTADO_PRESUPUESTO_LABELS } from '@ags/shared';
+import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero, ESTADO_PRESUPUESTO_LABELS, presupuestoEstaAceptado } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
 const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
@@ -2003,6 +2003,21 @@ export const presupuestosService = {
     const pres = await this.getById(presupuestoId);
     if (!pres) return;
     if (pres.estado === 'finalizado' || pres.estado === 'anulado') return;
+
+    // Un presupuesto que sigue siendo OFERTA no se cierra solo (2026-08-19).
+    //
+    // Cerrar la OT vinculada marcaba 'finalizado' cualquier presupuesto, incluso
+    // uno en borrador que nunca se cotizó ni se envió: el P2-005103-01 salió del
+    // portal con total 0, se cerró la OT 30042.01 y el presupuesto se archivó
+    // solo — sin precio, sin enviar, y sin quedar como pendiente para nadie.
+    // Desapareció de la lista porque la vista básica esconde los finalizados.
+    //
+    // Que la OT esté hecha no significa que la venta esté cerrada: falta
+    // cotizarlo y mandarlo. Solo finaliza lo que el cliente ACEPTÓ alguna vez.
+    if (!presupuestoEstaAceptado(pres.estado)) {
+      console.log(`[trySyncFinalizacion] ppto ${pres.numero} en '${pres.estado}' (sin aceptar) — no se finaliza por el cierre de la OT`);
+      return;
+    }
 
     // Lazy import para romper circular dep (otService ↔ presupuestosService).
     const { ordenesTrabajoService } = await import('./otService');

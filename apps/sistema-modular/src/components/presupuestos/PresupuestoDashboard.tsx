@@ -5,7 +5,7 @@ import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHe
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
-export type KpiFilter = '' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
+export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
 
 interface Props {
   presupuestos: Presupuesto[];
@@ -21,8 +21,20 @@ interface Props {
   verTodosActivo?: boolean;
 }
 
+const OT_CERRADA_SET = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+
 export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
   const metrics = useMemo(() => {
+    // Borradores (2026-08-19): sin card no se veían en ningún lado. Es el
+    // primer eslabón del circuito y donde caen los pedidos del portal que
+    // todavía nadie cotizó.
+    const borradores = presupuestos.filter(p => p.estado === 'borrador');
+    // Los que NO se pueden descartar: su OT ya cerró, la parte quedó instalada.
+    const borradoresConTrabajo = borradores.filter(p => {
+      const vinculadas = new Set(p.otsVinculadasNumbers ?? []);
+      return ots.some(ot => OT_CERRADA_SET.has(ot.estadoAdmin ?? '')
+        && ((ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber)));
+    });
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
     // Solo los que siguen EN la etapa aceptado: los que ya arrancaron van a la
     // card "En ejecución" y contarlos acá duplicaba (2026-08-09).
@@ -33,6 +45,13 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
     // para encontrarlo había que pelear con el desplegable de estado. Son
     // aceptados igual — lo que cambia es que el trabajo ya empezó.
     const enEjecucion = presupuestos.filter(p => p.estado === 'en_ejecucion');
+    // Monto POR MONEDA, igual que el pipeline de enviados: sumar USD y ARS en un
+    // solo número daría un total que no existe (2026-08-19).
+    const montoEnEjecucion: Record<string, number> = {};
+    enEjecucion.forEach(p => {
+      const m = p.moneda || 'USD';
+      montoEnEjecucion[m] = (montoEnEjecucion[m] || 0) + (p.total || 0);
+    });
 
     // Enviados sin respuesta (> 7 días)
     const enviadosSinRespuesta = enviados.filter(p => {
@@ -107,6 +126,9 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       montoSinCobrar,
       pipeline,
       enEjecucion,
+      montoEnEjecucion,
+      borradores,
+      borradoresConTrabajo,
     };
   }, [presupuestos, solicitudes]);
 
@@ -117,10 +139,10 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
 
   const toggle = (kpi: KpiFilter) => onKpiClick?.(kpi);
   // `h-full` + grid con columnas iguales = todas del mismo alto y ancho, en una
-  // sola línea (2026-08-18). Antes eran grid-cols-5 con 6 cards: la última caía
-  // a un segundo renglón y `items-start` las dejaba de alturas distintas.
+  // sola línea. Al sumar Borradores pasaron a ser 7 (2026-08-19): se achicaron
+  // padding, gap y cuerpo del número para que sigan entrando sin envolver.
   const cardCls = (kpi: KpiFilter) =>
-    `h-full bg-white border rounded-lg px-2 py-1.5 text-left w-full transition-colors overflow-hidden ${
+    `h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-colors overflow-hidden ${
       activeKpi === kpi
         ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30'
         : 'border-slate-200 hover:border-teal-300'
@@ -129,16 +151,33 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // Compactas (UAT 2026-07-18): label y número en una línea; el detalle solo
   // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
-    <div className="grid grid-cols-[0.5fr_repeat(5,minmax(0,1fr))] gap-2 px-5 pb-3">
+    <div className="grid grid-cols-[0.42fr_repeat(6,minmax(0,1fr))] gap-1.5 px-5 pb-3">
       {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
           estado — las cards "tapaban" al desplegable y no había cómo salir. */}
       <button type="button" onClick={onVerTodos}
-        className={`h-full bg-white border rounded-lg px-2 py-1.5 text-left w-full transition-colors ${
+        className={`h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-colors ${
           verTodosActivo ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'
         }`}
         title="Quitar filtros de cards y estado — ver todos los presupuestos">
         <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Todos</p>
-        <p className="text-base font-black text-slate-700 leading-none mt-0.5">{presupuestos.length}</p>
+        <p className="text-sm font-black text-slate-700 leading-none mt-0.5">{presupuestos.length}</p>
+      </button>
+
+      {/* Borradores: el primer eslabón — sin card, invisibles (2026-08-19). */}
+      <button type="button" className={cardCls('borradores')} onClick={() => toggle('borradores')}
+        title="Filtrar la lista por presupuestos en borrador — falta cotizarlos o enviarlos">
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Borradores</p>
+          <p className="text-sm font-black text-slate-600 leading-none">{metrics.borradores.length}</p>
+        </div>
+        {metrics.borradoresConTrabajo.length > 0 ? (
+          <p className="text-[9px] text-amber-700 mt-0.5 truncate"
+            title="Su OT ya cerró: el trabajo se hizo y hay que cotizarlos sí o sí">
+            {metrics.borradoresConTrabajo.length} con trabajo hecho
+          </p>
+        ) : (
+          <p className="text-[9px] text-slate-400 mt-0.5 truncate">sin enviar</p>
+        )}
       </button>
 
       {/* Enviados */}
@@ -146,7 +185,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         title="Filtrar la lista por presupuestos enviados">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Enviados</p>
-          <p className="text-base font-black text-blue-600 leading-none">{metrics.enviadosTotal}</p>
+          <p className="text-sm font-black text-blue-600 leading-none">{metrics.enviadosTotal}</p>
         </div>
         {(metrics.enviadosSinRespuesta.length > 0 || metrics.enviadosVencidos.length > 0 || fmtPipeline(metrics.pipeline)) && (
           <div className="space-y-0 mt-0.5">
@@ -168,7 +207,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         title="Filtrar la lista por presupuestos aceptados">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Aceptados</p>
-          <p className="text-base font-black text-emerald-600 leading-none">{metrics.aceptadosTotal}</p>
+          <p className="text-sm font-black text-emerald-600 leading-none">{metrics.aceptadosTotal}</p>
         </div>
         {(metrics.aceptadosSinOT.length > 0 || metrics.aceptadosSinFacturar.length > 0) && (
           <div className="space-y-0 mt-0.5">
@@ -187,9 +226,12 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         title="Filtrar la lista por presupuestos en ejecución — aceptados con el trabajo iniciado">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">En ejecución</p>
-          <p className="text-base font-black text-teal-600 leading-none">{metrics.enEjecucion.length}</p>
+          <p className="text-sm font-black text-teal-600 leading-none">{metrics.enEjecucion.length}</p>
         </div>
-        <p className="text-[9px] text-slate-400 mt-0.5 truncate">trabajo iniciado</p>
+        <p className="text-[9px] text-slate-400 mt-0.5 truncate"
+          title={fmtPipeline(metrics.montoEnEjecucion) || 'Sin monto cargado'}>
+          {fmtPipeline(metrics.montoEnEjecucion) || 'trabajo iniciado'}
+        </p>
       </button>
 
       {/* Enviadas a facturación: avisos generados, esperando que Administración
@@ -198,7 +240,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         title="Filtrar la lista por presupuestos enviados a facturación (aviso generado, factura sin cargar)">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">A facturar</p>
-          <p className="text-base font-black text-amber-600 leading-none">{metrics.solicitudesPendientes.length}</p>
+          <p className="text-sm font-black text-amber-600 leading-none">{metrics.solicitudesPendientes.length}</p>
         </div>
         {metrics.solicitudesPendientes.length > 0 && (
           <p className="text-[9px] text-slate-400 mt-0.5 truncate"
@@ -226,7 +268,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         title="Filtrar la lista por presupuestos facturados pendientes de cobro">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Pend. cobro</p>
-          <p className="text-base font-black text-purple-600 leading-none">{metrics.facturadosSinCobrar.length}</p>
+          <p className="text-sm font-black text-purple-600 leading-none">{metrics.facturadosSinCobrar.length}</p>
         </div>
         {metrics.facturadosSinCobrar.length > 0 && (
           <p className="text-[9px] text-slate-400 mt-0.5 truncate">

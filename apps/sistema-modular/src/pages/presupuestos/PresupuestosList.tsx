@@ -284,6 +284,31 @@ export const PresupuestosList = () => {
     [presupuestos, otsCerradas],
   );
 
+  /**
+   * Borradores que NO se pueden descartar (2026-08-19): el trabajo ya se hizo.
+   *
+   * Un pedido del portal nace en borrador, pero si su OT ya cerró significa que
+   * la parte quedó instalada — hay que cotizarlo y mandarlo sí o sí. Mezclado
+   * con los borradores descartables es indistinguible, y es plata que se pierde.
+   *
+   * Se DERIVA de la OT cerrada en vez de marcarse a mano: vale hacia atrás sin
+   * migrar nada y no se puede desincronizar. `computeOCAdeudada` hace este
+   * mismo join pero arranca en 'aceptado', asi que los borradores le quedan
+   * afuera.
+   */
+  const borradorConTrabajoIds = useMemo(() => {
+    const cerradasPorNumero = new Set(otsCerradas.map(o => o.otNumber));
+    const ids = new Set<string>();
+    for (const p of presupuestos) {
+      if (p.estado !== 'borrador') continue;
+      const vinculadas = new Set(p.otsVinculadasNumbers ?? []);
+      const tieneCerrada = otsCerradas.some(ot =>
+        (ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber));
+      if (tieneCerrada || [...vinculadas].some(n => cerradasPorNumero.has(n))) ids.add(p.id);
+    }
+    return ids;
+  }, [presupuestos, otsCerradas]);
+
   const presupuestosFiltrados = useMemo(() => {
     // Vista básica (sin estado/KPI/filtros de OC elegidos): ocultar los que ya no
     // requieren acción comercial — finalizados y los enviados a facturación (aviso
@@ -338,6 +363,7 @@ export const PresupuestosList = () => {
       // Solo trabajo realizado: subconjunto sin OC con OT cerrada.
       if (filters.ocTrabajoRealizado && !trabajoRealizadoIds.has(p.id)) return false;
       // KPI del dashboard como filtro (UAT 2026-07-17).
+      if (filters.kpi === 'borradores' && p.estado !== 'borrador') return false;
       if (filters.kpi === 'enviados' && p.estado !== 'enviado') return false;
       // Mismo bucket que la card, o el numero no coincide con lo listado.
       if (filters.kpi === 'aceptados' && !presupuestoAceptadoVigente(p.estado)) return false;
@@ -666,6 +692,12 @@ export const PresupuestosList = () => {
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
                               title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
                               {ESTADO_PRESUPUESTO_LABELS[p.estado]}
+                            </span>
+                          )}
+                          {borradorConTrabajoIds.has(p.id) && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
+                              title="El trabajo ya se hizo (OT cerrada) y este presupuesto todavía no se cotizó ni se envió. NO se puede descartar: hay que cotizarlo y mandarlo.">
+                              Trabajo hecho ⚠
                             </span>
                           )}
                           {trabajoRealizadoIds.has(p.id) && (

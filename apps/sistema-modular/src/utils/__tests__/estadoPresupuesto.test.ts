@@ -53,6 +53,22 @@ assert.equal(estadoDestino([]), 'finalizado',
 assert.ok(ESTADO_PRESUPUESTO_LABELS.facturado.toLowerCase().includes('cobro'),
   'el label tiene que decir que falta cobrar, si no repite la confusión vieja');
 
+// ── Cerrar la OT no cierra un presupuesto que sigue siendo oferta (2026-08-19) ─
+// El P2-005103-01 salió del portal con total 0, se cerró su OT y el presupuesto
+// pasó a 'finalizado': sin precio, sin enviar, y sin quedar pendiente para
+// nadie. Encima desapareció de la lista, porque la vista básica esconde los
+// finalizados. Que el trabajo esté hecho no significa que la venta esté cerrada.
+const { presupuestoEstaAceptado } = await import('@ags/shared');
+
+for (const estado of ['borrador', 'enviado'] as const) {
+  assert.equal(presupuestoEstaAceptado(estado), false,
+    `'${estado}' NO puede finalizarse por el cierre de una OT: falta cotizarlo y mandarlo`);
+}
+for (const estado of ['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion', 'facturado'] as const) {
+  assert.equal(presupuestoEstaAceptado(estado), true,
+    `'${estado}' ya fue aceptado: puede avanzar a facturado/finalizado`);
+}
+
 // ── Ningún estado válido puede perderse al leer de Firestore (2026-08-18) ───
 // El bug: `migrateEstado` era `MAPA[estado] || 'borrador'`, así que un estado
 // que no estuviera en el mapa de LEGADO se convertía en borrador en silencio.
@@ -65,4 +81,4 @@ for (const estado of Object.keys(ESTADO_PRESUPUESTO_LABELS)) {
     `'${estado}' no se mapea a sí mismo: al leerlo de Firestore se convierte en otra cosa`);
 }
 
-console.log('✅ estadoPresupuesto: 21/21 OK');
+console.log('✅ estadoPresupuesto: 28/28 OK');
