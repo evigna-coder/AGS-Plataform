@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
-import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero } from '@ags/shared';
+import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero, ESTADO_PRESUPUESTO_LABELS } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
 const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
@@ -47,8 +47,18 @@ function fechaEnvioToTimestamp(val: any): Timestamp {
   return isNaN(d.getTime()) ? Timestamp.now() : Timestamp.fromDate(d);
 }
 
-/** Migrate legacy presupuesto estado to simplified states */
+/**
+ * Normaliza el estado LEGADO de un presupuesto al leerlo.
+ *
+ * Un estado que ya es válido se respeta tal cual (2026-08-18). Antes esto era
+ * un `MAPA[estado] || 'borrador'`: cualquier estado que no estuviera listado en
+ * el mapa se convertía en BORRADOR al leer, en silencio. Agregar `facturado` al
+ * enum y olvidar el mapa hizo que tres presupuestos ya facturados aparecieran
+ * como borradores — el dato en Firestore estaba bien, se corrompía en la
+ * lectura. El mapa queda solo para lo que de verdad es legado.
+ */
 function migrateEstado(estado: string): PresupuestoEstado {
+  if (estado in ESTADO_PRESUPUESTO_LABELS) return estado as PresupuestoEstado;
   return PRESUPUESTO_ESTADO_MIGRATION[estado] || 'borrador';
 }
 
@@ -2030,6 +2040,17 @@ export const presupuestosService = {
       if (!canFinalizeFromEsquema(presFresh.esquemaFacturacion, presFresh.finalizarConSoloFacturado)) {
         return;
       }
+      // Mismo criterio que la rama legacy: el cobro es lo que finaliza.
+      const solsEsq = (await facturacionService.getByPresupuesto(presupuestoId).catch(() => []))
+        .filter(s => s.estado !== 'anulada');
+      const cobradasEsq = solsEsq.length > 0 && solsEsq.every(s => s.estado === 'cobrada');
+      if (!cobradasEsq && solsEsq.length > 0) {
+        if (pres.estado !== 'facturado') {
+          await this.update(presupuestoId, { estado: 'facturado' } as any);
+          console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → facturado (esquema, falta cobrar)`);
+        }
+        return;
+      }
       await this.update(presupuestoId, { estado: 'finalizado' } as any);
       console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado (esquema mode)`);
       return;
@@ -2045,17 +2066,123 @@ export const presupuestosService = {
       return;
     }
 
-    // ── Check 3: todas las solicitudesFacturacion vinculadas en `facturada` ──
-    const solicitudes = await facturacionService.getByPresupuesto(presupuestoId).catch(() => []);
-    if (solicitudes.length > 0) {
-      const allFacturadas = solicitudes.every(s => s.estado === 'facturada');
-      if (!allFacturadas) return;
-    }
-    // (si solicitudes.length === 0, asumir que no hay facturación requerida y avanzar)
+    // ── Check 3: hasta dónde llegó la plata (2026-08-18) ──────────────────
+    // Antes bastaba con `facturada` para finalizar, y eso dejaba presupuestos
+    // en "Finalizado" con el cobro pendiente — la palabra más fuerte de la
+    // máquina de estados usada con plata todavía afuera. Ahora:
+    //   todas cobradas            → finalizado
+    //   todas facturadas o mejor  → facturado (pendiente de cobro)
+    //   alguna sin facturar       → no avanza
+    // El cobro importa especialmente en los pagos anticipados, donde es la
+    // condición para arrancar el trabajo y Administración necesita verlo.
+    const solicitudes = (await facturacionService.getByPresupuesto(presupuestoId).catch(() => []))
+      .filter(s => s.estado !== 'anulada');
 
-    // ── Transicionar ppto a finalizado ────────────────────────────────────
-    await this.update(presupuestoId, { estado: 'finalizado' } as any);
-    console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado`);
+    // Sin solicitudes: no hay facturación de por medio, cierra como antes.
+    if (solicitudes.length === 0) {
+      await this.update(presupuestoId, { estado: 'finalizado' } as any);
+      console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado (sin facturación)`);
+      return;
+    }
+
+    const todasCobradas = solicitudes.every(s => s.estado === 'cobrada');
+    const todasFacturadas = solicitudes.every(s => s.estado === 'facturada' || s.estado === 'cobrada');
+
+    if (todasCobradas) {
+      await this.update(presupuestoId, { estado: 'finalizado' } as any);
+      console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado (cobrado)`);
+      return;
+    }
+    if (todasFacturadas) {
+      if (pres.estado !== 'facturado') {
+        await this.update(presupuestoId, { estado: 'facturado' } as any);
+        console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → facturado (falta cobrar)`);
+      }
+      return;
+    }
+  },
+
+
+  /**
+   * Ticket operativo a Administración por una solicitud de facturación
+   * (extraído de `generarAvisoFacturacion`, 2026-08-18).
+   *
+   * Vive aparte porque hay DOS caminos que crean solicitudes: el aviso al
+   * cerrar la última OT y el modal de facturación parcial desde presupuestos.
+   * El segundo no lo generaba, así que la solicitud quedaba en la base sin que
+   * nadie en Administración se enterara — pasó con P1-005046-01 (USD 5105
+   * pendientes y sin aviso). El ticket ES la notificación; sin él no hay aviso.
+   *
+   * Dedupe: si ya hay un aviso abierto del ppto, anexa la línea en vez de
+   * crear otro. Best-effort: nunca rompe la solicitud que lo origina.
+   */
+  async avisarAdministracionDeFacturacion(params: {
+    presupuestoId: string;
+    presupuestoNumero: string;
+    clienteId?: string | null;
+    montoLabel: string;
+    otsLabel: string;
+    actorUid?: string | null;
+  }): Promise<void> {
+    const { presupuestoId, presupuestoNumero, clienteId, montoLabel, otsLabel, actorUid } = params;
+    try {
+      let clienteNombre = '';
+      if (clienteId) {
+        try {
+          const { clientesService } = await import('./clientesService');
+          clienteNombre = (await clientesService.getById(String(clienteId)))?.razonSocial ?? '';
+        } catch { /* nombre vacío — el ticket vale igual */ }
+      }
+      const linea = `• Aviso ${new Date().toISOString().slice(0, 10)} — OTs: ${otsLabel} — Monto: ${montoLabel}`;
+
+      const vinculados = (await getDocs(query(
+        collection(db, 'leads'),
+        where('presupuestosIds', 'array-contains', presupuestoId),
+      ))).docs.map(d => ({ id: d.id, data: d.data() as Record<string, unknown> }));
+      const previo = vinculados.find(t =>
+        t.data.areaActual === 'administracion' &&
+        t.data.accionPendiente === 'Cargar factura del aviso' &&
+        !['finalizado', 'no_concretado'].includes(t.data.estado as string));
+      if (previo) {
+        await leadsService.update(previo.id, {
+          descripcion: `${(previo.data.descripcion as string) ?? ''}
+${linea}`,
+        });
+        return;
+      }
+      await leadsService.create({
+        clienteId: clienteId ?? null,
+        contactoId: null,
+        razonSocial: clienteNombre || '',
+        contactos: [],
+        contacto: '',
+        email: '',
+        telefono: '',
+        motivoLlamado: 'administracion',
+        motivoContacto: `Facturar — Ppto ${presupuestoNumero}`,
+        descripcion: `Cargar la factura del aviso a facturación del presupuesto ${presupuestoNumero}${clienteNombre ? ` (${clienteNombre})` : ''}:
+${linea}`,
+        sistemaId: null,
+        moduloId: null,
+        estado: 'nuevo',
+        postas: [],
+        asignadoA: null,
+        asignadoNombre: null,
+        derivadoPor: actorUid ?? null,
+        areaActual: 'administracion',
+        esAutogenerado: true,
+        accionPendiente: 'Cargar factura del aviso',
+        adjuntos: [],
+        presupuestosIds: [presupuestoId],
+        otIds: [],
+        finalizadoAt: null,
+        prioridad: 'normal',
+        proximoContacto: null,
+        valorEstimado: null,
+      } as never);
+    } catch (err) {
+      console.warn('[avisarAdministracionDeFacturacion] non-blocking:', err);
+    }
   },
 
   /**

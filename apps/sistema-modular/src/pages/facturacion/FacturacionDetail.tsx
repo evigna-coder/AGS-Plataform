@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
+import { presupuestosService } from '../../services/presupuestosService';
 import { facturacionService } from '../../services/facturacionService';
 import { clientesService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -93,6 +94,35 @@ export const FacturacionDetail = () => {
       setLoading(false);
     });
   }, [id]);
+
+  /**
+   * Reenvía el aviso a Administración (2026-08-18).
+   *
+   * El aviso que le llega a la persona es un TICKET; la solicitud sola no la ve
+   * nadie. Hubo un tramo en que el camino de facturación parcial creaba la
+   * solicitud sin el ticket, y quedaron seis avisos mudos por USD 9.339 — dos
+   * de ellos todavía esperando. Sirve para repararlos y para cuando un aviso se
+   * pierda por cualquier otra razón; es idempotente: si ya hay un aviso abierto
+   * del presupuesto, se anexa la línea en vez de duplicar el ticket.
+   */
+  const handleReenviarAviso = async () => {
+    if (!solicitud) return;
+    if (!await confirm(`¿Avisar a Administración de ${solicitud.presupuestoNumero}? Se crea el ticket para cargar la factura.`)) return;
+    try {
+      setSaving(true);
+      await presupuestosService.avisarAdministracionDeFacturacion({
+        presupuestoId: solicitud.presupuestoId,
+        presupuestoNumero: solicitud.presupuestoNumero,
+        clienteId: solicitud.clienteId,
+        montoLabel: `${solicitud.moneda} ${solicitud.montoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+        otsLabel: 'reenvío manual del aviso',
+        actorUid: actor?.uid ?? null,
+      });
+      alert('Aviso enviado a Administración.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo enviar el aviso');
+    } finally { setSaving(false); }
+  };
 
   const handleMarcarEnviada = async () => {
     if (!solicitud) return;
@@ -246,6 +276,10 @@ export const FacturacionDetail = () => {
                 {saving ? 'Guardando...' : 'Marcar facturada'}
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={handleReenviarAviso} disabled={saving}
+              title="Crear el ticket a Administración para que carguen la factura. No duplica si ya hay uno abierto.">
+              Avisar a Administración
+            </Button>
           </div>
         </Card>
       )}

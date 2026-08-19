@@ -132,7 +132,34 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
       const totalFacturado = solicitudesPrevias.reduce((s, sol) => s + sol.montoTotal, 0) + montoTotal;
       const totalPresupuesto = presupuesto.items.reduce((s, i) => s + i.subtotal, 0);
       const estado = totalFacturado >= totalPresupuesto ? 'completa' : 'parcial';
-      await presupuestosService.update(presupuesto.id, { facturacionEstado: estado } as any);
+      await presupuestosService.update(presupuesto.id, {
+        facturacionEstado: estado,
+        // Si se facturó el TOTAL ya no queda ninguna OT sin incluir en un aviso
+        // (2026-08-18). Sin esto `otsListasParaFacturar` quedaba con las OTs
+        // adentro para siempre y `trySyncFinalizacion` no pasaba nunca a
+        // 'finalizado': el ppto se clavaba en "Pendiente de facturación" con la
+        // factura ya emitida (caso P3-005071-01). El otro camino —el aviso
+        // desde el cierre de OT— sí las sacaba; este no.
+        ...(estado === 'completa' ? { otsListasParaFacturar: [] } : {}),
+      } as any);
+
+      // Aviso a Administración (2026-08-18). Este camino creaba la solicitud y
+      // nada más: quedaba en la base sin que nadie la viera, porque el aviso
+      // que le llega a la persona es un TICKET. Paso el mismo que genera el
+      // cierre de OT — sin esto, facturar desde acá es facturar a ciegas.
+      await presupuestosService.avisarAdministracionDeFacturacion({
+        presupuestoId: presupuesto.id,
+        presupuestoNumero: presupuesto.numero,
+        clienteId: presupuesto.clienteId,
+        montoLabel: `${presupuesto.moneda} ${montoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+        otsLabel: modo === 'porcentaje' ? `anticipo ${pctNum}%` : 'facturación parcial por ítems',
+        actorUid: usuario?.id ?? null,
+      });
+
+      // Reevaluar la finalización: puede que esta factura fuera la última
+      // condición que faltaba. Best-effort — la solicitud ya está creada.
+      await presupuestosService.trySyncFinalizacion(presupuesto.id)
+        .catch(err => console.warn('[SolicitarFacturaModal] trySyncFinalizacion:', err));
 
       onCreated();
       onClose();
@@ -147,7 +174,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 
   return (
-    <Modal open={open} onClose={onClose} title="Solicitar facturacion" subtitle={`${presupuesto.numero} — ${clienteNombre}`} maxWidth="xl">
+    <Modal open={open} onClose={onClose} title="Facturación parcial o anticipo" subtitle={`${presupuesto.numero} — ${clienteNombre}`} maxWidth="xl">
       <div className="space-y-4">
         {/* Modo: por ítems (default) o anticipo por % del total */}
         <div className="flex gap-2">
