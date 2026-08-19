@@ -8,6 +8,11 @@ interface Props {
   rows: AgendaControlRow[];
   kpis: { agendadas: number; cerradas: number; sinCierreAdmin: number; sinRealizar: number };
   onOpenOT: (otNumber: string) => void;
+  /** Saca la OT del control de esta semana (se recoordinó y cierra en otra). */
+  onExcluir?: (otNumber: string) => void;
+  /** Cuántas se sacaron a mano, para poder reponerlas. */
+  excluidas?: number;
+  onVerExcluidas?: () => void;
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -36,7 +41,7 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
   </div>
 );
 
-export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT }) => (
+export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, onExcluir, excluidas, onVerExcluidas }) => (
   <section className="space-y-2">
     <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
       1 · Agenda de la semana vs. cierre de OTs
@@ -63,10 +68,11 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT }) 
               <th className={thClass}>Agenda</th>
               <th className={thClass}>Estado</th>
               <th className={thClass}>Motivo</th>
+              <th className={thClass} />
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ entry, ot, estado, motivos }) => {
+            {rows.map(({ entry, entries, ingenieros, ot, estado, motivos }) => {
               const ui = ESTADO_UI[estado];
               const grisada = estado === 'ot_no_encontrada';
               return (
@@ -86,7 +92,14 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT }) 
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]">{entry.clienteNombre || '—'}</td>
                   <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[120px] whitespace-nowrap">
-                    {ot?.ingenieroAsignadoNombre || entry.ingenieroNombre || <span className="text-slate-300">—</span>}
+                    {/* Todos los que la tuvieron (2026-08-19): antes había una
+                        fila por ingeniero y la OT salía repetida. */}
+                    {ingenieros.length > 0
+                      ? ingenieros.join(' · ')
+                      : (ot?.ingenieroAsignadoNombre || <span className="text-slate-300">—</span>)}
+                    {entries.length > 1 && (
+                      <span className="ml-1 text-[9px] text-slate-400">({entries.length} bloques)</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">
                     {ESTADO_AGENDA_LABELS[entry.estadoAgenda] ?? entry.estadoAgenda}
@@ -99,11 +112,31 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT }) 
                       ? <span className="text-slate-300">—</span>
                       : motivos.map((m, i) => <p key={i} className={estado === 'sin_realizar' ? 'text-red-600' : 'text-amber-600'}>{m}</p>)}
                   </td>
+                  {/* Sacar del control (2026-08-19): una visita que se
+                      recoordinó cierra en OTRA semana. Para la agenda las dos
+                      son ciertas; para el control solo importa la del cierre. */}
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {onExcluir && (
+                      <button onClick={() => onExcluir(entry.otNumber)}
+                        title="Sacar del control de esta semana — la OT cierra en otra. No toca la agenda."
+                        className="text-[10px] text-slate-300 hover:text-red-600 hover:underline">
+                        Quitar
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        {(excluidas ?? 0) > 0 && (
+          <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50/60 text-right">
+            <button onClick={onVerExcluidas}
+              className="text-[10px] text-slate-400 hover:text-teal-600 hover:underline">
+              {excluidas} quitada(s) del control — reponer
+            </button>
+          </div>
+        )}
       </div>
     )}
 

@@ -18,6 +18,9 @@ interface Props {
   generandoId: string | null;
   /** Comentario de SOPORTE sobre el estado del ppto en el control (2026-08-05). */
   onSaveComentario: (presupuestoId: string, comentario: string) => Promise<void>;
+  onExcluir?: (presupuestoId: string) => void;
+  excluidos?: number;
+  onVerExcluidos?: () => void;
 }
 
 const Kpi = ({ label, value, tone }: { label: string; value: number; tone: string }) => (
@@ -40,7 +43,7 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
  */
 export const PresupuestosControlSection: React.FC<Props> = ({
   rows, kpis, mostrarEnviados, onToggleEnviados, onOpenPresupuesto, onGenerarAviso, generandoId,
-  onSaveComentario,
+  onSaveComentario, onExcluir, excluidos, onVerExcluidos,
 }) => {
   const [verArrastre, setVerArrastre] = useState(false);
   const enviados = rows.filter(r => r.avisoEnviado);
@@ -50,7 +53,8 @@ export const PresupuestosControlSection: React.FC<Props> = ({
 
   const tabla = (rs: PresupuestoControlRow[]) => (
     <PresupuestosControlTabla rows={rs} onOpenPresupuesto={onOpenPresupuesto}
-      onGenerarAviso={onGenerarAviso} generandoId={generandoId} onSaveComentario={onSaveComentario} />
+      onGenerarAviso={onGenerarAviso} generandoId={generandoId} onSaveComentario={onSaveComentario}
+      onExcluir={onExcluir} />
   );
 
   return (
@@ -64,6 +68,12 @@ export const PresupuestosControlSection: React.FC<Props> = ({
             className="rounded border-slate-300" />
           Mostrar enviados ({enviados.length})
         </label>
+        {(excluidos ?? 0) > 0 && (
+          <button onClick={onVerExcluidos}
+            className="text-[10px] text-slate-400 hover:text-teal-600 hover:underline">
+            {excluidos} quitado(s) del control — reponer
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-7 gap-2">

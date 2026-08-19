@@ -12,7 +12,12 @@ import {
 export type AgendaControlEstado = 'cerrada' | 'sin_cierre_admin' | 'sin_realizar' | 'ot_no_encontrada';
 
 export interface AgendaControlRow {
+  /** Entrada representativa (la más temprana de la OT en la semana). */
   entry: AgendaEntry;
+  /** TODAS las entradas de esa OT en la semana — una por ingeniero/bloque. */
+  entries: AgendaEntry[];
+  /** Ingenieros que la tuvieron, sin repetir. */
+  ingenieros: string[];
   ot: WorkOrder | null;
   estado: AgendaControlEstado;
   /** Diagnósticos de por qué quedó sin cerrar (pueden ser varios). */
@@ -235,14 +240,45 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     () => new Map(clientes.map(c => [c.id, c.razonSocial])), [clientes]);
 
   // ── Sección 1: agenda de la semana vs cierre de OTs ──
-  const agendaRows = useMemo<AgendaControlRow[]>(() =>
-    entries
-      .filter(e => e.otNumber)
-      .map(entry => {
-        const ot = otByNumber.get(entry.otNumber) ?? null;
-        return { entry, ot, ...classifyEntry(entry, ot) };
-      }),
-  [entries, otByNumber]);
+  /**
+   * Una fila por OT, no por entrada (2026-08-19).
+   *
+   * Se armaba con `entries.map`, así que una OT asignada a DOS ingenieros —o
+   * partida en dos bloques— salía repetida y el control la contaba dos veces.
+   * La OT es una sola: los ingenieros se juntan en la misma fila.
+   *
+   * Las entradas marcadas `excluidoDelControl` no entran: son las que alguien
+   * sacó a mano porque la visita se recoordinó y el control de ESTA semana no
+   * las tiene que mirar.
+   */
+  const agendaRows = useMemo<AgendaControlRow[]>(() => {
+    const porOt = new Map<string, AgendaEntry[]>();
+    for (const e of entries) {
+      if (!e.otNumber || e.excluidoDelControl) continue;
+      const prev = porOt.get(e.otNumber);
+      if (prev) prev.push(e); else porOt.set(e.otNumber, [e]);
+    }
+    const rows: AgendaControlRow[] = [];
+    for (const [otNumber, grupo] of porOt) {
+      const ordenadas = [...grupo].sort((a, b) => (a.fechaInicio || '').localeCompare(b.fechaInicio || ''));
+      const entry = ordenadas[0];
+      const ot = otByNumber.get(otNumber) ?? null;
+      const ingenieros = [...new Set(ordenadas.map(e => e.ingenieroNombre).filter(Boolean))];
+      rows.push({ entry, entries: ordenadas, ingenieros, ot, ...classifyEntry(entry, ot) });
+    }
+    return rows.sort((a, b) => (a.entry.fechaInicio || '').localeCompare(b.entry.fechaInicio || ''));
+  }, [entries, otByNumber]);
+
+  /** Saca (o repone) una OT del control de esta semana — todas sus entradas. */
+  const excluirDelControl = useCallback(async (otNumber: string, excluir: boolean) => {
+    const afectadas = entries.filter(e => e.otNumber === otNumber);
+    await Promise.all(afectadas.map(e => agendaService.update(e.id, { excluidoDelControl: excluir })));
+  }, [entries]);
+
+  /** Las que se sacaron a mano, para poder reponerlas. */
+  const agendaExcluidas = useMemo(
+    () => entries.filter(e => e.otNumber && e.excluidoDelControl),
+    [entries]);
 
   const tareasSinOT = useMemo(() => entries.filter(e => !e.otNumber), [entries]);
 
@@ -256,8 +292,29 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     return ots
       .filter(o => esEntregaOT(o) && !esOTCerradaTecnicamente(o))
       .filter(o => o.otNumber.includes('.') || !padresConHijas.has(o.otNumber))
+      // Sacadas a mano de ESTA semana (2026-08-19): la entrega no se concretó,
+      // se trasladó, y la foto de la semana que pasó tiene que quedar limpia.
+      // Sigue figurando en las demás semanas hasta que se entregue.
+      .filter(o => !(o.controlSemanalExcluidoSemanas ?? []).includes(weekStart))
       .sort((a, b) => a.otNumber.localeCompare(b.otNumber));
-  }, [ots]);
+  }, [ots, weekStart]);
+
+  /** Entregas sacadas de la semana visible, para poder reponerlas. */
+  const entregasExcluidas = useMemo(
+    () => ots.filter(o => esEntregaOT(o) && !esOTCerradaTecnicamente(o)
+      && (o.controlSemanalExcluidoSemanas ?? []).includes(weekStart)),
+    [ots, weekStart]);
+
+  /** Saca (o repone) una entrega del control de la semana visible. */
+  const excluirEntregaDelControl = useCallback(async (otNumber: string, excluir: boolean) => {
+    const ot = ots.find(o => o.otNumber === otNumber);
+    if (!ot) return;
+    const actuales = ot.controlSemanalExcluidoSemanas ?? [];
+    const next = excluir
+      ? (actuales.includes(weekStart) ? actuales : [...actuales, weekStart])
+      : actuales.filter(w => w !== weekStart);
+    await ordenesTrabajoService.update(otNumber, { controlSemanalExcluidoSemanas: next });
+  }, [ots, weekStart]);
 
   const agendaKpis = useMemo(() => ({
     agendadas: agendaRows.length,
@@ -281,6 +338,10 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       // Los CONTRATOS (P5) no van al control semanal (2026-08-04): tienen su
       // propio circuito de cuotas/facturación — acá solo ruido.
       if (p.tipo === 'contrato') continue;
+      // Sacado a mano de ESTA semana (2026-08-19): lo pendiente se resolvió
+      // después, así que la foto de la semana que pasó queda limpia. Sigue
+      // figurando en las demás mientras arrastre algo.
+      if ((p.controlSemanalExcluidoSemanas ?? []).includes(weekStart)) continue;
       const pagoAnticipado = !!p.condicionPagoId && condicionesAnticipadas.has(p.condicionPagoId);
       const enUniversoTrabajo = ESTADOS_CON_TRABAJO.has(p.estado);
       const enUniversoAnticipada = pagoAnticipado && ESTADOS_ANTICIPADA.has(p.estado);
@@ -417,6 +478,22 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       }, {} as Record<string, number>),
   }), [facturacionRows]);
 
+  /** Presupuestos sacados de la semana visible, para poder reponerlos. */
+  const presupuestosExcluidos = useMemo(
+    () => presupuestos.filter(p => (p.controlSemanalExcluidoSemanas ?? []).includes(weekStart)),
+    [presupuestos, weekStart]);
+
+  /** Saca (o repone) un presupuesto del control de la semana visible. */
+  const excluirPresupuestoDelControl = useCallback(async (presupuestoId: string, excluir: boolean) => {
+    const p = presupuestos.find(x => x.id === presupuestoId);
+    if (!p) return;
+    const actuales = p.controlSemanalExcluidoSemanas ?? [];
+    const next = excluir
+      ? (actuales.includes(weekStart) ? actuales : [...actuales, weekStart])
+      : actuales.filter(w => w !== weekStart);
+    await presupuestosService.update(presupuestoId, { controlSemanalExcluidoSemanas: next } as never);
+  }, [presupuestos, weekStart]);
+
   const presupuestoKpis = useMemo(() => ({
     conTrabajo: presupuestoRows.filter(r => !r.arrastre).length,
     listosSinAviso: presupuestoRows.filter(r => r.listoParaAviso).length,
@@ -435,11 +512,17 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     error,
     refetch,
     agendaRows,
+    agendaExcluidas,
+    excluirDelControl,
     tareasSinOT,
     agendaKpis,
     entregasPendientes,
+    entregasExcluidas,
+    excluirEntregaDelControl,
     presupuestoIdByNumero,
     presupuestoRows,
+    presupuestosExcluidos,
+    excluirPresupuestoDelControl,
     presupuestoKpis,
     facturacionRows,
     facturacionKpis,

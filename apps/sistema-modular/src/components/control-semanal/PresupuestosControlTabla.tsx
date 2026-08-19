@@ -83,12 +83,14 @@ interface Props {
   onGenerarAviso: (p: Presupuesto) => void;
   generandoId: string | null;
   onSaveComentario: (presupuestoId: string, comentario: string) => Promise<void>;
+  /** Saca el presupuesto del control de esta semana (lo pendiente se resolvió después). */
+  onExcluir?: (presupuestoId: string) => void;
 }
 
 /** Tabla de presupuestos del control. Se instancia dos veces: lo de la semana
  *  y el arrastre (2026-08-15). */
 export const PresupuestosControlTabla: React.FC<Props> = ({
-  rows, onOpenPresupuesto, onGenerarAviso, generandoId, onSaveComentario,
+  rows, onOpenPresupuesto, onGenerarAviso, generandoId, onSaveComentario, onExcluir,
 }) => (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
     <table className="tabla-compacta w-full">
@@ -141,6 +143,16 @@ export const PresupuestosControlTabla: React.FC<Props> = ({
                   <Button size="sm" onClick={() => onGenerarAviso(p)} disabled={generandoId !== null}>
                     {generandoId === p.id ? 'Generando…' : 'Generar aviso'}
                   </Button>
+                )}
+                {/* Quitar (2026-08-19): el ppto se arrastra mientras tenga algo
+                    pendiente. Si eso se resolvió después, sale de la foto de la
+                    semana que pasó y sigue en las demás. */}
+                {onExcluir && (
+                  <button onClick={() => onExcluir(p.id)}
+                    title="Sacar del control de esta semana — sigue figurando en las demás"
+                    className="ml-2 text-[10px] text-slate-300 hover:text-red-600 hover:underline">
+                    Quitar
+                  </button>
                 )}
               </td>
             </tr>

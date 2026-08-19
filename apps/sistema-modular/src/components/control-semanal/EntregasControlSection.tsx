@@ -6,6 +6,10 @@ interface Props {
   entregas: WorkOrder[];
   onOpenOT: (otNumber: string) => void;
   onOpenPresupuestoNumero?: (numero: string) => void;
+  /** Saca la entrega del control de esta semana (se trasladó a la siguiente). */
+  onExcluir?: (otNumber: string) => void;
+  excluidas?: number;
+  onVerExcluidas?: () => void;
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -31,7 +35,7 @@ const fmtFecha = (v: unknown) => {
  * así que la sección 1 (agenda vs cierre) no las ve: esta lista las mantiene
  * a la vista TODAS las semanas hasta que se entreguen (cierre técnico).
  */
-export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, onOpenPresupuestoNumero }) => {
+export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, onOpenPresupuestoNumero, onExcluir, excluidas, onVerExcluidas }) => {
   if (entregas.length === 0) return null;
   return (
     <section className="space-y-2">
@@ -48,6 +52,7 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, on
               <th className={thClass}>Presupuesto</th>
               <th className={thClass}>Estado</th>
               <th className={thClass}>Creada</th>
+              <th className={thClass} />
             </tr>
           </thead>
           <tbody>
@@ -85,10 +90,30 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, on
                   />
                 </td>
                 <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">{fmtFecha(ot.createdAt)}</td>
+                {/* Quitar (2026-08-19): la entrega figura en TODAS las semanas
+                    hasta concretarse. Si no se hizo y se trasladó, la foto de la
+                    semana que pasó tiene que quedar limpia. Sigue en las demás. */}
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  {onExcluir && (
+                    <button onClick={() => onExcluir(ot.otNumber)}
+                      title="Sacar del control de esta semana — la entrega se trasladó. Sigue figurando en las demás."
+                      className="text-[10px] text-slate-300 hover:text-red-600 hover:underline">
+                      Quitar
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {(excluidas ?? 0) > 0 && (
+          <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50/60 text-right">
+            <button onClick={onVerExcluidas}
+              className="text-[10px] text-slate-400 hover:text-teal-600 hover:underline">
+              {excluidas} quitada(s) del control — reponer
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
