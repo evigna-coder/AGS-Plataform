@@ -222,6 +222,16 @@ export interface WorkOrder {
    * Se libera con `otService.liberarParaFacturacion` una vez la documentación está.
    */
   retenidaFacturacion?: boolean;
+  /**
+   * Semanas (lunes, 'YYYY-MM-DD') en las que esta OT se sacó a mano del control
+   * semanal (2026-08-19).
+   *
+   * Las entregas no van a agenda: figuran en TODAS las semanas hasta el cierre
+   * técnico. Un flag simple las borraría de todas, y lo que se quiere es sacarla
+   * de la semana que ya pasó —donde no se concretó— dejándola en la actual, que
+   * es adonde se trasladó. Por eso la exclusión guarda de qué semana se sacó.
+   */
+  controlSemanalExcluidoSemanas?: string[];
   requisitoFacturacionPendiente?: RequisitoFacturacion | null;
   /** Certificación del cliente que liberó esta OT (clientes 'certificacion'). Trazabilidad. */
   certificacionId?: string | null;
@@ -1866,6 +1876,13 @@ export interface Presupuesto {
    */
   fechaAceptacion?: string | null;
   // --- Audit ---
+  /**
+   * Semanas (lunes, 'YYYY-MM-DD') en las que este presupuesto se sacó a mano
+   * del control semanal (2026-08-19). Mismo mecanismo que las entregas: se
+   * arrastra semana a semana mientras tenga algo pendiente, y si lo pendiente
+   * se resolvió después, la foto de la semana que pasó tiene que quedar limpia.
+   */
+  controlSemanalExcluidoSemanas?: string[];
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;
@@ -4068,6 +4085,14 @@ export interface RemitoItem {
    *  criterio que patronId/patronLote para poder marcar la devolución. */
   columnaId?: string | null;
   columnaSerie?: string | null;
+  /**
+   * Código y descripción de la columna, completados al imprimir desde el
+   * catálogo (2026-08-19). La asignación guarda solo el id y la serie, así que
+   * el papel salía con "S/C" en Código y la Descripción vacía — el mismo
+   * agujero que tenían los minikits y los instrumentos.
+   */
+  columnaCodigo?: string | null;
+  columnaDescripcion?: string | null;
   /** Ficha propiedad del cliente (remitos de devolución / derivación) */
   fichaId?: string | null;
   fichaNumero?: string | null;
@@ -5844,6 +5869,26 @@ export interface AgendaEntry {
   sistemaNombre: string | null;
   establecimientoNombre: string | null;
   equipoModelo?: string | null;  // e.g. "HPLC 1100"
+  /**
+   * "Problema / Falla inicial" de la OT, denormalizado
+   * (2026-08-19). En una visita de diagnóstico/reparación el tipo de servicio no
+   * dice nada: hay que saber CUÁL es el problema y qué hay que llevar. Sin esto
+   * había que abrir la OT para poder leer la agenda — el mismo motivo por el que
+   * el trabajo en bench ya muestra sus notas.
+   */
+  problemaFallaInicial?: string | null;
+  /**
+   * Sacada del control semanal a mano (2026-08-19).
+   *
+   * Una OT que se coordinó una semana, no se terminó y se recoordinó para la
+   * siguiente aparece en el control de las dos. Para la agenda está bien —la
+   * visita existió— pero para el control lo que importa es la semana en que se
+   * termina. Quien hace el control marca la que no corresponde y la foto de esa
+   * semana queda fija.
+   *
+   * Es por ENTRADA, no por OT: se saca de una semana y sigue contando en la otra.
+   */
+  excluidoDelControl?: boolean;
   equipoAgsId?: string | null;   // equipo visible ID (AGS-XXXX)
   /** Flag ORTOGONAL al estado (2026-08-04): el cliente tiene pago adelantado.
    *  La celda se parte en diagonal — mitad azul marino, mitad color del estado. */
