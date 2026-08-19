@@ -13,7 +13,10 @@ interface Props {
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const ESTADO_UI: Record<AgendaControlEstado, { label: string; color: string }> = {
-  cerrada:          { label: '✓ Cerrada',        color: 'bg-emerald-100 text-emerald-700' },
+  // 'Cerrada' = cierre ADMINISTRATIVO hecho. El cierre técnico solo cae en
+  // 'sin_cierre_admin' (2026-08-18): antes contaba como cerrada y tapaba
+  // justo lo que este control tiene que encontrar.
+  cerrada:          { label: '✓ Cierre admin',    color: 'bg-emerald-100 text-emerald-700' },
   sin_cierre_admin: { label: 'Sin cierre admin',  color: 'bg-amber-100 text-amber-700' },
   sin_realizar:     { label: 'Sin realizar',      color: 'bg-red-100 text-red-700' },
   ot_no_encontrada: { label: 'OT no encontrada',  color: 'bg-slate-200 text-slate-500' },

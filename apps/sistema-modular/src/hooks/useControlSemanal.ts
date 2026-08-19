@@ -84,7 +84,14 @@ export interface FacturacionControlRow {
 }
 
 // Sección 1: la OT se considera "cerrada" desde el cierre técnico en adelante.
-const OT_CERRADA = new Set<OTEstadoAdmin>(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+/**
+ * TRABAJO hecho: cierre técnico en adelante. Es el criterio de la sección de
+ * presupuestos —un ppto cuya OT quedó en cierre técnico tiene que figurar
+ * igual, justamente porque el cierre admin puede estar olvidado (UAT
+ * 2026-07-20)—. NO sirve para decir si una visita está cerrada: para eso está
+ * `OT_CERRADA_ADMIN`, que es lo único que cuenta como cerrada de verdad.
+ */
+const OT_TRABAJO_REALIZADO = new Set<OTEstadoAdmin>(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 // Sección 2: para facturación cuenta el cierre ADMINISTRATIVO (mismo criterio que CierreFacturacionWizard).
 const OT_CERRADA_ADMIN = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 // Universo de presupuestos con trabajo en curso o realizado.
@@ -112,8 +119,11 @@ const esEntregaOT = (ot: WorkOrder) =>
 
 function classifyEntry(entry: AgendaEntry, ot: WorkOrder | null): { estado: AgendaControlEstado; motivos: string[] } {
   if (!ot) return { estado: 'ot_no_encontrada', motivos: ['La OT referenciada no existe en la colección'] };
-  if (ot.estadoAdmin && OT_CERRADA.has(ot.estadoAdmin)) return { estado: 'cerrada', motivos: [] };
-  if (ot.status === 'FINALIZADO') {
+  if (ot.estadoAdmin && OT_CERRADA_ADMIN.has(ot.estadoAdmin)) return { estado: 'cerrada', motivos: [] };
+  // Trabajo hecho, papeles no: el técnico cerró (CIERRE_TECNICO, o marcó el
+  // reporte FINALIZADO) pero falta el cierre administrativo — que es el que
+  // deduce stock, dispara el aviso a facturación y habilita el cobro.
+  if (ot.estadoAdmin === 'CIERRE_TECNICO' || ot.status === 'FINALIZADO') {
     return { estado: 'sin_cierre_admin', motivos: ['Finalizada por el técnico — falta cierre administrativo'] };
   }
   // status BORRADOR con estadoAdmin previo al cierre → sin realizar. Diagnóstico múltiple:
@@ -287,7 +297,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const tieneTrabajoRealizado = (p.otsListasParaFacturar?.length ?? 0) > 0
         || [...nums].some(n => {
           const estado = otByNumber.get(n)?.estadoAdmin;
-          return !!estado && OT_CERRADA.has(estado);
+          return !!estado && OT_TRABAJO_REALIZADO.has(estado);
         });
       // 2026-08-04: además del trabajo realizado y las anticipadas, entran al
       // control (a) los aceptados SIN ninguna OT abierta (crear OT / entregar
