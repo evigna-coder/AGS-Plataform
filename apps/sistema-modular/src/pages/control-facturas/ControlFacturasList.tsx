@@ -188,7 +188,9 @@ export const ControlFacturasList = () => {
                   <th className={`${thClass} text-right`}>Días</th>
                   <th className={thClass}>Proveedor</th>
                   <th className={thClass}>Estado</th>
-                  <th className={thClass}>Último comentario</th>
+                  {/* El titulo dice que hay HISTORIAL, no un comentario suelto:
+                      administracion creia que cada uno pisaba al anterior. */}
+                  <th className={thClass} title="Click en la celda para ver todos los comentarios">Comentarios</th>
                   <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>
               </thead>
@@ -215,18 +217,39 @@ export const ControlFacturasList = () => {
                       {(() => {
                         // Último comentario visible en la grilla (pedido 2026-08-03) —
                         // típicamente el de aprobación. Click abre el historial completo.
+                        //
+                        // El contador va SIEMPRE y como chip clickeable (2026-08-19):
+                        // antes era un "+2" gris y un subrayado tenue al hover, y
+                        // administración creía que cada comentario pisaba al anterior
+                        // — nunca descubrieron que la celda abría el historial. Los
+                        // datos siempre estuvieron completos (`arrayUnion`).
+                        const total = f.comentarios.length;
                         const ultimo = f.comentarios.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))[0];
-                        if (!ultimo) return <span className="text-slate-400">—</span>;
+                        if (!ultimo) {
+                          return (
+                            <button onClick={() => setComentando(f)}
+                              className="text-[11px] text-slate-400 hover:text-teal-700 hover:underline">
+                              + Comentar
+                            </button>
+                          );
+                        }
                         return (
-                          <button onClick={() => setComentando(f)} title={`${ultimo.autor}: ${ultimo.texto}`}
-                            className="flex items-center gap-1.5 max-w-full text-left hover:underline decoration-slate-300">
+                          <button onClick={() => setComentando(f)}
+                            title={`${total} comentario(s) — click para ver el historial
+
+Último — ${ultimo.autor}: ${ultimo.texto}`}
+                            className="group flex items-center gap-1.5 max-w-full text-left">
                             {ultimo.tipo === 'aprobacion' && (
                               <span className="text-[9px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-px rounded-full shrink-0">Aprob.</span>
                             )}
-                            <span className="text-slate-600 truncate">{ultimo.texto}</span>
-                            {f.comentarios.length > 1 && (
-                              <span className="text-slate-400 shrink-0">+{f.comentarios.length - 1}</span>
-                            )}
+                            <span className="text-slate-600 truncate group-hover:text-teal-700 group-hover:underline decoration-teal-300">
+                              {ultimo.texto}
+                            </span>
+                            <span className="shrink-0 text-[9px] font-mono font-semibold px-1.5 py-px rounded-full
+                                             bg-slate-100 text-slate-500 group-hover:bg-teal-100 group-hover:text-teal-700"
+                              title={`${total} comentario(s)`}>
+                              {total}
+                            </span>
                           </button>
                         );
                       })()}
