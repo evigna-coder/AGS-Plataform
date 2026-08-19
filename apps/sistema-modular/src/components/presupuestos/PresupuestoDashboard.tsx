@@ -5,7 +5,7 @@ import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHe
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
-export type KpiFilter = '' | 'enviados' | 'aceptados' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
+export type KpiFilter = '' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
 
 interface Props {
   presupuestos: Presupuesto[];
@@ -24,9 +24,15 @@ interface Props {
 export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
   const metrics = useMemo(() => {
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
-    // Solo los que siguen EN la etapa aceptado — en_ejecucion / facturacion /
-    // finalizado tienen su propia card y contarlos aca duplicaba (2026-08-09).
+    // Solo los que siguen EN la etapa aceptado: los que ya arrancaron van a la
+    // card "En ejecución" y contarlos acá duplicaba (2026-08-09).
     const aceptados = presupuestos.filter(p => presupuestoAceptadoVigente(p.estado));
+
+    // En ejecución (2026-08-18). Antes no tenía card: un ppto que arrancaba
+    // desaparecía de "Aceptados" y no aparecía en ningún otro lado, así que
+    // para encontrarlo había que pelear con el desplegable de estado. Son
+    // aceptados igual — lo que cambia es que el trabajo ya empezó.
+    const enEjecucion = presupuestos.filter(p => p.estado === 'en_ejecucion');
 
     // Enviados sin respuesta (> 7 días)
     const enviadosSinRespuesta = enviados.filter(p => {
@@ -68,8 +74,18 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
     // Solicitudes pendientes de facturación
     const solicitudesPendientes = solicitudes.filter(s => s.estado === 'pendiente');
 
-    // Solicitudes facturadas pendientes de cobro
-    const facturadosSinCobrar = solicitudes.filter(s => s.estado === 'facturada');
+    // Pendientes de cobro (2026-08-18): PRESUPUESTOS con al menos una factura
+    // emitida y sin cobrar. Es una pregunta de PLATA, no de trabajo.
+    //
+    // Dos intentos previos fallaron por mirar el eje equivocado: contar
+    // solicitudes duplicaba el módulo Facturación dentro del listado; contar
+    // presupuestos en estado 'facturado' dejaba afuera los ANTICIPOS —
+    // facturados con el trabajo todavía en curso, así que su presupuesto sigue
+    // 'en_ejecucion'— que son justamente los que hay que perseguir.
+    const facturadasSinCobrar = solicitudes.filter(s => s.estado === 'facturada');
+    const idsConFacturaAbierta = new Set(facturadasSinCobrar.map(s => s.presupuestoId));
+    const facturadosSinCobrar = presupuestos.filter(p => idsConFacturaAbierta.has(p.id));
+    const montoSinCobrar = facturadasSinCobrar.reduce((acc, s) => acc + (s.montoTotal ?? 0), 0);
 
     // Monto pipeline por moneda
     const pipeline: Record<string, number> = {};
@@ -88,7 +104,9 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       pendientesAviso,
       solicitudesPendientes,
       facturadosSinCobrar,
+      montoSinCobrar,
       pipeline,
+      enEjecucion,
     };
   }, [presupuestos, solicitudes]);
 
@@ -98,8 +116,11 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       .join(' · ');
 
   const toggle = (kpi: KpiFilter) => onKpiClick?.(kpi);
+  // `h-full` + grid con columnas iguales = todas del mismo alto y ancho, en una
+  // sola línea (2026-08-18). Antes eran grid-cols-5 con 6 cards: la última caía
+  // a un segundo renglón y `items-start` las dejaba de alturas distintas.
   const cardCls = (kpi: KpiFilter) =>
-    `bg-white border rounded-lg px-3 py-1.5 text-left w-full transition-colors ${
+    `h-full bg-white border rounded-lg px-2 py-1.5 text-left w-full transition-colors overflow-hidden ${
       activeKpi === kpi
         ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30'
         : 'border-slate-200 hover:border-teal-300'
@@ -108,37 +129,35 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // Compactas (UAT 2026-07-18): label y número en una línea; el detalle solo
   // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
-    <div className="grid grid-cols-5 gap-2 px-5 pb-3 items-start">
+    <div className="grid grid-cols-[0.5fr_repeat(5,minmax(0,1fr))] gap-2 px-5 pb-3">
       {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
           estado — las cards "tapaban" al desplegable y no había cómo salir. */}
       <button type="button" onClick={onVerTodos}
-        className={`bg-white border rounded-lg px-3 py-1.5 text-left w-full transition-colors ${
+        className={`h-full bg-white border rounded-lg px-2 py-1.5 text-left w-full transition-colors ${
           verTodosActivo ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'
         }`}
         title="Quitar filtros de cards y estado — ver todos los presupuestos">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Ver todos</p>
-          <p className="text-base font-black text-slate-700 leading-none">{presupuestos.length}</p>
-        </div>
+        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Todos</p>
+        <p className="text-base font-black text-slate-700 leading-none mt-0.5">{presupuestos.length}</p>
       </button>
 
       {/* Enviados */}
       <button type="button" className={cardCls('enviados')} onClick={() => toggle('enviados')}
         title="Filtrar la lista por presupuestos enviados">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviados</p>
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Enviados</p>
           <p className="text-base font-black text-blue-600 leading-none">{metrics.enviadosTotal}</p>
         </div>
         {(metrics.enviadosSinRespuesta.length > 0 || metrics.enviadosVencidos.length > 0 || fmtPipeline(metrics.pipeline)) && (
-          <div className="space-y-0.5 mt-1">
+          <div className="space-y-0 mt-0.5">
             {metrics.enviadosSinRespuesta.length > 0 && (
-              <p className="text-[10px] text-amber-600">{metrics.enviadosSinRespuesta.length} sin respuesta (&gt;7d)</p>
+              <p className="text-[9px] text-amber-600 truncate">{metrics.enviadosSinRespuesta.length} sin respuesta</p>
             )}
             {metrics.enviadosVencidos.length > 0 && (
-              <p className="text-[10px] text-red-600">{metrics.enviadosVencidos.length} vencidos</p>
+              <p className="text-[9px] text-red-600 truncate">{metrics.enviadosVencidos.length} vencidos</p>
             )}
             {fmtPipeline(metrics.pipeline) && (
-              <p className="text-[10px] text-slate-400">{fmtPipeline(metrics.pipeline)}</p>
+              <p className="text-[9px] text-slate-400 truncate">{fmtPipeline(metrics.pipeline)}</p>
             )}
           </div>
         )}
@@ -148,19 +167,29 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       <button type="button" className={cardCls('aceptados')} onClick={() => toggle('aceptados')}
         title="Filtrar la lista por presupuestos aceptados">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Aceptados</p>
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Aceptados</p>
           <p className="text-base font-black text-emerald-600 leading-none">{metrics.aceptadosTotal}</p>
         </div>
         {(metrics.aceptadosSinOT.length > 0 || metrics.aceptadosSinFacturar.length > 0) && (
-          <div className="space-y-0.5 mt-1">
+          <div className="space-y-0 mt-0.5">
             {metrics.aceptadosSinOT.length > 0 && (
-              <p className="text-[10px] text-amber-600">{metrics.aceptadosSinOT.length} sin OT creada</p>
+              <p className="text-[9px] text-amber-600 truncate">{metrics.aceptadosSinOT.length} sin OT</p>
             )}
             {metrics.aceptadosSinFacturar.length > 0 && (
-              <p className="text-[10px] text-orange-600">{metrics.aceptadosSinFacturar.length} sin facturar</p>
+              <p className="text-[9px] text-orange-600 truncate">{metrics.aceptadosSinFacturar.length} sin facturar</p>
             )}
           </div>
         )}
+      </button>
+
+      {/* En ejecución: aceptados con el trabajo ya arrancado (2026-08-18). */}
+      <button type="button" className={cardCls('en_ejecucion')} onClick={() => toggle('en_ejecucion')}
+        title="Filtrar la lista por presupuestos en ejecución — aceptados con el trabajo iniciado">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">En ejecución</p>
+          <p className="text-base font-black text-teal-600 leading-none">{metrics.enEjecucion.length}</p>
+        </div>
+        <p className="text-[9px] text-slate-400 mt-0.5 truncate">trabajo iniciado</p>
       </button>
 
       {/* Enviadas a facturación: avisos generados, esperando que Administración
@@ -168,13 +197,14 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       <button type="button" className={cardCls('fact_pendientes')} onClick={() => toggle('fact_pendientes')}
         title="Filtrar la lista por presupuestos enviados a facturación (aviso generado, factura sin cargar)">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviadas a facturación</p>
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">A facturar</p>
           <p className="text-base font-black text-amber-600 leading-none">{metrics.solicitudesPendientes.length}</p>
         </div>
         {metrics.solicitudesPendientes.length > 0 && (
-          <p className="text-[10px] text-slate-400 mt-1">
+          <p className="text-[9px] text-slate-400 mt-0.5 truncate"
+            title="Esperando que Administración cargue la factura">
             {metrics.solicitudesPendientes.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
-            {' '}· esperando factura de Administración
+            {' '}esperando factura
           </p>
         )}
         {metrics.pendientesAviso.length > 0 && (
@@ -183,10 +213,10 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             tabIndex={0}
             onClick={(e) => { e.stopPropagation(); toggle('pendiente_aviso'); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggle('pendiente_aviso'); } }}
-            className={`block text-[10px] mt-0.5 text-orange-600 hover:underline ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
+            className={`block text-[9px] mt-0.5 text-orange-600 hover:underline truncate ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
             title="OT cerrada lista para facturar, pero el aviso a facturación no se generó todavía"
           >
-            ⚠ {metrics.pendientesAviso.length} con OT cerrada sin aviso
+            ⚠ {metrics.pendientesAviso.length} sin aviso
           </span>
         )}
       </button>
@@ -195,12 +225,12 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       <button type="button" className={cardCls('pend_cobro')} onClick={() => toggle('pend_cobro')}
         title="Filtrar la lista por presupuestos facturados pendientes de cobro">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pend. cobro</p>
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Pend. cobro</p>
           <p className="text-base font-black text-purple-600 leading-none">{metrics.facturadosSinCobrar.length}</p>
         </div>
         {metrics.facturadosSinCobrar.length > 0 && (
-          <p className="text-[10px] text-slate-400 mt-1">
-            {metrics.facturadosSinCobrar.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+          <p className="text-[9px] text-slate-400 mt-0.5 truncate">
+            {metrics.montoSinCobrar.toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
           </p>
         )}
       </button>

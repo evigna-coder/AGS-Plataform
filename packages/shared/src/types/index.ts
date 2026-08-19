@@ -1126,6 +1126,14 @@ export type PresupuestoEstado =
   | 'aceptado'
   | 'en_ejecucion'
   | 'pendiente_facturacion'
+  /**
+   * Factura emitida, cobro pendiente (2026-08-18). Sin este estado el tramo
+   * entre facturar y cobrar caía en `pendiente_facturacion` —que dice "falta
+   * facturar" cuando ya se facturó— y `finalizado` se usaba con la plata
+   * todavía afuera. Administración de soporte necesita ver justo esta etapa:
+   * en los pagos anticipados el cobro es la condición para arrancar.
+   */
+  | 'facturado'
   | 'anulado'
   | 'finalizado';
 
@@ -1140,6 +1148,7 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   aceptado: 'Aceptado',
   en_ejecucion: 'En ejecución',
   pendiente_facturacion: 'Pendiente de facturación',
+  facturado: 'Facturado — pendiente de cobro',
   anulado: 'Anulado',
   finalizado: 'Finalizado',
 };
@@ -1151,6 +1160,7 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   aceptado: 'bg-emerald-100 text-emerald-700',
   en_ejecucion: 'bg-cyan-100 text-cyan-700',
   pendiente_facturacion: 'bg-amber-100 text-amber-700',
+  facturado: 'bg-purple-100 text-purple-700',
   anulado: 'bg-slate-200 text-slate-500',
   finalizado: 'bg-teal-100 text-teal-700',
 };
@@ -1162,7 +1172,7 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
  * hasta que llegue el papel.
  */
 export const PRESUPUESTO_ESTADOS_ACEPTADOS: readonly PresupuestoEstado[] = [
-  'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion', 'finalizado',
+  'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion', 'facturado', 'finalizado',
 ];
 
 /**
@@ -1211,6 +1221,7 @@ export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
   vencido: 'anulado',
   en_ejecucion: 'en_ejecucion',
   pendiente_facturacion: 'pendiente_facturacion',
+  facturado: 'facturado',
   anulado: 'anulado',
   finalizado: 'finalizado',
 };
