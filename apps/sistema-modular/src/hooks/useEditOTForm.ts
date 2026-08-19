@@ -440,6 +440,39 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       // figurando "sin OT creada" en el dashboard (P1-005046-01). Mismo efecto
       // que crear la OT desde el presupuesto. Best-effort: no rompe el guardado.
       const budgetsFinal = form.presupuestos.filter(b => b.trim() !== '');
+
+      // Vínculo inverso al QUITAR un presupuesto (2026-08-18). Antes esto solo
+      // agregaba: sacar un ppto de la OT le borraba el `budgets` a la OT pero
+      // el presupuesto seguía reclamándola en `otsVinculadasNumbers`. El
+      // huérfano no es cosmético — el gate de facturación calcula el universo
+      // de OTs del ppto desde esa lista, así que una OT ajena y abierta le
+      // trababa el aviso para siempre ("Quedan sin cerrar: …", caso
+      // P1-005046-01 / OT 29960.01).
+      const budgetsQuitados = (otOriginal?.budgets ?? [])
+        .filter(b => b && b.trim() !== '' && !budgetsFinal.includes(b));
+      for (const numero of budgetsQuitados) {
+        try {
+          const pres = presupuestosCliente.find(p => p.numero === numero)
+            ?? (await presupuestosService.getAll()).find(p => p.numero === numero);
+          if (!pres) continue;
+          const restantes = (pres.otsVinculadasNumbers ?? []).filter(n => n !== otNumber);
+          await presupuestosService.update(pres.id, deepCleanForFirestore({
+            otsVinculadasNumbers: restantes,
+            // El campo legacy apunta a UNA OT: si era ésta, pasa a la última que
+            // quede, o a null si el ppto se quedó sin OTs.
+            ...(pres.otVinculadaNumber === otNumber
+              ? { otVinculadaNumber: restantes.length > 0 ? restantes[restantes.length - 1] : null }
+              : {}),
+            // Y si estaba marcada como lista para facturar, tampoco cuenta más.
+            ...((pres.otsListasParaFacturar ?? []).includes(otNumber)
+              ? { otsListasParaFacturar: (pres.otsListasParaFacturar ?? []).filter(n => n !== otNumber) }
+              : {}),
+          }) as any);
+        } catch (err) {
+          console.error(`[useEditOTForm] desvinculo del ppto ${numero} falló:`, err);
+        }
+      }
+
       for (const numero of budgetsFinal) {
         try {
           const pres = presupuestosCliente.find(p => p.numero === numero)
