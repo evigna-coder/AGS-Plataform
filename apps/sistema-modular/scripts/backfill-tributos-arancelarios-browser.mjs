@@ -53,13 +53,28 @@ const script = `
 
   // ── 2. Artículos con posición ────────────────────────────────────────────
   const artSnap = await getDocs(collection(db, 'articulos'));
-  const plan = [], yaTienen = [], sinMatch = [];
+  const plan = [], yaTienen = [], sinMatch = [], discrepantes = [];
+  const CAMPOS = ['derechoImportacion', 'estadistica', 'iva', 'ivaAdicional', 'ganancias', 'ingresosBrutos'];
+  const difieren = (a, b) => CAMPOS.filter(k => (a?.[k] ?? null) !== (b?.[k] ?? null));
   artSnap.docs.forEach(d => {
     const a = d.data();
     if (!a.posicionArancelaria) return;
     const cat = porCodigo.get(norm(a.posicionArancelaria));
     if (!cat) { sinMatch.push({ codigo: a.codigo, pa: a.posicionArancelaria }); return; }
-    if (!vacio(a.tratamientoArancelario) && !FORCE) { yaTienen.push(a.codigo); return; }
+    if (!vacio(a.tratamientoArancelario) && !FORCE) {
+      yaTienen.push(a.codigo);
+      // Tributos cargados a mano ANTES del catálogo: si no coinciden, alguno de
+      // los dos está mal y hay que mirarlo. No se pisan (para eso está FORCE),
+      // pero quedarse callado los deja mal para siempre.
+      const dif = difieren(a.tratamientoArancelario, cat.tratamiento);
+      if (dif.length) {
+        discrepantes.push({
+          articulo: a.codigo, pa: a.posicionArancelaria, campos: dif.join(', '),
+          ...Object.fromEntries(dif.map(k => [k, (a.tratamientoArancelario?.[k] ?? '—') + ' vs ' + (cat.tratamiento?.[k] ?? '—')])),
+        });
+      }
+      return;
+    }
     plan.push({ id: d.id, codigo: a.codigo, paVieja: a.posicionArancelaria, paNueva: cat.codigo, tratamiento: cat.tratamiento });
   });
 
@@ -67,6 +82,11 @@ const script = `
   console.table(plan.map(p => ({ articulo: p.codigo, pa: p.paVieja + (p.paVieja !== p.paNueva ? ' → ' + p.paNueva : ''), ...p.tratamiento })));
   console.log(plan.length + ' a actualizar · ' + yaTienen.length + ' ya tienen tributos (no se pisan' + (FORCE ? ' — FORCE activo, se pisan' : '') + ') · ' + sinMatch.length + ' sin match en catálogo');
   if (sinMatch.length) { console.warn('SIN MATCH (typos o falta en catálogo):'); console.table(sinMatch); }
+  if (discrepantes.length) {
+    console.warn('YA TIENEN pero NO COINCIDEN con el catálogo (' + discrepantes.length + ') — revisar cuál está bien:');
+    console.table(discrepantes);
+    console.warn('Para pisarlos con el catálogo: FORCE = true. Ojo, pisa TODOS los que ya tienen, no solo estos.');
+  }
 
   if (!APPLY) { console.log('DRY-RUN: no se escribió nada. Cambiá APPLY = true para aplicar.'); return; }
 
