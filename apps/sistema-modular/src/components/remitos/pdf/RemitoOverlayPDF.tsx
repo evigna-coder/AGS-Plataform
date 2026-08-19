@@ -47,7 +47,7 @@ const DY_TRANSPORTISTA = {
   razonSocial: 2 * MM,
   domicilio: -1 * MM,
   localidad: -5 * MM,   // calibrado contra papel real 2026-08-11
-  provincia: 0,
+  provincia: -9 * MM,   // 9 mm arriba — papel real 2026-08-18
   iva: 0,
   cuit: -15 * MM,
 };
@@ -71,25 +71,48 @@ const Y_CUIT        = 445;
 const DESC_ANCHO_PT = 280;
 
 /**
- * Cuerpo de letra para que la descripción entre en UNA línea. El papel tiene
- * renglones de alto fijo: si el texto envuelve, la segunda línea se pisa con el
- * item siguiente y el resultado se lee cortado. Se achica hasta 6pt; más chico
- * que eso no se lee, y ahí sí se recorta con puntos suspensivos.
+ * Cuerpo de la descripción cuando va en DOS renglones: 2 × 7 × 1,05 ≈ 14,7 pt,
+ * que entra en los 16 pt de alto de la fila (TABLE_ROW_H) sin invadir la de
+ * abajo. Si se toca TABLE_ROW_H hay que rehacer esta cuenta.
+ */
+const DESC_FS_DOS_LINEAS = 7;
+const DESC_LINE_H = 1.05;
+
+/**
+ * Cuerpo de letra de la descripción (2026-08-18).
+ *
+ * Antes se achicaba hasta 6pt con tal de entrar en UNA línea, porque el papel
+ * tiene renglones de alto fijo y una segunda línea se pisaba con el item
+ * siguiente. Pero a 6pt no se lee: queda feo y no cumple su función.
+ *
+ * Ahora: si entra cómoda en una línea, va grande; si no, pasa a DOS renglones a
+ * 7pt, que es el cuerpo más grande cuyas dos líneas caben en los 16pt de la
+ * fila sin invadir la de abajo.
  *
  * Helvetica promedia ~0,5 × el cuerpo por carácter.
  */
 export function fontSizeDescripcion(texto: string): number {
   const largo = texto.length;
   if (largo === 0) return 8.5;
-  for (const fs of [8.5, 8, 7.5, 7, 6.5, 6]) {
+  for (const fs of [8.5, 8]) {
     if (largo * fs * 0.5 <= DESC_ANCHO_PT) return fs;
   }
-  return 6;
+  return DESC_FS_DOS_LINEAS;
 }
 
-/** Tope duro: ni al cuerpo más chico se sale de la columna. */
+/** `true` si el texto necesita el segundo renglón. */
+export function descripcionEnDosLineas(texto: string): boolean {
+  return fontSizeDescripcion(texto) === DESC_FS_DOS_LINEAS && texto.length > 0;
+}
+
+/**
+ * Tope duro: lo que no entra ni en dos renglones se recorta con puntos
+ * suspensivos. Sigue siendo mejor perder el final que pisar la fila siguiente.
+ */
 export function recortarDescripcion(texto: string): string {
-  const maxChars = Math.floor(DESC_ANCHO_PT / (6 * 0.5));
+  const lineas = descripcionEnDosLineas(texto) ? 2 : 1;
+  const fs = fontSizeDescripcion(texto);
+  const maxChars = Math.floor((DESC_ANCHO_PT * lineas) / (fs * 0.5));
   return texto.length <= maxChars ? texto : `${texto.slice(0, maxChars - 1)}…`;
 }
 
@@ -235,7 +258,9 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
       {/* Columna derecha — transportista */}
       {transportista && (
         <>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial, ox, oy)]}>{transportista.razonSocial}</Text>
+          {/* +1 mm a la derecha SOLO el nombre (papel real 2026-08-18): la
+              casilla del transportista arranca corrida respecto de las de abajo. */}
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT + 1 * MM, Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial, ox, oy)]}>{transportista.razonSocial}</Text>
           <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO + DY_TRANSPORTISTA.domicilio,     ox, oy)]}>{transportista.domicilio}</Text>
           <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD + DY_TRANSPORTISTA.localidad,     ox, oy)]}>{transportista.localidad}</Text>
           <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA + DY_TRANSPORTISTA.provincia,     ox, oy)]}>{transportista.provincia}</Text>
@@ -252,20 +277,31 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
             <Text style={[styles.cell, { left: COL_X.item + (fo.colItemX ?? 0) + ox,        top: y }]}>{row.numero}</Text>
             <Text style={[styles.cell, { left: COL_X.cant + (fo.colCantX ?? 0) + ox,        top: y }]}>{row.cantidad}</Text>
             <Text style={[styles.cell, { left: COL_X.producto + (fo.colProductoX ?? 0) + ox,    top: y }]}>{row.producto}</Text>
-            {/* Descripción: UNA sola línea que se achica para entrar
-                (2026-08-14). Antes se envolvía y la segunda línea se pisaba con
-                la fila siguiente —se veía cortada— y lo que se perdía era el
-                final: justo el N° de serie, que es lo que hay que declarar. */}
-            <Text
-              style={[styles.cell, {
-                left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox,
-                top: y,
-                fontSize: fontSizeDescripcion(String(row.descripcion ?? '')),
-              }]}
-              wrap={false}
-            >
-              {recortarDescripcion(String(row.descripcion ?? ''))}
-            </Text>
+            {/* Descripción: una línea si entra; si no, DOS a 7pt (2026-08-18).
+                Antes se achicaba hasta 6pt con tal de no envolver y quedaba
+                ilegible. El `width` es lo que permite el corte de línea, y
+                `maxLines` impide que una descripción larguísima empuje la fila
+                de abajo. */}
+            {(() => {
+              const texto = recortarDescripcion(String(row.descripcion ?? ''));
+              const dosLineas = descripcionEnDosLineas(String(row.descripcion ?? ''));
+              return (
+                <Text
+                  style={[styles.cell, {
+                    left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox,
+                    top: y,
+                    width: DESC_ANCHO_PT,
+                    fontSize: fontSizeDescripcion(String(row.descripcion ?? '')),
+                    lineHeight: DESC_LINE_H,
+                    maxLines: dosLineas ? 2 : 1,
+                    textOverflow: 'ellipsis',
+                  }]}
+                  wrap={false}
+                >
+                  {texto}
+                </Text>
+              );
+            })()}
           </View>
         );
       })}

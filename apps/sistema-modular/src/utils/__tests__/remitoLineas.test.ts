@@ -99,6 +99,10 @@ const { fontSizeDescripcion, recortarDescripcion } =
   await import('../../components/remitos/pdf/RemitoOverlayPDF.js');
 const ANCHO_PT = 280;
 const anchoDe = (t: string) => t.length * fontSizeDescripcion(t) * 0.5;
+const { descripcionEnDosLineas } =
+  await import('../../components/remitos/pdf/RemitoOverlayPDF.js');
+/** Ancho disponible: una línea, o dos si el texto no entraba en una. */
+const disponible = (t: string) => ANCHO_PT * (descripcionEnDosLineas(t) ? 2 : 1);
 
 for (const t of [
   'Válvula de purga · S/N AB-9',
@@ -107,12 +111,30 @@ for (const t of [
   'x'.repeat(500),
 ]) {
   const final = recortarDescripcion(t);
-  assert.ok(anchoDe(final) <= ANCHO_PT + 0.01, `se sale de la columna: "${final}"`);
-  assert.ok(fontSizeDescripcion(final) >= 6, 'nunca por debajo de 6pt (ilegible)');
+  assert.ok(anchoDe(final) <= disponible(final) + 0.01, `se sale del espacio: "${final}"`);
+  assert.ok(fontSizeDescripcion(final) >= 7, 'nunca por debajo de 7pt — a 6 no se lee');
 }
 assert.equal(fontSizeDescripcion('corto'), 8.5, 'una línea corta va al cuerpo normal');
 assert.ok(recortarDescripcion('Válvula de purga · S/N AB-9').endsWith('S/N AB-9'),
   'una descripción normal NO se recorta: la serie tiene que estar entera');
+
+// ── Domicilio: no repetir lo que ya sale en su propia casilla (2026-08-18) ──
+// El papel tiene casillas separadas y varios proveedores tienen la dirección
+// entera en un campo: salía todo junto Y repetido al lado.
+const { domicilioSinLocalidadNiProvincia: limpiar } = await import('../domicilioRemito.js');
+
+assert.equal(
+  limpiar('Arenales 605, B1638 Vicente López, Provincia de Buenos Aires', 'Vicente López', 'Provincia de Buenos Aires'),
+  'Arenales 605, B1638',
+  'el caso del papel real: quedan calle y CP');
+assert.equal(limpiar('Av. Mitre 1234', 'Berisso', 'Buenos Aires'), 'Av. Mitre 1234',
+  'si no aparecen, no toca nada');
+assert.equal(limpiar('Arenales 605, VICENTE LOPEZ', 'Vicente López', null), 'Arenales 605',
+  'ignora mayúsculas y acentos');
+assert.equal(limpiar('Vicente López', 'Vicente López', null), 'Vicente López',
+  'si el domicilio ES solo la localidad se deja: es el único dato que hay');
+assert.equal(limpiar('', 'X', 'Y'), '', 'vacío queda vacío');
+assert.equal(limpiar('Calle 1', null, null), 'Calle 1', 'sin localidad ni provincia no rompe');
 
 // ── Emitir NUNCA cierra el remito (2026-08-18) ───────────────────────────────
 // Hubo una regla `remitoSinRetorno` que cerraba al emitir los remitos sin
@@ -140,4 +162,4 @@ assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, tipoItem: 's
   'sale_y_vuelve todavía afuera: vuelve a su posición de origen');
 assert.equal(itemsARevertirEnAnulacion([]).length, 0, 'remito sin items');
 
-console.log('✅ remitoLineas: 29/29 OK');
+console.log('✅ remitoLineas: 35/35 OK');

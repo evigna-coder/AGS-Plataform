@@ -31,6 +31,7 @@
     "test:remito-lineas": "tsx src/utils/__tests__/remitoLineas.test.ts",
     "test:presentaciones": "tsx src/utils/__tests__/presentaciones.test.ts",
     "test:patron-ingreso": "tsx src/utils/__tests__/patronIngreso.test.ts",
+    "test:estado-presupuesto": "tsx src/utils/__tests__/estadoPresupuesto.test.ts",
     "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",

@@ -30,6 +30,7 @@ import { printRemitoSilentOrOpen } from './remitoPdfActions';
 import { getRemitoItemCodigo, lineaDescripcionRemito, cantidadImpresaRemito } from './inventarioToRemitoItem';
 import { enriquecerItemsRemito } from './enriquecerItemsRemito';
 import { razonSocialConEstablecimiento } from './razonSocialRemito';
+import { domicilioSinLocalidadNiProvincia } from './domicilioRemito';
 
 /** Destinatario/transportista del overlay (mismo shape que DatosTransportista). */
 interface OverlayParty {
@@ -164,7 +165,8 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
       : transportista
         ? {
             razonSocial: transportista.nombre,
-            domicilio: transportista.direccion ?? '',
+            domicilio: domicilioSinLocalidadNiProvincia(
+              transportista.direccion, transportista.localidad, transportista.provincia),
             localidad: transportista.localidad ?? '',
             provincia: transportista.provincia ?? '',
             iva: transportista.condicionIva ?? '',

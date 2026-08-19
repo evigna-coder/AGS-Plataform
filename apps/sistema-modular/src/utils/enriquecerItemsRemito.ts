@@ -1,4 +1,4 @@
-import type { RemitoItem } from '@ags/shared';
+import type { RemitoItem, Minikit } from '@ags/shared';
 import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shared';
 import { minikitsService } from '../services/stockService';
 import { instrumentosService } from '../services/catalogService';
@@ -27,26 +27,42 @@ function etiquetaCategoria(categorias: string[] | undefined): string {
  * imprime igual — no se bloquea la salida de mercadería por esto.
  */
 export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<RemitoItem[]> {
-  const minikitIds = [...new Set(
-    items.filter(i => i.tipoEntidad === 'minikit' && i.minikitId && !i.minikitDescripcion)
-      .map(i => i.minikitId as string),
+  const minikitPend = items.filter(i => i.tipoEntidad === 'minikit' && !i.minikitDescripcion);
+  const minikitIds = [...new Set(minikitPend.filter(i => i.minikitId).map(i => i.minikitId as string))];
+  // Minikits SIN `minikitId` (2026-08-18): la asignación guarda solo el código,
+  // y el enriquecido buscaba únicamente por id — el kit salía impreso con el
+  // código en su columna y la Descripción VACÍA. Se resuelven por código contra
+  // el catálogo, que es el único dato que tienen.
+  const minikitCodigos = [...new Set(
+    minikitPend.filter(i => !i.minikitId && i.minikitCodigo)
+      .map(i => (i.minikitCodigo as string).trim().toLowerCase()),
   )];
   const instrumentoIds = [...new Set(
     items.filter(i => i.tipoEntidad === 'instrumento' && i.instrumentoId)
       .map(i => i.instrumentoId as string),
   )];
-  if (minikitIds.length === 0 && instrumentoIds.length === 0) return items;
+  if (minikitIds.length === 0 && minikitCodigos.length === 0 && instrumentoIds.length === 0) return items;
 
   const [minikits, instrumentos] = await Promise.all([
     Promise.all(minikitIds.map(id => minikitsService.getById(id).catch(() => null))),
     Promise.all(instrumentoIds.map(id => instrumentosService.getById(id).catch(() => null))),
   ]);
   const minikitPorId = new Map(minikits.filter(Boolean).map(m => [m!.id, m!]));
+  const minikitPorCodigo = new Map<string, Minikit>();
+  if (minikitCodigos.length > 0) {
+    const todos = await minikitsService.getAll(false).catch(() => [] as Minikit[]);
+    for (const m of todos) {
+      const cod = (m.codigo || '').trim().toLowerCase();
+      if (cod && minikitCodigos.includes(cod)) minikitPorCodigo.set(cod, m);
+    }
+  }
   const instrumentoPorId = new Map(instrumentos.filter(Boolean).map(i => [i!.id, i!]));
 
   return items.map(item => {
-    if (item.tipoEntidad === 'minikit' && item.minikitId && !item.minikitDescripcion) {
-      const mk = minikitPorId.get(item.minikitId);
+    if (item.tipoEntidad === 'minikit' && !item.minikitDescripcion) {
+      const mk = item.minikitId
+        ? minikitPorId.get(item.minikitId)
+        : minikitPorCodigo.get((item.minikitCodigo || '').trim().toLowerCase());
       if (!mk) return item;
       return { ...item, minikitDescripcion: mk.nombre || mk.descripcion || null };
     }
