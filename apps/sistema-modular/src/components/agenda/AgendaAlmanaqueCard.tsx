@@ -53,6 +53,16 @@ export const AgendaAlmanaqueCard: FC<Props> = ({ entry }) => {
       {entry.equipoAgsId && (
         <p className="text-[9px] font-mono text-slate-400 leading-tight truncate">{entry.equipoAgsId}</p>
       )}
+      {/* Problema / Falla inicial (2026-08-19): en una visita de diagnóstico/reparación
+          el tipo de servicio no dice cuál es el problema ni qué hay que llevar.
+          Acá va a 2 líneas —la celda del almanaque es chica— y completo en el
+          title; en el popover de la vista Planificación se ve entero. */}
+      {entry.problemaFallaInicial && (
+        <p className="text-[9px] text-slate-600 leading-tight mt-0.5 line-clamp-2"
+          title={entry.problemaFallaInicial}>
+          {entry.problemaFallaInicial}
+        </p>
+      )}
     </>
   );
 

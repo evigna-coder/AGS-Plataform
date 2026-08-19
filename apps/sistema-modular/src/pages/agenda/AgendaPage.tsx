@@ -339,6 +339,7 @@ export const AgendaPage: FC = () => {
           establecimientoNombre: src.establecimientoNombre ?? null,
           equipoModelo: src.equipoModelo ?? null,
           equipoAgsId: src.equipoAgsId ?? null,
+          problemaFallaInicial: src.problemaFallaInicial ?? null,
           // Cortar/pegar es un MOVIMIENTO: el estado se preserva (un confirmado
           // no vuelve a tentativo por moverlo de celda).
           estadoAgenda: src.estadoAgenda,

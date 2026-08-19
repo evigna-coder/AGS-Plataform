@@ -58,6 +58,8 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     establecimientoNombre: data.establecimientoNombre ?? null,
     equipoModelo: data.equipoModelo ?? null,
     equipoAgsId: data.equipoAgsId ?? null,
+    problemaFallaInicial: data.problemaFallaInicial ?? null,
+    excluidoDelControl: data.excluidoDelControl === true,
     pagoAdelantado: data.pagoAdelantado === true,
     // Estos dos FALTABAN acá (2026-08-09) y por eso "se destildaban solos": el
     // toggle guardaba bien en Firestore, pero este mapper es campo por campo y
@@ -228,6 +230,8 @@ export const agendaService = {
     sistema?: string;
     moduloModelo?: string;
     sistemaId?: string | null;
+    /** "Problema / Falla inicial" — se denormaliza en la entrada (2026-08-19). */
+    problemaFallaInicial?: string | null;
   }): Promise<string | null> {
     if (!ot.ingenieroAsignadoId || !ot.fechaServicioAprox) return null;
 
@@ -256,6 +260,7 @@ export const agendaService = {
       establecimientoNombre: null,
       equipoModelo: ot.moduloModelo || null,
       equipoAgsId,
+      problemaFallaInicial: ot.problemaFallaInicial || null,
       estadoAgenda: 'tentativo',
       notas: null,
       titulo: null,
