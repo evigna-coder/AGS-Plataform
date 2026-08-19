@@ -11,6 +11,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { RegistrarCertificacionModal } from '../../components/certificaciones/RegistrarCertificacionModal';
 import { SolicitarCertificacionModal } from '../../components/certificaciones/SolicitarCertificacionModal';
 import { CertificacionesAbiertasSection } from '../../components/certificaciones/CertificacionesAbiertasSection';
+import { certificacionesService } from '../../services/certificacionesService';
+import { usePrompt } from '../../components/ui/PromptDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS } from '../../utils/exports/exportPendientesDocumentacion';
 
@@ -42,6 +44,7 @@ const otLabel = (ot: WorkOrder) => `${ot.sistema || ''}${ot.tipoServicio ? ` · 
 
 export const PendientesDocumentacionPage = () => {
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const { firebaseUser, usuario } = useAuth();
   const [retenidas, setRetenidas] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,15 +55,60 @@ export const PendientesDocumentacionPage = () => {
   /** Fuerza el refresco de los pedidos abiertos cuando cambia lo retenido. */
   const [refrescoCerts, setRefrescoCerts] = useState(0);
 
+  /** OTs que ya están dentro de un pedido de certificación abierto. */
+  const [enCertificacion, setEnCertificacion] = useState<Set<string>>(new Set());
+
   const load = useCallback(async () => {
     setLoading(true);
-    try { setRetenidas(await ordenesTrabajoService.getRetenidas()); }
-    finally { setLoading(false); }
+    try {
+      const [ots, certs] = await Promise.all([
+        ordenesTrabajoService.getRetenidas(),
+        certificacionesService.getAbiertas().catch(() => []),
+      ]);
+      setRetenidas(ots);
+      // Una OT ya pedida al cliente NO es un pendiente de armar: aparecía en las
+      // dos listas y la de abajo la hacía parecer sin resolver (2026-08-19).
+      const pedidas = new Set<string>();
+      for (const c of certs) for (const it of (c.items ?? [])) if (it.otNumber) pedidas.add(it.otNumber);
+      setEnCertificacion(pedidas);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
-  const grupos = agrupar(retenidas);
+  const grupos = agrupar(retenidas.filter(ot => !enCertificacion.has(ot.otNumber)));
+
+  /**
+   * Descartar el requisito documental de una OT (2026-08-19).
+   *
+   * No todo lo retenido necesita el papel: trabajos de proveedor externo,
+   * cortesías, cosas que no corresponden. Sin esta salida quedaban acá para
+   * siempre ensuciando la lista, y la única alternativa era "Liberar", que
+   * afirma que la documentación LLEGÓ — mentira distinta.
+   *
+   * El motivo es obligatorio y queda en las notas: dentro de un mes nadie va a
+   * acordarse de por qué esta OT se sacó de la cola.
+   */
+  const descartar = async (ot: WorkOrder) => {
+    const motivo = await promptText({
+      title: `Descartar documentación de ${ot.otNumber}`,
+      label: 'Motivo',
+      placeholder: 'Ej: trabajo de proveedor externo — no lleva certificación',
+      required: true,
+      multiline: true,
+      confirmLabel: 'Descartar y liberar',
+    });
+    if (motivo === null) return;
+    setActing(true);
+    try {
+      await ordenesTrabajoService.descartarRequisitoDocumental(
+        ot.otNumber, motivo, { uid: firebaseUser?.uid || '', name: usuario?.displayName },
+      );
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo descartar');
+    } finally { setActing(false); }
+  };
 
   const liberar = async (otNumber: string) => {
     if (!await confirm(`¿Liberar la OT ${otNumber} para facturación? La documentación requerida debe estar presente.`)) return;
@@ -122,9 +170,18 @@ export const PendientesDocumentacionPage = () => {
                     <Link to={`/ordenes-trabajo/${ot.otNumber}`} className="text-xs font-mono text-teal-600 hover:underline">{ot.otNumber}</Link>
                     <span className="text-xs text-slate-500 truncate">{otLabel(ot)}</span>
                   </div>
-                  {g.requisito === 'remito_firmado' && (
-                    <Button size="sm" variant="outline" onClick={() => liberar(ot.otNumber)} disabled={acting} className="shrink-0">Liberar</Button>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {g.requisito === 'remito_firmado' && (
+                      <Button size="sm" variant="outline" onClick={() => liberar(ot.otNumber)} disabled={acting}>Liberar</Button>
+                    )}
+                    {/* Sirve para los dos requisitos: lo que no lleva papel no
+                        lleva papel, sea remito o certificación. */}
+                    <button onClick={() => void descartar(ot)} disabled={acting}
+                      title="No corresponde documentación para esta OT (proveedor externo, cortesía, etc.)"
+                      className="text-[11px] text-slate-400 hover:text-red-600 hover:underline disabled:opacity-40">
+                      Descartar
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

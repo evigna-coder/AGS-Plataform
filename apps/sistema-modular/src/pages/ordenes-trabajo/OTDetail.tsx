@@ -125,6 +125,7 @@ export const OTDetail = () => {
         <div className="flex gap-5">
           {/* Sidebar */}
           <OTInfoSidebar
+            otNumber={otNumber ?? ''}
             readOnly={ot.readOnly}
             readOnlyTecnico={ot.readOnlyTecnico}
             enCierreAdmin={ot.enCierreAdmin}

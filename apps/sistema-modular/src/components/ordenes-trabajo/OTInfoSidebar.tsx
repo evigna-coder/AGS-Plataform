@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoHistorial } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePrompt } from '../ui/PromptDialog';
+import { ordenesTrabajoService } from '../../services/otService';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
@@ -40,6 +43,8 @@ export interface OTInfoSidebarProps {
   ingenieroAsignadoNombre: string | null;
   ingenieros: Ingeniero[];
   onIngenieroChange: (uid: string) => void;
+  /** N° de OT — necesario para vincular un presupuesto tras el cierre. */
+  otNumber: string;
   estadoAdmin: string;
   estadoAdminFecha: string;
   estadoHistorial: OTEstadoHistorial[];
@@ -63,7 +68,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   horasTrabajadas, tiempoViaje, esFacturable, tieneContrato, esGarantia,
   onCheckboxChange, budgets, onAddBudget, onUpdateBudget, onRemoveBudget,
   ordenCompra, fechaServicioAprox, ingenieroAsignadoId, ingenieroAsignadoNombre: _ian,
-  ingenieros, onIngenieroChange, estadoAdmin: _ea, estadoAdminFecha: _eaf, estadoHistorial,
+  ingenieros, onIngenieroChange, otNumber, estadoAdmin, estadoAdminFecha: _eaf, estadoHistorial,
   leadId, presupuestoOrigenId, presupuestoOrigenNumero,
   onCreateLeadFromOT, onCreatePresupuestoFromOT, creatingLead,
 }) => {
@@ -75,6 +80,52 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   const roTecnico = readOnlyTecnico ?? readOnly;
   const roHoras = readOnly; // horas: readonly solo en FINALIZADO, editables en cierre admin
   const roBudgets = readOnly; // presupuestos: editables en cierre admin
+
+  /**
+   * Vincular un presupuesto DESPUÉS del cierre (2026-08-19).
+   *
+   * El campo de arriba se bloquea en FINALIZADO, y aunque no se bloqueara no
+   * alcanzaría: la OT no entraría en `otsListasParaFacturar` del presupuesto y
+   * el aviso a facturación lo rechazaría. Por eso es una acción propia y no
+   * simplemente destrabar el input.
+   *
+   * Solo administración de soporte: habilita a facturar algo que había quedado
+   * fuera del circuito.
+   */
+  const { hasRole, firebaseUser, usuario } = useAuth();
+  const promptText = usePrompt();
+  const [vinculando, setVinculando] = useState(false);
+  const otCerrada = ['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(estadoAdmin ?? '');
+  const puedeVincularPostCierre = otCerrada && hasRole('admin_soporte', 'admin_ing_soporte', 'admin');
+
+  const vincularPostCierre = async () => {
+    const numero = await promptText({
+      title: `Vincular presupuesto a ${otNumber}`,
+      label: 'Número de presupuesto',
+      placeholder: 'P1-005001-01',
+      required: true,
+    });
+    if (numero === null) return;
+    const motivo = await promptText({
+      title: 'Motivo',
+      label: '¿Por qué se vincula después del cierre?',
+      placeholder: 'Ej: el cliente pidió facturar este trabajo aparte',
+      required: true,
+      multiline: true,
+      confirmLabel: 'Vincular y habilitar facturación',
+    });
+    if (motivo === null) return;
+    setVinculando(true);
+    try {
+      await ordenesTrabajoService.vincularPresupuestoAOTCerrada(
+        otNumber, numero, motivo, { uid: firebaseUser?.uid || '', name: usuario?.displayName },
+      );
+      alert(`${numero} vinculado y habilitado para facturar.`);
+      window.location.reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo vincular');
+    } finally { setVinculando(false); }
+  };
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
@@ -304,6 +355,13 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
         <div className="flex justify-between items-center mb-2">
           <p className={`${sec} !mb-0`}>Presupuestos</p>
           {!roBudgets && <button onClick={onAddBudget} className="text-[11px] font-medium text-teal-600 hover:underline">+ Agregar</button>}
+          {roBudgets && puedeVincularPostCierre && (
+            <button onClick={() => void vincularPostCierre()} disabled={vinculando}
+              title="La OT está cerrada: vincular un presupuesto ahora también lo habilita para facturar"
+              className="text-[11px] font-medium text-amber-600 hover:underline disabled:opacity-40">
+              {vinculando ? 'Vinculando…' : '+ Vincular (OT cerrada)'}
+            </button>
+          )}
         </div>
         <div className="space-y-1.5">
           {budgets.map((b, idx) => (

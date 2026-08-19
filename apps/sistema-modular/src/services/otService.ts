@@ -1349,6 +1349,122 @@ export const ordenesTrabajoService = {
    *
    * @returns pptosNotificados — IDs de presupuestos que recibieron el otNumber.
    */
+  /**
+   * Descarta el requisito documental de una OT retenida (2026-08-19).
+   *
+   * No todo lo que se retiene necesita el papel: trabajos de proveedor externo,
+   * cortesías, o cosas que sencillamente no corresponden. Sin esta salida esas
+   * OTs quedaban en "Pendientes de documentación" para siempre, y la única
+   * alternativa era liberarlas como si el documento hubiera llegado.
+   *
+   * Hace lo mismo que `liberarParaFacturacion` —levanta la retención y avisa a
+   * los presupuestos— pero deja el MOTIVO asentado en las notas de cierre. Sin
+   * eso, en un mes nadie sabe por qué salió de la cola.
+   */
+  /**
+   * Vincula un presupuesto a una OT YA CERRADA y la deja lista para facturar
+   * (2026-08-19).
+   *
+   * El campo `budgets` del formulario se bloquea en FINALIZADO, y aunque no se
+   * bloqueara no alcanzaría: para que el presupuesto pueda generar el aviso, la
+   * OT tiene que estar en su `otsListasParaFacturar`, y esa lista solo la llenan
+   * el cierre administrativo —que ya corrió— y la liberación por documentación.
+   * Vincular a mano dejaba el vínculo hecho y la facturación imposible, que es
+   * peor que no poder: parece que funcionó.
+   *
+   * Hace las tres cosas juntas, que es lo que faltaba:
+   *  1. `budgets` en la OT + `otsVinculadasNumbers` en el presupuesto
+   *  2. la OT a `otsListasParaFacturar` (el trabajo YA se hizo)
+   *  3. el presupuesto a `pendiente_facturacion` si venía de una etapa anterior
+   *
+   * Mueve plata —habilita a facturar algo que estaba fuera del circuito— así que
+   * exige motivo y queda en la auditoría.
+   */
+  async vincularPresupuestoAOTCerrada(
+    otNumber: string,
+    presupuestoNumero: string,
+    motivo: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<void> {
+    const texto = motivo.trim();
+    if (!texto) throw new Error('Vincular un presupuesto a una OT cerrada necesita un motivo');
+
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error(`OT ${otNumber} no encontrada`);
+    if (!['CIERRE_ADMINISTRATIVO', 'FINALIZADO'].includes(ot.estadoAdmin ?? '')) {
+      throw new Error(`La OT ${otNumber} no está cerrada — agregá el presupuesto desde el formulario`);
+    }
+
+    const { presupuestosService } = await import('./presupuestosService');
+    const todos = await presupuestosService.getAll();
+    const pres = todos.find(p => p.numero === presupuestoNumero.trim());
+    if (!pres) throw new Error(`No existe el presupuesto ${presupuestoNumero}`);
+    if (pres.estado === 'anulado') throw new Error(`El presupuesto ${pres.numero} está anulado`);
+    if ((ot.budgets ?? []).includes(pres.numero)) {
+      throw new Error(`La OT ${otNumber} ya tiene vinculado el ${pres.numero}`);
+    }
+
+    // 1. Lado OT.
+    const nota = `[vinculo] ${pres.numero} vinculado a OT cerrada por ${actor?.name || 'Sistema'}: ${texto}`;
+    const previas = ot.cierreAdmin?.notasCierre ?? '';
+    await this.update(otNumber, {
+      budgets: [...(ot.budgets ?? []), pres.numero],
+      cierreAdmin: {
+        ...(ot.cierreAdmin ?? {}),
+        notasCierre: [previas, nota].filter(Boolean).join('\n'),
+      },
+    } as Partial<WorkOrder>);
+
+    // 2 + 3. Lado presupuesto: vínculo inverso, lista para facturar y estado.
+    const vinculadas = pres.otsVinculadasNumbers ?? [];
+    const listas = pres.otsListasParaFacturar ?? [];
+    const avanzaEstado = ['pendiente_oc', 'aceptado', 'en_ejecucion'].includes(pres.estado);
+    await presupuestosService.update(pres.id, deepCleanForFirestore({
+      otsVinculadasNumbers: vinculadas.includes(otNumber) ? vinculadas : [...vinculadas, otNumber],
+      otVinculadaNumber: pres.otVinculadaNumber ?? otNumber,
+      otsListasParaFacturar: listas.includes(otNumber) ? listas : [...listas, otNumber],
+      ...(avanzaEstado ? { estado: 'pendiente_facturacion' } : {}),
+    }) as never);
+
+    logBusinessEvent({
+      eventName: 'ot.presupuesto_vinculado_post_cierre',
+      collection: 'reportes',
+      documentId: otNumber,
+      details: { presupuesto: pres.numero, motivo: texto, actor: actor?.name ?? null },
+    });
+  },
+
+  async descartarRequisitoDocumental(
+    otNumber: string,
+    motivo: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<{ pptosNotificados: string[] }> {
+    const texto = motivo.trim();
+    if (!texto) throw new Error('El descarte necesita un motivo');
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error('OT no encontrada');
+
+    const nota = `[documentacion] Requisito descartado por ${actor?.name || 'Sistema'}: ${texto}`;
+    const previas = ot.cierreAdmin?.notasCierre ?? '';
+    await this.update(otNumber, {
+      cierreAdmin: {
+        ...(ot.cierreAdmin ?? {}),
+        notasCierre: [previas, nota].filter(Boolean).join('\n'),
+      },
+    } as Partial<WorkOrder>);
+
+    logBusinessEvent({
+      eventName: 'ot.documentacion_descartada',
+      collection: 'reportes',
+      documentId: otNumber,
+      details: { motivo: texto, actor: actor?.name ?? null },
+    });
+
+    // La liberación real reusa el camino existente: levanta la retención y
+    // notifica a los presupuestos vinculados.
+    return this.liberarParaFacturacion(otNumber, actor);
+  },
+
   async liberarParaFacturacion(
     otNumber: string,
     actor?: { uid: string; name?: string },
