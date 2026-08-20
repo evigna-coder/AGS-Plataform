@@ -24,6 +24,25 @@ function unidadLabel(u: UnidadStock): string {
   return `${ident} · ${u.ubicacion.referenciaNombre} · ${CONDICION_LABEL[u.condicion] ?? u.condicion}`;
 }
 
+/**
+ * Para quién está apartada una unidad reservada (2026-08-20). Va al sub-rótulo
+ * del desplegable: quien cierra tiene que ver a qué presupuesto le está
+ * gastando la pieza antes de elegirla, no después.
+ */
+function subReservaUnidad(u: UnidadStock): string | undefined {
+  const partes: string[] = [];
+  if (u.estado === 'reservado') {
+    const cliente = u.reservadoParaClienteNombre?.trim();
+    const ppto = u.reservadoParaPresupuestoNumero?.trim();
+    const quien = [cliente, ppto ? `(${ppto})` : null].filter(Boolean).join(' ');
+    partes.push(`RESERVADO ${quien || 'sin identificar'}`);
+  }
+  // De dónde salió la pieza (2026-08-20): un repuesto canibalizado de un loaner
+  // se ve igual que uno comprado, y no lo es — hay que saberlo al elegirlo.
+  if (u.origenLoanerCodigo) partes.push(`de ${u.origenLoanerCodigo}`);
+  return partes.length > 0 ? partes.join(' · ') : undefined;
+}
+
 /** Etiqueta de un lote de patrón: lote + saldo + vencimiento. */
 function loteLabel(l: PatronLoteOrigen): string {
   const saldo = l.cantidad != null ? ` (×${l.cantidad})` : '';
@@ -33,10 +52,10 @@ function loteLabel(l: PatronLoteOrigen): string {
 
 /** Opciones de origen unificadas (patrón + remito en campo + stock) para el select de una parte. */
 type OrigenOption =
-  | { kind: 'patron'; value: string; label: string; lote: PatronLoteOrigen }
-  | { kind: 'remito'; value: string; label: string; remito: RemitoItemOrigen }
-  | { kind: 'unidad'; value: string; label: string; unidad: UnidadStock }
-  | { kind: 'posicion'; value: string; label: string; pos: StockPosicion };
+  | { kind: 'patron'; value: string; label: string; sub?: string; lote: PatronLoteOrigen }
+  | { kind: 'remito'; value: string; label: string; sub?: string; remito: RemitoItemOrigen }
+  | { kind: 'unidad'; value: string; label: string; sub?: string; unidad: UnidadStock }
+  | { kind: 'posicion'; value: string; label: string; sub?: string; pos: StockPosicion };
 
 function buildOptions(stock: PartStockInfo): OrigenOption[] {
   const opts: OrigenOption[] = [];
@@ -54,10 +73,20 @@ function buildOptions(stock: PartStockInfo): OrigenOption[] {
     });
   }
   if (stock.requiereTrazabilidad) {
-    for (const u of stock.unidades) opts.push({ kind: 'unidad', value: `unidad:${u.id}`, label: unidadLabel(u), unidad: u });
+    for (const u of stock.unidades) {
+      opts.push({ kind: 'unidad', value: `unidad:${u.id}`, label: unidadLabel(u), sub: subReservaUnidad(u), unidad: u });
+    }
   } else {
     for (const p of stock.posiciones) {
-      opts.push({ kind: 'posicion', value: `posicion:${p.referenciaId}`, label: `${p.referenciaNombre} (×${p.cantidad})`, pos: p });
+      opts.push({
+        kind: 'posicion',
+        value: `posicion:${p.referenciaId}`,
+        label: `${p.referenciaNombre} (×${p.cantidad})`,
+        // Una posición agrupa varias unidades: puede juntar reservas de más de
+        // un presupuesto, y todas tienen que verse.
+        sub: p.reservas.length > 0 ? `RESERVADO ${p.reservas.join(' · ')}` : undefined,
+        pos: p,
+      });
     }
   }
   return opts;
@@ -88,6 +117,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
       unidadStockId: unidad.id,
       nroSerie: unidad.nroSerie ?? null,
       nroLote: unidad.nroLote ?? null,
+      origenLoanerCodigo: unidad.origenLoanerCodigo ?? null,
       patronId: null,
       patronLote: null,
     });
@@ -189,9 +219,9 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
               // cuando el campo está vacío (ahí manda el placeholder).
               const searchOptions = [
                 ...(sel ? [{ value: '', label: '— Quitar origen —' }] : []),
-                ...patronGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Patrón (activo)' })),
-                ...remitoGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'En campo (remito)' })),
-                ...stockGroup.map(o => ({ value: o.value, label: o.label, subLabel: 'Stock' })),
+                ...patronGroup.map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `Patrón (activo) · ${o.sub}` : 'Patrón (activo)' })),
+                ...remitoGroup.map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `En campo (remito) · ${o.sub}` : 'En campo (remito)' })),
+                ...stockGroup.map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `Stock · ${o.sub}` : 'Stock' })),
               ];
               return (
                 <tr key={part.id} className="bg-white/40 align-top">
@@ -206,6 +236,10 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                         {sel?.origenTipo === 'patron' || sel?.origenTipo === 'remito'
                           ? sel.origenNombre || '—'
                           : sel?.nroSerie ? `S/N ${sel.nroSerie}` : sel?.nroLote ? `Lote ${sel.nroLote}` : sel?.origenNombre || '—'}
+                        {/* La OT cerrada sigue diciendo que el repuesto salió de un loaner. */}
+                        {sel?.origenLoanerCodigo && (
+                          <span className="block text-[10px] text-amber-700">de {sel.origenLoanerCodigo}</span>
+                        )}
                       </span>
                     ) : options.length === 0 ? (
                       <span className="text-[11px] text-amber-600">Sin stock disponible</span>

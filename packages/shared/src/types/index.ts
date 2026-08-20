@@ -303,6 +303,12 @@ export interface StockSelection {
   nroSerie?: string | null;
   nroLote?: string | null;
   /**
+   * Loaner del que se extrajo la pieza (2026-08-20), copiado de la unidad al
+   * elegirla. Snapshot y no join: la OT cerrada tiene que poder decir de dónde
+   * salió el repuesto sin depender de que la unidad siga existiendo.
+   */
+  origenLoanerCodigo?: string | null;
+  /**
    * Patrón (activo) elegido como origen — cuando `origenTipo='patron'`. El estándar/patrón
    * vive en la colección `patrones` (no en stock); al cerrar se descuenta la `cantidad` del
    * lote elegido. Se usa cuando el material del cierre coincide (por código) con un patrón.
@@ -3428,6 +3434,19 @@ export interface CalificacionProveedor {
 
 export type TipoPosicionStock = 'cajonera' | 'estante' | 'deposito' | 'vitrina' | 'otro';
 
+/**
+ * Posición donde entra todo lo que se recibe antes de re-estantear (2026-08-20).
+ *
+ * Mismo criterio que 'RESERVAS': un código bien conocido que se busca por string.
+ * Al recibir una OC grande la prioridad es dar el ingreso rápido y ordenar
+ * después, no elegir la ubicación final de treinta artículos con el camión en
+ * la puerta.
+ *
+ * Si en el catálogo se le cambia el código a esta posición, el default deja de
+ * aplicarse (no rompe nada: el selector queda vacío como antes).
+ */
+export const POSICION_INGRESOS_CODIGO = 'IN';
+
 export interface PosicionStock {
   id: string;
   codigo: string;
@@ -3726,6 +3745,12 @@ export interface UnidadStock {
   reservadoParaPresupuestoNumero?: string | null;
   reservadoParaClienteId?: string | null;
   reservadoParaClienteNombre?: string | null;
+  /**
+   * Loaner del que se extrajo esta pieza (2026-08-20). La observación ya lo dice
+   * en texto, pero eso no se puede mostrar en una etiqueta ni filtrar: esto sí.
+   */
+  origenLoanerId?: string | null;
+  origenLoanerCodigo?: string | null;
   /**
    * Ubicación previa a la reserva (UAT 2026-07-16): al reservar, la unidad se mueve
    * físicamente a RESERVAS; `liberar()` usa este campo para devolverla a su posición
@@ -4826,6 +4851,49 @@ export interface ExtraccionLoaner {
   destino: string;
   otNumber?: string | null;
   extraidoPor: string;
+  /**
+   * La extracción deja el loaner INOPERATIVO hasta reponer la pieza (2026-08-20).
+   *
+   * Es el dato que faltaba: un loaner desarmado figuraba "En base" en verde,
+   * indistinguible de uno listo para prestar, y se enteraban en la planta del
+   * cliente. Los estados de loaner dicen DÓNDE está, no CÓMO está — por eso esto
+   * va acá y no como estado nuevo, igual que `enProveedor.alcance: 'parte'`.
+   */
+  dejaInoperativo?: boolean;
+  /** Fecha de reposición de la pieza. Null/ausente = todavía falta. */
+  fechaReposicion?: string | null;
+  /** Unidad de stock creada por la extracción, si la pieza entró al inventario. */
+  unidadId?: string | null;
+  articuloId?: string | null;
+}
+
+/**
+ * Extracciones que hoy dejan al loaner incompleto: marcadas como inoperativas y
+ * todavía sin reponer.
+ *
+ * Se DERIVA de las extracciones en vez de guardar un flag en el loaner: no se
+ * puede desincronizar y vale para las extracciones ya cargadas sin migrar nada.
+ */
+export function extraccionesQueFaltanReponer(
+  loaner: { extracciones?: ExtraccionLoaner[] | null },
+): ExtraccionLoaner[] {
+  return (loaner.extracciones ?? []).filter(e => e.dejaInoperativo === true && !e.fechaReposicion);
+}
+
+/** `true` si al loaner le falta al menos una pieza para estar operativo. */
+export function loanerEstaIncompleto(
+  loaner: { extracciones?: ExtraccionLoaner[] | null },
+): boolean {
+  return extraccionesQueFaltanReponer(loaner).length > 0;
+}
+
+/** Resumen legible de lo que le falta: "Inyector · Loop de 100 µL". */
+export function loanerPartesFaltantes(
+  loaner: { extracciones?: ExtraccionLoaner[] | null },
+): string {
+  return extraccionesQueFaltanReponer(loaner)
+    .map(e => e.descripcion)
+    .join(' · ');
 }
 
 export interface VentaLoaner {

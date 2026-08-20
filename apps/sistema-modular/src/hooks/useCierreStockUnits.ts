@@ -11,6 +11,14 @@ export interface StockPosicion {
   referenciaId: string;
   referenciaNombre: string;
   cantidad: number;
+  /**
+   * Para quién están apartadas las unidades reservadas de esta posición
+   * (2026-08-20), como "Cliente (P2-005099)". Vacío si no hay ninguna.
+   *
+   * Sin esto la opción decía solo "RESERVAS (×1)" y no había forma de saber a
+   * qué presupuesto le estabas gastando la pieza.
+   */
+  reservas: string[];
 }
 
 /** Lote de un patrón (activo) ofrecido como origen de descarga en el cierre. */
@@ -107,6 +115,15 @@ function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?:
   return out;
 }
 
+/** Etiqueta de la reserva de una unidad: "Cliente (P2-005099)". */
+function etiquetaReserva(u: UnidadStock): string | null {
+  if (u.estado !== 'reservado') return null;
+  const cliente = u.reservadoParaClienteNombre?.trim();
+  const ppto = u.reservadoParaPresupuestoNumero?.trim();
+  if (!cliente && !ppto) return 'sin identificar';
+  return [cliente, ppto ? `(${ppto})` : null].filter(Boolean).join(' ');
+}
+
 /** Agrupa unidades disponibles por ubicación, sumando cantidad. */
 function agruparPosiciones(unidades: UnidadStock[]): StockPosicion[] {
   const byUbic = new Map<string, StockPosicion>();
@@ -114,9 +131,12 @@ function agruparPosiciones(unidades: UnidadStock[]): StockPosicion[] {
     const key = `${u.ubicacion.tipo}:${u.ubicacion.referenciaId}`;
     const prev = byUbic.get(key) ?? {
       key, tipo: u.ubicacion.tipo, referenciaId: u.ubicacion.referenciaId,
-      referenciaNombre: u.ubicacion.referenciaNombre, cantidad: 0,
+      referenciaNombre: u.ubicacion.referenciaNombre, cantidad: 0, reservas: [],
     };
     prev.cantidad += u.cantidad ?? 1;
+    const reserva = etiquetaReserva(u);
+    // Una misma posición puede juntar reservas de varios presupuestos.
+    if (reserva && !prev.reservas.includes(reserva)) prev.reservas.push(reserva);
     byUbic.set(key, prev);
   }
   return [...byUbic.values()];
@@ -176,7 +196,16 @@ export function useCierreStockUnits(articulos: Part[]): {
           const todas = await unidadesService.getByArticulo(articulo.id).catch(() => []);
           // Lo que está en un remito NO se ofrece como stock de depósito: se elige
           // por la opción "Remito N° …" de abajo, que descuenta del remito.
-          unidades = todas.filter(unidadCuentaComoDisponible);
+          //
+          // Las RESERVADAS sí se ofrecen (2026-08-20): el aviso del cierre ya dice
+          // que se pueden seleccionar —"si las seleccionás igual, se descuenta la
+          // reserva, no una unidad extra"— pero el desplegable no las listaba, así
+          // que la única pieza en stock aparecía como "Sin stock disponible" y la
+          // OT no se podía cerrar contra ella. El consumo desde 'reservado' ya
+          // estaba soportado río abajo (ver movimientosAplicar).
+          unidades = todas.filter(u =>
+            unidadCuentaComoDisponible(u)
+            || (u.activo !== false && u.estado === 'reservado' && u.ubicacion?.tipo !== 'remito'));
         }
         const patron = (articulo ? patronPorArticulo.get(articulo.id) : null)
           ?? patronPorCodigo.get(normCodigo(part.codigo))
