@@ -274,11 +274,21 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
       throw err;
     }
 
-    // Primera escritura del reporte (no existe aún) → anotar creador.
-    // Lo consume portal-ingeniero (Mis Reportes Pendientes) para filtrar
-    // borradores por ingeniero. No se sobreescribe en saves posteriores.
+    // Primer save DEL INGENIERO sobre el reporte → anotar quién lo empezó.
+    //
+    // Lo consume portal-ingeniero (Mis Reportes Pendientes) para saber qué
+    // borradores son de cada uno. No se sobreescribe en saves posteriores.
+    //
+    // La condición era `!existingData` — solo cuando el documento no existía
+    // (2026-08-20). Eso valía cuando el reporte NACÍA en esta app; desde que las
+    // OTs se crean en sistema-modular el documento ya existe al abrirlo, así que
+    // `creadoPor` no se estampaba nunca y en el portal TODAS las asignadas
+    // figuraban como "sin empezar". Ahora se mira el campo, no el documento.
+    //
+    // Marca trabajo real del técnico porque el autosave solo dispara con
+    // `hasUserInteracted`: un cambio de hora ya alcanza, un simple abrir no.
     let payload = data;
-    if (!existingData) {
+    if (!existingData?.creadoPor) {
       try {
         const { auth } = await import('./authService');
         const user = auth.currentUser;
@@ -292,7 +302,7 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
               fecha: Timestamp.now(),
             },
           };
-          console.info('[saveReporte] primer save — anotando creadoPor:', user.email);
+          console.info('[saveReporte] primer save del ingeniero — anotando creadoPor:', user.email);
         }
       } catch (authErr) {
         console.warn('[saveReporte] no se pudo anotar creadoPor:', authErr);
