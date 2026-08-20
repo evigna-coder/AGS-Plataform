@@ -2,7 +2,7 @@ import { collection, getDocs, getDoc, doc, query, orderBy, Timestamp, arrayUnion
 import { ref, getDownloadURL } from 'firebase/storage';
 import type { Factura, EstadoFactura, ComentarioFactura, Posta, TicketArea } from '@ags/shared';
 import {
-  db, storage, updateDoc, runTransaction, uploadBytes, deepCleanForFirestore,
+  db, storage, updateDoc, uploadBytes, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit,
   logBusinessEvent, getCurrentUserTrace, onSnapshot,
 } from './firebase';
@@ -35,6 +35,8 @@ function parseFacturaDoc(d: { id: string; data: () => any }): Factura {
 }
 
 export interface CrearFacturaInput {
+  /** N° REAL de la factura del proveedor, tipeado a mano (2026-08-20). */
+  numero: string;
   proveedorId: string | null;
   proveedorNombre: string;
   pdfFile: File;
@@ -44,21 +46,6 @@ export interface CrearFacturaInput {
 }
 
 export const facturasService = {
-  /**
-   * Genera el siguiente correlativo FAC-00001. Atómico vía counter `_counters/facturas`.
-   */
-  async getNextNumero(): Promise<string> {
-    const counterRef = doc(db, '_counters', COLLECTION);
-    const next = await runTransaction(db, async (tx) => {
-      const snap = await tx.get(counterRef);
-      const current = snap.exists() ? (snap.data().value as number) : 0;
-      const nextVal = current + 1;
-      tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
-      return nextVal;
-    });
-    return `FAC-${String(next).padStart(5, '0')}`;
-  },
-
   async list(): Promise<Factura[]> {
     const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
@@ -88,7 +75,10 @@ export const facturasService = {
    */
   async crearConTicket(input: CrearFacturaInput): Promise<{ facturaId: string; ticketId: string; numero: string }> {
     const facturaRef = newDocRef(COLLECTION);
-    const numero = await this.getNextNumero();
+    // El número es el REAL de la factura del proveedor (2026-08-20): administración
+    // lo tipea al cargar. Antes se generaba un correlativo FAC-00001 propio, que no
+    // servía para cruzar contra el papel ni contra el resumen del proveedor.
+    const numero = input.numero.trim();
 
     // PDF a Storage (uploadBytes wrappeado por firebase.ts, igual que el resto del sistema).
     const storageReference = ref(storage, `${COLLECTION}/${facturaRef.id}/${Date.now()}_${input.pdfFile.name}`);

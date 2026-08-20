@@ -20,6 +20,7 @@ const AREAS = (Object.keys(TICKET_AREA_LABELS) as TicketArea[]).filter(a => a !=
 export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalProps) => {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
+  const [numero, setNumero] = useState('');
   const [proveedorValue, setProveedorValue] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [areaDestino, setAreaDestino] = useState<TicketArea | ''>('');
@@ -57,6 +58,7 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
 
   const handleSubmit = async () => {
     const errs: Record<string, string> = {};
+    if (!numero.trim()) errs.numero = 'Obligatorio';
     if (!proveedorValue.trim()) errs.proveedor = 'Obligatorio';
     if (!pdfFile) errs.pdf = 'Adjuntá el PDF';
     if (!areaDestino) errs.area = 'Obligatorio';
@@ -72,6 +74,7 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
     setSaving(true);
     try {
       await facturasService.crearConTicket({
+        numero: numero.trim(),
         proveedorId: matched ? matched.id : null,
         proveedorNombre: matched ? matched.nombre : proveedorValue.trim(),
         pdfFile: pdfFile!,
@@ -92,6 +95,18 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
   return (
     <Modal open title="Cargar factura" subtitle="Control de facturas a pagar" onClose={onClose}>
       <div className="space-y-3">
+        <div>
+          <label className={labelClass}>N° de factura *</label>
+          <input
+            type="text"
+            value={numero}
+            onChange={e => setNumero(e.target.value)}
+            placeholder="Como figura en el papel — ej: 0001-00012345"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          {errors.numero && <p className="text-xs text-red-600 mt-0.5">{errors.numero}</p>}
+        </div>
+
         <div>
           <label className={labelClass}>Proveedor *</label>
           <SearchableSelect
