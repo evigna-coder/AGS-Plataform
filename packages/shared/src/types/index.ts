@@ -1259,6 +1259,23 @@ export const DISPONIBILIDAD_COLORS: Record<Disponibilidad, string> = {
   en_transito:      'bg-blue-100 text-blue-700',
 };
 
+/**
+ * Unidades que declaran que la línea es un SERVICIO y no una parte física
+ * (2026-08-20).
+ *
+ * Se usa para no mandar servicios al módulo de Entregas, que sigue partes. Nació
+ * porque los ítems de contrato guardan el código de servicio en `codigoProducto`
+ * y dejan `servicioCode` vacío, así que "Mantenimiento preventivo" figuraba como
+ * algo a entregar. La unidad es lo que la línea declara ser: sirve aunque el
+ * código esté en el campo equivocado, y aunque algún día un contrato cotice una
+ * parte real.
+ */
+const UNIDADES_DE_SERVICIO = /^(servicio|visita|visitas|hora|horas|jornada|jornadas)$/i;
+
+export function esUnidadDeServicio(unidad?: string | null): boolean {
+  return UNIDADES_DE_SERVICIO.test((unidad ?? '').trim());
+}
+
 // --- Item de Presupuesto ---
 export interface PresupuestoItem {
   id: string;

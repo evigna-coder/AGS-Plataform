@@ -1,4 +1,5 @@
 import type { PresupuestoItem, Sistema, ModuloSistema, TipoEquipoPlantilla } from '@ags/shared';
+import { esUnidadDeServicio } from '@ags/shared';
 
 /**
  * Heurística simple: matchea el nombre del sistema contra el nombre de las
@@ -52,6 +53,10 @@ export function buildItemSueltoDesdeCargaCompleta(
     disponibilidad: p.disponibilidad ?? null,
     etaDiasEstimados: p.etaDiasEstimados ?? null,
     subtotal: descuento ? base * (1 - descuento / 100) : base,
+    // Ídem AgregarSistemaContratoModal: si la unidad dice servicio, el codigo
+    // tipeado tambien es el codigo de servicio.
+    servicioCode: p.servicioCode
+      ?? (esUnidadDeServicio(p.unidad || 'servicio') ? (p.codigoProducto?.trim() || null) : null),
     grupo,
     subItem: `${grupo}.1`,
     sistemaNombre: 'Otros / Capacitaciones',

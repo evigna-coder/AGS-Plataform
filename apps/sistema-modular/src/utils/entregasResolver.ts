@@ -15,7 +15,7 @@ import type {
   Importacion,
   Disponibilidad,
 } from '@ags/shared';
-import { cantidadEnUnidadBase } from '@ags/shared';
+import { cantidadEnUnidadBase, esUnidadDeServicio } from '@ags/shared';
 
 export type Semaforo = 'verde' | 'amarillo' | 'rojo' | 'entregado' | 'sin_eta';
 
@@ -235,7 +235,19 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
       //
       // Ahora se EXCLUYE lo que es servicio de forma explícita, en vez de
       // incluir solo lo que está vinculado al catálogo.
-      const esServicio = !!item.conceptoServicioId || !!item.servicioCode;
+      // La UNIDAD de la línea también dice que es un servicio (2026-08-20).
+      //
+      // Los ítems de contrato traen el código de servicio en `codigoProducto`
+      // —"MP3_SN_12B", "AT1_BAS_11A", "CAP_L1", "ST_01"— y `servicioCode` vacío,
+      // así que pasaban el filtro y "Mantenimiento preventivo" o "Capacitación"
+      // figuraban como partes a entregar. 21 lineas en produccion.
+      //
+      // Se discrimina por `unidad` y no por tipo de presupuesto: es lo que la
+      // línea declara ser, sirve igual si algún día un contrato cotiza una parte
+      // real, y no toca ninguno de los ítems físicos legítimos.
+      const esServicio = !!item.conceptoServicioId
+        || !!item.servicioCode
+        || esUnidadDeServicio(item.unidad);
       const codigoProducto = (item.codigoProducto ?? '').trim() || null;
       if (esServicio) continue;
       if (!stockArticuloId && !req && !codigoProducto) continue;

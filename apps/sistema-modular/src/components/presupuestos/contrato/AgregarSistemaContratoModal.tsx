@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button';
 import { SearchableSelect } from '../../ui/SearchableSelect';
 import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
 import type { PresupuestoItem, Sistema, ModuloSistema, ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
+import { esUnidadDeServicio } from '@ags/shared';
 import { makeSubItem, nextGrupoNumber, nextSubForGrupo } from './contratoItemHelpers';
 
 interface Props {
@@ -101,6 +102,12 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
       disponibilidad: p.disponibilidad ?? null,
       etaDiasEstimados: p.etaDiasEstimados ?? null,
       subtotal: descuento ? base * (1 - descuento / 100) : base,
+      // El codigo de un servicio va tambien en `servicioCode` (2026-08-20): acá
+      // se tipea en `codigoProducto` —que es para N° de parte— y quedaba solo
+      // ahí. Sin este campo, el modulo de Entregas leía la linea como una parte
+      // fisica a entregar, y el PDF no podia resolver el anexo de consumibles.
+      servicioCode: p.servicioCode
+        ?? (esUnidadDeServicio(p.unidad || 'servicio') ? (p.codigoProducto?.trim() || null) : null),
       grupo,
       subItem: makeSubItem(grupo, sub),
       sistemaId: selectedSistema.id,
