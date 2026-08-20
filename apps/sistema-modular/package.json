@@ -28,6 +28,7 @@
     "test:analitica": "tsx src/utils/analitica/__tests__/presupuestosMetrics.test.ts",
     "test:landing": "tsx src/components/layout/__tests__/landingPath.test.ts",
     "test:finde": "tsx src/utils/__tests__/finDeSemana.test.ts",
+    "test:remito-renglones": "tsx src/utils/__tests__/remitoOverlayRenglones.test.ts",
     "test:remito-lineas": "tsx src/utils/__tests__/remitoLineas.test.ts",
     "test:presentaciones": "tsx src/utils/__tests__/presentaciones.test.ts",
     "test:patron-ingreso": "tsx src/utils/__tests__/patronIngreso.test.ts",

@@ -46,11 +46,60 @@ const X_VALUE_RIGHT = X_VALUE_LEFT + 241 + 1 * MM;
 const DY_TRANSPORTISTA = {
   razonSocial: 2 * MM,
   domicilio: -1 * MM,
-  localidad: -5 * MM,   // calibrado contra papel real 2026-08-11
-  provincia: -9 * MM,   // 9 mm arriba — papel real 2026-08-18
+  localidad: -4.5 * MM, // bajada 0,5 mm — papel real 2026-08-20
+  provincia: -8 * MM,   // bajada 1 mm — papel real 2026-08-20
   iva: 0,
   cuit: -15 * MM,
 };
+
+/**
+ * Corrimiento a la IZQUIERDA del bloque destinatario (2026-08-20): las casillas
+ * del papel arrancan 5 mm antes de donde estábamos escribiendo. Aplica a los
+ * SEIS campos — la columna entera, IVA incluido.
+ */
+const X_LEFT_AJUSTE = -5 * MM;
+
+/**
+ * Corte de los campos del header (2026-08-20). En el papel entran 54 caracteres
+ * en minúscula por renglón, y cada casilla tiene lugar para DOS renglones. Lo
+ * que no entra en dos se corta: es preferible a que se monte sobre la casilla
+ * de abajo.
+ *
+ * El corte es por CARACTERES y no por ancho porque así está medido contra el
+ * papel real. Helvetica es proporcional, así que 54 caracteres en mayúscula
+ * ocupan más — el número sale de una razón social típica en minúscula.
+ */
+const MAX_CHARS_CAMPO = 54;
+const MAX_RENGLONES_CAMPO = 2;
+
+/** Alto de renglón del segundo renglón de un campo (fontSize 9 × 1,05). */
+const FIELD_LINE_H = 9.5;
+
+/**
+ * Parte un texto en hasta `maxRenglones` de `max` caracteres, cortando entre
+ * palabras. Una palabra sola más larga que el renglón se corta al medio (un
+ * CUIT o un código sin espacios no tiene dónde partirse). Lo que sobra después
+ * del último renglón se descarta.
+ */
+export function partirEnRenglones(
+  texto: string,
+  max = MAX_CHARS_CAMPO,
+  maxRenglones = MAX_RENGLONES_CAMPO,
+): string[] {
+  const limpio = (texto ?? '').trim();
+  if (!limpio) return [];
+  const renglones: string[] = [];
+  let resto = limpio;
+  while (resto.length > 0 && renglones.length < maxRenglones) {
+    if (resto.length <= max) { renglones.push(resto); break; }
+    const corte = resto.lastIndexOf(' ', max);
+    // Sin espacio donde cortar → tajo seco en `max`.
+    const fin = corte > 0 ? corte : max;
+    renglones.push(resto.slice(0, fin).trimEnd());
+    resto = resto.slice(fin).trimStart();
+  }
+  return renglones;
+}
 
 /** Y de cada fila del header. La altura entre filas en el papel es ~33pt. */
 const Y_RAZON_SOCIAL = 270;
@@ -229,6 +278,23 @@ function valuePos(x: number, y: number, ox: number, oy: number) {
   return { left: x + ox, top: y + oy } as const;
 }
 
+/**
+ * Un campo del header: uno o dos renglones según entre en `MAX_CHARS_CAMPO`.
+ * El segundo renglón cae `FIELD_LINE_H` abajo — hay ~25 pt hasta la casilla
+ * siguiente, así que no la invade.
+ */
+function Campo({ x, y, ox, oy, texto }: {
+  x: number; y: number; ox: number; oy: number; texto: string;
+}) {
+  return (
+    <>
+      {partirEnRenglones(texto).map((renglon, i) => (
+        <Text key={i} style={[styles.field, valuePos(x, y + i * FIELD_LINE_H, ox, oy)]}>{renglon}</Text>
+      ))}
+    </>
+  );
+}
+
 interface PaginaProps {
   fecha: string;
   destinatario: RemitoOverlayDestinatario;
@@ -248,24 +314,24 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
       <Text style={[styles.field, valuePos(X_FECHA + (fo.fecha?.x ?? 0), Y_FECHA + (fo.fecha?.y ?? 0), ox, oy)]}>{fecha}</Text>
 
       {/* Columna izquierda — destinatario */}
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_RAZON_SOCIAL + (fo.razonSocial?.y ?? 0), ox, oy)]}>{destinatario.razonSocial}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_DOMICILIO + (fo.domicilio?.y ?? 0),    ox, oy)]}>{destinatario.domicilio}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_LOCALIDAD + (fo.localidad?.y ?? 0),    ox, oy)]}>{destinatario.localidad}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_PROVINCIA + (fo.provincia?.y ?? 0),    ox, oy)]}>{destinatario.provincia}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_IVA + (fo.iva?.y ?? 0),          ox, oy)]}>{destinatario.iva}</Text>
-      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_CUIT + (fo.cuit?.y ?? 0),         ox, oy)]}>{destinatario.cuit}</Text>
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_RAZON_SOCIAL + (fo.razonSocial?.y ?? 0)} ox={ox} oy={oy} texto={destinatario.razonSocial} />
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_DOMICILIO + (fo.domicilio?.y ?? 0)}    ox={ox} oy={oy} texto={destinatario.domicilio} />
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_LOCALIDAD + (fo.localidad?.y ?? 0)}    ox={ox} oy={oy} texto={destinatario.localidad} />
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_PROVINCIA + (fo.provincia?.y ?? 0)}    ox={ox} oy={oy} texto={destinatario.provincia} />
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_IVA + (fo.iva?.y ?? 0)}                ox={ox} oy={oy} texto={destinatario.iva} />
+      <Campo x={X_VALUE_LEFT + X_LEFT_AJUSTE} y={Y_CUIT + (fo.cuit?.y ?? 0)}              ox={ox} oy={oy} texto={destinatario.cuit} />
 
       {/* Columna derecha — transportista */}
       {transportista && (
         <>
           {/* +1 mm a la derecha SOLO el nombre (papel real 2026-08-18): la
               casilla del transportista arranca corrida respecto de las de abajo. */}
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT + 1 * MM, Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial, ox, oy)]}>{transportista.razonSocial}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO + DY_TRANSPORTISTA.domicilio,     ox, oy)]}>{transportista.domicilio}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD + DY_TRANSPORTISTA.localidad,     ox, oy)]}>{transportista.localidad}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA + DY_TRANSPORTISTA.provincia,     ox, oy)]}>{transportista.provincia}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_IVA + DY_TRANSPORTISTA.iva,                 ox, oy)]}>{transportista.iva}</Text>
-          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_CUIT + DY_TRANSPORTISTA.cuit,               ox, oy)]}>{transportista.cuit}</Text>
+          <Campo x={X_VALUE_RIGHT + 1 * MM} y={Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial} ox={ox} oy={oy} texto={transportista.razonSocial} />
+          <Campo x={X_VALUE_RIGHT} y={Y_DOMICILIO + DY_TRANSPORTISTA.domicilio}  ox={ox} oy={oy} texto={transportista.domicilio} />
+          <Campo x={X_VALUE_RIGHT} y={Y_LOCALIDAD + DY_TRANSPORTISTA.localidad}  ox={ox} oy={oy} texto={transportista.localidad} />
+          <Campo x={X_VALUE_RIGHT} y={Y_PROVINCIA + DY_TRANSPORTISTA.provincia}  ox={ox} oy={oy} texto={transportista.provincia} />
+          <Campo x={X_VALUE_RIGHT} y={Y_IVA + DY_TRANSPORTISTA.iva}              ox={ox} oy={oy} texto={transportista.iva} />
+          <Campo x={X_VALUE_RIGHT} y={Y_CUIT + DY_TRANSPORTISTA.cuit}            ox={ox} oy={oy} texto={transportista.cuit} />
         </>
       )}
 
