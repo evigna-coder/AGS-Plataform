@@ -8,7 +8,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { Loaner, EstadoLoaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -234,6 +234,14 @@ export function LoanersList() {
                         {alerta && (
                           <span className="ml-1.5 inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700" title={`${diasFuera} dias en cliente`}>
                             {diasFuera}d
+                          </span>
+                        )}
+                        {/* Incompleto (2026-08-20): el estado dice DONDE esta, esto dice
+                            si sirve. Un loaner desarmado se veia "En base" en verde. */}
+                        {loanerEstaIncompleto(l) && (
+                          <span className="ml-1.5 inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800"
+                            title={`Falta reponer: ${loanerPartesFaltantes(l)}`}>
+                            INCOMPLETO
                           </span>
                         )}
                       </td>

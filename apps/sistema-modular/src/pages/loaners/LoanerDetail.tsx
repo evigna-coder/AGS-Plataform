@@ -12,10 +12,12 @@ import { LoanerFotosSection } from '../../components/loaners/LoanerFotosSection'
 import { LoanerPrestamoModal } from '../../components/loaners/LoanerPrestamoModal';
 import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucionModal';
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
+import type { IngresoStockExtraccion } from '../../components/loaners/LoanerExtraccionIngresoStock';
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import { iniciarRecalificacion, liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import type { Loaner, VentaLoaner } from '@ags/shared';
+import { loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -120,16 +122,26 @@ export function LoanerDetail() {
     // subscription auto-refreshes
   };
 
-  const handleExtraccion = async (data: {
-    descripcion: string; codigoArticulo: string | null;
-    destino: string; otNumber: string | null; extraidoPor: string;
-  }) => {
+  const handleExtraccion = async (
+    data: {
+      descripcion: string; codigoArticulo: string | null;
+      destino: string; otNumber: string | null; extraidoPor: string;
+      dejaInoperativo: boolean;
+    },
+    ingresoStock: IngresoStockExtraccion | null,
+  ) => {
     if (!loaner) return;
     await loanersService.registrarExtraccion(loaner.id, {
       fecha: new Date().toISOString(),
       ...data,
-    });
+    }, ingresoStock);
     // subscription auto-refreshes
+  };
+
+  /** La pieza volvió: el loaner deja de figurar incompleto. */
+  const handleReponer = async (extraccionId: string) => {
+    if (!loaner) return;
+    await loanersService.reponerExtraccion(loaner.id, extraccionId);
   };
 
   const handleVenta = async (payload: {
@@ -172,8 +184,22 @@ export function LoanerDetail() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
           </button>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 tracking-tight">{loaner.codigo}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-slate-900 tracking-tight">{loaner.codigo}</h1>
+              {/* Incompleto (2026-08-20): va al lado del codigo, no abajo — es lo
+                  primero que hay que ver antes de decidir prestarlo. */}
+              {loanerEstaIncompleto(loaner) && (
+                <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">
+                  INCOMPLETO
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500">{loaner.descripcion}</p>
+            {loanerEstaIncompleto(loaner) && (
+              <p className="text-[11px] text-amber-700 mt-0.5">
+                Falta reponer: {loanerPartesFaltantes(loaner)}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -211,7 +237,7 @@ export function LoanerDetail() {
             <LoanerPrestamosSection prestamos={loaner.prestamos} />
             <LoanerDerivacionesSection derivaciones={loaner.derivaciones ?? []} />
             <LoanerOTsSection otIds={loaner.otIds ?? []} />
-            <LoanerExtraccionesSection extracciones={loaner.extracciones} />
+            <LoanerExtraccionesSection extracciones={loaner.extracciones} onReponer={handleReponer} />
             <LoanerVentaSection loaner={loaner} onVender={() => setVentaOpen(true)} />
           </div>
         </div>

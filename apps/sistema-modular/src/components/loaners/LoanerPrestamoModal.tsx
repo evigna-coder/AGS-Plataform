@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService, establecimientosService, remitosService, ordenesTrabajoService } from '../../services/firebaseService';
 import type { Cliente, Establecimiento, Loaner, WorkOrder } from '@ags/shared';
-import { establecimientoUnicoId } from '@ags/shared';
+import { establecimientoUnicoId, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 
 interface Props {
@@ -175,6 +175,17 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       </div>
     }>
       <div className="space-y-4">
+        {/* Aviso de loaner incompleto (2026-08-20): el punto de todo el circuito
+            es que el dato frene la decision, no que quede lindo en la ficha.
+            No bloquea — a veces se presta igual y se avisa al cliente. */}
+        {loanerEstaIncompleto(loaner) && (
+          <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+            <p className="text-xs font-semibold text-amber-800">Este loaner esta INCOMPLETO</p>
+            <p className="text-[11px] text-amber-700 mt-0.5">
+              Falta reponer: {loanerPartesFaltantes(loaner)}. Si se presta asi, el equipo no va a estar operativo en el cliente.
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Cliente *</label>
           <SearchableSelect value={clienteId} onChange={v => { setClienteId(v); setEstablecimientoId(''); setOtNumber(''); }} options={clienteOptions} placeholder="Seleccionar cliente" size="sm" />

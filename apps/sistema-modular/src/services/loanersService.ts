@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
-import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner } from '@ags/shared';
+import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner, CondicionUnidad } from '@ags/shared';
 import type { MockVentaLoanerState } from './__tests__/fixtures/ventaLoaner';
 import {
   buildRegistrarVenta,
@@ -445,12 +445,121 @@ export const loanersService = {
     await this.update(loanerId, { fotos: (loaner.fotos ?? []).filter(f => f.id !== fotoId) });
   },
 
-  async registrarExtraccion(id: string, extraccion: Omit<ExtraccionLoaner, 'id'>): Promise<void> {
+  /**
+   * Registrar la extracción de una pieza del loaner (2026-08-20).
+   *
+   * Hasta hoy esto solo agregaba una línea a una lista: el campo "Destino" decía
+   * "Stock" y en stock no aparecía nada. Si viene `ingresoStock`, la pieza entra
+   * al inventario de verdad —unidad + movimiento de ingreso con origen el
+   * loaner— en el mismo batch que la extracción, para que no pueda quedar la
+   * mitad hecha.
+   */
+  async registrarExtraccion(
+    id: string,
+    extraccion: Omit<ExtraccionLoaner, 'id'>,
+    ingresoStock?: {
+      articuloId: string;
+      articuloCodigo: string;
+      articuloDescripcion: string;
+      condicion: CondicionUnidad;
+      cantidad: number;
+      nroSerie?: string | null;
+      ubicacion: { tipo: 'posicion'; referenciaId: string; referenciaNombre: string };
+    } | null,
+  ): Promise<{ unidadId: string | null }> {
     const loaner = await this.getById(id);
     if (!loaner) throw new Error('Loaner no encontrado');
-    const newExtraccion: ExtraccionLoaner = { ...extraccion, id: crypto.randomUUID() };
-    await this.update(id, {
+    const {
+      db, createBatch, docRef, batchAudit, deepCleanForFirestore,
+      getCreateTrace, getUpdateTrace, getCurrentUserTrace,
+    } = await getFirebaseModules();
+
+    const unidadId = ingresoStock ? crypto.randomUUID() : null;
+    const newExtraccion: ExtraccionLoaner = {
+      ...extraccion,
+      id: crypto.randomUUID(),
+      unidadId,
+      articuloId: ingresoStock?.articuloId ?? null,
+    };
+    const nowTs = Timestamp.now();
+    const batch = createBatch();
+
+    const loanerPayload = deepCleanForFirestore({
       extracciones: [...loaner.extracciones, newExtraccion],
+      ...getUpdateTrace(),
+      updatedAt: nowTs,
+    });
+    batch.update(docRef('loaners', id), loanerPayload);
+    batchAudit(batch, { action: 'update', collection: 'loaners', documentId: id, after: loanerPayload });
+
+    if (ingresoStock && unidadId) {
+      const unidadPayload = deepCleanForFirestore({
+        articuloId: ingresoStock.articuloId,
+        articuloCodigo: ingresoStock.articuloCodigo,
+        articuloDescripcion: ingresoStock.articuloDescripcion,
+        nroSerie: ingresoStock.nroSerie ?? null,
+        nroLote: null,
+        cantidad: ingresoStock.cantidad,
+        condicion: ingresoStock.condicion,
+        estado: 'disponible',
+        ubicacion: ingresoStock.ubicacion,
+        // De dónde salió la pieza, para poder responder "¿esto de dónde vino?"
+        // parado en la unidad y no solo desde el loaner.
+        observaciones: `Extraída de ${loaner.codigo}${loaner.serie ? ` (S/N ${loaner.serie})` : ''} — ${extraccion.descripcion}`,
+        origenLoanerId: loaner.id,
+        origenLoanerCodigo: loaner.codigo,
+        reservadoParaPresupuestoId: null,
+        reservadoParaPresupuestoNumero: null,
+        reservadoParaClienteId: null,
+        reservadoParaClienteNombre: null,
+        activo: true,
+        ...getCreateTrace(),
+        createdAt: nowTs,
+        updatedAt: nowTs,
+      });
+      batch.set(doc(db, 'unidades', unidadId), unidadPayload);
+
+      const movimientoId = crypto.randomUUID();
+      const user = getCurrentUserTrace();
+      batch.set(doc(db, 'movimientosStock', movimientoId), deepCleanForFirestore({
+        tipo: 'ingreso',
+        unidadId,
+        articuloId: ingresoStock.articuloId,
+        articuloCodigo: ingresoStock.articuloCodigo,
+        articuloDescripcion: ingresoStock.articuloDescripcion,
+        cantidad: ingresoStock.cantidad,
+        nroSerie: ingresoStock.nroSerie ?? null,
+        nroLote: null,
+        origenTipo: 'baja',
+        origenId: loaner.id,
+        origenNombre: loaner.codigo,
+        destinoTipo: ingresoStock.ubicacion.tipo,
+        destinoId: ingresoStock.ubicacion.referenciaId,
+        destinoNombre: ingresoStock.ubicacion.referenciaNombre,
+        referenciaLoanerId: loaner.id,
+        motivo: `Extracción de pieza de ${loaner.codigo}`,
+        creadoPor: user?.uid ?? 'sistema',
+        ...getCreateTrace(),
+        createdAt: nowTs,
+        updatedAt: nowTs,
+      }));
+    }
+
+    await batch.commit();
+    return { unidadId };
+  },
+
+  /**
+   * La pieza volvió al loaner (2026-08-20): estampa la fecha de reposición y el
+   * loaner deja de figurar incompleto. No toca stock — la unidad se consume o se
+   * da de baja por su propio camino.
+   */
+  async reponerExtraccion(id: string, extraccionId: string): Promise<void> {
+    const loaner = await this.getById(id);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    await this.update(id, {
+      extracciones: loaner.extracciones.map(e =>
+        e.id === extraccionId ? { ...e, fechaReposicion: new Date().toISOString() } : e),
     });
   },
 
