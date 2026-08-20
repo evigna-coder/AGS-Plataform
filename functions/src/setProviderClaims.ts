@@ -30,7 +30,7 @@ interface Payload {
 }
 
 export const setProviderClaims = onCall(
-  { region: REGION, enforceAppCheck: false },
+  { region: REGION, enforceAppCheck: false, invoker: 'public' },
   async (request): Promise<{ ok: true }> => {
     const caller = request.auth;
     const callerEmail = (caller?.token?.email ?? '').toString().toLowerCase();

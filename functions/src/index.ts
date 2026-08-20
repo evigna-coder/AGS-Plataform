@@ -10,7 +10,7 @@ const REGION = 'southamerica-east1';
  *   curl https://southamerica-east1-agssop-e7353.cloudfunctions.net/helloPing
  *   → { ok: true, ts: 1729...,  region: 'southamerica-east1' }
  */
-export const helloPing = functions.onRequest({ region: REGION }, (req, res) => {
+export const helloPing = functions.onRequest({ region: REGION, invoker: 'public' }, (req, res) => {
   res.status(200).json({
     ok: true,
     ts: Date.now(),

@@ -60,7 +60,7 @@ async function nextTicketNumero(): Promise<string> {
 }
 
 export const submitSoporte = onCall(
-  { region: REGION, enforceAppCheck: false, cors: true },
+  { region: REGION, enforceAppCheck: false, cors: true, invoker: 'public' },
   async (request): Promise<{ ok: true; numero: string }> => {
     const data = (request.data ?? {}) as SoportePayload;
 

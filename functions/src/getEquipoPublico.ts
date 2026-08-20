@@ -33,7 +33,7 @@ interface EquipoPublico {
 }
 
 export const getEquipoPublico = onCall(
-  { region: REGION, enforceAppCheck: false, cors: true },
+  { region: REGION, enforceAppCheck: false, cors: true, invoker: 'public' },
   async (request): Promise<EquipoPublico> => {
     const agsId = (request.data?.agsId ?? '').toString().trim();
     if (!agsId) {
