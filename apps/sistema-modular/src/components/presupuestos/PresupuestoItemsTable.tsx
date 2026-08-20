@@ -1,9 +1,10 @@
 import { Fragment, useRef, useState } from 'react';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, TipoPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { RichTextEditor } from '../ui/RichTextEditor';
+import { NotasTecnicasPlantillas } from './NotasTecnicasPlantillas';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 import { PresupuestoAddItemCompleto } from './PresupuestoAddItemCompleto';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
@@ -28,6 +29,8 @@ interface PresupuestoItemsTableProps {
   moneda: MonedaPresupuesto;
   totals: PresupuestoTotals;
   notasTecnicas: string;
+  /** Tipo del presupuesto — filtra las notas técnicas estándar ofrecidas. */
+  tipoPresupuesto?: TipoPresupuesto;
   onAddItem: (item: PresupuestoItem) => void;
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onRemoveItem: (itemId: string) => void;
@@ -55,7 +58,7 @@ const TABLE_HEADER = (
 
 export const PresupuestoItemsTable = ({
   items, categoriasPresupuesto, conceptosServicio, moneda,
-  totals, notasTecnicas,
+  totals, notasTecnicas, tipoPresupuesto,
   onAddItem, onUpdateItem, onRemoveItem,
   onNotasTecnicasChange, calculateItemTaxes,
   itemsByGrupo, getGrupo, renderSubRow,
@@ -183,7 +186,9 @@ export const PresupuestoItemsTable = ({
       {/* RichTextEditor (no textarea): el contenido es HTML del editor — un textarea
           mostraba los tags crudos y no daba herramientas de formato (UAT 2026-07-29). */}
       <Card compact>
-        <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Notas tecnicas</h3>
+        <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-2">Notas tecnicas</h3>
+        {/* Notas estandarizadas: se agregan al final del texto, no lo reemplazan. */}
+        <NotasTecnicasPlantillas tipo={tipoPresupuesto} value={notasTecnicas} onChange={onNotasTecnicasChange} />
         <RichTextEditor value={notasTecnicas} onChange={onNotasTecnicasChange}
           placeholder="Notas tecnicas, observaciones..." minHeight={100} />
       </Card>

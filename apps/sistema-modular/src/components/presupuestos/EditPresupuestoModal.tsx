@@ -389,6 +389,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             moneda={form.moneda}
             totals={totals}
             notasTecnicas={form.notasTecnicas}
+            tipoPresupuesto={form.tipo}
             onAddItem={addItem}
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}

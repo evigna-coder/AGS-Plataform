@@ -16,6 +16,7 @@ import { PresupuestoFormCliente } from './PresupuestoFormCliente';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { RichTextEditor } from '../ui/RichTextEditor';
+import { NotasTecnicasPlantillas } from './NotasTecnicasPlantillas';
 
 interface Props {
   open: boolean;
@@ -172,6 +173,11 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <hr className="border-[#E5E5E5]" />
         <div>
           <label className={lbl}>Notas tecnicas</label>
+          <NotasTecnicasPlantillas
+            tipo={h.form.tipo}
+            value={h.form.notasTecnicas || ''}
+            onChange={html => h.setForm({ ...h.form, notasTecnicas: html })}
+          />
           <RichTextEditor value={h.form.notasTecnicas || ''}
             onChange={html => h.setForm({ ...h.form, notasTecnicas: html })}
             placeholder="Observaciones tecnicas..." />
