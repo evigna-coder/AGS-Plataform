@@ -11,6 +11,8 @@ import { ImportacionCosteoPanel } from './ImportacionCosteoPanel';
 import { ImportacionIngresarStockModal } from './ImportacionIngresarStockModal';
 import { ImportacionDocumentosSection } from './ImportacionDocumentosSection';
 import { resumenRecepcion } from '../../utils/importacionRecepcion';
+import { useConfirm } from '../ui/ConfirmDialog';
+import { importacionesService } from '../../services/firebaseService';
 
 interface Props {
   open: boolean;
@@ -27,6 +29,7 @@ const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-w
 export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSaved, prefill }) => {
   const navigate = useNavigate();
   const h = useImportacionForm(impId, open, prefill);
+  const confirm = useConfirm();
 
   const costeo = useMemo(() => computeCosteoImportacion({
     items: h.items, articulosById: h.articulosById, gastos: h.gastos,
@@ -117,6 +120,49 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   const title = h.imp ? `Importación · OC ${h.ordenCompraNumero}` : 'Nueva importación';
   const seleccionarOC = !impId && !prefill;
 
+  /**
+   * Borrar / cancelar la importacion (2026-08-20). No existia ninguna de las dos:
+   * una importacion cargada por error quedaba para siempre en el listado.
+   *
+   * Se ELIMINA solo si no ingreso nada a stock. Con unidades ya creadas, borrar
+   * el embarque las dejaria huerfanas —sin de donde salieron ni con que factor de
+   * costeo— y eso no se reconstruye. Ese caso se CANCELA, que deja el rastro.
+   */
+  const yaIngresoStock = !!h.imp?.stockIngresado
+    || (h.imp?.items ?? []).some(it => (it.cantidadRecibida ?? 0) > 0);
+
+  const handleEliminar = async () => {
+    if (!h.imp) return;
+    const ok = await confirm({
+      title: 'Eliminar importacion',
+      message: `Se borra la importacion de la OC ${h.ordenCompraNumero} con todos sus datos de embarque, aduana y gastos.
+
+No ingreso ninguna unidad a stock, asi que no queda nada colgado. La accion no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    await importacionesService.delete(h.imp.id);
+    onSaved?.();
+    onClose();
+  };
+
+  const handleCancelarImportacion = async () => {
+    if (!h.imp) return;
+    const ok = await confirm({
+      title: 'Cancelar importacion',
+      message: `La importacion queda en estado Cancelada. Se conserva el historial y las unidades que ya ingresaron a stock.
+
+No se van a poder ingresar mas unidades por este embarque.`,
+      confirmLabel: 'Cancelar importacion',
+      danger: true,
+    });
+    if (!ok) return;
+    await importacionesService.update(h.imp.id, { estado: 'cancelado' });
+    onSaved?.();
+    onClose();
+  };
+
   const footer = (
     <>
       {h.imp && (
@@ -124,6 +170,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
           onClick={() => { onClose(); navigate(`/stock/importaciones/${h.imp!.id}`); }}>
           Detalle completo
         </Button>
+      )}
+      {h.imp && h.imp.estado !== 'cancelado' && (
+        yaIngresoStock
+          ? <Button variant="ghost" size="sm" className="text-amber-600 hover:text-amber-800"
+              onClick={() => void handleCancelarImportacion()}>Cancelar importacion</Button>
+          : <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800"
+              onClick={() => void handleEliminar()}>Eliminar</Button>
       )}
       {puedeIngresar && (
         <Button variant="secondary" size="sm" onClick={() => setShowIngresar(true)}>

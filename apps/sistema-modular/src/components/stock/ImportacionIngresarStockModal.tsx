@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Importacion, ItemImportacion, PosicionStock, Articulo } from '@ags/shared';
+import { POSICION_INGRESOS_CODIGO } from '@ags/shared';
 import { Modal } from '../ui/Modal';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { Button } from '../ui/Button';
 import { posicionesStockService, articulosService } from '../../services/stockService';
 import { useIngresarStock, type RecepcionItem } from '../../hooks/useIngresarStock';
@@ -31,8 +33,33 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
   );
   const { ingresarStock, loading, error } = useIngresarStock();
 
+  /**
+   * Posicion para TODOS los renglones (2026-08-20). En una OC de 30 items,
+   * elegir la posicion uno por uno es el cuello de botella de la recepcion, y
+   * casi siempre entra todo al mismo lugar. Se sigue pudiendo cambiar renglon
+   * por renglon despues: esto precarga, no bloquea.
+   */
+  const [posicionTodos, setPosicionTodos] = useState('');
+
   useEffect(() => {
-    posicionesStockService.getAll(true).then(all => setPosiciones(all.filter(p => p.codigo !== 'RESERVAS')));
+    posicionesStockService.getAll(true).then(all => {
+      const usables = all.filter(p => p.codigo !== 'RESERVAS');
+      setPosiciones(usables);
+      // Preseleccionar INGRESOS (2026-08-20): es adonde entra casi todo. Se
+      // aplica a los renglones ya inicializados y se puede cambiar igual, uno
+      // por uno o con el selector de arriba.
+      const ingresos = usables.find(p => p.codigo?.toUpperCase() === POSICION_INGRESOS_CODIGO);
+      if (!ingresos) return;
+      setPosicionTodos(ingresos.id);
+      setItemStates(prev => {
+        const next = { ...prev };
+        for (const id of Object.keys(next)) {
+          if (next[id].posicionId) continue; // respeta lo que ya eligió el usuario
+          next[id] = { ...next[id], posicionId: ingresos.id, posicionNombre: ingresos.nombre };
+        }
+        return next;
+      });
+    });
     const ids = Array.from(new Set(items.map(i => i.articuloId).filter(Boolean) as string[]));
     Promise.all(ids.map(id => articulosService.getById(id).catch(() => null)))
       .then(arts => setArticulosById(new Map(arts.filter((a): a is Articulo => !!a).map(a => [a.id, a]))));
@@ -46,6 +73,18 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
   const handlePosicion = (itemId: string, posicionId: string) => {
     const pos = posiciones.find(p => p.id === posicionId);
     patch(itemId, { posicionId, posicionNombre: pos?.nombre ?? '' });
+  };
+
+  const aplicarPosicionATodos = (posicionId: string) => {
+    setPosicionTodos(posicionId);
+    const pos = posiciones.find(p => p.id === posicionId);
+    setItemStates(prev => {
+      const next = { ...prev };
+      for (const it of items) {
+        next[it.id] = { ...next[it.id], posicionId, posicionNombre: pos?.nombre ?? '' };
+      }
+      return next;
+    });
   };
 
   const verificadosCount = items.filter(it => itemStates[it.id]?.verificado).length;
@@ -123,14 +162,24 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
               </p>
             </div>
           )}
-          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-            <p className="text-[11px] text-slate-500">
-              Cada unidad se vincula a <span className="font-mono text-teal-700">OC {imp.ordenCompraNumero}</span>
-              {imp.despachoNumero && <> y al despacho <span className="font-mono text-teal-700">{imp.despachoNumero}</span></>}.
-            </p>
-            <button type="button" onClick={toggleTodos} className="text-[11px] font-medium text-teal-600 hover:underline shrink-0">
-              {allVerificados ? 'Destildar todos' : 'Tildar todos'}
-            </button>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-500">
+                Cada unidad se vincula a <span className="font-mono text-teal-700">OC {imp.ordenCompraNumero}</span>
+                {imp.despachoNumero && <> y al despacho <span className="font-mono text-teal-700">{imp.despachoNumero}</span></>}.
+              </p>
+              <button type="button" onClick={toggleTodos} className="text-[11px] font-medium text-teal-600 hover:underline shrink-0">
+                {allVerificados ? 'Destildar todos' : 'Tildar todos'}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-wide text-slate-400 shrink-0">Posicion para todos</span>
+              <div className="w-64">
+                <SearchableSelect value={posicionTodos} onChange={aplicarPosicionATodos}
+                  options={posicionOptions} placeholder="Elegi una y se aplica a todos..." size="sm" />
+              </div>
+              <span className="text-[10px] text-slate-400">Se puede cambiar renglon por renglon.</span>
+            </div>
           </div>
 
           {confirmandoFaltantes && noTildados.length > 0 && (
@@ -146,6 +195,7 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
               <p className="text-[11px] text-amber-600 mt-1.5">La importación quedará abierta para ingresar el faltante en otra recepción (o cerrarla incompleta desde el detalle). ¿Confirmás?</p>
             </div>
           )}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
           {items.map(it => (
             <IngresarStockItemRow
               key={it.id}
@@ -157,6 +207,7 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
               onPosicion={posId => handlePosicion(it.id, posId)}
             />
           ))}
+          </div>
         </div>
       )}
     </Modal>

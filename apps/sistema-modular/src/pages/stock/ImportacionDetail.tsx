@@ -79,6 +79,46 @@ export const ImportacionDetail = () => {
     if (done) loadData();
   };
 
+  /**
+   * Borrar la importación (2026-08-20). No existía: una importación cargada por
+   * error quedaba para siempre en el listado.
+   *
+   * Solo si NO ingresó nada a stock. Con unidades ya creadas, borrar el embarque
+   * las dejaría huérfanas —sin de dónde salieron ni con qué factor de costeo— y
+   * eso no se puede reconstruir. Ese caso se CANCELA, que deja el rastro.
+   */
+  const yaIngresoStock = (imp?.items ?? []).some(it => (it.cantidadRecibida ?? 0) > 0);
+
+  const handleEliminar = async () => {
+    if (!imp) return;
+    const ok = await confirm({
+      title: 'Eliminar importación',
+      message: `Se borra la importación de la OC ${imp.ordenCompraNumero} con todos sus datos de embarque, aduana y gastos.
+
+No ingresó ninguna unidad a stock, así que no queda nada colgado. La acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    await importacionesService.delete(imp.id);
+    navigate('/stock/importaciones');
+  };
+
+  const handleCancelar = async () => {
+    if (!imp) return;
+    const ok = await confirm({
+      title: 'Cancelar importación',
+      message: `La importación queda en estado Cancelada. Se conserva todo el historial y las unidades que ya ingresaron a stock.
+
+No se van a poder ingresar más unidades por este embarque.`,
+      confirmLabel: 'Cancelar importación',
+      danger: true,
+    });
+    if (!ok) return;
+    await importacionesService.update(imp.id, { estado: 'cancelado' });
+    loadData();
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
@@ -109,6 +149,11 @@ export const ImportacionDetail = () => {
               <Button size="sm" onClick={() => setShowIngresarStock(true)}>
                 {recepcionParcial ? 'Ingresar faltante' : 'Ingresar al stock'}
               </Button>
+            )}
+            {imp.estado !== 'cancelado' && (
+              yaIngresoStock
+                ? <Button variant="outline" size="sm" onClick={() => void handleCancelar()}>Cancelar importación</Button>
+                : <Button variant="outline" size="sm" onClick={() => void handleEliminar()}>Eliminar</Button>
             )}
             <Button variant="ghost" size="sm" onClick={() => goBack()}>Volver</Button>
           </div>
