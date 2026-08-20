@@ -9,6 +9,86 @@ import {
   registrarMovimientoAsignacion,
 } from './asignacionesStockHelpers';
 
+
+/** Claves de identidad de un ítem, para cruzar una línea de asignación con una de remito. */
+function clavesDeItem(x: {
+  unidadId?: string | null; instrumentoId?: string | null; minikitId?: string | null;
+  dispositivoId?: string | null; vehiculoId?: string | null;
+  patronId?: string | null; patronLote?: string | null;
+  columnaId?: string | null; columnaSerie?: string | null;
+}): string[] {
+  return [
+    x.unidadId ? `u:${x.unidadId}` : null,
+    x.instrumentoId ? `i:${x.instrumentoId}` : null,
+    x.minikitId ? `m:${x.minikitId}` : null,
+    x.dispositivoId ? `d:${x.dispositivoId}` : null,
+    x.vehiculoId ? `v:${x.vehiculoId}` : null,
+    // Patrón + LOTE y columna + SERIE: el mismo kit puede salir con dos lotes.
+    x.patronId ? `p:${x.patronId}|${x.patronLote ?? ''}` : null,
+    x.columnaId ? `c:${x.columnaId}|${x.columnaSerie ?? ''}` : null,
+  ].filter((k): k is string => !!k);
+}
+
+const REMITO_ESTADOS_CERRADOS = ['completado', 'cancelado'];
+
+/**
+ * Resolver las líneas de los OTROS remitos abiertos del ingeniero que llevan
+ * estos mismos ítems (2026-08-20).
+ *
+ * Por qué hace falta: la asignación guarda UN `remitoId`, el que se emitió con
+ * ella. Pero "Crear remito desde inventario" arma remitos con material que el
+ * IST ya tiene, agrupando varias asignaciones en un papel — ese remito no queda
+ * vinculado a ninguna. Al devolver, se cerraba el remito original y el otro
+ * quedaba abierto para siempre (caso 0001-00017437: 4 líneas de DOS asignaciones
+ * distintas, las dos completadas y devueltas, el remito en 'confirmado').
+ *
+ * El cruce es por CONTENIDO porque no hay vínculo que seguir. Una pieza física
+ * está en un solo lugar: si volvió, su línea está resuelta en todo remito que la
+ * lleve.
+ *
+ * Best-effort: no bloquea la devolución si falla.
+ */
+async function resolverLineasEnOtrosRemitos(params: {
+  ingenieroId: string | null | undefined;
+  claves: Set<string>;
+  modo: 'devuelto' | 'consumido';
+  excluirRemitoId?: string | null;
+}): Promise<void> {
+  const { ingenieroId, claves, modo } = params;
+  if (!ingenieroId || claves.size === 0) return;
+  try {
+    const { remitosService } = await import('./firebaseService');
+    const delIngeniero = await remitosService.getAll({ ingenieroId });
+    const nowIso = new Date().toISOString();
+
+    for (const remito of delIngeniero) {
+      if (remito.id === params.excluirRemitoId) continue;
+      if (REMITO_ESTADOS_CERRADOS.includes(remito.estado)) continue;
+
+      let tocados = 0;
+      const items = (remito.items ?? []).map(ri => {
+        if (ri.devuelto || ri.consumido) return ri;
+        if (!clavesDeItem(ri).some(k => claves.has(k))) return ri;
+        tocados++;
+        return modo === 'devuelto'
+          ? { ...ri, devuelto: true, fechaDevolucion: nowIso }
+          : { ...ri, consumido: true, fechaConsumo: nowIso, cantidadConsumida: ri.cantidad };
+      });
+      if (tocados === 0) continue;
+
+      const todas = items.length > 0 && items.every(ri => ri.devuelto || ri.consumido);
+      const alguna = items.some(ri => ri.devuelto || ri.consumido);
+      await remitosService.update(remito.id, {
+        items,
+        estado: todas ? 'completado' : (alguna ? 'completado_parcial' : remito.estado),
+        ...(todas ? { fechaDevolucion: nowIso } : {}),
+      });
+    }
+  } catch (err) {
+    console.error('[asignaciones] cierre de remitos por contenido falló (no bloquea):', err);
+  }
+}
+
 export const asignacionesService = {
   // Atómico vía counter doc — antes era scan-and-max no transaccional.
   async getNextNumero(): Promise<string> {
@@ -192,6 +272,14 @@ export const asignacionesService = {
       }
     }
 
+    // Otros remitos abiertos que llevan estos mismos ítems (ver el helper).
+    await resolverLineasEnOtrosRemitos({
+      ingenieroId: asg.ingenieroId,
+      claves: new Set(reciénDevueltos.flatMap(({ item }) => clavesDeItem(item))),
+      modo: 'devuelto',
+      excluirRemitoId: asg.remitoId,
+    });
+
     if (opts?.skipEntityEffects) return;
 
     // B2: destino de las unidades devueltas — la posición ORIGINAL de la que
@@ -341,11 +429,29 @@ export const asignacionesService = {
           const consumidasUnidades = new Set(reciénConsumidos.map(i => i.unidadId).filter(Boolean));
           const consumidosOtros = new Set(
             reciénConsumidos.flatMap(i => [i.instrumentoId, i.minikitId, i.dispositivoId].filter(Boolean)));
+          // Patrones y columnas (2026-08-20): faltaban acá aunque el bloque espejo
+          // de devolverItems ya los contemplaba. Consumir un lote de patrón o una
+          // serie de columna NO resolvía su línea, y el remito quedaba abierto
+          // para siempre — con los consumos saliendo casi todos de patrones BOM,
+          // eso dejaba una pila de remitos vivos por ingeniero.
+          //
+          // Mismo criterio de matcheo que la devolución: patrón + LOTE y columna
+          // + SERIE, porque el mismo kit puede salir con dos lotes distintos.
+          const consumidosPatrones = new Set(
+            reciénConsumidos
+              .filter(i => i.patronId)
+              .map(i => `${i.patronId}|${i.patronLote ?? ''}`));
+          const consumidasColumnas = new Set(
+            reciénConsumidos
+              .filter(i => i.columnaId)
+              .map(i => `${i.columnaId}|${i.columnaSerie ?? ''}`));
           const matchea = (ri: (typeof remito.items)[number]) =>
             (ri.unidadId && consumidasUnidades.has(ri.unidadId))
             || (ri.instrumentoId && consumidosOtros.has(ri.instrumentoId))
             || (ri.minikitId && consumidosOtros.has(ri.minikitId))
-            || (ri.dispositivoId && consumidosOtros.has(ri.dispositivoId));
+            || (ri.dispositivoId && consumidosOtros.has(ri.dispositivoId))
+            || (ri.patronId && consumidosPatrones.has(`${ri.patronId}|${ri.patronLote ?? ''}`))
+            || (ri.columnaId && consumidasColumnas.has(`${ri.columnaId}|${ri.columnaSerie ?? ''}`));
           const itemsRemito = (remito.items ?? []).map(ri =>
             matchea(ri) && !ri.devuelto && !ri.consumido
               ? { ...ri, consumido: true, fechaConsumo: nowIso, cantidadConsumida: ri.cantidad }
@@ -361,6 +467,14 @@ export const asignacionesService = {
         console.error('[consumirItems] cierre del remito vinculado falló (no bloquea):', err);
       }
     }
+
+    // Otros remitos abiertos que llevan estos mismos ítems (ver el helper).
+    await resolverLineasEnOtrosRemitos({
+      ingenieroId: asg.ingenieroId,
+      claves: new Set(reciénConsumidos.flatMap(i => clavesDeItem(i))),
+      modo: 'consumido',
+      excluirRemitoId: asg.remitoId,
+    });
 
     // B1: efectos de stock del consumo en campo — descontar existencias y dejar el
     // MovimientoStock 'consumo' (ingeniero → consumo_ot). Best-effort post-update,
