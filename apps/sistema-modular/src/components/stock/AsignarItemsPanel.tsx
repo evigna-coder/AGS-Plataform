@@ -51,7 +51,14 @@ export const AsignarItemsPanel = ({
       <div className="flex-1 overflow-y-auto space-y-0.5">
         {tab === 'articulos' && (filteredUnits.length === 0 ? <Empty /> :
           filteredUnits.map(u => <DragRow key={u.id} onDragStart={startDrag(unitPayload(u))}
-            code={u.articuloCodigo} label={u.articuloDescripcion} extra={u.nroSerie ? `S/N: ${u.nroSerie}` : u.ubicacion.referenciaNombre} />))}
+            code={u.articuloCodigo} label={u.articuloDescripcion}
+            extra={u.estado === 'reservado'
+              // Para quién está apartada: se puede asignar igual, pero quien
+              // arma el bolso tiene que ver que esa pieza tiene dueño.
+              ? `RESERVADO ${u.reservadoParaClienteNombre ?? ''}${u.reservadoParaPresupuestoNumero ? ` (${u.reservadoParaPresupuestoNumero})` : ''}`.trim()
+              : (u.nroSerie ? `S/N: ${u.nroSerie}` : u.ubicacion.referenciaNombre)}
+            badge={u.estado === 'reservado' ? 'Reservado' : undefined}
+            badgeColor="bg-amber-50 text-amber-700" />))}
         {tab === 'minikits' && (filteredMinikits.length === 0 ? <Empty /> :
           filteredMinikits.map(mk => <DragRow key={mk.id} onDragStart={startDrag(minikitPayload(mk))}
             code={mk.codigo} label={mk.nombre} badge="En base" badgeColor="bg-green-50 text-green-700" />))}

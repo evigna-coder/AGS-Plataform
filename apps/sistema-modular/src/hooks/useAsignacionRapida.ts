@@ -168,8 +168,20 @@ export function useAsignacionRapida() {
   useEffect(() => { loadData(); }, [loadData]);
 
   // --- Available items ---
+  /**
+   * Reservadas incluidas (2026-08-20): la reserva aparta la pieza PARA un
+   * presupuesto, y cuando ese trabajo se hace el IST es justamente quien tiene
+   * que llevarla. Excluirlas obligaba a liberar la reserva primero — que la
+   * devuelve al pool y la deja agarrar por cualquiera, perdiendo el apartado en
+   * el momento en que más sirve.
+   *
+   * La reserva NO se pierde al asignar: `reservadoParaPresupuestoId/Numero` y el
+   * cliente viajan en el doc de la unidad, y el update de asignación no los toca.
+   * Mismo criterio que el editor de remitos, que ya las ofrece marcadas.
+   */
   const availableUnits = unidades.filter(u =>
-    u.estado === 'disponible' && u.ubicacion?.tipo === 'posicion' && !cart.some(c => c.unidadId === u.id)
+    (u.estado === 'disponible' || u.estado === 'reservado')
+    && u.ubicacion?.tipo === 'posicion' && !cart.some(c => c.unidadId === u.id)
   );
   const availableMinikits = minikits.filter(mk =>
     mk.estado === 'en_base' && !cart.some(c => c.minikitId === mk.id)
@@ -508,7 +520,8 @@ export function useAsignacionRapida() {
               cantidad: cantidadReal(c),
               nroSerie: unidad?.nroSerie ?? null, nroLote: unidad?.nroLote ?? null,
               // 'transito' no es un TipoOrigenDestino válido; los asignables son
-              // siempre unidades en posición (ver filtro availableUnits).
+              // siempre unidades en posición (ver filtro availableUnits) — las
+              // reservadas también, viven en la posición RESERVAS.
               origenTipo: origen && origen.tipo !== 'transito' ? origen.tipo : 'posicion',
               origenId: origen?.referenciaId ?? '',
               origenNombre: origen?.referenciaNombre ?? 'Stock',

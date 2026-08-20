@@ -309,8 +309,12 @@ export const movimientosAplicarService = {
       const snap = await tx.get(unidadRef);
       if (!snap.exists()) throw new Error(`Unidad ${params.unidad.id} no encontrada`);
       const data = snap.data();
-      if (data.estado !== 'disponible' || data.activo === false) {
-        throw new Error(`Unidad no fraccionable — estado '${data.estado}' (esperaba 'disponible')`);
+      // 'reservado' vale (2026-08-20): al asignarle a un IST parte de un lote
+      // reservado hay que poder partirlo. El split copia el doc entero (`rest`),
+      // así que las dos mitades conservan la reserva — la que se lleva el IST y
+      // la que queda en RESERVAS.
+      if ((data.estado !== 'disponible' && data.estado !== 'reservado') || data.activo === false) {
+        throw new Error(`Unidad no fraccionable — estado '${data.estado}' (esperaba 'disponible' o 'reservado')`);
       }
       const qtyActual = data.cantidad ?? 1;
       const pedida = Math.min(params.cantidad, qtyActual);
