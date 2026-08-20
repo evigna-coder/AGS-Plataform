@@ -26,6 +26,18 @@ interface AgendaReservaModalProps {
   fecha: string;
   onClose: () => void;
   onCreate: (datos: ReservaServicioDatos) => Promise<void>;
+  /**
+   * Valores iniciales para EDITAR una reserva ya creada (2026-08-20). Vienen de
+   * la previsión, no de la entrada de agenda: la entrada guarda solo nombres y
+   * los selectores necesitan ids.
+   */
+  initial?: {
+    clienteId: string;
+    establecimientoId: string;
+    sistemaId: string;
+    tipoServicioId: string;
+    notas: string;
+  } | null;
 }
 
 const Campo = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -42,12 +54,13 @@ const Campo = ({ label, children }: { label: string; children: React.ReactNode }
  * celda del ingeniero y crea una previsión pendiente de convertir a OT.
  * Caso típico: servicios del año siguiente que hoy solo existen como plan.
  */
-export const AgendaReservaModal = ({ ingenieroNombre, fecha, onClose, onCreate }: AgendaReservaModalProps) => {
+export const AgendaReservaModal = ({ ingenieroNombre, fecha, onClose, onCreate, initial }: AgendaReservaModalProps) => {
+  const editando = !!initial;
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
-  const [form, setForm] = useState({ clienteId: '', establecimientoId: '', sistemaId: '', tipoServicioId: '', notas: '' });
+  const [form, setForm] = useState(initial ?? { clienteId: '', establecimientoId: '', sistemaId: '', tipoServicioId: '', notas: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -115,12 +128,12 @@ export const AgendaReservaModal = ({ ingenieroNombre, fecha, onClose, onCreate }
   };
 
   return (
-    <Modal open title="Reservar servicio (sin OT)" subtitle={`${ingenieroNombre} · ${fecha}`} onClose={onClose}>
+    <Modal open title={editando ? 'Editar reserva de servicio' : 'Reservar servicio (sin OT)'} subtitle={`${ingenieroNombre} · ${fecha}`} onClose={onClose}>
       <div className="space-y-3">
         <p className="text-[11px] text-slate-500">
-          Ocupa la agenda con un servicio que todavía no tiene orden de trabajo.
-          Queda como <span className="font-medium">previsión</span> en Órdenes de trabajo → Previsiones,
-          lista para convertirse en OT.
+          {editando
+            ? <>Los cambios se aplican también a la <span className="font-medium">previsión</span> en Órdenes de trabajo → Previsiones. Para cambiar el día o el ingeniero, arrastrá la celda.</>
+            : <>Ocupa la agenda con un servicio que todavía no tiene orden de trabajo. Queda como <span className="font-medium">previsión</span> en Órdenes de trabajo → Previsiones, lista para convertirse en OT.</>}
         </p>
         <Campo label="Cliente">
           <SearchableSelect
@@ -175,7 +188,7 @@ export const AgendaReservaModal = ({ ingenieroNombre, fecha, onClose, onCreate }
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button size="sm" onClick={handleCrear} disabled={saving || !form.clienteId || !form.tipoServicioId}>
-            {saving ? 'Reservando...' : 'Reservar agenda'}
+            {saving ? (editando ? 'Guardando...' : 'Reservando...') : (editando ? 'Guardar cambios' : 'Reservar agenda')}
           </Button>
         </div>
       </div>

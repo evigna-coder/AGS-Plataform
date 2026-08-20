@@ -87,7 +87,7 @@ export const AgendaPage: FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [selectionRange, setSelectionRange] = useState<SelectionRange | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4 } | null>(null);
-  const [manualTaskInput, setManualTaskInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue?: string } | null>(null);
+  const [manualTaskInput, setManualTaskInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue?: string; editEntryId?: string } | null>(null);
   const manualTaskInputRef = useRef<HTMLInputElement>(null);
   /** Comentario de celda (estilo Excel) — pedido 2026-07-30. */
   const [notaInput, setNotaInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue: string; notaId: string | null } | null>(null);
@@ -95,7 +95,12 @@ export const AgendaPage: FC = () => {
   /** Buscador con salto a celda (Ctrl+B) — pedido 2026-08-03. */
   const [showBuscador, setShowBuscador] = useState(false);
   /** Reserva de servicio sin OT (previsión manual) — pedido 2026-08-03. */
-  const [reservaTarget, setReservaTarget] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4 } | null>(null);
+  const [reservaTarget, setReservaTarget] = useState<{
+    ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4;
+    /** Edición de una reserva ya creada (2026-08-20). */
+    editEntryId?: string;
+    initial?: { clienteId: string; establecimientoId: string; sistemaId: string; tipoServicioId: string; notas: string };
+  } | null>(null);
   /** Celda destino de un salto del buscador: sobrevive al clear de navegación. */
   const jumpTargetRef = useRef<SelectedCell | null>(null);
 
@@ -139,6 +144,30 @@ export const AgendaPage: FC = () => {
   const handleCrearReserva = useCallback(async (datos: ReservaServicioDatos) => {
     const tgt = reservaTarget;
     if (!tgt) return;
+    // Edición (2026-08-20): se actualizan la entrada de la grilla Y la previsión.
+    // La fecha y el ingeniero NO se tocan acá — eso lo maneja el arrastre, que ya
+    // sincroniza la previsión por su lado (`syncDesdeReserva`).
+    if (tgt.editEntryId) {
+      updateEntry(tgt.editEntryId, {
+        clienteNombre: datos.clienteNombre,
+        tipoServicio: datos.tipoServicio,
+        sistemaNombre: datos.sistemaNombre,
+        establecimientoNombre: datos.establecimientoNombre,
+        equipoAgsId: datos.equipoAgsId,
+        notas: datos.notas,
+        // La celda muestra otNumber || titulo — sin OT, se ve el cliente.
+        titulo: datos.clienteNombre,
+      });
+      await previsionesService.actualizarDatosReserva(tgt.editEntryId, {
+        clienteId: datos.clienteId, clienteNombre: datos.clienteNombre,
+        establecimientoId: datos.establecimientoId, establecimientoNombre: datos.establecimientoNombre,
+        sistemaId: datos.sistemaId, sistemaNombre: datos.sistemaNombre,
+        equipoAgsId: datos.equipoAgsId,
+        tipoServicioId: datos.tipoServicioId, tipoServicio: datos.tipoServicio,
+        notas: datos.notas,
+      });
+      return;
+    }
     const entryId = await createEntry({
       fechaInicio: tgt.fecha,
       fechaFin: tgt.fecha,
@@ -175,7 +204,7 @@ export const AgendaPage: FC = () => {
       tipoServicio: datos.tipoServicio,
       notas: datos.notas,
     });
-  }, [reservaTarget, createEntry]);
+  }, [reservaTarget, createEntry, updateEntry]);
 
   /** Salto del buscador: navegar a la fecha, seleccionar la celda y scrollearla. */
   const handleJumpToEntry = useCallback((entry: AgendaEntry) => {
@@ -708,6 +737,13 @@ export const AgendaPage: FC = () => {
 
   const handleConfirmManualTask = useCallback((titulo: string) => {
     if (!manualTaskInput || !titulo.trim()) { setManualTaskInput(null); return; }
+    // Edición (2026-08-20): una tarea manual escrita mal quedaba para siempre —
+    // la única salida era borrarla y volver a escribirla.
+    if (manualTaskInput.editEntryId) {
+      updateEntry(manualTaskInput.editEntryId, { titulo: titulo.trim() });
+      setManualTaskInput(null);
+      return;
+    }
     createEntry({
       fechaInicio: manualTaskInput.fecha,
       fechaFin: manualTaskInput.fecha,
@@ -725,7 +761,56 @@ export const AgendaPage: FC = () => {
       titulo: titulo.trim(),
     });
     setManualTaskInput(null);
-  }, [manualTaskInput, createEntry]);
+  }, [manualTaskInput, createEntry, updateEntry]);
+
+  /**
+   * Doble click sobre una tarea manual: reabre el mismo input con el título
+   * cargado (2026-08-20).
+   *
+   * Solo entradas SIN OT y CON título: las que vienen de una OT se editan en la
+   * OT, y las reservas de servicio no tienen título (llevan cliente y tipo), así
+   * que quedan afuera solas.
+   */
+  const handleCellDoubleClick = useCallback((
+    ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, e: React.MouseEvent,
+  ) => {
+    const enCelda = findEntriesAtCell(entries, ingenieroId, fecha, quarter).filter(en => !en.otNumber);
+    const ing = ingenieros.find(i => i.id === ingenieroId);
+
+    // Reserva de servicio: tiene cliente. Se edita en su propio modal porque
+    // lleva ids (cliente/establecimiento/equipo/tipo) y una previsión atrás.
+    const reserva = enCelda.find(en => (en.clienteNombre ?? '').trim());
+    if (reserva) {
+      void previsionesService.getByReservaEntry(reserva.id).then(prev => {
+        setReservaTarget({
+          ingenieroId, ingenieroNombre: ing?.nombre || '', fecha, quarter,
+          editEntryId: reserva.id,
+          initial: {
+            clienteId: prev?.clienteId ?? '',
+            establecimientoId: prev?.establecimientoId ?? '',
+            sistemaId: prev?.sistemaId ?? '',
+            tipoServicioId: prev?.tipoServicioId ?? '',
+            notas: prev?.notas ?? reserva.notas ?? '',
+          },
+        });
+      }).catch(err => console.error('[AgendaPage] no se pudo leer la previsión de la reserva:', err));
+      return;
+    }
+
+    // Tarea manual o evento fijo: solo título, input inline.
+    const manual = enCelda.find(en => (en.titulo ?? '').trim());
+    if (!manual) return;
+    setManualTaskInput({
+      ingenieroId,
+      ingenieroNombre: ing?.nombre || '',
+      fecha,
+      quarter,
+      x: e.clientX,
+      y: e.clientY,
+      initialValue: manual.titulo ?? '',
+      editEntryId: manual.id,
+    });
+  }, [entries, ingenieros]);
 
   // Close context menu on click anywhere
   useEffect(() => {
@@ -1038,6 +1123,7 @@ export const AgendaPage: FC = () => {
         <AgendaReservaModal
           ingenieroNombre={reservaTarget.ingenieroNombre}
           fecha={reservaTarget.fecha}
+          initial={reservaTarget.initial ?? null}
           onClose={() => setReservaTarget(null)}
           onCreate={handleCrearReserva}
         />
@@ -1099,6 +1185,7 @@ export const AgendaPage: FC = () => {
                 onEntryClick={handleEntryClick}
                 onWeekClick={handleWeekClick}
                 onCellContextMenu={handleContextMenu}
+                onCellDoubleClick={handleCellDoubleClick}
                 feriados={feriados}
                 onToggleFeriado={toggleFeriado}
                 notas={notas}
@@ -1320,7 +1407,7 @@ export const AgendaPage: FC = () => {
                 onClick={() => handleConfirmManualTask(manualTaskInputRef.current?.value || '')}
                 className="text-xs bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700"
               >
-                Crear
+                {manualTaskInput.editEntryId ? 'Guardar' : 'Crear'}
               </button>
             </div>
           </div>

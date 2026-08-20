@@ -146,6 +146,43 @@ export const previsionesService = {
     }
   },
 
+  /**
+   * La previsión de una reserva manual de agenda, si existe (2026-08-20).
+   * La entrada de agenda guarda NOMBRES; los ids (cliente, establecimiento,
+   * sistema, tipo) viven solo acá, así que editar la reserva necesita este doc.
+   */
+  async getByReservaEntry(entryId: string): Promise<AgendaPrevision | null> {
+    const snap = await getDocs(query(collection(db, COL), where('reservaAgendaEntryId', '==', entryId)));
+    const viva = snap.docs.find(d => {
+      const estado = (d.data().estado ?? 'prevista') as EstadoPrevision;
+      return estado !== 'convertida' && estado !== 'descartada';
+    });
+    return viva ? parsePrevision(viva.id, viva.data()) : null;
+  },
+
+  /**
+   * Editar los DATOS de una reserva manual (2026-08-20): cliente, establecimiento,
+   * equipo, tipo y notas. `syncDesdeReserva` solo sigue fecha e ingeniero, que es
+   * lo que cambia al arrastrar; esto es para cuando la reserva se cargó mal.
+   *
+   * Una previsión ya convertida a OT no se toca: sus datos los manda la OT.
+   */
+  async actualizarDatosReserva(entryId: string, datos: {
+    clienteId: string | null; clienteNombre: string;
+    establecimientoId: string | null; establecimientoNombre: string | null;
+    sistemaId: string | null; sistemaNombre: string | null;
+    equipoAgsId: string | null;
+    tipoServicioId: string | null; tipoServicio: string;
+    notas: string | null;
+  }): Promise<void> {
+    const snap = await getDocs(query(collection(db, COL), where('reservaAgendaEntryId', '==', entryId)));
+    for (const d of snap.docs) {
+      const estado = (d.data().estado ?? 'prevista') as EstadoPrevision;
+      if (estado === 'convertida' || estado === 'descartada') continue;
+      await this.update(d.id, datos);
+    }
+  },
+
   /** Re-vincular la previsión tras un CORTAR/PEGAR de la reserva (2026-08-03):
    *  la entrada vieja se borró y se recreó con otro id en otra celda. */
   async relinkReserva(oldEntryId: string, newEntryId: string, cambios: {

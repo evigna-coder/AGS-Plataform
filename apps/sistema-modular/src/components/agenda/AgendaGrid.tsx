@@ -16,6 +16,7 @@ interface AgendaGridProps {
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
   onWeekClick: (weekStart: Date) => void;
   onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
+  onCellDoubleClick?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
   feriados?: Set<string>;
   onToggleFeriado?: (fecha: string) => void;
   /** Comentarios de agenda (estilo Excel), por ingeniero+fecha. */
@@ -26,7 +27,7 @@ interface AgendaGridProps {
 
 export const AgendaGrid: FC<AgendaGridProps> = ({
   ingenieros, visibleDays, zoom, entries, selectedCellKey, selectionRange,
-  onCellClick, onEntryClick, onWeekClick, onCellContextMenu,
+  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, onCellDoubleClick,
   feriados, onToggleFeriado, notas, diasAgs,
 }) => {
   // Extract selected fecha from cellKey ("ingId:YYYY-MM-DD:quarter") for per-week filtering
@@ -103,6 +104,7 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
         onEntryClick={onEntryClick}
         onWeekClick={onWeekClick}
         onCellContextMenu={onCellContextMenu}
+        onCellDoubleClick={onCellDoubleClick}
         feriados={feriados}
         onToggleFeriado={onToggleFeriado}
         notas={notas}
@@ -111,7 +113,7 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
       />
     );
   }, [ingenieros, entriesByWeek, zoom, selectedFecha, selectedCellKey, selectionRange,
-      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado, notas, diasAgs, rowHeightPx]);
+      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, onCellDoubleClick, feriados, onToggleFeriado, notas, diasAgs, rowHeightPx]);
 
   // ── Views 1 & 2 (1S, 2S): vertical stack ──
   if (zoom === 'week' || zoom === '2weeks') {

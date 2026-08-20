@@ -48,6 +48,8 @@ interface AgendaGridCellProps {
   notaTexto?: string | null;
   onClick?: (e?: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  /** Doble click: editar la tarea manual de la celda (2026-08-20). */
+  onDoubleClick?: (e: React.MouseEvent) => void;
 }
 
 /** Lightweight cell — only re-renders when its own data changes. */
@@ -57,7 +59,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   entryVentaConcretada, entryPerIncident, entryEsperaImportacion,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
-  entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
+  entryRef, allEntriesRef, notaTexto, onClick, onContextMenu, onDoubleClick,
 }) => {
   const hasEntry = !!entryId;
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
@@ -132,6 +134,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         style={{ height: rowHeight }}
         {...(isSelected ? { 'data-agenda-selected': 'true' } : {})}
         onClick={(e) => onClick?.(e)}
+        onDoubleClick={(e) => onDoubleClick?.(e)}
         onContextMenu={(e) => {
           // Cerrar popover y globito: el menú contextual se abre en el mismo
           // lugar y quedaba tapado/mezclado con ellos (2026-08-03).

@@ -21,6 +21,7 @@ interface AgendaGridRowProps {
   onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => void;
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
   onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
+  onCellDoubleClick?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
 }
 
 export const AgendaGridRow = memo<AgendaGridRowProps>(({
@@ -38,6 +39,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
   onCellClick,
   onEntryClick,
   onCellContextMenu,
+  onCellDoubleClick,
 }) => {
   // Occupation map computed here — only recalculates when THIS engineer's entries change
   const occupation = useMemo(
@@ -115,6 +117,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
               else onCellClick(ingeniero.id, col.dateKey, col.quarter, e?.shiftKey);
             }}
             onContextMenu={onCellContextMenu ? (e) => onCellContextMenu(ingeniero.id, col.dateKey, col.quarter, e) : undefined}
+            onDoubleClick={onCellDoubleClick ? (e) => onCellDoubleClick(ingeniero.id, col.dateKey, col.quarter, e) : undefined}
           />
         );
       })}
