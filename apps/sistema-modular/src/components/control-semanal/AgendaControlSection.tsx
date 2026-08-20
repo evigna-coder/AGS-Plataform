@@ -72,7 +72,7 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ entry, entries, ingenieros, ot, estado, motivos }) => {
+            {rows.map(({ entry, entries, ingenieros, ot, estado, motivos, establecimientoNombre }) => {
               const ui = ESTADO_UI[estado];
               const grisada = estado === 'ot_no_encontrada';
               return (
@@ -90,7 +90,15 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
                       {entry.otNumber}
                     </button>
                   </td>
-                  <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]">{entry.clienteNombre || '—'}</td>
+                  <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]"
+                    title={establecimientoNombre ? `${entry.clienteNombre} (${establecimientoNombre})` : (entry.clienteNombre || '')}>
+                    {entry.clienteNombre || '—'}
+                    {/* Establecimiento entre parentesis solo si el cliente tiene
+                        varios: con uno solo no distingue nada (2026-08-20). */}
+                    {establecimientoNombre && (
+                      <span className="text-slate-400"> ({establecimientoNombre})</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[120px] whitespace-nowrap">
                     {/* Todos los que la tuvieron (2026-08-19): antes había una
                         fila por ingeniero y la OT salía repetida. */}

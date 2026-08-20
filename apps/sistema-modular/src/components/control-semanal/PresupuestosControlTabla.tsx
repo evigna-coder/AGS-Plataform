@@ -11,6 +11,15 @@ const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 trac
 const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
   if (row.avisoEnviado) return <p className="text-[10px] text-emerald-600 font-medium">✓ Aviso enviado</p>;
   const items: React.ReactNode[] = [];
+  // Aviso parcial (2026-08-20): se pasó una parte a facturar y falta el resto.
+  // Antes desaparecía del control como si estuviera resuelto.
+  if (row.avisoParcialPct != null) {
+    items.push(
+      <p key="parcial" className="text-[10px] text-amber-700 font-medium">
+        Aviso PARCIAL — {row.avisoParcialPct}% pasado a facturar, falta el {Math.max(0, 100 - row.avisoParcialPct)}%
+      </p>,
+    );
+  }
   if (row.pagoAnticipado) {
     items.push(
       <p key="anticipo" className="text-[10px] text-purple-700 font-medium">
@@ -118,7 +127,13 @@ export const PresupuestosControlTabla: React.FC<Props> = ({
                   {p.numero}
                 </button>
               </td>
-              <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]">{row.clienteNombre}</td>
+              <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[180px]"
+                title={row.establecimientoNombre ? `${row.clienteNombre} (${row.establecimientoNombre})` : row.clienteNombre}>
+                {row.clienteNombre}
+                {row.establecimientoNombre && (
+                  <span className="text-slate-400"> ({row.establecimientoNombre})</span>
+                )}
+              </td>
               <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap tabular-nums">
                 {sym} {(p.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
               </td>

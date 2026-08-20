@@ -48,6 +48,7 @@ export const ControlSemanal = () => {
     loading, error, refetch,
     agendaRows, agendaExcluidas, excluirDelControl, tareasSinOT, agendaKpis,
     entregasPendientes, entregasExcluidas, excluirEntregaDelControl, presupuestoIdByNumero,
+    establecimientoPorOT,
     presupuestoRows, presupuestosExcluidos, excluirPresupuestoDelControl, presupuestoKpis,
     facturacionRows, facturacionKpis,
   } = useControlSemanal(weekStart, weekEnd);
@@ -212,6 +213,7 @@ export const ControlSemanal = () => {
             />
             <EntregasControlSection
               entregas={entregasPendientes}
+              establecimientoPorOT={establecimientoPorOT}
               onExcluir={quitarEntregaDelControl}
               excluidas={entregasExcluidas.length}
               onVerExcluidas={reponerEntregas}

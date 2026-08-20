@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AgendaEntry, Cliente, CondicionPago, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
-import { esOTCerradaTecnicamente } from '@ags/shared';
+import type { AgendaEntry, Cliente, CondicionPago, Establecimiento, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
+import { esOTCerradaTecnicamente, establecimientoPerteneceACliente } from '@ags/shared';
 import { tieneOCDelCliente } from '../utils/analitica/presupuestosMetrics';
 import { OT_ESTADO_ORDER } from '../utils/agendaOTSync';
 import {
-  agendaService, clientesService, condicionesPagoService, facturacionService, ordenesTrabajoService, presupuestosService,
+  agendaService, clientesService, condicionesPagoService, establecimientosService, facturacionService,
+  ordenesTrabajoService, presupuestosService,
 } from '../services/firebaseService';
 
 // ── Tipos locales del control (no van a @ags/shared: solo los consume esta página) ──
@@ -19,6 +20,8 @@ export interface AgendaControlRow {
   /** Ingenieros que la tuvieron, sin repetir. */
   ingenieros: string[];
   ot: WorkOrder | null;
+  /** Establecimiento a mostrar entre paréntesis. null si el cliente tiene uno solo. */
+  establecimientoNombre: string | null;
   estado: AgendaControlEstado;
   /** Diagnósticos de por qué quedó sin cerrar (pueden ser varios). */
   motivos: string[];
@@ -27,8 +30,12 @@ export interface AgendaControlRow {
 export interface PresupuestoControlRow {
   presupuesto: Presupuesto;
   clienteNombre: string;
+  /** Establecimiento a mostrar entre paréntesis. null si el cliente tiene uno solo. */
+  establecimientoNombre: string | null;
   /** Existe una solicitud de facturación activa (no anulada). */
   avisoEnviado: boolean;
+  /** Aviso PARCIAL: % ya pasado a facturar. null = o no hay aviso, o está completo. */
+  avisoParcialPct: number | null;
   /** OTs del presupuesto que todavía no llegaron a cierre administrativo. */
   otsPendientes: { otNumber: string; estadoAdmin: OTEstadoAdmin | '' }[];
   /** El cliente todavía no mandó la orden de compra. */
@@ -154,6 +161,22 @@ export function otsDelPresupuesto(pres: Presupuesto, allOTs: WorkOrder[]): Set<s
   for (const ot of allOTs) {
     if ((ot.budgets || []).includes(pres.numero)) nums.add(ot.otNumber);
   }
+
+  // El vínculo lo manda la OT (2026-08-20). `otsVinculadasNumbers` vive en el
+  // presupuesto y se estampa al crear la OT, pero sacar el presupuesto de la OT
+  // NO lo limpia: el ppto seguía figurando en el control de esa semana aunque ya
+  // no tuviera nada que ver con la orden (caso Eriochem, ppto 005047 corregido a
+  // otra semana).
+  //
+  // Solo se descarta cuando la OT EXISTE y su `budgets` contradice el vínculo.
+  // Si la OT no está en la lista no se toca: no hay con qué verificar, y perder
+  // un vínculo real es peor que arrastrar uno viejo.
+  const otPorNumero = new Map(allOTs.map(o => [o.otNumber, o]));
+  for (const num of [...nums]) {
+    const ot = otPorNumero.get(num);
+    if (!ot) continue;
+    if (!(ot.budgets || []).includes(pres.numero)) nums.delete(num);
+  }
   const padresConHijas = new Set(
     allOTs.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
   for (const num of [...nums]) {
@@ -175,6 +198,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [ots, setOts] = useState<WorkOrder[]>([]);
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
@@ -213,14 +237,16 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       facturacionService.getAll(),
       clientesService.getAll(),
       condicionesPagoService.getAll(),
+      establecimientosService.getAll(),
     ])
-      .then(([allOts, allPres, allSol, allCli, allCond]) => {
+      .then(([allOts, allPres, allSol, allCli, allCond, allEst]) => {
         if (cancelled) return;
         setOts(allOts);
         setPresupuestos(allPres);
         setSolicitudes(allSol);
         setClientes(allCli);
         setCondiciones(allCond);
+        setEstablecimientos(allEst);
       })
       .catch((err) => {
         console.error('[useControlSemanal] load:', err);
@@ -231,6 +257,41 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
   }, [reloadKey]);
 
   const refetch = useCallback(() => setReloadKey(k => k + 1), []);
+
+  /**
+   * Sufijo " (Establecimiento)" para el nombre del cliente (2026-08-20).
+   *
+   * Solo cuando el cliente tiene MÁS DE UNO: con uno solo el dato no distingue
+   * nada y alarga la celda. Un mismo cliente con tres plantas, en cambio, es
+   * imposible de leer sin esto — "YPF" no dice a cuál hay que ir.
+   */
+  const clientesMultiEstab = useMemo(() => {
+    // El vínculo puede venir por `clienteId` o por CUIT (migración a medio
+    // camino), así que se cuenta con el helper compartido y no por un campo.
+    const porCliente = new Map<string, number>();
+    for (const e of establecimientos) {
+      const dueño = [e.clienteId, e.clienteCuit].find((k): k is string =>
+        !!k && establecimientoPerteneceACliente(e, k));
+      if (!dueño) continue;
+      porCliente.set(dueño, (porCliente.get(dueño) ?? 0) + 1);
+    }
+    return new Set([...porCliente].filter(([, n]) => n > 1).map(([id]) => id));
+  }, [establecimientos]);
+
+  const establecimientoNombreById = useMemo(
+    () => new Map(establecimientos.map(e => [e.id, e.nombre])), [establecimientos]);
+
+  /** Nombre del establecimiento SOLO si el cliente tiene varios. `null` si no aplica. */
+  const sufijoEstablecimiento = useCallback((
+    clienteId?: string | null,
+    establecimientoId?: string | null,
+    establecimientoNombre?: string | null,
+  ): string | null => {
+    if (!clienteId || !clientesMultiEstab.has(clienteId)) return null;
+    const nombre = establecimientoNombre
+      ?? (establecimientoId ? establecimientoNombreById.get(establecimientoId) : null);
+    return nombre?.trim() || null;
+  }, [clientesMultiEstab, establecimientoNombreById]);
 
   const otByNumber = useMemo(() => new Map(ots.map(o => [o.otNumber, o])), [ots]);
   /** numero de ppto → id, para linkear los budgets de las entregas pendientes. */
@@ -264,10 +325,17 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const entry = ordenadas[0];
       const ot = otByNumber.get(otNumber) ?? null;
       const ingenieros = [...new Set(ordenadas.map(e => e.ingenieroNombre).filter(Boolean))];
-      rows.push({ entry, entries: ordenadas, ingenieros, ot, ...classifyEntry(entry, ot) });
+      rows.push({
+        entry, entries: ordenadas, ingenieros, ot,
+        // La entrada de agenda trae el nombre denormalizado; si falta, se resuelve
+        // por el id de la OT.
+        establecimientoNombre: sufijoEstablecimiento(
+          ot?.clienteId, ot?.establecimientoId, entry.establecimientoNombre),
+        ...classifyEntry(entry, ot),
+      });
     }
     return rows.sort((a, b) => (a.entry.fechaInicio || '').localeCompare(b.entry.fechaInicio || ''));
-  }, [entries, otByNumber]);
+  }, [entries, otByNumber, sufijoEstablecimiento]);
 
   /** Saca (o repone) una OT del control de esta semana — todas sus entradas. */
   const excluirDelControl = useCallback(async (otNumber: string, excluir: boolean) => {
@@ -314,6 +382,12 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       ? (actuales.includes(weekStart) ? actuales : [...actuales, weekStart])
       : actuales.filter(w => w !== weekStart);
     await ordenesTrabajoService.update(otNumber, { controlSemanalExcluidoSemanas: next });
+    // Reflejar el cambio en memoria (2026-08-20): `ots` sale de un getAll() de
+    // una sola pasada, no de una suscripción como la agenda — sin esto el botón
+    // escribía en Firestore y la fila no se movía, así que parecía roto. Un
+    // refetch tampoco alcanzaba: el servicio pasa por serviceCache (TTL 2 min).
+    setOts(prev => prev.map(o =>
+      o.otNumber === otNumber ? { ...o, controlSemanalExcluidoSemanas: next } : o));
   }, [ots, weekStart]);
 
   const agendaKpis = useMemo(() => ({
@@ -325,6 +399,41 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
 
   // ── Sección 2: presupuestos con trabajo realizado O pago anticipado, trabados a hoy (sin límite de semana) ──
   const presupuestoRows = useMemo<PresupuestoControlRow[]>(() => {
+    /**
+     * Cobertura avisada por presupuesto (2026-08-20).
+     *
+     * `avisoEnviado` marcaba el ppto con CUALQUIER solicitud no anulada, y la
+     * pantalla esconde los avisados salvo que se tilde "mostrar enviados". Un
+     * aviso PARCIAL —50% ahora, 50% contra entrega— lo hacía desaparecer del
+     * control con la mitad sin pasar a facturar (caso P3-005043-01).
+     *
+     * La solicitud guarda `porcentajeCoberturaPorMoneda` al crearse. Se suman
+     * las de un mismo presupuesto y solo se considera avisado cuando toda
+     * moneda llegó al 100%. Las solicitudes viejas no traen el campo: esas
+     * cuentan como cobertura total, para no revivir en el control todo lo que
+     * ya se avisó antes de que existiera el dato.
+     */
+    const coberturaPorPpto = new Map<string, { total: boolean; pct: number }>();
+    for (const sol of solicitudes) {
+      if (sol.estado === 'anulada') continue;
+      const prev = coberturaPorPpto.get(sol.presupuestoId) ?? { total: false, pct: 0 };
+      const cobertura = sol.porcentajeCoberturaPorMoneda;
+      if (!cobertura || Object.keys(cobertura).length === 0) {
+        coberturaPorPpto.set(sol.presupuestoId, { total: true, pct: 100 });
+        continue;
+      }
+      // Varias monedas: manda la MENOS cubierta — si una quedó a medias, falta.
+      const pct = Math.min(...Object.values(cobertura).map(v => v ?? 0));
+      coberturaPorPpto.set(sol.presupuestoId, {
+        total: prev.total,
+        pct: prev.pct + (Number.isFinite(pct) ? pct : 0),
+      });
+    }
+    /** Avisado por COMPLETO. Tolerancia de medio punto por redondeos. */
+    const avisadoCompleto = (pptoId: string) => {
+      const c = coberturaPorPpto.get(pptoId);
+      return !!c && (c.total || c.pct >= 99.5);
+    };
     const pptosConAviso = new Set(
       solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));
     const condicionesAnticipadas = new Set(
@@ -406,7 +515,12 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       // Arrastre = entra SOLO porque hay trabajo hecho sin facturar.
       const arrastre = !deLaSemana;
 
-      const avisoEnviado = pptosConAviso.has(p.id);
+      // Avisado = la cobertura llegó al total. Un parcial sigue en el control
+      // con lo que falta (ver coberturaPorPpto).
+      const avisoEnviado = pptosConAviso.has(p.id) && avisadoCompleto(p.id);
+      const avisoParcialPct = pptosConAviso.has(p.id) && !avisoEnviado
+        ? Math.round(coberturaPorPpto.get(p.id)?.pct ?? 0)
+        : null;
       const otsPendientes = [...nums]
         .filter(n => otByNumber.has(n))
         .filter(n => {
@@ -425,7 +539,8 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       rows.push({
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
-        avisoEnviado, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
+        establecimientoNombre: sufijoEstablecimiento(p.clienteId, p.establecimientoId),
+        avisoEnviado, avisoParcialPct, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
         sinOtAgendada, otsSinAgendar, agendadaOtraSemana, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
         arrastre,
       });
@@ -434,7 +549,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     const rank = (r: PresupuestoControlRow) => r.avisoEnviado ? 2 : r.listoParaAviso ? 0 : 1;
     return rows.sort((a, b) => rank(a) - rank(b) || a.presupuesto.numero.localeCompare(b.presupuesto.numero));
   }, [presupuestos, solicitudes, ots, otByNumber, clienteNombreById, condiciones, entries,
-      fechaAgendaPorOt, weekStart, weekEnd]);
+      fechaAgendaPorOt, weekStart, weekEnd, sufijoEstablecimiento]);
 
   // ── Sección 3: cruce con facturación (2026-08-05) ──
   // "Todo lo que se pasó para facturar, ¿se facturó?" — universo: solicitudes
@@ -492,6 +607,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       ? (actuales.includes(weekStart) ? actuales : [...actuales, weekStart])
       : actuales.filter(w => w !== weekStart);
     await presupuestosService.update(presupuestoId, { controlSemanalExcluidoSemanas: next } as never);
+    // Ídem entregas: `presupuestos` es una carga puntual, hay que reflejarlo acá.
+    setPresupuestos(prev => prev.map(p =>
+      p.id === presupuestoId ? { ...p, controlSemanalExcluidoSemanas: next } : p));
   }, [presupuestos, weekStart]);
 
   const presupuestoKpis = useMemo(() => ({
@@ -507,6 +625,18 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     arrastre: presupuestoRows.filter(r => r.arrastre).length,
   }), [presupuestoRows]);
 
+  /**
+   * Establecimiento por OT para las secciones que renderizan WorkOrder crudo
+   * (entregas). Solo trae nombre cuando el cliente tiene más de uno.
+   */
+  const establecimientoPorOT = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const ot of ots) {
+      m.set(ot.otNumber, sufijoEstablecimiento(ot.clienteId, ot.establecimientoId));
+    }
+    return m;
+  }, [ots, sufijoEstablecimiento]);
+
   return {
     loading: agendaLoading || dataLoading,
     error,
@@ -517,6 +647,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     tareasSinOT,
     agendaKpis,
     entregasPendientes,
+    establecimientoPorOT,
     entregasExcluidas,
     excluirEntregaDelControl,
     presupuestoIdByNumero,

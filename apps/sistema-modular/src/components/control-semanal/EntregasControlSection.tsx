@@ -4,6 +4,8 @@ import { StatusBadge } from '../ui/StatusBadge';
 
 interface Props {
   entregas: WorkOrder[];
+  /** Establecimiento por OT — solo con nombre si el cliente tiene varios (2026-08-20). */
+  establecimientoPorOT?: Map<string, string | null>;
   onOpenOT: (otNumber: string) => void;
   onOpenPresupuestoNumero?: (numero: string) => void;
   /** Saca la entrega del control de esta semana (se trasladó a la siguiente). */
@@ -35,7 +37,7 @@ const fmtFecha = (v: unknown) => {
  * así que la sección 1 (agenda vs cierre) no las ve: esta lista las mantiene
  * a la vista TODAS las semanas hasta que se entreguen (cierre técnico).
  */
-export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, onOpenPresupuestoNumero, onExcluir, excluidas, onVerExcluidas }) => {
+export const EntregasControlSection: React.FC<Props> = ({ entregas, establecimientoPorOT, onOpenOT, onOpenPresupuestoNumero, onExcluir, excluidas, onVerExcluidas }) => {
   if (entregas.length === 0) return null;
   return (
     <section className="space-y-2">
@@ -67,7 +69,15 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, onOpenOT, on
                     OT-{ot.otNumber}
                   </button>
                 </td>
-                <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[200px]">{ot.razonSocial || '—'}</td>
+                <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[200px]"
+                  title={establecimientoPorOT?.get(ot.otNumber)
+                    ? `${ot.razonSocial} (${establecimientoPorOT.get(ot.otNumber)})`
+                    : (ot.razonSocial || '')}>
+                  {ot.razonSocial || '—'}
+                  {establecimientoPorOT?.get(ot.otNumber) && (
+                    <span className="text-slate-400"> ({establecimientoPorOT.get(ot.otNumber)})</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-[10px] text-slate-500 truncate max-w-[180px]">{ot.tipoServicio || '—'}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {(ot.budgets ?? []).length === 0
