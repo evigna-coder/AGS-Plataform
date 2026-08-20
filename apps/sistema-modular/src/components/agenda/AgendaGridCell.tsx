@@ -23,6 +23,8 @@ interface AgendaGridCellProps {
   entryVentaConcretada?: boolean;
   /** Per Incident (2026-08-12): pinta la celda ENTERA de verde oliva. */
   entryPerIncident?: boolean;
+  /** Espera importación (2026-08-20): pinta la celda ENTERA de azul fuerte. */
+  entryEsperaImportacion?: boolean;
   entrySistemaNombre?: string | null;
   entryNotas?: string | null;
   isStart?: boolean;
@@ -52,7 +54,7 @@ interface AgendaGridCellProps {
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
   entryId, entryOtNumber, entryTitulo, entryEstado, entryTipoServicio, entryPagoAdelantado, entryRequiereInduccion,
-  entryVentaConcretada, entryPerIncident,
+  entryVentaConcretada, entryPerIncident, entryEsperaImportacion,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, isDiaAgs, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, notaTexto, onClick, onContextMenu,
@@ -87,6 +89,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     titulo: entryTitulo,
     ventaConcretada: entryVentaConcretada,
     perIncident: entryPerIncident,
+    esperaImportacion: entryEsperaImportacion,
   });
   const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
@@ -165,7 +168,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         )}
         {isStart && hasEntry && showText && (
           <span
-            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion || entryVentaConcretada || entryPerIncident) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
+            className={`relative text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''} ${(entryPagoAdelantado || entryRequiereInduccion || entryVentaConcretada || entryPerIncident || entryEsperaImportacion) ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]' : ''}`}
             style={{ lineHeight: rowHeight }}
           >
             {entryOtNumber || entryTitulo || '—'}

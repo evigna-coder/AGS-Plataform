@@ -110,6 +110,15 @@ const VENTA_CONCRETADA = { bg: 'bg-[#0D6E6E]', text: 'text-white' };
 const PER_INCIDENT = { bg: 'bg-[#7C9A4F]', text: 'text-white' };
 
 /**
+ * Espera importación (2026-08-20) — azul fuerte, celda entera.
+ *
+ * Deliberadamente MÁS CLARO y saturado que el azul marino #1e3a8a de la diagonal
+ * de pago adelantado: los dos pueden convivir en la misma celda y si fueran el
+ * mismo tono la diagonal desaparecería.
+ */
+const ESPERA_IMPORTACION = { bg: 'bg-[#1D4ED8]', text: 'text-white' };
+
+/**
  * Resuelve el fondo y el color de texto de una celda de agenda. Devuelve strings
  * de clases Tailwind vacíos cuando la celda no tiene entry.
  */
@@ -121,12 +130,15 @@ export function colorDeCeldaAgenda(params: {
   ventaConcretada?: boolean;
   /** Flag manual Per Incident: ídem, debajo de ventaConcretada en prioridad. */
   perIncident?: boolean;
+  /** Flag manual Espera importación: ídem, último de los tres. */
+  esperaImportacion?: boolean;
 }): { bg: string; text: string } {
-  const { estado, tipoServicio, titulo, ventaConcretada, perIncident } = params;
+  const { estado, tipoServicio, titulo, ventaConcretada, perIncident, esperaImportacion } = params;
   if (estado !== 'cancelado') {
     // Marca explícita del usuario: pisa las reglas derivadas de tipo/título.
     if (ventaConcretada) return { ...VENTA_CONCRETADA };
     if (perIncident) return { ...PER_INCIDENT };
+    if (esperaImportacion) return { ...ESPERA_IMPORTACION };
     for (const r of REGLAS) {
       const valor = r.campo === 'tipoServicio' ? tipoServicio : titulo;
       if (valor && r.test.test(valor)) return { bg: r.bg, text: r.text };

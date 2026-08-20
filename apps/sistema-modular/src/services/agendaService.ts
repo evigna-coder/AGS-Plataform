@@ -70,6 +70,7 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     requiereInduccion: data.requiereInduccion === true,
     ventaConcretada: data.ventaConcretada === true,
     perIncident: data.perIncident === true,
+    esperaImportacion: data.esperaImportacion === true,
     estadoAgenda: data.estadoAgenda,
     notas: data.notas ?? null,
     titulo: data.titulo ?? null,

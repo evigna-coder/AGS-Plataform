@@ -21,6 +21,8 @@ interface AgendaInfoBarProps {
   onToggleRequiereInduccion?: (entryId: string, valor: boolean) => void;
   onToggleVentaConcretada?: (entryId: string, valor: boolean) => void;
   onTogglePerIncident?: (entryId: string, valor: boolean) => void;
+  /** Espera importación (2026-08-20): flag ortogonal — celda ENTERA azul fuerte. */
+  onToggleEsperaImportacion?: (entryId: string, valor: boolean) => void;
   /** Detalle de la falla en trabajos de bench (2026-08-12) — escribe `notas`. */
   onChangeNotas?: (entryId: string, notas: string | null) => void;
 }
@@ -84,6 +86,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onToggleRequiereInduccion,
   onToggleVentaConcretada,
   onTogglePerIncident,
+  onToggleEsperaImportacion,
   onChangeNotas,
 }) => {
   const entry = selectedCell?.entry ?? null;
@@ -199,6 +202,21 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
                   className="w-3 h-3 accent-[#7C9A4F]"
                 />
                 <span className={entry.perIncident ? 'text-[#5c7539] font-semibold' : ''}>Per Incident</span>
+              </label>
+            )}
+
+            {/* Espera importación (2026-08-20): el trabajo no se puede hacer
+                hasta que llegue la importación. Celda ENTERA azul fuerte. */}
+            {onToggleEsperaImportacion && (
+              <label className="flex items-center gap-1 text-[10px] font-medium text-slate-500 cursor-pointer shrink-0 select-none"
+                title="El trabajo espera una importación para poder hacerse — la celda entera se pinta de azul fuerte">
+                <input
+                  type="checkbox"
+                  checked={!!entry.esperaImportacion}
+                  onChange={e => onToggleEsperaImportacion(entry.id, e.target.checked)}
+                  className="w-3 h-3 accent-[#1D4ED8]"
+                />
+                <span className={entry.esperaImportacion ? 'text-[#1D4ED8] font-semibold' : ''}>Espera importación</span>
               </label>
             )}
 

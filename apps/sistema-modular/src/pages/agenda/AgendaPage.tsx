@@ -344,11 +344,13 @@ export const AgendaPage: FC = () => {
           // no vuelve a tentativo por moverlo de celda).
           estadoAgenda: src.estadoAgenda,
           pagoAdelantado: src.pagoAdelantado ?? false,
-          // La inducción NO se copia (2026-08-09): es del PRIMER día del trabajo.
-          // La jornada nueva es otro día y arranca sin la marca.
-          requiereInduccion: false,
+          // Cortar/pegar MUEVE la misma jornada, no crea otra (2026-08-20): la
+          // inducción viaja con ella. Es la diferencia con COPIAR, donde se
+          // pierde a propósito porque la copia es un día distinto del trabajo.
+          requiereInduccion: src.requiereInduccion ?? false,
           ventaConcretada: src.ventaConcretada ?? false,
           perIncident: src.perIncident ?? false,
+          esperaImportacion: src.esperaImportacion ?? false,
           notas: src.notas ?? null,
           titulo: src.titulo ?? null,
         });
@@ -437,6 +439,9 @@ export const AgendaPage: FC = () => {
             requiereInduccion: false,
             ventaConcretada: src.ventaConcretada ?? false,
             perIncident: src.perIncident ?? false,
+            // Espera importación SÍ se copia: es condición del trabajo, no de
+            // la jornada — si falta la parte, falta todos los días.
+            esperaImportacion: src.esperaImportacion ?? false,
             // El detalle de la falla viaja con la copia (2026-08-12): es el
             // mismo trabajo continuando otro día, como el resto de los flags.
             notas: src.notas ?? null,
@@ -867,6 +872,23 @@ export const AgendaPage: FC = () => {
     }
   }, [updateEntry, selectedCell]);
 
+  /** Espera importación (2026-08-20): el trabajo no se puede hacer hasta que
+   *  llegue la importación. Celda entera azul fuerte, igual que los otros dos
+   *  flags de celda completa. */
+  const handleToggleEsperaImportacion = useCallback((entryId: string, valor: boolean) => {
+    updateEntry(entryId, { esperaImportacion: valor });
+    if (selectedCell?.entry) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: selectedCell.entry.id === entryId
+          ? { ...selectedCell.entry, esperaImportacion: valor }
+          : selectedCell.entry,
+        allEntries: selectedCell.allEntries.map(e =>
+          e.id === entryId ? { ...e, esperaImportacion: valor } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
   /** Detalle técnico de bench (2026-08-12): problema / falla inicial del módulo
    *  que está en el taller. Se escribe desde la barra superior y se lee también
    *  en la card del hover. Vive en `notas` de la entrada. */
@@ -1033,6 +1055,7 @@ export const AgendaPage: FC = () => {
         onToggleRequiereInduccion={handleToggleRequiereInduccion}
         onToggleVentaConcretada={handleToggleVentaConcretada}
         onTogglePerIncident={handleTogglePerIncident}
+        onToggleEsperaImportacion={handleToggleEsperaImportacion}
         onChangeNotas={handleChangeNotas}
       />
 

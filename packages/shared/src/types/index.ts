@@ -3258,7 +3258,11 @@ export interface ComentarioFactura {
  */
 export interface Factura {
   id: string;
-  /** Correlativo FAC-00001, generado al cargar. */
+  /**
+   * N° REAL de la factura del proveedor, tipeado a mano al cargar (2026-08-20).
+   * Hasta esa fecha era un correlativo propio FAC-00001, que no servía para
+   * cruzar contra el papel; las facturas viejas conservan ese valor.
+   */
   numero?: string;
   /** Id del proveedor en el catálogo, o null si se cargó como texto libre. */
   proveedorId?: string | null;
@@ -5903,6 +5907,10 @@ export interface AgendaEntry {
   /** Flag ORTOGONAL (2026-08-12): visita "Per Incident" — celda ENTERA verde
    *  oliva. Mismo comportamiento que ventaConcretada (se copia al pegar). */
   perIncident?: boolean;
+  /** Flag ORTOGONAL (2026-08-20): el trabajo espera una importación para poder
+   *  hacerse. Celda ENTERA azul fuerte, igual que ventaConcretada/perIncident.
+   *  Es una condición del trabajo, no de la jornada: viaja al mover Y al copiar. */
+  esperaImportacion?: boolean;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;
