@@ -407,6 +407,65 @@ export const unidadesService = {
     return this.getAll({ articuloId, activoOnly: true });
   },
 
+  /** Unidades ingresadas por una importación (por su número IMP-xxxx). */
+  async getByImportacion(importacionNumero: string): Promise<UnidadStock[]> {
+    const q = query(collection(db, 'unidades'), where('importacionNumero', '==', importacionNumero));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as UnidadStock[];
+  },
+
+  /**
+   * Confirmar el costeo DEFINITIVO de una importación (2026-08-21).
+   *
+   * El stock entra apenas llega la mercadería, cuando todavía faltan facturas:
+   * el costo y el factor de ese momento son estimados. Cuando llegan las
+   * facturas reales se recalcula el costeo y el valor definitivo se estampa acá.
+   *
+   * Se re-estampa en TODAS las unidades del embarque, incluidas las que ya
+   * salieron por remito o se entregaron: el costo real de esa mercadería no
+   * depende de dónde esté hoy.
+   *
+   * El estimado NO se toca — queda como registro de con qué número se trabajó
+   * mientras el real no existía, que es lo que explica un precio cotizado en el
+   * medio. `costoUnitarioVigente()` decide cuál se usa.
+   *
+   * `costoPorArticulo` viene del costeo recalculado: articuloId -> costo por
+   * unidad base. Las unidades cuyo artículo no esté en el mapa no se tocan.
+   */
+  async confirmarCosteoImportacion(params: {
+    importacionNumero: string;
+    factorEmbarque: number;
+    costoPorArticulo: Map<string, number>;
+  }): Promise<{ actualizadas: number; sinCosto: number }> {
+    const unidades = await this.getByImportacion(params.importacionNumero);
+    const ahora = new Date().toISOString();
+    let actualizadas = 0, sinCosto = 0;
+
+    for (const u of unidades) {
+      const costo = params.costoPorArticulo.get(u.articuloId);
+      if (costo == null) { sinCosto++; continue; }
+      await this.update(u.id, {
+        costoUnitarioReal: costo,
+        factorImportacionReal: params.factorEmbarque,
+        costeoConfirmadoAt: ahora,
+      } as Partial<UnidadStock>);
+      actualizadas++;
+    }
+
+    logBusinessEvent({
+      eventName: 'importacion.costeo_confirmado',
+      collection: 'unidades',
+      documentId: params.importacionNumero,
+      details: { factorEmbarque: params.factorEmbarque, actualizadas, sinCosto },
+    });
+    return { actualizadas, sinCosto };
+  },
+
   async getByUbicacion(tipo: string, referenciaId: string): Promise<UnidadStock[]> {
     const q = query(
       collection(db, 'unidades'),

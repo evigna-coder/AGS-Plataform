@@ -3524,6 +3524,34 @@ export type TipoPosicionStock = 'cajonera' | 'estante' | 'deposito' | 'vitrina' 
  */
 export const POSICION_INGRESOS_CODIGO = 'IN';
 
+/**
+ * Costo unitario VIGENTE de una unidad: el definitivo si el costeo de la
+ * importación ya se confirmó, el estimado mientras tanto (2026-08-21).
+ *
+ * Punto único de decisión: lo consumen el precio mínimo de venta y el stock
+ * valorizado. Si cada pantalla eligiera por su cuenta, tarde o temprano dos
+ * informes darían números distintos sobre la misma unidad.
+ */
+export function costoUnitarioVigente(u: {
+  costoUnitario?: number | null;
+  costoUnitarioReal?: number | null;
+}): number | null {
+  return u.costoUnitarioReal ?? u.costoUnitario ?? null;
+}
+
+/** Factor de importación vigente. Mismo criterio que `costoUnitarioVigente`. */
+export function factorImportacionVigente(u: {
+  factorImportacion?: number | null;
+  factorImportacionReal?: number | null;
+}): number | null {
+  return u.factorImportacionReal ?? u.factorImportacion ?? null;
+}
+
+/** `true` si el costo de esta unidad todavía es una estimación. */
+export function costoEsEstimado(u: { costeoConfirmadoAt?: string | null }): boolean {
+  return !u.costeoConfirmadoAt;
+}
+
 export interface PosicionStock {
   id: string;
   codigo: string;
@@ -3811,6 +3839,26 @@ export interface UnidadStock {
    * el mismo artículo importado en otra fecha tendrá otro factor (cambia flete/TC/derechos).
    */
   factorImportacion?: number | null;
+  /**
+   * Costeo DEFINITIVO de la importación (2026-08-21).
+   *
+   * El stock se ingresa apenas llega la mercadería, y en ese momento todavía
+   * faltan facturas de proveedores, flete o despachante: `factorImportacion` y
+   * `costoUnitario` son ESTIMADOS. Cuando llegan las facturas reales —dos o tres
+   * semanas después— se confirma el costeo y el valor definitivo se estampa acá.
+   *
+   * El estimado NUNCA se pisa: queda como registro de con qué número se trabajó
+   * mientras no estaba el dato real, que es lo que explica un precio de venta
+   * cotizado en el medio.
+   *
+   * Se re-estampa en TODAS las unidades del embarque, incluidas las que ya
+   * salieron por remito o se entregaron: el costo real de esa mercadería es el
+   * mismo sin importar dónde esté hoy.
+   */
+  factorImportacionReal?: number | null;
+  costoUnitarioReal?: number | null;
+  /** ISO del momento en que se confirmó el costeo definitivo. */
+  costeoConfirmadoAt?: string | null;
   observaciones?: string | null;
   /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
   ordenCompraNumero?: string | null;

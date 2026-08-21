@@ -8,6 +8,7 @@ import { DesagregarStockModal } from '../../components/stock/DesagregarStockModa
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
+import { factorImportacionVigente } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -177,7 +178,18 @@ export const ArticuloDetail = () => {
                       {u.costoUnitario != null && (
                         <div className="text-right shrink-0">
                           <p className="text-xs font-mono text-slate-700">{u.monedaCosto ?? 'USD'} {u.costoUnitario.toFixed(2)}</p>
-                          {u.factorImportacion != null && <p className="text-[10px] font-mono text-teal-600">factor {u.factorImportacion.toFixed(3)}</p>}
+                          {/* Factor vigente: el definitivo si el costeo ya se
+                              confirmó, el estimado mientras tanto (2026-08-21).
+                              Se marca cuál es para que nadie tome un estimado
+                              por definitivo al fijar un precio. */}
+                          {factorImportacionVigente(u) != null && (
+                            <p className={`text-[10px] font-mono ${u.costeoConfirmadoAt ? 'text-teal-600' : 'text-amber-600'}`}
+                              title={u.costeoConfirmadoAt
+                                ? `Costeo confirmado el ${u.costeoConfirmadoAt.slice(0, 10)}${u.factorImportacion != null ? ` · estimado original ${u.factorImportacion.toFixed(3)}` : ''}`
+                                : 'Costeo estimado — todavía sin confirmar contra las facturas reales'}>
+                              factor {factorImportacionVigente(u)!.toFixed(3)}{u.costeoConfirmadoAt ? '' : ' (est.)'}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

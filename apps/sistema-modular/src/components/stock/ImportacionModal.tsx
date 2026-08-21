@@ -12,7 +12,7 @@ import { ImportacionIngresarStockModal } from './ImportacionIngresarStockModal';
 import { ImportacionDocumentosSection } from './ImportacionDocumentosSection';
 import { resumenRecepcion } from '../../utils/importacionRecepcion';
 import { useConfirm } from '../ui/ConfirmDialog';
-import { importacionesService } from '../../services/firebaseService';
+import { importacionesService, unidadesService } from '../../services/firebaseService';
 
 interface Props {
   open: boolean;
@@ -30,6 +30,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   const navigate = useNavigate();
   const h = useImportacionForm(impId, open, prefill);
   const confirm = useConfirm();
+  const [confirmandoCosteo, setConfirmandoCosteo] = useState(false);
 
   const costeo = useMemo(() => computeCosteoImportacion({
     items: h.items, articulosById: h.articulosById, gastos: h.gastos,
@@ -131,6 +132,53 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   const yaIngresoStock = !!h.imp?.stockIngresado
     || (h.imp?.items ?? []).some(it => (it.cantidadRecibida ?? 0) > 0);
 
+  /**
+   * Confirmar el costeo DEFINITIVO (2026-08-21).
+   *
+   * El stock entra apenas llega la mercadería, con las facturas todavía sin
+   * llegar: ese costo es estimado. Cuando estan las facturas reales se recalcula
+   * con los gastos ya cargados y el valor definitivo se estampa en las unidades.
+   *
+   * Alcanza a TODAS las unidades del embarque, incluidas las que ya salieron:
+   * el costo real de esa mercadería no depende de dónde esté hoy. El estimado
+   * no se pisa — queda como registro de con qué número se trabajó.
+   */
+  const handleConfirmarCosteo = async () => {
+    if (!h.imp?.numero) return;
+    // articuloId -> costo por unidad base, del costeo recalculado.
+    const costoPorArticulo = new Map<string, number>();
+    for (const linea of costeo.lineas) {
+      const item = (h.imp.items ?? []).find(i => i.id === linea.itemId);
+      if (!item?.articuloId || !item.cantidadPedida) continue;
+      costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
+    }
+    if (costoPorArticulo.size === 0) {
+      alert('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Confirmar costeo definitivo',
+      message: `Se va a estampar el costo REAL en las unidades ingresadas por ${h.imp.numero}, calculado con los gastos cargados hoy (factor ${costeo.factorEmbarque.toFixed(3)}).\n\nAlcanza también a las unidades que ya salieron por remito o se entregaron. El costo estimado se conserva.\n\n¿Confirmar?`,
+      confirmLabel: 'Confirmar costeo',
+    });
+    if (!ok) return;
+    setConfirmandoCosteo(true);
+    try {
+      const r = await unidadesService.confirmarCosteoImportacion({
+        importacionNumero: h.imp.numero,
+        factorEmbarque: costeo.factorEmbarque,
+        costoPorArticulo,
+      });
+      alert(`Costeo confirmado.\n\nUnidades actualizadas: ${r.actualizadas}` +
+        (r.sinCosto > 0 ? `\nSin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
+    } catch (e) {
+      console.error('[ImportacionModal] confirmar costeo:', e);
+      alert('Error al confirmar el costeo.');
+    } finally {
+      setConfirmandoCosteo(false);
+    }
+  };
+
   const handleEliminar = async () => {
     if (!h.imp) return;
     const ok = await confirm({
@@ -183,6 +231,12 @@ No se van a poder ingresar mas unidades por este embarque.`,
           {recepcionParcial && recepcion
             ? `Ingresar faltante (${recepcion.recibido}/${recepcion.pedido})`
             : 'Ingresar a stock'}
+        </Button>
+      )}
+      {h.imp?.stockIngresado && (
+        <Button variant="secondary" size="sm" onClick={() => void handleConfirmarCosteo()} disabled={confirmandoCosteo}
+          title="Estampar el costo real en las unidades de este embarque, con los gastos cargados hoy">
+          {confirmandoCosteo ? 'Confirmando...' : 'Confirmar costeo definitivo'}
         </Button>
       )}
       {h.imp?.stockIngresado && (
