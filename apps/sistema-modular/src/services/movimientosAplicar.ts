@@ -3,7 +3,7 @@ import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
   getCreateTrace, getUpdateTrace, logAudit, runTransaction,
 } from './firebase';
-import { ubicacionDeRemito, itemsARevertirEnAnulacion, unidadesPatronDesdeCompra } from '@ags/shared';
+import { ubicacionDeRemito, itemsARevertirEnAnulacion, parcheReversaDeLinea, unidadesPatronDesdeCompra } from '@ags/shared';
 import type {
   Articulo, EstadoUnidad, Patron, Remito, RemitoItem, TipoMovimiento, TipoOrigenDestino,
   TipoUbicacionStock, UbicacionStock, UnidadStock,
@@ -984,21 +984,14 @@ export const movimientosAplicarService = {
         const cantidadSalida = it.salidaCantidad ?? it.cantidad;
         const origen = it.salidaUbicacionOrigen ?? UBICACION_FALLBACK;
 
-        if (it.tipoItem === 'entrega') {
-          // Unidad entera: volvió a estar disponible. Parcial (split de
-          // cantidad sobre el mismo doc): se le suma lo que había salido.
-          tx.update(docRef('unidades', uid), deepCleanForFirestore(
-            data.estado === 'entregado'
-              ? { estado: 'disponible' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now }
-              : { cantidad: (data.cantidad ?? 0) + cantidadSalida, ...getUpdateTrace(), updatedAt: now },
-          ));
-        } else {
-          // 'sale_y_vuelve': la unidad está en la ubicación provisoria del
-          // remito — vuelve a la posición de origen.
-          tx.update(docRef('unidades', uid), deepCleanForFirestore({
-            ubicacion: origen, ...getUpdateTrace(), updatedAt: now,
-          }));
-        }
+        // La reversa es la MISMA para los dos tipos de línea (2026-08-21).
+        // El porqué —y el bug que la rama separada de 'entrega' provocaba—
+        // están documentados en `parcheReversaDeLinea`, que es pura justamente
+        // para que un test la cubra.
+        tx.update(docRef('unidades', uid), deepCleanForFirestore({
+          ...parcheReversaDeLinea(it, data, UBICACION_FALLBACK),
+          ...getUpdateTrace(), updatedAt: now,
+        }));
 
         tx.set(doc(db, 'movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
           tipo: 'devolucion' as TipoMovimiento,

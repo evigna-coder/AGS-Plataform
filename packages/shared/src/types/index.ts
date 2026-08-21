@@ -4313,6 +4313,36 @@ export function itemsARevertirEnAnulacion(items: RemitoItem[] | undefined): Remi
     && it.stockAplicado === true && !it.devuelto && !it.consumido);
 }
 
+/**
+ * Parche que hay que aplicarle a la unidad al REVERTIR una línea de remito
+ * (anulación). Función pura para poder testearla: la reversa vive adentro de
+ * una transacción de Firestore y su bug de 2026-08-21 no lo agarró ningún test.
+ *
+ * La reversa es la MISMA para los dos tipos de línea: la unidad vuelve a la
+ * posición donde estaba antes de salir. Emitir MUEVE la unidad (2026-08-18),
+ * tanto para `entrega` como para `sale_y_vuelve`, y un parcial parte la
+ * cantidad en un doc APARTE — así que la cantidad del doc que se revierte
+ * nunca se tocó y no hay nada que sumarle.
+ *
+ * El bug: `entrega` tenía una rama propia que le sumaba `salidaCantidad`. Eso
+ * era correcto con el modelo viejo (la salida marcaba el doc `entregado` o
+ * descontaba sobre el mismo doc), y quedó vivo cuando la emisión cambió.
+ * Anular una entrega inventaba una unidad Y dejaba la pieza sin volver.
+ *
+ * `entregado` solo existe en remitos emitidos con el modelo anterior: ahí
+ * además hay que devolver el estado a disponible.
+ */
+export function parcheReversaDeLinea(
+  item: Pick<RemitoItem, 'salidaUbicacionOrigen'>,
+  unidad: { estado?: string | null } | null | undefined,
+  fallback: UbicacionStock,
+): { ubicacion: UbicacionStock; estado?: 'disponible' } {
+  return {
+    ubicacion: item.salidaUbicacionOrigen ?? fallback,
+    ...(unidad?.estado === 'entregado' ? { estado: 'disponible' as const } : {}),
+  };
+}
+
 export interface Remito {
   id: string;
   /** Número correlativo (REM-0001) */

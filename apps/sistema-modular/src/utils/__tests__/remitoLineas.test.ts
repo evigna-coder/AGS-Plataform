@@ -13,7 +13,7 @@
  */
 
 import assert from 'node:assert/strict';
-import type { RemitoItem } from '@ags/shared';
+import type { RemitoItem, UbicacionStock } from '@ags/shared';
 import {
   getRemitoItemCodigo, lineaDescripcionRemito, cantidadImpresaRemito,
 } from '../inventarioToRemitoItem.js';
@@ -179,4 +179,38 @@ assert.equal(itemsARevertirEnAnulacion([item({ stockAplicado: true, tipoItem: 's
   'sale_y_vuelve todavía afuera: vuelve a su posición de origen');
 assert.equal(itemsARevertirEnAnulacion([]).length, 0, 'remito sin items');
 
-console.log('✅ remitoLineas: 39/39 OK');
+// ── Cómo se revierte cada línea al anular (2026-08-21) ──────────────────────
+// El bug que fija: anular un remito con línea de ENTREGA le SUMABA la cantidad
+// a la unidad y no la devolvía a su posición. Resultado real: 3 unidades en
+// stock pasaron a 4, y la pieza quedó "adentro" del remito cancelado.
+// La rama separada por tipo de línea era correcta con el modelo viejo (la
+// salida marcaba el doc `entregado`); dejó de serlo cuando emitir pasó a MOVER
+// la unidad. Si alguien vuelve a separar las ramas, estos tests fallan.
+const { parcheReversaDeLinea } = await import('@ags/shared');
+const EST12 = { tipo: 'posicion', referenciaId: 'p12', referenciaNombre: 'EST. 12' } as UbicacionStock;
+const STOCK = { tipo: 'posicion', referenciaId: '', referenciaNombre: 'Stock' } as UbicacionStock;
+
+const rEntrega = parcheReversaDeLinea(
+  { salidaUbicacionOrigen: EST12 } as RemitoItem, { estado: 'disponible' }, STOCK);
+assert.deepEqual(rEntrega.ubicacion, EST12,
+  'entrega anulada: la unidad vuelve a la posición de donde salió');
+assert.equal('cantidad' in rEntrega, false,
+  'entrega anulada: NO se toca la cantidad — emitir movió la unidad, no la descontó (bug 2026-08-21)');
+assert.equal(rEntrega.estado, undefined,
+  'entrega anulada de un remito nuevo: la unidad ya estaba disponible, no hay estado que pisar');
+
+const rSaleYVuelve = parcheReversaDeLinea(
+  { salidaUbicacionOrigen: EST12 } as RemitoItem, { estado: 'disponible' }, STOCK);
+assert.deepEqual(rSaleYVuelve, rEntrega,
+  'las dos clases de línea se revierten IGUAL: la unidad vuelve a su origen');
+
+const rLegacy = parcheReversaDeLinea(
+  { salidaUbicacionOrigen: EST12 } as RemitoItem, { estado: 'entregado' }, STOCK);
+assert.equal(rLegacy.estado, 'disponible',
+  'remito viejo (modelo `entregado`): además de volver, la unidad se reactiva');
+
+const rSinOrigen = parcheReversaDeLinea({} as RemitoItem, { estado: 'disponible' }, STOCK);
+assert.deepEqual(rSinOrigen.ubicacion, STOCK,
+  'sin metadata de origen: cae al fallback, nunca queda en la posición del remito anulado');
+
+console.log('✅ remitoLineas: 45/45 OK');
