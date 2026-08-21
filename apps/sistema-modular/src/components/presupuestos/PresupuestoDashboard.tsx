@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import type { Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { presupuestoAceptadoVigente, MONEDA_SIMBOLO } from '@ags/shared';
-import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHelpers';
+import { getDaysSinceEnvio, isExpired } from '../../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
-export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
+export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso' | 'vencidos';
 
 interface Props {
   presupuestos: Presupuesto[];
@@ -59,11 +59,13 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       return days !== null && days > 7;
     });
 
-    // Enviados vencidos (pasó la validez)
-    const enviadosVencidos = enviados.filter(p => {
-      const days = getDaysUntilExpiry(p.validUntil, p.fechaEnvio, p.validezDias);
-      return days !== null && days < 0;
-    });
+    // Vencidos: pasó la validez y todavía es pre-aceptación (2026-08-21).
+    //
+    // Antes contaba solo entre los ENVIADOS, pero el filtro de la lista usa
+    // `isExpired`, que abarca también `pendiente_oc`. Con dos universos
+    // distintos el contador decía 1 y el filtro mostraba otra cantidad.
+    // Se usa el mismo helper que la lista para que número y filtro coincidan.
+    const enviadosVencidos = presupuestos.filter(isExpired);
 
     // Aceptados sin OT creada. Antes miraba SOLO el campo legacy
     // `otVinculadaNumber` (2026-08-06): un ppto con OTs creadas desde el propio
@@ -193,7 +195,17 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
               <p className="text-[9px] text-amber-600 truncate">{metrics.enviadosSinRespuesta.length} sin respuesta</p>
             )}
             {metrics.enviadosVencidos.length > 0 && (
-              <p className="text-[9px] text-red-600 truncate">{metrics.enviadosVencidos.length} vencidos</p>
+              /* Clickeable (2026-08-21): el conteo existía pero no filtraba, así
+                 que los vencidos solo se veían cazando filas rojas a ojo. */
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); toggle('vencidos'); }}
+                title="Ver solo los presupuestos vencidos"
+                className={`text-[9px] truncate text-left w-full hover:underline ${
+                  activeKpi === 'vencidos' ? 'text-red-700 font-bold' : 'text-red-600'}`}
+              >
+                {metrics.enviadosVencidos.length} vencidos
+              </button>
             )}
             {fmtPipeline(metrics.pipeline) && (
               <p className="text-[9px] text-slate-400 truncate">{fmtPipeline(metrics.pipeline)}</p>
