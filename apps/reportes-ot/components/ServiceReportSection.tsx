@@ -8,6 +8,39 @@ interface ArticuloCatalog {
   descripcion: string;
 }
 
+/**
+ * Lista de RESPALDO de tipos de servicio (2026-08-20).
+ *
+ * La fuente de verdad es la colección `tipos_servicio` de sistema-modular; esto
+ * queda solo para cuando la lectura falla —el técnico suele estar en una planta
+ * con señal mala— porque un desplegable vacío es peor que uno desactualizado.
+ *
+ * Estaba escrita a mano como única lista y se desincronizó: el catálogo tiene 24
+ * tipos y acá había 14. Un `<select>` al que le pasás un valor que no está entre
+ * sus opciones muestra el PRIMERO, así que 643 OTs abiertas como "Trabajo en
+ * bench" o "Visita de diagnóstico" se veían como "Calibración". El dato guardado
+ * y el PDF siempre estuvieron bien: el error era de pantalla, pero invitaba al
+ * técnico a "corregirlo" y ahí sí se rompía.
+ */
+const TIPOS_SERVICIO_RESPALDO = [
+  'Calibración',
+  'Calificación de instalación',
+  'Calificación de operación',
+  'Calificación de operación de software',
+  'Capacitación',
+  'Cortesía',
+  'Desinstalación',
+  'Instalación',
+  'Limpieza de fuente de Iones',
+  'Mantenimiento preventivo con consumibles',
+  'Mantenimiento preventivo sin consumibles',
+  'Mantenimiento preventivo sin consumibles, incluye limpieza de módulos',
+  'Otros',
+  'Recalificación post reparación',
+  'Reparación en bench',
+  'Visita de diagnóstico / reparación',
+];
+
 /** Tipos de servicio que habilitan el campo "Motivo del Servicio" (qué originó la
  * reparación/visita). Si crece, mantener en sync con PreviewSection. */
 export const MOTIVO_SERVICIO_TIPOS = new Set<string>([
@@ -141,12 +174,28 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
   articulos, onAddPart, onUpdatePart, onRemovePart,
 }) => {
   const [catalog, setCatalog] = useState<ArticuloCatalog[]>([]);
+  const [tiposCatalogo, setTiposCatalogo] = useState<string[]>([]);
 
   // Load catalog once
   useEffect(() => {
     const svc = new FirebaseService();
     svc.getArticulos().then(setCatalog);
+    // Tipos de servicio desde el catálogo de sistema-modular. Si falla devuelve
+    // [] y abajo se usa TIPOS_SERVICIO_RESPALDO.
+    svc.getTiposServicio().then(setTiposCatalogo).catch(() => setTiposCatalogo([]));
   }, []);
+
+  /**
+   * Opciones del desplegable: el catálogo si se pudo leer, si no la lista de
+   * respaldo. El valor ACTUAL siempre se agrega aunque no esté en ninguna de las
+   * dos — es la red de seguridad para que la pantalla nunca muestre un tipo que
+   * no es el de la OT (tipos renombrados, borrados del catálogo, OTs viejas).
+   */
+  const opcionesTipoServicio = React.useMemo(() => {
+    const base = tiposCatalogo.length > 0 ? tiposCatalogo : TIPOS_SERVICIO_RESPALDO;
+    const actual = (tipoServicio ?? '').trim();
+    return actual && !base.includes(actual) ? [actual, ...base] : base;
+  }, [tiposCatalogo, tipoServicio]);
 
   const handleSelectArticulo = useCallback((partId: string, art: ArticuloCatalog) => {
     onUpdatePart(partId, { codigo: art.codigo, descripcion: art.descripcion, stockArticuloId: art.id } as any);
@@ -174,22 +223,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
             }
           `}
         >
-          <option>Calibración</option>
-          <option>Calificación de instalación</option>
-          <option>Calificación de operación</option>
-          <option>Calificación de operación de software</option>
-          <option>Capacitación</option>
-          <option>Cortesía</option>
-          <option>Desinstalación</option>
-          <option>Instalación</option>
-          <option>Limpieza de fuente de Iones</option>
-          <option>Mantenimiento preventivo con consumibles</option>
-          <option>Mantenimiento preventivo sin consumibles</option>
-          <option>Mantenimiento preventivo sin consumibles, incluye limpieza de módulos</option>
-          <option>Otros</option>
-          <option>Recalificación post reparación</option>
-          <option>Reparación en bench</option>
-          <option>Visita de diagnóstico / reparación</option>
+          {opcionesTipoServicio.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
 
         {MOTIVO_SERVICIO_TIPOS.has(tipoServicio) && (

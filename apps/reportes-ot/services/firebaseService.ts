@@ -533,6 +533,31 @@ export class FirebaseService {
     }
   }
 
+  /**
+   * Tipos de servicio del catálogo de sistema-modular (`tipos_servicio`).
+   *
+   * Antes esta lista estaba escrita a mano en ServiceReportSection y quedó
+   * desincronizada: el catálogo tiene 24 tipos y el código conocía 14. Un
+   * `<select>` al que le pasás un valor que no está entre sus `<option>` muestra
+   * el PRIMERO, así que 643 OTs abiertas como "Trabajo en bench" o "Visita de
+   * diagnóstico" aparecían en pantalla como "Calibración" (2026-08-20).
+   *
+   * Devuelve [] si falla: el componente cae a su lista fija. Un desplegable
+   * vacío en medio de una planta es peor que uno desactualizado.
+   */
+  async getTiposServicio(): Promise<string[]> {
+    try {
+      const snap = await getDocs(query(collection(db, 'tipos_servicio')));
+      return snap.docs
+        .map(d => (d.data().nombre ?? '').trim())
+        .filter((n: string) => !!n)
+        .sort((a: string, b: string) => a.localeCompare(b));
+    } catch (e) {
+      console.error('Error cargando tipos de servicio (se usa la lista fija):', e);
+      return [];
+    }
+  }
+
   // ── Selectores de entidades (lectura desde colecciones de sistema-modular) ──
 
   async getClientes(): Promise<ClienteOption[]> {
