@@ -199,7 +199,10 @@ function AppRoutes() {
       {/* Agenda */}
       <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><AgendaPage /></ProtectedRoute>} />
       {/* Control semanal — cierre de coordinación (agenda + avisos a facturación) */}
-      <Route path="/control-semanal" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ControlSemanal /></ProtectedRoute>} />
+      {/* Gate por MÓDULO, no por rol (2026-08-21): era la única pantalla de
+          Operaciones sin `modulo`, así que no aparecía en el detalle de permisos
+          y el acceso solo se podía mover cambiándole el rol a la persona. */}
+      <Route path="/control-semanal" element={<ProtectedRoute modulo="control-semanal"><ControlSemanal /></ProtectedRoute>} />
       <Route path="/pendientes" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><PendientesList /></ProtectedRoute>} />
       {/* Facturacion */}
       <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />

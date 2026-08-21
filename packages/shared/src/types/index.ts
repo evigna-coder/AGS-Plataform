@@ -5696,6 +5696,7 @@ export type ModuloId =
   | 'vehiculos'
   | 'agenda'
   | 'pendientes'
+  | 'control-semanal'
   | 'facturacion'
   | 'contratos'
   | 'calificacion-proveedores'
@@ -5708,7 +5709,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'control-facturas', 'usuarios', 'admin'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'control-facturas', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -5716,11 +5717,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos', 'control-facturas'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas'],
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos', 'control-facturas'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas'],
   },
   ventas: {
     apps: ['sistema-modular'],
@@ -5728,7 +5729,7 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_contable: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas'],
+    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas', 'control-semanal'],
   },
   administracion: {
     apps: ['sistema-modular'],
@@ -5778,6 +5779,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/vehiculos': 'vehiculos',
   '/agenda': 'agenda',
   '/pendientes': 'pendientes',
+  '/control-semanal': 'control-semanal',
   '/facturacion': 'facturacion',
   '/contratos': 'contratos',
   '/calificacion-proveedores': 'calificacion-proveedores',
@@ -5788,6 +5790,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
 
 /** Labels para UI */
 export const MODULO_LABELS: Record<ModuloId, string> = {
+  'control-semanal': 'Control semanal',
   'dashboard': 'Dashboard',
   'clientes': 'Clientes',
   'establecimientos': 'Establecimientos',
