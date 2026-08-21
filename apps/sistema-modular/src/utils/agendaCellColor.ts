@@ -68,12 +68,15 @@ export function esTrabajoEnBench(tipoServicio?: string | null): boolean {
 const REGLAS: ReglaColor[] = [
   // Capacitación (2026-08-03) — rosa oscuro.
   { campo: 'tipoServicio', test: /capacitaci/i, bg: 'bg-[#e59a8e]', text: 'text-[#4a1710]' },
-  // BCH (2026-08-05) — amarillo opaco.
-  { campo: 'tipoServicio', test: BENCH_TEST, bg: 'bg-[#e0c878]', text: 'text-[#4a3c10]' },
+  // BCH / trabajo en bench (2026-08-21): amarillo pálido, el mismo que Oficina.
+  // Antes era #e0c878, que sobre la grilla tiraba a naranja.
+  { campo: 'tipoServicio', test: BENCH_TEST, bg: 'bg-[#FEF3C7]', text: 'text-[#4a3c10]' },
   // Firma de recibos (2026-08-05) — evento mensual que reserva agenda, violeta clarito.
   { campo: 'titulo', test: /firma de recibos/i, bg: 'bg-[#d9c9f2]', text: 'text-[#3b2364]' },
-  // Oficina (2026-08-06) — mismo amarillo que bench.
-  { campo: 'titulo', test: /\boficina\b/i, bg: 'bg-[#e0c878]', text: 'text-[#4a3c10]' },
+  // Oficina (2026-08-21): amarillo pálido — el MISMO relleno que las tarjetas
+  // de la cola "a programar", un punto más oscuro (amber-100) porque el 50
+  // sobre la grilla se lee casi blanco. Mismo tono que bench.
+  { campo: 'titulo', test: /\boficina\b/i, bg: 'bg-[#FEF3C7]', text: 'text-[#4a3c10]' },
   // Permisos especiales (2026-08-09) — marrón oscuro; el texto va claro porque
   // sobre este fondo el slate-800 del resto de la grilla no se lee.
   { campo: 'titulo', test: /permisos?\s+especial/i, bg: 'bg-[#5c4033]', text: 'text-[#f2e8e2]' },
@@ -81,8 +84,8 @@ const REGLAS: ReglaColor[] = [
   { campo: 'titulo', test: /enfermedad/i, bg: 'bg-[#7cfc00]', text: 'text-[#1a3300]' },
   // Estudios médicos (2026-08-09) — AMARILLO PATITO. El primer intento fue
   // #f5c518, que con tanto rojo se leía naranja. Este levanta el verde y suma
-  // algo de azul para sacarle el tinte ámbar. Distinto del amarillo opaco de
-  // bench/oficina (#e0c878), que es mucho más apagado y terroso.
+  // algo de azul para sacarle el tinte ámbar. Distinto del amarillo de bench y
+  // oficina (#FEF3C7), que es mucho más pálido.
   { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#ffe23f]', text: 'text-[#3d3300]' },
   // Vacaciones (2026-08-12) — naranja Claude.
   { campo: 'titulo', test: /vacaciones/i, bg: 'bg-[#D97757]', text: 'text-[#401c10]' },
