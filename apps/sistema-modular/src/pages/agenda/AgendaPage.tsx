@@ -476,6 +476,28 @@ export const AgendaPage: FC = () => {
             notas: src.notas ?? null,
             titulo: src.titulo || null,
           });
+
+          // Sync de la OT (2026-08-20). COPIAR/PEGAR era el unico camino que
+          // creaba la entrada sin avisarle a la OT: arrastrar desde la cola,
+          // mover una entrada y pegar un CORTE ya lo hacian. Resultado: la
+          // agenda decia "confirmado con Fulano" y el listado "creada, sin
+          // asignar" — 28 OTs asi, casi todas re-agendadas por copia despues de
+          // que un borrado las devolviera a la cola.
+          //
+          // Estado FRESCO de Firestore: el de `entries` puede estar viejo y
+          // saltearse la promocion. skipAgendaSync porque la entrada se crea aca.
+          if (src.otNumber) {
+            const otNum = src.otNumber;
+            ordenesTrabajoService.getByOtNumber(otNum).then(fresh => {
+              const shouldPromote = !fresh?.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+              return ordenesTrabajoService.update(otNum, {
+                ingenieroAsignadoId: cell.ingenieroId,
+                ingenieroAsignadoNombre: ingeniero.nombre,
+                fechaServicioAprox: fechaInicio,
+                ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+              }, { skipAgendaSync: true });
+            }).catch(err => console.error('[AgendaPage] sync OT al pegar copia fallo:', err));
+          }
         }
       };
 
