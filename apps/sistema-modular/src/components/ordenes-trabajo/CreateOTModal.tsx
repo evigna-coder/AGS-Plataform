@@ -10,7 +10,7 @@ import {
   useCreateOTForm, type OTPrefill,
   TIPO_SERVICIO_ENTREGA_DEFAULT, TIPO_SERVICIO_ENTREGA_SENTINEL,
 } from '../../hooks/useCreateOTForm';
-import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS, type TipoOT } from '@ags/shared';
+import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS, TIPO_OT_LABELS, OT_SIN_AGENDA_ESPERA, type TipoOT } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -54,17 +54,22 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
         <div>
           <label className={lbl}>Tipo de orden</label>
           <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
-            {(['servicio', 'entrega'] as TipoOT[]).map(t => (
+            {(['servicio', 'entrega', 'proveedor_externo', 'alquiler'] as TipoOT[]).map(t => (
               <button key={t} type="button" onClick={() => h.set('tipoOT', t)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                   h.form.tipoOT === t ? 'bg-teal-600 text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}>
-                {t === 'servicio' ? 'Servicio técnico' : 'Entrega de partes'}
+                {TIPO_OT_LABELS[t]}
               </button>
             ))}
           </div>
-          {h.form.tipoOT === 'entrega' && (
-            <p className="mt-1 text-[10px] text-slate-500">El equipo es opcional para entregas de partes.</p>
+          {/* Qué implica cada tipo sin agenda (2026-08-21): las tres se reclaman
+              en vez de coordinarse, y cada una cierra distinto. */}
+          {h.form.tipoOT !== 'servicio' && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              No se agenda — figura en la cola para reclamarla. Espera: {OT_SIN_AGENDA_ESPERA[h.form.tipoOT as 'entrega' | 'proveedor_externo' | 'alquiler']}
+              {h.form.tipoOT === 'entrega' ? ' · El equipo es opcional.' : ''}
+            </p>
           )}
         </div>
 

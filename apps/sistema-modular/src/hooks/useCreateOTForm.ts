@@ -261,6 +261,9 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const autoTipoServicioRef = useRef('');
   useEffect(() => {
     if (!open) return;
+    // Entrega: precarga "Entrega de insumos". Las otras familias sin agenda
+    // (proveedor externo, alquiler) NO se precargan: el catálogo tiene varias
+    // variantes —ELS, AZN— y elegir por el usuario sería adivinar (2026-08-21).
     if (form.tipoOT === 'entrega') {
       // Preferir el tipo "Entrega de insumos" exacto (decisión Esteban 17/7);
       // recién si no existe, cualquier tipo que contenga "entrega".
@@ -274,7 +277,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         if (form.tipoServicioId !== target) set('tipoServicioId', target);
       }
     } else {
-      // Volvió a 'servicio': limpiar el default solo si era el autopuesto.
+      // Volvió a otro tipo: limpiar el default solo si era el autopuesto.
       if (autoTipoServicioRef.current && form.tipoServicioId === autoTipoServicioRef.current) {
         set('tipoServicioId', '');
       }

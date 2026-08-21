@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoHistorial } from '@ags/shared';
-import { OT_ESTADO_LABELS } from '@ags/shared';
+import { OT_ESTADO_LABELS, tipoOTEfectivo, TIPO_OT_LABELS, OT_SIN_AGENDA_ESPERA } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePrompt } from '../ui/PromptDialog';
@@ -78,6 +78,11 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
 
   // En cierre administrativo: campos del reporte readonly, pero horas y presupuestos editables
   const roTecnico = readOnlyTecnico ?? readOnly;
+  // Tipo efectivo: el campo `tipoOT` no está entre las props del sidebar, así
+  // que se deriva del tipo de servicio — que es el dato que el usuario elige y
+  // el que manda cuando `tipoOT` quedó en su default 'servicio'.
+  const tipoEfectivo = tipoOTEfectivo({ tipoServicio });
+  const sinAgenda = tipoEfectivo !== 'servicio';
   const roHoras = readOnly; // horas: readonly solo en FINALIZADO, editables en cierre admin
   const roBudgets = readOnly; // presupuestos: editables en cierre admin
 
@@ -247,17 +252,29 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
       <Card compact>
         <p className={sec}>Asignación</p>
         <div className="space-y-2">
+          {/* Sin agenda (2026-08-21): entrega, proveedor externo y alquiler no se
+              coordinan, así que asignarles ingeniero y fecha no significa nada y
+              es justo lo que desincroniza la OT contra la agenda. Se bloquean y
+              se explica por qué, en vez de dejarlos editables e inertes. */}
+          {sinAgenda && (
+            <p className="text-[10px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1">
+              {TIPO_OT_LABELS[tipoEfectivo]} — no se agenda. Espera: {OT_SIN_AGENDA_ESPERA[tipoEfectivo as 'entrega' | 'proveedor_externo' | 'alquiler']}
+            </p>
+          )}
           <div>
             <span className={lbl}>Ingeniero</span>
             <select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
-              disabled={roTecnico} className={inp}>
+              disabled={roTecnico || sinAgenda} className={inp}
+              title={sinAgenda ? 'Esta OT no se agenda: no lleva ingeniero asignado' : undefined}>
               <option value="">Sin asignar</option>
               {ingenieros.map(u => <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>)}
             </select>
           </div>
           <div>
             <span className={lbl}>Fecha aprox. servicio</span>
-            <input type="date" value={fechaServicioAprox} onChange={F('fechaServicioAprox')} disabled={roTecnico} className={inp} />
+            <input type="date" value={fechaServicioAprox} onChange={F('fechaServicioAprox')}
+              disabled={roTecnico || sinAgenda} className={inp}
+              title={sinAgenda ? 'Esta OT no se agenda: no lleva fecha de servicio' : undefined} />
           </div>
           <div>
             <span className={lbl}>Orden de compra</span>

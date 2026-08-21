@@ -134,11 +134,71 @@ export function esOTCerradaTecnicamente(ot: {
   return ot.status === 'FINALIZADO';
 }
 
-export type TipoOT = 'servicio' | 'entrega';
+/**
+ * Naturaleza de la OT (2026-08-21).
+ *
+ * `servicio` es la única que se AGENDA: implica un técnico yendo a un lugar.
+ * Las otras tres no se agendan — se reclaman, y cada una espera algo distinto
+ * para poder cerrarse. Antes solo existía `entrega`, y alquiler y proveedor
+ * externo quedaban mezclados con los servicios en la cola de coordinación,
+ * esperando una visita que nunca iba a existir.
+ */
+export type TipoOT = 'servicio' | 'entrega' | 'proveedor_externo' | 'alquiler';
 
 export const TIPO_OT_LABELS: Record<TipoOT, string> = {
   servicio: 'Servicio técnico',
   entrega: 'Entrega de partes',
+  proveedor_externo: 'Proveedor externo',
+  alquiler: 'Alquiler',
+};
+
+/** Las que NO se agendan: figuran en la cola para reclamarlas, no para coordinar. */
+export const TIPOS_OT_SIN_AGENDA: readonly TipoOT[] = ['entrega', 'proveedor_externo', 'alquiler'];
+
+/**
+ * Deriva el tipo de OT del nombre del tipo de servicio, para las OTs previas al
+ * campo `tipoOT` y para precargarlo al crear. Devuelve null si no matchea
+ * ninguna familia sin agenda — o sea, es un servicio normal.
+ */
+export function tipoOTDesdeTipoServicio(tipoServicio?: string | null): TipoOT | null {
+  const t = (tipoServicio ?? '').toLowerCase();
+  if (!t) return null;
+  // OJO: "Entrega de lámpara" NO entra acá (2026-08-21). Es un servicio
+  // COORDINABLE: la lámpara se entrega en la visita de los clientes en contrato
+  // que la compran junto con el servicio, así que se agenda como cualquier otra.
+  if (/entrega de insumos|entrega de partes/.test(t)) return 'entrega';
+  if (/proveedor externo/.test(t)) return 'proveedor_externo';
+  if (/alquiler/.test(t)) return 'alquiler';
+  return null;
+}
+
+/** Tipo efectivo de la OT: el campo si está, si no se deriva del tipo de servicio. */
+export function tipoOTEfectivo(ot: { tipoOT?: TipoOT | null; tipoServicio?: string | null }): TipoOT {
+  // Un tipoOT DISTINTO de 'servicio' es una declaración deliberada y manda.
+  //
+  // Pero 'servicio' es el VALOR POR DEFECTO del formulario de alta: toda OT
+  // creada antes de que existieran estos tipos lo tiene, incluidas las de
+  // alquiler y proveedor externo. Si ese default le ganara a la derivación,
+  // esas OTs quedarían para siempre en la cola de coordinación esperando una
+  // visita que no existe (2026-08-21). Por eso, con 'servicio' o sin campo,
+  // manda lo que dice el tipo de servicio.
+  if (ot.tipoOT && ot.tipoOT !== 'servicio') return ot.tipoOT;
+  return tipoOTDesdeTipoServicio(ot.tipoServicio) ?? 'servicio';
+}
+
+/** `true` si la OT no se agenda (entrega, proveedor externo o alquiler). */
+export function otSinAgenda(ot: { tipoOT?: TipoOT | null; tipoServicio?: string | null }): boolean {
+  return TIPOS_OT_SIN_AGENDA.includes(tipoOTEfectivo(ot));
+}
+
+/**
+ * Qué está esperando una OT sin agenda para poder cerrarse. Es lo que se muestra
+ * en la cola, para que quien reclama sepa a quién reclamarle.
+ */
+export const OT_SIN_AGENDA_ESPERA: Record<Exclude<TipoOT, 'servicio'>, string> = {
+  entrega: 'Remito firmado — se adjunta al reporte y cierra en el cierre técnico',
+  proveedor_externo: 'Reporte del proveedor — se completa sin firma del cliente',
+  alquiler: 'Nada que adjuntar — se cierra al pasar la cuota del mes a facturar',
 };
 
 export interface WorkOrder {

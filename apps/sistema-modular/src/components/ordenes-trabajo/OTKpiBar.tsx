@@ -4,6 +4,8 @@ interface Props {
     totalHsLab: number;
     totalHsViaje: number;
     pendientes: number;
+    /** Entrega + proveedor externo + alquiler sin cerrar (2026-08-21). */
+    sinAgenda: number;
     facturables: number;
     total: number;
   };
@@ -35,6 +37,8 @@ export const OTKpiBar: React.FC<Props> = ({ kpis, estadoActivo, onFiltrar }) => 
     { label: 'Total', value: kpis.total, color: 'text-slate-700', filtro: '', title: 'Ver todas las órdenes' },
     { label: 'Pendientes', value: kpis.pendientes, color: 'text-amber-600', filtro: '__pendientes__', title: 'Filtrar: todo lo que no está finalizado' },
     { label: 'Creadas', value: kpis.byEstado['CREADA'] || 0, color: 'text-violet-600', filtro: 'CREADA', title: 'Filtrar por creadas (sin asignar todavía)' },
+    // Las que no se agendan: se reclaman, no se coordinan (2026-08-21).
+    { label: 'Sin agenda', value: kpis.sinAgenda, color: 'text-orange-600', filtro: '__sin_agenda__', title: 'Entregas, proveedor externo y alquiler sin cerrar — no se agendan, se reclaman' },
     { label: 'Cierre técnico', value: kpis.byEstado['CIERRE_TECNICO'] || 0, color: 'text-indigo-600', filtro: 'CIERRE_TECNICO', title: 'Filtrar por cierre técnico — trabajo hecho, falta el cierre administrativo' },
     { label: 'Cierre admin', value: kpis.byEstado['CIERRE_ADMINISTRATIVO'] || 0, color: 'text-cyan-600', filtro: 'CIERRE_ADMINISTRATIVO', title: 'Filtrar por cierre administrativo' },
     { label: 'Finalizadas', value: kpis.byEstado['FINALIZADO'] || 0, color: 'text-emerald-600', filtro: 'FINALIZADO', title: 'Filtrar por finalizadas' },

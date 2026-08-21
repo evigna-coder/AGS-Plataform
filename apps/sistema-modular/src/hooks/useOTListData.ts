@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../services/firebaseService';
 import type { WorkOrder, Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags/shared';
+import { otSinAgenda } from '@ags/shared';
 import { sortByField, type SortDir } from '../components/ui/SortableHeader';
 import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
 import { fechaLocalYMD } from '../utils/formatFecha';
@@ -118,11 +119,40 @@ export function useOTListData(filters: OTListFilters) {
     return m;
   }, [sistemas]);
 
+  /**
+   * "Sin agenda" ACCIONABLE (2026-08-21): entrega, proveedor externo o alquiler
+   * que todavía hay que reclamar.
+   *
+   * Quedan afuera:
+   *  - Cierre técnico en adelante: el trabajo ya se hizo y se controla desde el
+   *    cierre técnico, no desde acá (criterio del usuario).
+   *  - Canceladas: no hay nada que reclamar.
+   *  - Padres con hijas: son contenedores no accionables. Eran 13 de 38 — el
+   *    grueso de la diferencia contra la cola de la agenda, que ya los excluye.
+   */
+  const padresConHijas = useMemo(() => {
+    const set = new Set<string>();
+    for (const ot of ordenes) {
+      if (ot.otNumber.includes('.')) set.add(ot.otNumber.split('.')[0]);
+    }
+    return set;
+  }, [ordenes]);
+
+  const ES_SIN_AGENDA_CERRADA = ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO', 'CANCELADA'];
+  const esSinAgendaAccionable = useCallback((ot: WorkOrder) => {
+    if (!otSinAgenda(ot)) return false;
+    if (ES_SIN_AGENDA_CERRADA.includes(resolveEstadoOT(ot))) return false;
+    if (!ot.otNumber.includes('.') && padresConHijas.has(ot.otNumber)) return false;
+    return true;
+  }, [padresConHijas]);
+
   // Grouping: parents + sus items + orphans.
   const grouped = useMemo<GroupedOT[]>(() => {
     let list = ordenes;
     if (filters.estadoAdmin === '__pendientes__') {
       list = list.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO');
+    } else if (filters.estadoAdmin === '__sin_agenda__') {
+      list = list.filter(esSinAgendaAccionable);
     } else if (filters.estadoAdmin) {
       list = list.filter(ot => resolveEstadoOT(ot) === filters.estadoAdmin);
     }
@@ -241,7 +271,8 @@ export function useOTListData(filters: OTListFilters) {
       if (ot.esFacturable) facturables++;
     });
     const pendientes = ordenes.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO').length;
-    return { byEstado, totalHsLab, totalHsViaje, pendientes, facturables, total: ordenes.length };
+    const sinAgenda = ordenes.filter(esSinAgendaAccionable).length;
+    return { byEstado, totalHsLab, totalHsViaje, pendientes, sinAgenda, facturables, total: ordenes.length };
   }, [ordenes]);
 
   return {

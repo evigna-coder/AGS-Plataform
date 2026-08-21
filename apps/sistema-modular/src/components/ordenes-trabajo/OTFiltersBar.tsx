@@ -47,6 +47,7 @@ interface Props {
 
 const ESTADO_OPTIONS = [
   { value: '__pendientes__', label: 'Pendientes' },
+  { value: '__sin_agenda__', label: 'Sin agenda (entrega / prov. externo / alquiler)' },
   { value: '', label: 'Todos' },
   ...OT_ESTADO_ORDER.map(e => ({ value: e, label: OT_ESTADO_LABELS[e] })),
 ];

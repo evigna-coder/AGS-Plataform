@@ -1,5 +1,5 @@
 import { type FC, useState, useMemo } from 'react';
-import { OT_ESTADO_COLORS, OT_ESTADO_LABELS } from '@ags/shared';
+import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, otSinAgenda, tipoOTEfectivo, TIPO_OT_LABELS, OT_SIN_AGENDA_ESPERA } from '@ags/shared';
 import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
 import { useDraggable } from '@dnd-kit/core';
 import { matchesSearch } from '../../utils/searchTerms';
@@ -14,11 +14,16 @@ interface AgendaPendingSidebarProps {
   width?: number;
 }
 
-/** OT de ENTREGA DE PARTES (2026-08-04): no se agenda — figura en su pestaña
- *  para que la coordinadora la reclame. tipoOT nuevo + fallback por nombre
- *  del tipo de servicio para OTs previas al campo. */
-const esEntrega = (ot: WorkOrder) =>
-  ot.tipoOT === 'entrega' || /entrega de insumos|entrega de partes/i.test(ot.tipoServicio ?? '');
+/**
+ * OTs que NO se agendan (2026-08-21): entrega de partes, proveedor externo y
+ * alquiler. Figuran en su propia pestaña para reclamarlas, no para coordinar
+ * una visita que nunca va a existir.
+ *
+ * Antes solo contemplaba las entregas, así que alquiler y proveedor externo
+ * caían en la cola de servicios esperando ser arrastrados a un día.
+ * `otSinAgenda` resuelve por `tipoOT` y, si falta, deriva del tipo de servicio.
+ */
+const esEntrega = (ot: WorkOrder) => otSinAgenda(ot);
 
 export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
   pendingOTs, equipoIdBySistema, selectedOTs, onToggleSelect, onCopyOT, width = 256,
@@ -77,12 +82,12 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
             onClick={() => { setTab('entregas'); setEstadoFilter(''); }}
             className={`flex-1 text-[10px] px-2 py-1 rounded font-medium transition-colors ${tab === 'entregas' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
           >
-            Entregas ({entregas.length})
+            Sin agenda ({entregas.length})
           </button>
         </div>
         {tab === 'entregas' && (
           <p className="text-[9px] text-orange-600 mt-1">
-            Las entregas de partes NO se agendan — esta lista es para reclamarlas.
+            Entregas, proveedor externo y alquiler NO se agendan — esta lista es para reclamarlas.
           </p>
         )}
         {selCount > 0 && (
@@ -220,6 +225,16 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
         )}
       </div>
       <p className={`text-[10px] text-slate-500 truncate mt-0.5 ${onToggleSelect ? 'pl-5' : ''}`}>{ot.razonSocial}</p>
+      {/* Qué espera esta OT para poder cerrarse (2026-08-21). Las tres familias
+          sin agenda conviven en la misma pestaña y cada una se reclama distinto:
+          sin esto, "Alquiler" y "Entrega" se ven iguales y no se sabe a quién
+          reclamarle. */}
+      {!arrastrable && tipoOTEfectivo(ot) !== 'servicio' && (
+        <p className={`text-[9px] text-orange-700 truncate ${onToggleSelect ? 'pl-5' : ''}`}
+          title={OT_SIN_AGENDA_ESPERA[tipoOTEfectivo(ot) as Exclude<typeof ot.tipoOT, 'servicio' | undefined | null>]}>
+          {TIPO_OT_LABELS[tipoOTEfectivo(ot)]} — espera: {OT_SIN_AGENDA_ESPERA[tipoOTEfectivo(ot) as 'entrega' | 'proveedor_externo' | 'alquiler']}
+        </p>
+      )}
       {ot.sistema && <p className={`text-[10px] text-slate-400 truncate ${onToggleSelect ? 'pl-5' : ''}`}>{ot.sistema}</p>}
       {/* Tipo de servicio + ID de equipo (UAT 2026-07-17). Sin '—' si faltan. */}
       {(ot.tipoServicio || equipoAgsId) && (
