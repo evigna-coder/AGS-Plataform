@@ -1,15 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SolicitudFacturacion, OrdenCompraCliente } from '@ags/shared';
 import { ordenesCompraClienteService } from '../services/ordenesCompraClienteService';
-import {
-  ordenesTrabajoService,
-  presupuestosService,
-  clientesService,
-  contactosService,
-  establecimientosService,
-  condicionesPagoService,
-  categoriasPresupuestoService,
-} from '../services/firebaseService';
+import { ordenesTrabajoService, presupuestosService } from '../services/firebaseService';
+import { abrirPresupuestoPdf } from '../utils/abrirPresupuestoPdf';
 
 export interface ReporteOTAcceso {
   otNumber: string;
@@ -23,8 +16,9 @@ export interface ReporteOTAcceso {
  *   Fuente primaria: `solicitud.ordenesCompraIds` (back-ref del cierre admin).
  *   Fallback (solicitudes viejas de SolicitarFacturaModal): `presupuesto.ordenesCompraIds`.
  * - Reportes de OT (`reportes/{otNumber}` → `pdfUrl`), uno por OT del aviso.
- * - PDF del presupuesto: se genera on-demand con @react-pdf (`verPresupuestoPDF`),
- *   reusando el mismo generador que la pantalla de presupuestos. Solo lecturas.
+ * - PDF del presupuesto: se genera on-demand con @react-pdf (`verPresupuestoPDF`
+ *   → `abrirPresupuestoPdf`), el mismo camino que usa el visor de entregas.
+ *   Solo lecturas.
  */
 export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
   const [ocs, setOcs] = useState<OrdenCompraCliente[]>([]);
@@ -102,26 +96,7 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
     if (!solicitud) return;
     setGenerandoPdf(true);
     try {
-      const p = await presupuestosService.getById(solicitud.presupuestoId);
-      if (!p) throw new Error('Presupuesto no encontrado');
-
-      const [cliente, establecimiento, contactos, condiciones, categorias] = await Promise.all([
-        p.clienteId ? clientesService.getById(p.clienteId).catch(() => null) : Promise.resolve(null),
-        p.establecimientoId ? establecimientosService.getById(p.establecimientoId).catch(() => null) : Promise.resolve(null),
-        p.clienteId ? contactosService.getByCliente(p.clienteId).catch(() => []) : Promise.resolve([]),
-        condicionesPagoService.getAll().catch(() => []),
-        categoriasPresupuestoService.getAll().catch(() => []),
-      ]);
-
-      const { previewPresupuestoPDF } = await import('../components/presupuestos/pdf');
-      await previewPresupuestoPDF({
-        presupuesto: p,
-        cliente,
-        establecimiento,
-        contacto: (contactos.find(c => c.id === p.contactoId) as any) || null,
-        condicionPago: condiciones.find(c => c.id === p.condicionPagoId) || null,
-        categorias,
-      });
+      await abrirPresupuestoPdf(solicitud.presupuestoId);
     } catch (err) {
       console.error('[useSolicitudDocumentos] Error generando PDF del presupuesto:', err);
       alert('Error al generar el PDF del presupuesto');

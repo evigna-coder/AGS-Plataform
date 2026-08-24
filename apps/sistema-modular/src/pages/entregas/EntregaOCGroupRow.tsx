@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { EntregaRow } from '../../utils/entregasResolver';
 import { SEMAFORO_COLORS, SEMAFORO_LABELS, computeSemaforo } from '../../utils/entregasResolver';
-import { ordenesCompraService } from '../../services/firebaseService';
-import { proveedoresService } from '../../services/personalService';
-import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenCompraPDF';
+import { EntregaOCProveedorCell } from './EntregaDocsCells';
 
 interface Props {
   /** Filas (items) de la misma OC completa — mínimo 1. */
@@ -19,7 +17,6 @@ interface Props {
  */
 export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle }) => {
   const first = rows[0];
-  const [loadingPdf, setLoadingPdf] = useState(false);
 
   const clientes = [...new Set(rows.map(r => r.clienteNombre))];
   const pptos = [...new Set(rows.map(r => r.presupuestoNumero))];
@@ -34,23 +31,6 @@ export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle })
   const semaforo = pendientes.length === 0
     ? 'entregado' as const
     : computeSemaforo(minDias);
-
-  const abrirPdfOC = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!first.ocId) return;
-    setLoadingPdf(true);
-    try {
-      const oc = await ordenesCompraService.getById(first.ocId);
-      if (!oc) { alert('No se encontró la orden de compra.'); return; }
-      const prov = await proveedoresService.getById(oc.proveedorId).catch(() => null);
-      await previewOrdenCompraPDF(oc, prov);
-    } catch (err) {
-      console.error('[EntregaOCGroupRow] error abriendo PDF de OC', err);
-      alert('No se pudo abrir el PDF de la orden de compra.');
-    } finally {
-      setLoadingPdf(false);
-    }
-  };
 
   return (
     <tr
@@ -79,16 +59,7 @@ export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle })
       </td>
       <td className="px-3 py-2 text-xs text-slate-300">—</td>
       <td className="px-3 py-2 text-xs font-mono">
-        <button
-          type="button"
-          onClick={abrirPdfOC}
-          disabled={loadingPdf}
-          title="Abrir PDF de la orden de compra"
-          className="text-teal-700 hover:underline disabled:opacity-50 inline-flex items-center gap-1 font-semibold"
-        >
-          {first.ocNumero}
-          <span className="text-[9px]">{loadingPdf ? '…' : '↗'}</span>
-        </button>
+        <EntregaOCProveedorCell row={first} bold />
       </td>
       <td className="px-3 py-2 text-xs">
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -96,6 +67,8 @@ export const EntregaOCGroupRow: React.FC<Props> = ({ rows, expanded, onToggle })
         </span>
       </td>
       <td className="px-3 py-2 text-xs text-slate-300">—</td>
+      <td className="px-3 py-2 text-xs text-slate-300">—</td>
+      {/* Destino: por ítem — va en cada fila hija. */}
       <td className="px-3 py-2 text-xs text-slate-300">—</td>
       <td className="px-3 py-2 text-center text-[10px] font-mono text-slate-500">
         {entregados}/{rows.length}

@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { EstadoImportacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_COLORS, ESTADO_IMPORTACION_LABELS } from '@ags/shared';
 import type { EntregaRow as Row } from '../../utils/entregasResolver';
 import { SEMAFORO_COLORS, SEMAFORO_LABELS } from '../../utils/entregasResolver';
 import type { EntregaItemPatch } from '../../hooks/useEntregas';
-import { ordenesCompraService } from '../../services/firebaseService';
-import { proveedoresService } from '../../services/personalService';
-import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenCompraPDF';
+import { EntregaPresupuestoCell, EntregaOCProveedorCell } from './EntregaDocsCells';
+import { EntregaDireccionCell } from './EntregaDireccionCell';
+import type { DireccionEntrega } from '@ags/shared';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
 interface Props {
@@ -15,6 +14,10 @@ interface Props {
   onUpdate: (patch: EntregaItemPatch) => Promise<void>;
   /** Fila desplegada bajo un grupo de OC completa — fondo diferenciado. */
   nested?: boolean;
+  /** Direcciones de entrega del cliente de esta fila. */
+  direcciones: DireccionEntrega[];
+  /** Abre la gestión de direcciones con este cliente preseleccionado. */
+  onCargarDireccion: (clienteId: string) => void;
 }
 
 const TONO_DISPONIBILIDAD: Record<'ok' | 'camino' | 'nada', string> = {
@@ -47,7 +50,7 @@ const formatMoney = (n: number, m: 'USD' | 'ARS' | 'EUR' | null): string => {
   return `${prefix} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) => {
+export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested, direcciones, onCargarDireccion }) => {
   const sufijoEstab = useEstablecimientoSuffix();
   const [otDraft, setOtDraft] = useState(row.otNumeroVinculada ?? '');
   const [fechaDraft, setFechaDraft] = useState((row.fechaComprometida ?? '').slice(0, 10));
@@ -76,23 +79,6 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
     const next = fechaDraft === '' ? null : fechaDraft;
     if ((next ?? '') === current) return;
     void runUpdate({ fechaComprometida: next }, () => setFechaDraft(current));
-  };
-
-  const [loadingPdf, setLoadingPdf] = useState(false);
-  const abrirPdfOC = async () => {
-    if (!row.ocId) return;
-    setLoadingPdf(true);
-    try {
-      const oc = await ordenesCompraService.getById(row.ocId);
-      if (!oc) { alert('No se encontró la orden de compra.'); return; }
-      const prov = await proveedoresService.getById(oc.proveedorId).catch(() => null);
-      await previewOrdenCompraPDF(oc, prov);
-    } catch (err) {
-      console.error('[EntregaRow] error abriendo PDF de OC', err);
-      alert('No se pudo abrir el PDF de la orden de compra.');
-    } finally {
-      setLoadingPdf(false);
-    }
   };
 
   return (
@@ -145,9 +131,7 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
         {formatMoney(row.precioUnitario, row.moneda)}
       </td>
       <td className="px-3 py-2 text-xs">
-        <Link to={`/presupuestos/${row.presupuestoId}`} className="text-teal-700 hover:underline font-mono">
-          {row.presupuestoNumero}
-        </Link>
+        <EntregaPresupuestoCell row={row} />
       </td>
       <td className="px-3 py-2 text-xs">
         <input
@@ -163,24 +147,7 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
         />
       </td>
       <td className="px-3 py-2 text-xs font-mono">
-        {row.ocNumero ? (
-          row.ocId ? (
-            <button
-              type="button"
-              onClick={abrirPdfOC}
-              disabled={loadingPdf}
-              title="Abrir PDF de la orden de compra"
-              className="text-teal-700 hover:underline disabled:opacity-50 inline-flex items-center gap-1"
-            >
-              {row.ocNumero}
-              <span className="text-[9px]">{loadingPdf ? '…' : '↗'}</span>
-            </button>
-          ) : (
-            <span className="text-slate-600">{row.ocNumero}</span>
-          )
-        ) : (
-          <span className="text-slate-300">—</span>
-        )}
+        <EntregaOCProveedorCell row={row} />
       </td>
       <td className="px-3 py-2 text-xs">
         {row.importacionNumero ? (
@@ -231,6 +198,10 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
         {!row.fechaComprometida && row.etaFecha && (
           <div className="text-[9px] text-slate-400 mt-0.5">calc: {formatDate(row.etaFecha)}</div>
         )}
+      </td>
+      <td className="px-3 py-2 text-xs">
+        <EntregaDireccionCell row={row} direcciones={direcciones}
+          onUpdate={onUpdate} onCargar={onCargarDireccion} />
       </td>
       <td className="px-3 py-2 text-center">
         <input
