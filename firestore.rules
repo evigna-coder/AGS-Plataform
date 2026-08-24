@@ -248,6 +248,9 @@ service cloud.firestore {
     match /contratos/{contratoId}                  { allow read, write: if esStaff(); }
     match /solicitudesFacturacion/{solicitudId}    { allow read, write: if esStaff(); }
     match /ordenesCompraCliente/{ocId}             { allow read, write: if esStaff(); }
+    // Direcciones de entrega por cliente (a dónde va la mercadería). Solo staff:
+    // el portal del cliente no las necesita y son dato operativo interno.
+    match /direccionesEntrega/{direccionId}        { allow read, write: if esStaff(); }
     // Control de facturas (cuentas a pagar): staff completo. Counter en /_counters/facturas.
     match /facturas/{facturaId}                    { allow read, write: if esStaff(); }
 
