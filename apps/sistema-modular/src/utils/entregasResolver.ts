@@ -103,10 +103,39 @@ export interface EntregaRow {
   importacionId: string | null;
   importacionNumero: string | null;
   importacionEstado: string | null;
+  /** OC del CLIENTE sobre el presupuesto — el papel con el que compró. */
+  ocCliente: OCClienteRef | null;
+  /** A dónde va este ítem: id de la dirección elegida y su texto al elegirla. */
+  direccionEntregaId: string | null;
+  direccionEntregaTexto: string | null;
+}
+
+/**
+ * La orden de compra del cliente, lista para abrir desde la grilla (2026-08-24).
+ *
+ * No confundir con `ocNumero`, que es la OC que AGS le emite al PROVEEDOR. Esta
+ * es la que manda el cliente y es el respaldo de la entrega.
+ *
+ * `url` puede venir vacía: hay presupuestos con el número de OC cargado a mano
+ * y sin archivo adjunto. En ese caso se muestra el número, apagado.
+ */
+export interface OCClienteRef {
+  numero: string;
+  url: string | null;
+  /** Nombre del archivo, para el título del visor. */
+  nombre: string | null;
 }
 
 export interface BuildEntregaRowsInput {
-  presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'establecimientoId' | 'estado' | 'items' | 'fechaAceptacion'> & { condicionPagoId?: string | null }>;
+  presupuestos: Array<
+    Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'establecimientoId' | 'estado' | 'items' | 'fechaAceptacion'>
+    & {
+      condicionPagoId?: string | null;
+      ordenesCompraIds?: string[] | null;
+      ordenCompraNumero?: string | null;
+      adjuntos?: Array<{ id: string; tipo?: string | null; url: string; nombre: string }> | null;
+    }
+  >;
   requerimientos: RequerimientoCompra[];
   ordenesCompra: Array<{ id: string; numero: string; estado?: string | null; items: Array<{ id: string; requerimientoId?: string | null }> }>;
   importaciones: Array<Pick<Importacion, 'id' | 'numero' | 'estado' | 'items'>>;
@@ -128,6 +157,11 @@ export interface BuildEntregaRowsInput {
    * duplicar, y el visor no tiene por qué saber cuál es.
    */
   condicionesAnticipadas?: Set<string>;
+  /**
+   * OCs del cliente por id (colección `ordenesCompraCliente`), para resolver el
+   * archivo adjunto sin una lectura por fila.
+   */
+  ocClienteById?: Map<string, { numero: string; adjuntos?: Array<{ url: string; nombre: string }> }>;
   /** Inyectable para tests; default = new Date() */
   now?: Date;
 }
@@ -156,6 +190,8 @@ export interface DisponibilidadCalculada {
 
 const IMPORTACION_EN_CURSO: Record<string, string> = {
   preparacion: 'En preparación',
+  // Hay compra en marcha pero la mercadería no salió: la fecha es estimada.
+  en_origen: 'En origen',
   embarcado: 'Embarcada',
   en_transito: 'En tránsito',
   en_aduana: 'En aduana',
@@ -191,6 +227,46 @@ export function calcularDisponibilidad(datos: {
 
   // 5. Ni stock ni compra: es el caso que hay que mirar.
   return { clave: 'sin_stock', label: 'Sin stock', tono: 'nada' };
+}
+
+/**
+ * La OC del cliente de un presupuesto (2026-08-24).
+ *
+ * Hay DOS formas de cargarla y las dos son legítimas —la colección
+ * `ordenesCompraCliente` (FLOW-02) y un adjunto del propio presupuesto con
+ * `tipo: 'orden_compra'`— así que se miran las dos: leyendo una sola, la mitad
+ * de los presupuestos dice "sin OC" con el papel adjunto ahí mismo. Mismo
+ * criterio que la tarjeta de documentos de facturación.
+ *
+ * Último recurso: el número suelto en `ordenCompraNumero`, sin archivo. Es un
+ * dato real (alguien lo tipeó) y ocultarlo sería peor que mostrarlo apagado.
+ */
+export function resolverOCCliente(
+  ppto: {
+    ordenesCompraIds?: string[] | null;
+    ordenCompraNumero?: string | null;
+    adjuntos?: Array<{ id: string; tipo?: string | null; url: string; nombre: string }> | null;
+  },
+  ocClienteById?: Map<string, { numero: string; adjuntos?: Array<{ url: string; nombre: string }> }>,
+): OCClienteRef | null {
+  for (const id of ppto.ordenesCompraIds ?? []) {
+    const oc = ocClienteById?.get(id);
+    if (!oc) continue;
+    const adj = oc.adjuntos?.[0] ?? null;
+    return { numero: oc.numero, url: adj?.url ?? null, nombre: adj?.nombre ?? null };
+  }
+
+  const adjunto = (ppto.adjuntos ?? []).find(a => a.tipo === 'orden_compra');
+  if (adjunto) {
+    return {
+      numero: (ppto.ordenCompraNumero ?? '').trim() || adjunto.nombre,
+      url: adjunto.url,
+      nombre: adjunto.nombre,
+    };
+  }
+
+  const suelto = (ppto.ordenCompraNumero ?? '').trim();
+  return suelto ? { numero: suelto, url: null, nombre: null } : null;
 }
 
 /**
@@ -301,6 +377,7 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
      */
     if (!ppto.fechaAceptacion) continue;
     const clienteNombre = input.clienteNombreById.get(ppto.clienteId) ?? '—';
+    const ocCliente = resolverOCCliente(ppto, input.ocClienteById);
     for (const item of (ppto.items ?? [])) {
       const stockArticuloId = (item as { stockArticuloId?: string | null }).stockArticuloId ?? null;
       const req = (item.id ? reqByItemId.get(item.id) : null)
@@ -399,6 +476,9 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         importacionId: imp?.impId ?? null,
         importacionNumero: imp?.impNumero ?? null,
         importacionEstado: imp?.impEstado ?? null,
+        ocCliente,
+        direccionEntregaId: item.direccionEntregaId ?? null,
+        direccionEntregaTexto: item.direccionEntregaTexto ?? null,
       });
     }
   }

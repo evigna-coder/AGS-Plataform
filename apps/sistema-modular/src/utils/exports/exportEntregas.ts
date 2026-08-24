@@ -32,9 +32,11 @@ export const ENTREGAS_EXPORT_COLUMNS: ExportColumn<EntregaRow>[] = [
   { header: 'Item',        width: 34, get: r => r.descripcion },
   { header: 'Cant.',       width: 7,  get: r => r.cantidad, align: 'right' },
   { header: 'Presupuesto', width: 15, get: r => r.presupuestoNumero },
-  { header: 'OC',          width: 12, get: r => r.ocNumero || '' },
+  { header: 'OC prov.',    width: 12, get: r => r.ocNumero || '' },
+  { header: 'OC cliente',  width: 16, get: r => r.ocCliente?.numero || '' },
   { header: 'Importación', width: 13, get: r => r.importacionNumero || '' },
   { header: 'ETA',         width: 10, get: r => fmtDateShort(r.etaFecha) },
+  { header: 'Destino',     width: 34, get: r => r.direccionEntregaTexto || '' },
   { header: 'Semáforo',    width: 11, get: r => SEMAFORO_LABELS[r.semaforo] || r.semaforo },
   { header: 'Días',        width: 7,  get: r => r.diasRestantes, align: 'right' },
 ];

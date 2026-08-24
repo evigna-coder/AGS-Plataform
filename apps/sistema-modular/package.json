@@ -37,6 +37,7 @@
     "test:proxima-accion": "tsx src/utils/__tests__/proximaAccionFicha.test.ts",
     "test:ppto-items": "tsx src/utils/__tests__/presupuestoItemNumero.test.ts",
     "test:estado-presupuesto": "tsx src/utils/__tests__/estadoPresupuesto.test.ts",
+    "test:estado-importacion": "tsx src/utils/__tests__/estadoImportacion.test.ts",
     "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",

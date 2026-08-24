@@ -23,7 +23,7 @@ interface Props {
 
 const SEMAFOROS: Semaforo[] = ['verde', 'amarillo', 'rojo', 'entregado', 'sin_eta'];
 const ESTADOS_IMP: EstadoImportacion[] = [
-  'preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
+  'preparacion', 'en_origen', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
 ];
 
 export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOptions, search, onSearchChange }) => {

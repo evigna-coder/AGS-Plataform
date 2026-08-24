@@ -13,7 +13,10 @@ interface Props {
 }
 
 const VALID_TRANSITIONS: Record<EstadoImportacion, EstadoImportacion[]> = {
-  preparacion: ['embarcado', 'cancelado'],
+  // 'en_origen' es opcional: la importación puede ir directo a embarcada si el
+  // embarque ya está confirmado cuando se carga (2026-08-24).
+  preparacion: ['en_origen', 'embarcado', 'cancelado'],
+  en_origen: ['embarcado', 'cancelado'],
   embarcado: ['en_transito', 'cancelado'],
   en_transito: ['en_aduana', 'cancelado'],
   en_aduana: ['despachado', 'cancelado'],

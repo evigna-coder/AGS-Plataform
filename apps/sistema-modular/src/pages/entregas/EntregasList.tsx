@@ -4,7 +4,9 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { Button } from '../../components/ui/Button';
 import { EntregasFilters } from './EntregasFilters';
+import { DireccionesEntregaModal } from '../../components/entregas/DireccionesEntregaModal';
 import { EntregaRowComponent } from './EntregaRow';
 import { EntregaOCGroupRow } from './EntregaOCGroupRow';
 import type { EntregaRow } from '../../utils/entregasResolver';
@@ -30,7 +32,11 @@ const FILTER_SCHEMA = {
 const thClass = 'text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3';
 
 export const EntregasList: React.FC = () => {
-  const { rows, loading, updateItem } = useEntregas();
+  const { rows, direccionesPorCliente, reloadDirecciones, loading, updateItem } = useEntregas();
+  // Gestión de direcciones: se abre desde el botón de arriba o desde la celda
+  // de una fila cuando ese cliente todavía no tiene ninguna cargada.
+  const [dirModal, setDirModal] = useState<{ abierto: boolean; clienteId: string | null }>({ abierto: false, clienteId: null });
+  const abrirDirecciones = (clienteId: string | null = null) => setDirModal({ abierto: true, clienteId });
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [search, setSearch] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
 
@@ -129,8 +135,13 @@ export const EntregasList: React.FC = () => {
         subtitle="Visor de cumplimiento de entregas comprometidas"
         count={sorted.length}
         actions={
-          <ExportarButton columnas={ENTREGAS_EXPORT_COLUMNS} data={sorted}
-            titulo="Entregas" filename="entregas" filtrosAplicados={filtrosExport} />
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => abrirDirecciones()}>
+              Direcciones de entrega
+            </Button>
+            <ExportarButton columnas={ENTREGAS_EXPORT_COLUMNS} data={sorted}
+              titulo="Entregas" filename="entregas" filtrosAplicados={filtrosExport} />
+          </div>
         }
       >
         <EntregasFilters filters={filters} setFilter={setFilter} clienteOptions={clienteOptions} search={search} onSearchChange={setSearch} />
@@ -154,10 +165,11 @@ export const EntregasList: React.FC = () => {
                   <SortableHeader label="Valor unit."  field="precioUnitario"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} text-right`} />
                   <SortableHeader label="Presupuesto"  field="presupuestoNumero"  currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>OT#</th>
-                  <SortableHeader label="OC#"          field="ocNumero"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="OC prov."     field="ocNumero"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Importación"  field="importacionNumero"  currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Disp."        field="disponibilidadCalculada.label" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="ETA"          field="etaFecha"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Destino"      field="direccionEntregaTexto" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={`${thClass} text-center`}>Entregado</th>
                   <SortableHeader label="Días"         field="diasRestantes"      currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                 </tr>
@@ -168,6 +180,8 @@ export const EntregasList: React.FC = () => {
                     key={`${entry.row.presupuestoId}::${entry.row.itemId}`}
                     row={entry.row}
                     onUpdate={(patch) => updateItem(entry.row.presupuestoId, entry.row.itemId, patch)}
+                    direcciones={direccionesPorCliente.get(entry.row.clienteId) ?? []}
+                    onCargarDireccion={abrirDirecciones}
                   />
                 ) : (
                   <React.Fragment key={`oc-group-${entry.ocId}`}>
@@ -181,6 +195,8 @@ export const EntregasList: React.FC = () => {
                         key={`${row.presupuestoId}::${row.itemId}`}
                         row={row}
                         onUpdate={(patch) => updateItem(row.presupuestoId, row.itemId, patch)}
+                        direcciones={direccionesPorCliente.get(row.clienteId) ?? []}
+                        onCargarDireccion={abrirDirecciones}
                         nested
                       />
                     ))}
@@ -191,6 +207,13 @@ export const EntregasList: React.FC = () => {
           )}
         </div>
       </div>
+
+      <DireccionesEntregaModal
+        open={dirModal.abierto}
+        clienteIdInicial={dirModal.clienteId}
+        onClose={() => setDirModal({ abierto: false, clienteId: null })}
+        onCambios={() => void reloadDirecciones()}
+      />
     </div>
   );
 };

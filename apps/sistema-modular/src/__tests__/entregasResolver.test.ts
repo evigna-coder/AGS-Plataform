@@ -22,6 +22,7 @@ import {
   computeSemaforo,
   computeEtaFecha,
   buildEntregaRows,
+  resolverOCCliente,
 } from '../utils/entregasResolver.ts';
 import {
   FIXTURE_NOW,
@@ -364,4 +365,108 @@ test('[ENT-15] un presupuesto nunca aceptado no genera filas de entrega', () => 
 
   assert.equal(armar(null).length, 0, 'sin fecha de aceptación no hay nada que entregar');
   assert.equal(armar('2026-05-15T10:00:00.000Z').length, 1, 'aceptado sí genera la fila');
+});
+
+
+// ── ENT-16: la OC del CLIENTE, para abrirla desde la grilla (2026-08-24) ─────
+// Hay dos formas legítimas de cargarla y mirar una sola deja la mitad de los
+// presupuestos diciendo "sin OC" con el papel adjunto ahí mismo.
+test('[ENT-16] resolverOCCliente lee la colección Y los adjuntos del presupuesto', () => {
+  const mapa = new Map([
+    ['OCC-1', { numero: 'O-000100445302', adjuntos: [{ url: 'https://x/oc.pdf', nombre: 'oc.pdf' }] }],
+    ['OCC-SIN-ARCHIVO', { numero: 'O-999', adjuntos: [] }],
+  ]);
+
+  // 1) Colección `ordenesCompraCliente` — la vía principal (FLOW-02).
+  const desdeColeccion = resolverOCCliente({ ordenesCompraIds: ['OCC-1'] }, mapa);
+  assert.deepEqual(desdeColeccion, { numero: 'O-000100445302', url: 'https://x/oc.pdf', nombre: 'oc.pdf' });
+
+  // 2) Adjunto del propio presupuesto — la otra vía real.
+  const desdeAdjunto = resolverOCCliente({
+    ordenCompraNumero: 'O-777',
+    adjuntos: [
+      { id: 'a1', tipo: 'otro', url: 'https://x/plano.pdf', nombre: 'plano.pdf' },
+      { id: 'a2', tipo: 'orden_compra', url: 'https://x/oc-777.pdf', nombre: 'oc-777.pdf' },
+    ],
+  });
+  assert.equal(desdeAdjunto?.url, 'https://x/oc-777.pdf', 'elige el adjunto de tipo orden_compra');
+  assert.equal(desdeAdjunto?.numero, 'O-777');
+
+  // Sin número cargado, el adjunto presta su nombre: algo hay que mostrar.
+  const sinNumero = resolverOCCliente({
+    adjuntos: [{ id: 'a1', tipo: 'orden_compra', url: 'https://x/f.pdf', nombre: 'f.pdf' }],
+  });
+  assert.equal(sinNumero?.numero, 'f.pdf');
+
+  // 3) Número suelto sin archivo: se muestra igual, apagado.
+  assert.deepEqual(resolverOCCliente({ ordenCompraNumero: 'O-555' }), { numero: 'O-555', url: null, nombre: null });
+
+  // Una OC de la colección sin archivo tampoco inventa una URL.
+  assert.deepEqual(
+    resolverOCCliente({ ordenesCompraIds: ['OCC-SIN-ARCHIVO'] }, mapa),
+    { numero: 'O-999', url: null, nombre: null },
+  );
+
+  // Un id que no está en el mapa no puede tapar al adjunto que sí existe.
+  const idColgado = resolverOCCliente({
+    ordenesCompraIds: ['NO-EXISTE'],
+    adjuntos: [{ id: 'a1', tipo: 'orden_compra', url: 'https://x/ok.pdf', nombre: 'ok.pdf' }],
+  }, mapa);
+  assert.equal(idColgado?.url, 'https://x/ok.pdf', 'cae al adjunto en vez de devolver null');
+
+  // 4) Sin nada: null, y la celda no muestra ruido.
+  assert.equal(resolverOCCliente({}), null);
+  assert.equal(resolverOCCliente({ ordenCompraNumero: '   ' }), null, 'un número en blanco no es una OC');
+});
+
+// La fila la lleva puesta: es lo que consume la celda del visor.
+test('[ENT-17] buildEntregaRows estampa la OC del cliente en cada fila', () => {
+  const rows = buildEntregaRows({
+    presupuestos: [makePresupuestoBase({
+      items: [makeItem({ id: 'ITEM-1' })],
+      ordenesCompraIds: ['OCC-1'],
+    } as never)],
+    requerimientos: [], ordenesCompra: [], importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    ocClienteById: new Map([['OCC-1', { numero: 'O-123', adjuntos: [{ url: 'https://x/oc.pdf', nombre: 'oc.pdf' }] }]]),
+    now: FIXTURE_NOW,
+  });
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].ocCliente?.numero, 'O-123');
+  assert.equal(rows[0].ocCliente?.url, 'https://x/oc.pdf');
+  // Sin dirección elegida la fila no inventa una.
+  assert.equal(rows[0].direccionEntregaId, null);
+  assert.equal(rows[0].direccionEntregaTexto, null);
+
+  // Sin el mapa (o sin OC) la fila sigue existiendo: el visor no depende de esto.
+  const sinOC = buildEntregaRows({
+    presupuestos: [makePresupuestoBase({ items: [makeItem({ id: 'ITEM-1' })] })],
+    requerimientos: [], ordenesCompra: [], importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    now: FIXTURE_NOW,
+  });
+  assert.equal(sinOC[0].ocCliente, null);
+});
+
+
+// ── ENT-18: el destino del ítem viaja en la fila (2026-08-24) ───────────────
+// Se guardan el id Y el texto: la dirección se puede corregir o dar de baja
+// después, y lo comprometido no puede cambiar retroactivamente.
+test('[ENT-18] la dirección de entrega del ítem llega a la fila', () => {
+  const rows = buildEntregaRows({
+    presupuestos: [makePresupuestoBase({
+      items: [makeItem({
+        id: 'ITEM-1',
+        direccionEntregaId: 'DIR-9',
+        direccionEntregaTexto: 'Depósito Pilar — Ruta 8 Km 42, Pilar, Buenos Aires',
+      })],
+    } as never)],
+    requerimientos: [], ordenesCompra: [], importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    now: FIXTURE_NOW,
+  });
+
+  assert.equal(rows[0].direccionEntregaId, 'DIR-9');
+  assert.match(rows[0].direccionEntregaTexto ?? '', /Dep.sito Pilar/);
 });

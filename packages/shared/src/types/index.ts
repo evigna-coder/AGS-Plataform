@@ -1427,6 +1427,16 @@ export interface PresupuestoItem {
    */
   fechaComprometida?: string | null;
   /**
+   * A dónde va este ítem (2026-08-24). Se elige en /entregas de una lista de
+   * direcciones cargadas por cliente (`direccionesEntrega`).
+   *
+   * Se guardan las DOS cosas: el id, para saber cuál se eligió, y el texto
+   * armado en ese momento. La dirección se puede corregir o dar de baja después,
+   * y lo que se comprometió no puede cambiar retroactivamente.
+   */
+  direccionEntregaId?: string | null;
+  direccionEntregaTexto?: string | null;
+  /**
    * Marca manual de entregado desde /entregas (independiente de la importación).
    * true → el semáforo muestra 'entregado'. null/false = sigue el cálculo por ETA / importación.
    */
@@ -1626,6 +1636,17 @@ export interface OrdenCompra {
   fechaEntregaEstimada?: string | null;
   // Incoterm — se carga en la OC y se levanta al crear la importación.
   incoterm?: string | null;
+  /**
+   * Flete y seguro ACORDADOS con el proveedor, en la moneda de la OC
+   * (2026-08-24). Se levantan al crear la importación como `fleteDeclarado` /
+   * `seguroDeclarado`, que entran en la base CIF del costeo.
+   *
+   * Son el valor pactado, no el definitivo: la importación los puede corregir
+   * contra la guía sin tocar la OC. Por eso viven en los dos lados y el arrastre
+   * es un prefill, no un vínculo.
+   */
+  flete?: number | null;
+  seguro?: number | null;
   // Vinculaciones legacy (mantener compatibilidad)
   presupuestoIds?: string[];
   // Envío al proveedor (timestamp del evento, ISO)
@@ -5245,11 +5266,20 @@ export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';
 // --- Importaciones (Comercio Exterior) ---
 // =============================================
 
-export type EstadoImportacion = 'preparacion' | 'embarcado' | 'en_transito' | 'en_aduana'
+export type EstadoImportacion = 'preparacion' | 'en_origen' | 'embarcado' | 'en_transito' | 'en_aduana'
   | 'despachado' | 'recibido' | 'cancelado';
 
 export const ESTADO_IMPORTACION_LABELS: Record<EstadoImportacion, string> = {
   preparacion: 'Preparación',
+  /**
+   * La mercadería está en origen y el embarque NO se confirmó (2026-08-24).
+   *
+   * La importación se crea temprano para estimar arribo y costeo, mucho antes
+   * de que el proveedor despache. Sin este estado esa etapa caía en
+   * "Preparación", que se lee como "lo estamos preparando", y no había forma de
+   * distinguir un embarque real de una estimación.
+   */
+  en_origen: 'En origen',
   embarcado: 'Embarcada',
   en_transito: 'En tránsito',
   en_aduana: 'En aduana',
@@ -5259,7 +5289,10 @@ export const ESTADO_IMPORTACION_LABELS: Record<EstadoImportacion, string> = {
 };
 
 /** Orden de progresión de los estados (sin cancelado, que es terminal lateral). */
-const ESTADO_IMPORTACION_ORDEN: EstadoImportacion[] = ['preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido'];
+const ESTADO_IMPORTACION_ORDEN: EstadoImportacion[] = ['preparacion', 'en_origen', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido'];
+
+/** Posición de un estado en la progresión. -1 si no está (cancelado). */
+const posEstadoImp = (e: EstadoImportacion) => ESTADO_IMPORTACION_ORDEN.indexOf(e);
 
 /**
  * Deriva el estado de una importación a partir de los datos cargados (forward-only):
@@ -5277,15 +5310,20 @@ export function derivarEstadoImportacion(
   const has = (v: unknown) => v != null && String(v).trim() !== '';
   let idx = ESTADO_IMPORTACION_ORDEN.indexOf(estadoActual ?? 'preparacion');
   if (idx < 0) idx = 0;
+  // Por POSICIÓN y no por índice literal (2026-08-24): al insertar 'en_origen'
+  // los números fijos apuntaban al estado equivocado —un despacho cargado
+  // dejaba la importación "en aduana"— y nada lo hubiera avisado.
   let derived = 0; // preparacion
-  if (has(campos.fechaEmbarque) && has(campos.numeroGuia)) derived = Math.max(derived, 1); // embarcado
-  if (has(campos.despachoNumero)) derived = Math.max(derived, 4);                            // despachado/oficializada
-  if (has(campos.fechaRecepcion) || campos.stockIngresado) derived = Math.max(derived, 5);   // recibido
+  if (has(campos.fechaEmbarque) && has(campos.numeroGuia)) derived = Math.max(derived, posEstadoImp('embarcado'));
+  if (has(campos.despachoNumero)) derived = Math.max(derived, posEstadoImp('despachado'));
+  if (has(campos.fechaRecepcion) || campos.stockIngresado) derived = Math.max(derived, posEstadoImp('recibido'));
   return ESTADO_IMPORTACION_ORDEN[Math.max(idx, derived)];
 }
 
 export const ESTADO_IMPORTACION_COLORS: Record<EstadoImportacion, string> = {
   preparacion: 'bg-slate-100 text-slate-600',
+  // Ámbar apagado: hay algo en marcha, pero todavía no salió.
+  en_origen: 'bg-amber-50 text-amber-700',
   embarcado: 'bg-blue-100 text-blue-700',
   en_transito: 'bg-amber-100 text-amber-700',
   en_aduana: 'bg-purple-100 text-purple-700',
@@ -6436,6 +6474,54 @@ export interface ClienteOption {
   razonSocial: string;
   cuit?: string | null;
   requiereTrazabilidad?: boolean;
+}
+
+/**
+ * Dirección de entrega de un cliente (2026-08-24).
+ *
+ * No es el establecimiento: el establecimiento es dónde está el equipo, y la
+ * entrega puede ir a un depósito, a una recepción o a otra planta. Antes la
+ * dirección de entrega no vivía en ningún lado y se resolvía por teléfono.
+ *
+ * Colección `direccionesEntrega`. Baja lógica con `activo: false` — una
+ * dirección usada en una entrega vieja no se borra.
+ */
+export interface DireccionEntrega {
+  id: string;
+  clienteId: string;
+  /** Cómo la llaman internamente: "Depósito Pilar", "Recepción Munro". */
+  etiqueta: string;
+  direccion: string;
+  localidad?: string | null;
+  provincia?: string | null;
+  codigoPostal?: string | null;
+  /**
+   * Validación de Google (mismo autocompletado que establecimientos). Presente
+   * = la dirección se eligió de una sugerencia real, no se tipeó a mano.
+   */
+  lat?: number | null;
+  lng?: number | null;
+  placeId?: string | null;
+  contacto?: string | null;
+  telefono?: string | null;
+  horario?: string | null;
+  notas?: string | null;
+  /** La que se ofrece primero para ese cliente. */
+  predeterminada?: boolean;
+  activo: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdByName?: string | null;
+  updatedByName?: string | null;
+}
+
+/** Texto de una línea para mostrar o imprimir en un remito. */
+export function formatDireccionEntrega(d: Pick<DireccionEntrega, 'etiqueta' | 'direccion' | 'localidad' | 'provincia'>): string {
+  const partes = [d.direccion, d.localidad, d.provincia].map(x => (x ?? '').trim()).filter(Boolean);
+  const cola = partes.join(', ');
+  const etiqueta = (d.etiqueta ?? '').trim();
+  if (!etiqueta) return cola;
+  return cola ? `${etiqueta} — ${cola}` : etiqueta;
 }
 
 export interface EstablecimientoOption {

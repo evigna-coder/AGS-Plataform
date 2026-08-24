@@ -17,7 +17,7 @@ import { IMPORTACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportImportac
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const ESTADOS: EstadoImportacion[] = [
-  'preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
+  'preparacion', 'en_origen', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
 ];
 
 const FILTER_SCHEMA = {

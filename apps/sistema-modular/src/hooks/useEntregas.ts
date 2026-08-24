@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion, UnidadStock } from '@ags/shared';
+import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion, UnidadStock, OrdenCompraCliente, DireccionEntrega } from '@ags/shared';
 import { presupuestosService } from '../services/presupuestosService';
 import { unidadesService } from '../services/stockService';
 import { requerimientosService, importacionesService } from '../services/importacionesService';
 import { ordenesCompraService, condicionesPagoService } from '../services/presupuestosService';
 import { clientesService } from '../services/clientesService';
+import { ordenesCompraClienteService } from '../services/ordenesCompraClienteService';
+import { direccionesEntregaService } from '../services/direccionesEntregaService';
 import { buildEntregaRows } from '../utils/entregasResolver';
 import type { EntregaRow } from '../utils/entregasResolver';
 import { deepCleanForFirestore } from '../services/firebase';
@@ -14,11 +16,17 @@ const ESTADOS_ACTIVOS: EstadoPresupuestoActivo[] = ['aceptado', 'en_ejecucion', 
 
 /** Campos del item editables inline desde /entregas. */
 export type EntregaItemPatch = Partial<
-  Pick<PresupuestoItem, 'otNumeroVinculada' | 'fechaComprometida' | 'entregadoManual' | 'disponibilidad'>
+  Pick<PresupuestoItem,
+    'otNumeroVinculada' | 'fechaComprometida' | 'entregadoManual' | 'disponibilidad'
+    | 'direccionEntregaId' | 'direccionEntregaTexto'>
 >;
 
 interface UseEntregasReturn {
   rows: EntregaRow[];
+  /** Direcciones de entrega por cliente, para el selector de cada fila. */
+  direccionesPorCliente: Map<string, DireccionEntrega[]>;
+  /** Recarga solo las direcciones — al volver del modal de gestión. */
+  reloadDirecciones: () => Promise<void>;
   loading: boolean;
   error: Error | null;
   reload: () => Promise<void>;
@@ -28,6 +36,7 @@ interface UseEntregasReturn {
 
 export function useEntregas(): UseEntregasReturn {
   const [rows, setRows] = useState<EntregaRow[]>([]);
+  const [direccionesPorCliente, setDirecciones] = useState<Map<string, DireccionEntrega[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -36,7 +45,7 @@ export function useEntregas(): UseEntregasReturn {
     setError(null);
     try {
       // Cargar presupuestos por estado en paralelo, luego flatten.
-      const [pptosBuckets, reqs, ocs, imps, clientes, unidades, condicionesPago] = await Promise.all([
+      const [pptosBuckets, reqs, ocs, imps, clientes, unidades, condicionesPago, ocsCliente] = await Promise.all([
         Promise.all(ESTADOS_ACTIVOS.map(e => presupuestosService.getAll({ estado: e }))),
         requerimientosService.getAll().catch(() => [] as RequerimientoCompra[]),
         ordenesCompraService.getAll().catch(() => [] as any[]),
@@ -46,7 +55,13 @@ export function useEntregas(): UseEntregasReturn {
         // grilla, en vez de una consulta por fila.
         unidadesService.getAll({ activoOnly: true }).catch(() => [] as UnidadStock[]),
         condicionesPagoService.getAll().catch(() => [] as { id: string; nombre: string }[]),
+        // OCs del CLIENTE (2026-08-24): una sola lectura para toda la grilla,
+        // igual que las unidades. La alternativa era una consulta por fila.
+        ordenesCompraClienteService.getAll().catch(() => [] as OrdenCompraCliente[]),
       ]);
+      const ocClienteById = new Map(
+        (ocsCliente as OrdenCompraCliente[]).map(oc => [oc.id, oc]),
+      );
 
       /**
        * Condiciones que se cobran POR ADELANTADO (2026-08-24).
@@ -103,6 +118,7 @@ export function useEntregas(): UseEntregasReturn {
         stockLibrePorArticulo,
         stockReservadoPorPptoArticulo,
         condicionesAnticipadas,
+        ocClienteById,
       });
 
       setRows(built);
@@ -115,7 +131,31 @@ export function useEntregas(): UseEntregasReturn {
     }
   }, []);
 
+  /**
+   * Direcciones de entrega, agrupadas por cliente. Van por su propio camino y
+   * no dentro de `load`: el modal de gestión las cambia sin que haya cambiado
+   * nada del resto de la grilla, y recargar todo por una dirección nueva es
+   * varios segundos de espera.
+   */
+  const reloadDirecciones = useCallback(async () => {
+    try {
+      const todas = await direccionesEntregaService.getAll();
+      const mapa = new Map<string, DireccionEntrega[]>();
+      for (const d of todas) {
+        if (!d.clienteId) continue;
+        const lista = mapa.get(d.clienteId) ?? [];
+        lista.push(d);
+        mapa.set(d.clienteId, lista);
+      }
+      setDirecciones(mapa);
+    } catch (err) {
+      // Sin direcciones el visor funciona igual: la celda ofrece cargarlas.
+      console.error('[useEntregas] direcciones de entrega', err);
+    }
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void reloadDirecciones(); }, [reloadDirecciones]);
 
   const updateItem = useCallback(async (
     presupuestoId: string,
@@ -133,5 +173,5 @@ export function useEntregas(): UseEntregasReturn {
     await load();
   }, [load]);
 
-  return { rows, loading, error, reload: load, updateItem };
+  return { rows, direccionesPorCliente, reloadDirecciones, loading, error, reload: load, updateItem };
 }
