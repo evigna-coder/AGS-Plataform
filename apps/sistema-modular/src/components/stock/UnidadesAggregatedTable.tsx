@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../ui/SortableHeader';
 import { PresentacionesBadge } from './PresentacionesBadge';
+import { costoUnitarioVigente, factorImportacionVigente } from '@ags/shared';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad, Presentacion } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
@@ -28,7 +28,16 @@ export interface AggRow {
 
 const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
 
-export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar }: { rows: AggRow[]; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void }) => {
+interface Props {
+  rows: AggRow[];
+  onAjustar: (u: UnidadStock) => void;
+  onMover?: (u: UnidadStock) => void;
+  onLiberar?: (u: UnidadStock) => void;
+  /** Abre el artículo en modal. Antes el código era un link a la página de detalle. */
+  onArticulo?: (articuloId: string) => void;
+}
+
+export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, onArticulo }: Props) => {
   const [sortField, setSortField] = useState<string>('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -65,7 +74,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar }:
           {sorted.map(row => {
             const isOpen = expanded.has(row.articuloId);
             return (
-              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} />
+              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onArticulo={onArticulo} />
             );
           })}
         </tbody>
@@ -74,14 +83,45 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar }:
   );
 };
 
-const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void }) => (
+/**
+ * Costo y factor de importación de una unidad (2026-08-24).
+ *
+ * El factor estaba solo en la página del artículo: para saber a cuánto entró
+ * una pieza había que salir de la consulta de stock. Se distingue el estimado
+ * del confirmado — tomar un estimado por definitivo termina en un precio mal
+ * puesto.
+ */
+const CostoFactorCell = ({ u }: { u: UnidadStock }) => {
+  const costo = costoUnitarioVigente(u);
+  const factor = factorImportacionVigente(u);
+  if (costo == null && factor == null) return <span className="text-slate-300">—</span>;
+  const confirmado = !!u.costeoConfirmadoAt;
+  return (
+    <span className="inline-flex flex-col items-end leading-tight">
+      {costo != null && (
+        <span className="font-mono text-slate-700 tabular-nums">{u.monedaCosto ?? 'USD'} {costo.toFixed(2)}</span>
+      )}
+      {factor != null && (
+        <span className={`font-mono text-[10px] tabular-nums ${confirmado ? 'text-teal-600' : 'text-amber-600'}`}
+          title={confirmado
+            ? `Costeo confirmado el ${u.costeoConfirmadoAt!.slice(0, 10)}${u.factorImportacion != null ? ` · estimado original ${u.factorImportacion.toFixed(3)}` : ''}`
+            : 'Costeo estimado — todavía sin confirmar contra las facturas reales'}>
+          factor {factor.toFixed(3)}{confirmado ? '' : ' (est.)'}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onArticulo }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void; onArticulo?: (articuloId: string) => void }) => (
   <>
     <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={onToggle}>
       <td className="px-2 text-center text-slate-400">
         <svg className={`w-3.5 h-3.5 inline transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </td>
       <td className="px-3 py-2 text-[10px] font-mono text-slate-500 whitespace-nowrap">
-        <Link to={`/stock/articulos/${row.articuloId}`} onClick={e => e.stopPropagation()} className="text-teal-600 hover:underline font-semibold">{row.codigo}</Link>
+        <button type="button" onClick={e => { e.stopPropagation(); onArticulo?.(row.articuloId); }}
+          className="text-teal-600 hover:underline font-semibold">{row.codigo}</button>
         {row.hasSerie && <span className="ml-1.5 px-1 py-0.5 rounded text-[8px] bg-teal-50 text-teal-700">S/N</span>}
         {row.hasLote && <span className="ml-1 px-1 py-0.5 rounded text-[8px] bg-indigo-50 text-indigo-700">Lote</span>}
         {row.presentaciones && row.presentaciones.length > 0 && (
@@ -108,6 +148,7 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar }: {
                   <th className="py-1.5 px-2 text-center">Condición</th>
                   <th className="py-1.5 px-2 text-center">Estado</th>
                   <th className="py-1.5 px-2 text-left">Ubicación</th>
+                  <th className="py-1.5 px-2 text-right w-28">Costo / factor</th>
                   <th className="py-1.5 px-2 w-24" />
                 </tr>
               </thead>
@@ -130,6 +171,7 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar }: {
                       {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
                       {u.ubicacion.referenciaNombre && <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>}
                     </td>
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap"><CostoFactorCell u={u} /></td>
                     <td className="px-2 py-1.5 text-center whitespace-nowrap">
                       {onMover && (u.estado === 'disponible') && (
                         <button onClick={() => onMover(u)} className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>

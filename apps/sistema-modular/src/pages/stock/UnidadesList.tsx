@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { unidadesService, articulosService } from '../../services/firebaseService';
 import { posicionesStockService, reservasService } from '../../services/stockService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,6 +17,8 @@ import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
+import { ViewArticuloModal } from '../../components/stock/ViewArticuloModal';
+import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import {
   buildUnidadesFiltrosExport, CONDICION_UNIDAD_LABELS as CONDICION_LABELS,
@@ -86,6 +87,10 @@ export const UnidadesList = () => {
   }, []);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
+  // El código del artículo abre el detalle en modal, no navega a la página
+  // (2026-08-24): se consulta stock sin perder los filtros ni la fila abierta.
+  const [verArticuloId, setVerArticuloId] = useState<string | null>(null);
+  const [editarArticuloId, setEditarArticuloId] = useState<string | null>(null);
   const [liberandoId, setLiberandoId] = useState<string | null>(null);
   const { usuario } = useAuth();
   const confirm = useConfirm();
@@ -259,7 +264,7 @@ export const UnidadesList = () => {
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onArticulo={setVerArticuloId} />
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
@@ -290,7 +295,8 @@ export const UnidadesList = () => {
                 {filtered.map(u => (
                   <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
                     <td className={`px-4 py-2 ${getAlignClass(0)}`}>
-                      <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">{u.articuloCodigo}</Link>
+                      <button type="button" onClick={() => setVerArticuloId(u.articuloId)}
+                        className="font-mono text-xs font-semibold text-teal-600 hover:underline">{u.articuloCodigo}</button>
                     </td>
                     <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(1)}`}>{u.articuloDescripcion}</td>
                     <td className={`px-4 py-2 text-xs font-semibold text-slate-700 ${getAlignClass(2)}`}>{u.cantidad ?? 1}</td>
@@ -357,6 +363,18 @@ export const UnidadesList = () => {
         subtitle="Transferencia de stock entre ubicaciones"
       />
       <BulkAddStockModal open={cargarStock} onClose={() => setCargarStock(false)} onCreated={() => setCargarStock(false)} />
+      <ViewArticuloModal
+        open={!!verArticuloId}
+        articuloId={verArticuloId}
+        onClose={() => setVerArticuloId(null)}
+        onEdit={id => { setVerArticuloId(null); setEditarArticuloId(id); }}
+      />
+      <EditArticuloModal
+        open={!!editarArticuloId}
+        articuloId={editarArticuloId}
+        onClose={() => setEditarArticuloId(null)}
+        onSaved={() => setEditarArticuloId(null)}
+      />
     </div>
   );
 };

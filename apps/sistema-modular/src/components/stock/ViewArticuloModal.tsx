@@ -6,6 +6,7 @@ import { EquivalenciaDualDisplay } from './EquivalenciaDualDisplay';
 import { DesagregarStockModal } from './DesagregarStockModal';
 import { PresentacionesInfo } from './PresentacionesInfo';
 import { PresentacionInversaInfo } from './PresentacionInversaInfo';
+import { costoUnitarioVigente, factorImportacionVigente } from '@ags/shared';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
 // Estados que cuentan como stock real (para el desglose por depósito). Los terminales
@@ -36,6 +37,30 @@ const TIPO_UBICACION_LABELS: Record<string, string> = {
 };
 
 const lbl = "text-[10px] font-mono font-medium text-slate-400 uppercase tracking-wide";
+
+/**
+ * Costo y factor de la unidad. El estimado se distingue del confirmado: tomar
+ * uno por el otro termina en un precio mal puesto (2026-08-24).
+ */
+const CostoFactorUnidad = ({ u }: { u: UnidadStock }) => {
+  const costo = costoUnitarioVigente(u);
+  const factor = factorImportacionVigente(u);
+  if (costo == null && factor == null) return <span className="text-slate-300">—</span>;
+  const confirmado = !!u.costeoConfirmadoAt;
+  return (
+    <span className="inline-flex flex-col items-end leading-tight">
+      {costo != null && <span className="font-mono text-slate-700 tabular-nums">{u.monedaCosto ?? 'USD'} {costo.toFixed(2)}</span>}
+      {factor != null && (
+        <span className={`font-mono text-[10px] tabular-nums ${confirmado ? 'text-teal-600' : 'text-amber-600'}`}
+          title={confirmado
+            ? `Costeo confirmado el ${u.costeoConfirmadoAt!.slice(0, 10)}`
+            : 'Costeo estimado — todavía sin confirmar contra las facturas reales'}>
+          factor {factor.toFixed(3)}{confirmado ? '' : ' (est.)'}
+        </span>
+      )}
+    </span>
+  );
+};
 
 export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, onEdit }) => {
   const [articulo, setArticulo] = useState<Articulo | null>(null);
@@ -138,6 +163,22 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
                 : '—'}
             </p>
           </div>
+          {articulo.ultimoCostoImportacion != null && (
+            <div className="col-span-2">
+              <p className={lbl}>Último costo de importación</p>
+              <p className="text-xs text-slate-600">
+                <span className="font-mono font-semibold text-teal-700">
+                  {(articulo.ultimoCostoMoneda ?? 'USD')} {articulo.ultimoCostoImportacion.toFixed(2)}
+                </span>
+                {articulo.ultimoFactorImportacion != null && (
+                  <span className="font-mono text-slate-500"> · factor {articulo.ultimoFactorImportacion.toFixed(3)}</span>
+                )}
+                {articulo.ultimoCostoFecha && (
+                  <span className="text-slate-400"> · {new Date(articulo.ultimoCostoFecha).toLocaleDateString('es-AR')}</span>
+                )}
+              </p>
+            </div>
+          )}
           {articulo.posicionArancelaria && (
             <div>
               <p className={lbl}>Pos. arancelaria</p>
@@ -198,6 +239,7 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Lote</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Condicion</th>
                   <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Estado</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-right w-28">Costo / factor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -219,6 +261,7 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
                         {u.estado.replace('_', ' ')}
                       </span>
                     </td>
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap"><CostoFactorUnidad u={u} /></td>
                   </tr>
                 ))}
               </tbody>
