@@ -49,7 +49,14 @@ export function LoanerExtraccionIngresoStock({ value, onChange }: Props) {
   }, []);
 
   const articuloOpts = useMemo(
-    () => articulos.map(a => ({ value: a.id, label: a.descripcion ?? a.codigo ?? a.id, linkedCode: a.codigo })),
+    // El CÓDIGO va en la etiqueta, no solo en `linkedCode` (2026-08-23): ese
+    // campo solo alimenta la búsqueda, no se dibuja, y la lista salía con puras
+    // descripciones — que es el dato menos identificatorio de un repuesto.
+    () => articulos.map(a => ({
+      value: a.id,
+      label: [a.codigo, a.descripcion].filter(Boolean).join(' — ') || a.id,
+      linkedCode: a.codigo,
+    })),
     [articulos],
   );
   const posicionOpts = useMemo(
@@ -99,6 +106,7 @@ export function LoanerExtraccionIngresoStock({ value, onChange }: Props) {
           </select>
         </div>
         <Input
+          inputSize="sm"
           label="Cantidad"
           type="number"
           min={1}
@@ -107,6 +115,7 @@ export function LoanerExtraccionIngresoStock({ value, onChange }: Props) {
         />
       </div>
       <Input
+        inputSize="sm"
         label="N° de serie de la pieza"
         value={value.nroSerie ?? ''}
         onChange={e => set({ nroSerie: e.target.value.trim() || null })}

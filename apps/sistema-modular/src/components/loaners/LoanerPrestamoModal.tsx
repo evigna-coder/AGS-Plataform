@@ -7,6 +7,17 @@ import { clientesService, establecimientosService, remitosService, ordenesTrabaj
 import type { Cliente, Establecimiento, Loaner, WorkOrder } from '@ags/shared';
 import { establecimientoUnicoId, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
+import { NUMERO_REGEX } from '../../hooks/useGenerarRemito';
+
+/** El préstamo lo transporta AGS. Snapshot, igual que el resto de los remitos. */
+const TRANSPORTISTA_AGS = {
+  razonSocial: 'AGS Analítica S.A.',
+  domicilio: 'Arenales 605 — Piso 15',
+  localidad: 'Buenos Aires',
+  provincia: 'Buenos Aires',
+  iva: 'Responsable Inscripto',
+  cuit: '30-70861861-2',
+};
 
 interface Props {
   open: boolean;
@@ -43,6 +54,15 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   const [otNumber, setOtNumber] = useState('');
   const [fechaRetorno, setFechaRetorno] = useState('');
   const [generarRemito, setGenerarRemito] = useState(true);
+  /**
+   * N° del talonario preimpreso (2026-08-23).
+   *
+   * El préstamo era el ÚNICO flujo que no lo pedía: generaba un `REM-00xx`
+   * interno para un papel que se lleva el cliente. Fichas, derivación a
+   * calibración y remito de servicio ya lo piden con este mismo formato.
+   */
+  const [numeroRemito, setNumeroRemito] = useState('');
+  const numeroValido = NUMERO_REGEX.test(numeroRemito.trim());
   const [fotos, setFotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -97,6 +117,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
         // El item del loaner es DOCUMENTAL (sin unidadId, con tipoEntidad):
         // el remito no mueve stock, pero el papel detalla qué salió.
         remitoId = await remitosService.create({
+          numero: numeroRemito.trim(),
           tipo: 'loaner_salida',
           estado: 'borrador',
           ingenieroId: '',
@@ -108,6 +129,9 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
           otNumbers: otNumber ? [otNumber] : [],
           loanerId: loaner.id,
           loanerCodigo: loaner.codigo,
+          // El artículo del catálogo viaja al ítem (2026-08-23): la columna
+          // Código del papel lo lee de acá. Sin esto salía vacía, porque el
+          // loaner no tenía artículo vinculado hasta el momento de venderlo.
           items: [{
             id: crypto.randomUUID(),
             cantidad: 1,
@@ -117,8 +141,16 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
             loanerId: loaner.id,
             loanerCodigo: loaner.codigo,
             loanerDescripcion: loaner.descripcion,
+            articuloId: loaner.articuloId ?? undefined,
+            articuloCodigo: loaner.articuloCodigo ?? undefined,
+            articuloDescripcion: loaner.articuloDescripcion ?? undefined,
             serie: loaner.serie ?? null,
           }],
+          // En un préstamo el transporte lo hace AGS, siempre: no hay nada que
+          // elegir. Quedaba vacío y el bloque "Transportista" del papel salía en
+          // blanco (2026-08-23).
+          transportistaNombre: TRANSPORTISTA_AGS.razonSocial,
+          transportista: TRANSPORTISTA_AGS,
           observaciones: `Loaner ${loaner.codigo}${otNumber ? ` · OT ${otNumber}` : ''}`,
         });
 
@@ -169,7 +201,8 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     <Modal open={open} onClose={onClose} title="Registrar prestamo" maxWidth="md" footer={
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!clienteId || saving}>
+        <Button variant="primary" size="sm" onClick={handleConfirm}
+          disabled={!clienteId || saving || (generarRemito && !numeroValido)}>
           {saving ? 'Registrando...' : 'Confirmar prestamo'}
         </Button>
       </div>
@@ -205,6 +238,28 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
           <input type="checkbox" checked={generarRemito} onChange={e => setGenerarRemito(e.target.checked)} className="rounded border-slate-300" />
           Generar remito de salida
         </label>
+        {generarRemito && (
+          <div className="border-l-2 border-teal-200 pl-3 space-y-2">
+            <Input
+              label="N° Remito (preimpreso) *"
+              value={numeroRemito}
+              onChange={e => setNumeroRemito(e.target.value)}
+              placeholder="0001-00000001"
+              error={numeroRemito && !numeroValido ? 'Formato 0001-00000001' : undefined}
+              description="El del papel que vas a usar. Es el número que ve el cliente."
+            />
+            {/* El transporte de un préstamo lo hace AGS: no hay nada que elegir,
+                pero tiene que verse — antes el bloque del papel salía vacío y no
+                se entendía por qué (2026-08-23). */}
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">Transportista</label>
+              <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                {TRANSPORTISTA_AGS.razonSocial}
+                <span className="text-slate-400"> · CUIT {TRANSPORTISTA_AGS.cuit}</span>
+              </div>
+            </div>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Fotos de salida <span className="text-slate-400 font-normal">(opcional)</span></label>
           <input ref={fileRef} type="file" accept="image/*" multiple

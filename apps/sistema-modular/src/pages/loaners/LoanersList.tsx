@@ -177,8 +177,9 @@ export function LoanersList() {
                 <colgroup>
                   <col style={{ width: 75 }} />
                   <col />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 90 }} />
                   <col style={{ width: '13%' }} />
@@ -199,17 +200,24 @@ export function LoanersList() {
                     <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
                     <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Modelo modulo" field="moduloCodigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(3)} relative`}>
+                  {/* Qué ES el módulo — inyector, detector, degasser (2026-08-24).
+                      La columna "Categoria" dice HPLC o GC, que es el equipo; sin
+                      esta había que abrir el loaner para saber qué pieza era. */}
+                  <SortableHeader label="Tipo de modulo" field="categoriaModuloNombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(3)} relative`}>
                     <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
                     <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={`${thClass} ${getAlignClass(4)} relative`}>Serie<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(5)} relative`}>
-                    <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
-                    <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  <SortableHeader label="Modelo modulo" field="moduloCodigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(4)} relative`}>
+                    <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                    <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={`${thClass} ${getAlignClass(6)} relative`}>Ubicacion actual<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(5)} relative`}>Serie<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(6)} relative`}>
+                    <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
+                    <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className={`${thClass} ${getAlignClass(7)} relative`}>Ubicacion actual<ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} /><div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -225,9 +233,10 @@ export function LoanersList() {
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={l.descripcion}>{l.descripcion}</td>
                       <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(2)}`}>{l.categoriaEquipo || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(3)}`} title={l.moduloDescripcion ?? undefined}>{l.moduloCodigo || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(4)}`}>{l.serie || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(5)}`}>
+                      <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(3)}`}>{l.categoriaModuloNombre || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(4)}`} title={l.moduloDescripcion ?? undefined}>{l.moduloCodigo || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(5)}`}>{l.serie || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(6)}`}>
                         <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
                           {ESTADO_LOANER_LABELS[l.estado]}
                         </span>
@@ -245,7 +254,7 @@ export function LoanersList() {
                           </span>
                         )}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(6)}`}
+                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(7)}`}
                         title={l.enProveedor ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · Remito ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ` — parte: ${l.enProveedor.parteDescripcion ?? ''}` : ''}` : undefined}>
                         {/* En proveedor (2026-08-12): muestra QUIÉN lo tiene y el remito;
                             si viajó solo una parte, el módulo sigue en base y se aclara. */}

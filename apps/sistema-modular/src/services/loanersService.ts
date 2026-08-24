@@ -538,7 +538,11 @@ export const loanersService = {
         destinoNombre: ingresoStock.ubicacion.referenciaNombre,
         referenciaLoanerId: loaner.id,
         motivo: `Extracción de pieza de ${loaner.codigo}`,
-        creadoPor: user?.uid ?? 'sistema',
+        // NOMBRE, no uid (2026-08-24): la columna Usuario del listado de
+        // movimientos muestra este campo tal cual, y el ingreso de una extracción
+        // salía con la clave primaria del usuario en lugar de su nombre. El resto
+        // de los movimientos guardan el nombre.
+        creadoPor: user?.name ?? 'Sistema',
         ...getCreateTrace(),
         createdAt: nowTs,
         updatedAt: nowTs,

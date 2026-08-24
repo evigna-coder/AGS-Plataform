@@ -31,6 +31,8 @@ export function buildLoanerExportRows(
 export const LOANERS_EXPORT_COLUMNS: ExportColumn<LoanerExportRow>[] = [
   { header: 'Código',           width: 11, get: r => r.loaner.codigo },
   { header: 'Descripción',      width: 30, get: r => r.loaner.descripcion },
+  { header: 'Categoría',        width: 12, get: r => r.loaner.categoriaEquipo || '' },
+  { header: 'Tipo de módulo',   width: 18, get: r => r.loaner.categoriaModuloNombre || '' },
   { header: 'Módulo',           width: 16, get: r => r.loaner.moduloCodigo || '' },
   { header: 'Serie',            width: 14, get: r => r.loaner.serie || '' },
   { header: 'Estado',           width: 15, get: r => ESTADO_LOANER_LABELS[r.loaner.estado] || r.loaner.estado },

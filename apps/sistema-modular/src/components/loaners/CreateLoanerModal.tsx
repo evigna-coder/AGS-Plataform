@@ -5,6 +5,8 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from './LoanerCategoriaModuloPicker';
+import { LoanerArticuloPicker } from './LoanerArticuloPicker';
+import type { Articulo } from '@ags/shared';
 import { loanersService } from '../../services/firebaseService';
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 
@@ -31,6 +33,12 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
   const [serie, setSerie] = useState('');
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
+  /**
+   * Artículo del catálogo (2026-08-23). Se vinculaba recién AL VENDER, y por eso
+   * el remito de préstamo salía sin número de parte: el loaner no tenía de dónde
+   * sacarlo. Un loaner es un artículo del catálogo desde que entra a la casa.
+   */
+  const [articulo, setArticulo] = useState<Articulo | null>(null);
 
   const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
 
@@ -42,7 +50,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
 
   const resetForm = () => {
     setDescripcion(''); setModulo(EMPTY_MODULO); setSerie('');
-    setCategoriaEquipo(''); setCondicion('Bueno'); setErrors({});
+    setCategoriaEquipo(''); setCondicion('Bueno'); setArticulo(null); setErrors({});
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -61,9 +69,9 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
     try {
       const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
         descripcion: descripcion.trim(),
-        articuloId: null,
-        articuloCodigo: null,
-        articuloDescripcion: null,
+        articuloId: articulo?.id ?? null,
+        articuloCodigo: articulo?.codigo ?? null,
+        articuloDescripcion: articulo?.descripcion ?? null,
         serie: serie.trim() || null,
         categoriaEquipo: categoriaEquipo || null,
         categoriaModuloId: modulo.categoriaModuloId,
@@ -107,6 +115,14 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
               moduloCodigo={modulo.moduloCodigo || ''}
               onChange={handleModuloChange}
             />
+            {/* Sin esto el remito de préstamo sale sin código de artículo. */}
+            <LoanerArticuloPicker
+              open
+              value={articulo?.id ?? ''}
+              onChange={(_id, a) => setArticulo(a)}
+              onError={msg => setErrors(prev => ({ ...prev, articulo: msg }))}
+            />
+            {errors.articulo && <p className="text-[11px] text-red-600">{errors.articulo}</p>}
             <Input inputSize="sm" label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria de equipo</label>
