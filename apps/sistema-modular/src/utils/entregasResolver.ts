@@ -82,6 +82,10 @@ export interface EntregaRow {
    * Solo display — se persiste recién cuando el usuario elige explícitamente.
    */
   disponibilidadSugerida: Disponibilidad;
+  /** Disponibilidad REAL, calculada de lo que hay hoy. Reemplaza al selector. */
+  disponibilidadCalculada: DisponibilidadCalculada;
+  /** El presupuesto se cobra por adelantado — no se entrega sin confirmar el pago. */
+  pagoAnticipado: boolean;
   etaDiasEstimados: number | null;
   fechaAceptacion: string | null;
   etaFecha: string | null;
@@ -102,7 +106,7 @@ export interface EntregaRow {
 }
 
 export interface BuildEntregaRowsInput {
-  presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'establecimientoId' | 'estado' | 'items' | 'fechaAceptacion'>>;
+  presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'establecimientoId' | 'estado' | 'items' | 'fechaAceptacion'> & { condicionPagoId?: string | null }>;
   requerimientos: RequerimientoCompra[];
   ordenesCompra: Array<{ id: string; numero: string; estado?: string | null; items: Array<{ id: string; requerimientoId?: string | null }> }>;
   importaciones: Array<Pick<Importacion, 'id' | 'numero' | 'estado' | 'items'>>;
@@ -116,8 +120,77 @@ export interface BuildEntregaRowsInput {
    */
   stockLibrePorArticulo?: Map<string, number>;
   stockReservadoPorPptoArticulo?: Map<string, number>;
+  /**
+   * Ids de las condiciones de pago ANTICIPADAS (2026-08-24).
+   *
+   * Se pasan resueltas desde el catálogo en vez de hardcodear un id: la
+   * condición "Anticipado" es un registro que alguien puede renombrar o
+   * duplicar, y el visor no tiene por qué saber cuál es.
+   */
+  condicionesAnticipadas?: Set<string>;
   /** Inyectable para tests; default = new Date() */
   now?: Date;
+}
+
+/**
+ * Disponibilidad REAL del ítem, calculada de lo que hay hoy (2026-08-24).
+ *
+ * Reemplaza al selector manual. La disponibilidad se derivaba una sola vez —al
+ * aceptar el presupuesto— y quedaba congelada: "A importar" seguía diciendo lo
+ * mismo con el embarque ya en aduana, y el override existía para tapar eso a
+ * mano. Con los estados de importación y el stock de hoy en la fila, el dato se
+ * puede calcular en vivo y no hay nada que elegir.
+ *
+ * Gana lo más específico: una importación en curso dice DÓNDE está la
+ * mercadería, que es más que "a importar".
+ */
+export type ClaveDisponibilidad =
+  | 'en_stock' | 'reservado' | 'importacion' | 'a_importar' | 'sin_stock';
+
+export interface DisponibilidadCalculada {
+  clave: ClaveDisponibilidad;
+  label: string;
+  /** Para colorear: verde = disponible, ámbar = en camino, gris = nada aún. */
+  tono: 'ok' | 'camino' | 'nada';
+}
+
+const IMPORTACION_EN_CURSO: Record<string, string> = {
+  preparacion: 'En preparación',
+  embarcado: 'Embarcada',
+  en_transito: 'En tránsito',
+  en_aduana: 'En aduana',
+  despachado: 'Oficializada',
+};
+
+export function calcularDisponibilidad(datos: {
+  importacionEstado?: string | null;
+  stockLibre?: number;
+  stockReservado?: number;
+  cantidadBase?: number;
+  requerimientoId?: string | null;
+}): DisponibilidadCalculada {
+  const necesita = datos.cantidadBase && datos.cantidadBase > 0 ? datos.cantidadBase : 1;
+
+  // 1. Importación en curso: su estado es el dato más preciso que tenemos.
+  const enCurso = datos.importacionEstado ? IMPORTACION_EN_CURSO[datos.importacionEstado] : null;
+  if (enCurso) return { clave: 'importacion', label: enCurso, tono: 'camino' };
+
+  // 2. Reservado para ESTE presupuesto: está y tiene dueño.
+  if ((datos.stockReservado ?? 0) >= necesita) {
+    return { clave: 'reservado', label: 'Reservado', tono: 'ok' };
+  }
+
+  // 3. Stock libre suficiente. Una importación 'recibido' cae acá: la
+  //    mercadería entró y ahora se mide contra el estante, no contra el embarque.
+  if ((datos.stockLibre ?? 0) >= necesita) {
+    return { clave: 'en_stock', label: 'En stock', tono: 'ok' };
+  }
+
+  // 4. Hay una compra en marcha pero todavía no embarcó.
+  if (datos.requerimientoId) return { clave: 'a_importar', label: 'A importar', tono: 'camino' };
+
+  // 5. Ni stock ni compra: es el caso que hay que mirar.
+  return { clave: 'sin_stock', label: 'Sin stock', tono: 'nada' };
 }
 
 /**
@@ -217,6 +290,16 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
   // 4) Construir filas — una por item de presupuesto.
   const rows: EntregaRow[] = [];
   for (const ppto of input.presupuestos) {
+
+    /**
+     * Sin aceptación no hay nada que entregar (2026-08-24).
+     *
+     * La obligación de entrega nace cuando el cliente acepta. Un presupuesto
+     * que llegó a 'finalizado' sin haber pasado nunca por aceptado —dato
+     * anterior al arranque del módulo, o cerrado a mano— mostraba sus ítems
+     * como pendientes de entrega y nadie entendía de dónde salían.
+     */
+    if (!ppto.fechaAceptacion) continue;
     const clienteNombre = input.clienteNombreById.get(ppto.clienteId) ?? '—';
     for (const item of (ppto.items ?? [])) {
       const stockArticuloId = (item as { stockArticuloId?: string | null }).stockArticuloId ?? null;
@@ -287,6 +370,19 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         moneda: (item.moneda ?? null) as EntregaRow['moneda'],
         disponibilidad: (item.disponibilidad ?? null) as EntregaRow['disponibilidad'],
         disponibilidadSugerida: req ? 'a_importar' : 'stock',
+        disponibilidadCalculada: calcularDisponibilidad({
+          importacionEstado: imp?.impEstado ?? null,
+          stockLibre: stockArticuloId ? (input.stockLibrePorArticulo?.get(stockArticuloId) ?? 0) : 0,
+          stockReservado: stockArticuloId
+            ? (input.stockReservadoPorPptoArticulo?.get(`${ppto.id}:${stockArticuloId}`) ?? 0)
+            : 0,
+          cantidadBase: cantidadEnUnidadBase(item.cantidad, item.presentacion),
+          requerimientoId: req?.id ?? null,
+        }),
+        // El presupuesto se cobra por adelantado: la mercadería no sale hasta
+        // que paguen, aunque esté en el estante (2026-08-24).
+        pagoAnticipado: !!ppto.condicionPagoId
+          && (input.condicionesAnticipadas?.has(ppto.condicionPagoId) ?? false),
         etaDiasEstimados: item.etaDiasEstimados ?? null,
         fechaAceptacion: ppto.fechaAceptacion ?? null,
         etaFecha,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { EstadoImportacion, Disponibilidad } from '@ags/shared';
-import { ESTADO_IMPORTACION_COLORS, ESTADO_IMPORTACION_LABELS, DISPONIBILIDAD_LABELS } from '@ags/shared';
+import type { EstadoImportacion } from '@ags/shared';
+import { ESTADO_IMPORTACION_COLORS, ESTADO_IMPORTACION_LABELS } from '@ags/shared';
 import type { EntregaRow as Row } from '../../utils/entregasResolver';
 import { SEMAFORO_COLORS, SEMAFORO_LABELS } from '../../utils/entregasResolver';
 import type { EntregaItemPatch } from '../../hooks/useEntregas';
@@ -17,7 +17,19 @@ interface Props {
   nested?: boolean;
 }
 
-const DISPONIBILIDAD_OPCIONES = Object.entries(DISPONIBILIDAD_LABELS) as [Disponibilidad, string][];
+const TONO_DISPONIBILIDAD: Record<'ok' | 'camino' | 'nada', string> = {
+  ok:     'bg-emerald-50 text-emerald-700',
+  camino: 'bg-amber-50 text-amber-700',
+  nada:   'bg-slate-100 text-slate-500',
+};
+
+const TITULO_DISPONIBILIDAD: Record<string, string> = {
+  en_stock:    'Hay stock libre suficiente en el depósito',
+  reservado:   'Hay unidades reservadas para este presupuesto',
+  importacion: 'Viene por una importación — el estado es el del embarque',
+  a_importar:  'Hay un requerimiento de compra, todavía sin embarcar',
+  sin_stock:   'Sin stock y sin compra en marcha',
+};
 
 const formatDate = (iso: string | null): string => {
   if (!iso) return '—';
@@ -185,19 +197,25 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) 
         )}
       </td>
       <td className="px-3 py-2 text-xs">
-        <select
-          value={row.disponibilidad ?? row.disponibilidadSugerida}
-          onChange={(e) => void runUpdate({ disponibilidad: (e.target.value || null) as Disponibilidad | null })}
-          disabled={saving}
-          className="text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 bg-white"
+        {/* Estado CALCULADO, no elegible (2026-08-24). Antes era un selector con
+            un valor congelado al aceptar el presupuesto: decía "A importar" con
+            el embarque ya en aduana, y había que corregirlo a mano. Ahora sale
+            de la importación y del stock de hoy, y se mueve solo. */}
+        <span
+          className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${
+            TONO_DISPONIBILIDAD[row.disponibilidadCalculada.tono]
+          }`}
+          title={TITULO_DISPONIBILIDAD[row.disponibilidadCalculada.clave]}
         >
-          {DISPONIBILIDAD_OPCIONES.map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-        {row.disponibilidad == null && (
-          <div className="text-[9px] text-slate-400 mt-0.5" title="Derivado del stock al aceptar: sin requerimiento = había stock; con requerimiento = a importar">
-            auto
+          {row.disponibilidadCalculada.label}
+        </span>
+        {/* Hay mercadería y no se puede entregar: el presupuesto se cobra por
+            adelantado (2026-08-24). Solo aparece cuando IMPORTA — si además
+            falta el stock, el problema es otro y este aviso sería ruido. */}
+        {row.pagoAnticipado && (row.stockLibre > 0 || row.stockReservado > 0) && (
+          <div className="text-[9px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 mt-0.5"
+            title="El presupuesto es de pago anticipado: hay stock, pero no se entrega hasta confirmar el pago">
+            ⚠ Pago anticipado
           </div>
         )}
       </td>

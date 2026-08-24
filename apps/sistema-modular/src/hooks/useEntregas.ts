@@ -3,7 +3,7 @@ import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion, Un
 import { presupuestosService } from '../services/presupuestosService';
 import { unidadesService } from '../services/stockService';
 import { requerimientosService, importacionesService } from '../services/importacionesService';
-import { ordenesCompraService } from '../services/presupuestosService';
+import { ordenesCompraService, condicionesPagoService } from '../services/presupuestosService';
 import { clientesService } from '../services/clientesService';
 import { buildEntregaRows } from '../utils/entregasResolver';
 import type { EntregaRow } from '../utils/entregasResolver';
@@ -36,7 +36,7 @@ export function useEntregas(): UseEntregasReturn {
     setError(null);
     try {
       // Cargar presupuestos por estado en paralelo, luego flatten.
-      const [pptosBuckets, reqs, ocs, imps, clientes, unidades] = await Promise.all([
+      const [pptosBuckets, reqs, ocs, imps, clientes, unidades, condicionesPago] = await Promise.all([
         Promise.all(ESTADOS_ACTIVOS.map(e => presupuestosService.getAll({ estado: e }))),
         requerimientosService.getAll().catch(() => [] as RequerimientoCompra[]),
         ordenesCompraService.getAll().catch(() => [] as any[]),
@@ -45,7 +45,22 @@ export function useEntregas(): UseEntregasReturn {
         // Stock de HOY (2026-08-13): una sola lectura de unidades para toda la
         // grilla, en vez de una consulta por fila.
         unidadesService.getAll({ activoOnly: true }).catch(() => [] as UnidadStock[]),
+        condicionesPagoService.getAll().catch(() => [] as { id: string; nombre: string }[]),
       ]);
+
+      /**
+       * Condiciones que se cobran POR ADELANTADO (2026-08-24).
+       *
+       * Se resuelven por nombre contra el catálogo y no por un id fijo: el
+       * registro "Anticipado" lo puede renombrar o duplicar cualquiera desde
+       * la administración, y hardcodear su id dejaría la bandera muda sin que
+       * nadie se entere.
+       */
+      const condicionesAnticipadas = new Set(
+        (condicionesPago as { id: string; nombre?: string }[])
+          .filter(c => /anticip/i.test(c.nombre ?? ''))
+          .map(c => c.id),
+      );
       const presupuestos = pptosBuckets.flat() as Presupuesto[];
 
       const clienteNombreById = new Map<string, string>(
@@ -87,6 +102,7 @@ export function useEntregas(): UseEntregasReturn {
         clienteNombreById,
         stockLibrePorArticulo,
         stockReservadoPorPptoArticulo,
+        condicionesAnticipadas,
       });
 
       setRows(built);

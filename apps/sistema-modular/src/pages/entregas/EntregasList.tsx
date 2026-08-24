@@ -156,7 +156,7 @@ export const EntregasList: React.FC = () => {
                   <th className={thClass}>OT#</th>
                   <SortableHeader label="OC#"          field="ocNumero"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Importación"  field="importacionNumero"  currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Disp."        field="disponibilidad"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Disp."        field="disponibilidadCalculada.label" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="ETA"          field="etaFecha"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={`${thClass} text-center`}>Entregado</th>
                   <SortableHeader label="Días"         field="diasRestantes"      currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />

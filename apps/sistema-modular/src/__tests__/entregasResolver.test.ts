@@ -18,6 +18,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  calcularDisponibilidad,
   computeSemaforo,
   computeEtaFecha,
   buildEntregaRows,
@@ -278,4 +279,89 @@ test('[ENT-09] sin código propio, la columna cae al código que estampó el req
   });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].codigoProducto, 'ART-COD-9');
+});
+
+// ── ENT-13: bandera de pago anticipado (2026-08-24) ─────────────────────────
+// Avisa que hay mercadería que NO se puede entregar hasta que paguen. Acá solo
+// se prueba la bandera; que se MUESTRE exige además stock, y eso vive en la fila.
+test('[ENT-13] el presupuesto anticipado marca la bandera de pago', () => {
+  const armar = (condicionPagoId: string | null, anticipadas?: Set<string>) => buildEntregaRows({
+    presupuestos: [makePresupuestoBase({
+      items: [makeItem({ id: 'ITEM-1' })],
+      condicionPagoId,
+    } as never)],
+    requerimientos: [], ordenesCompra: [], importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    condicionesAnticipadas: anticipadas,
+    now: FIXTURE_NOW,
+  });
+
+  assert.equal(armar('cond-ant', new Set(['cond-ant']))[0].pagoAnticipado, true,
+    'la condición anticipada marca');
+  assert.equal(armar('cond-contado', new Set(['cond-ant']))[0].pagoAnticipado, false,
+    'otra condición no marca');
+  assert.equal(armar(null, new Set(['cond-ant']))[0].pagoAnticipado, false,
+    'sin condición de pago no marca');
+  assert.equal(armar('cond-ant')[0].pagoAnticipado, false,
+    'sin catálogo cargado no marca — y no rompe');
+});
+
+// ── ENT-14: disponibilidad CALCULADA, sin selector (2026-08-24) ─────────────
+// Reemplaza al valor congelado al aceptar el presupuesto. Gana lo más
+// específico: una importación en curso dice DÓNDE está la mercadería.
+test('[ENT-14] la disponibilidad sale del estado real, no de una elección', () => {
+  const d = (datos: Parameters<typeof calcularDisponibilidad>[0]) => calcularDisponibilidad(datos);
+
+  // La importación en curso manda sobre todo lo demás.
+  assert.equal(d({ importacionEstado: 'embarcado', stockLibre: 99 }).label, 'Embarcada');
+  assert.equal(d({ importacionEstado: 'en_transito' }).label, 'En tránsito');
+  assert.equal(d({ importacionEstado: 'en_aduana' }).label, 'En aduana');
+  assert.equal(d({ importacionEstado: 'despachado' }).label, 'Oficializada');
+  assert.equal(d({ importacionEstado: 'preparacion' }).label, 'En preparación');
+
+  // Recibida = la mercadería entró: se mide contra el estante, no el embarque.
+  assert.equal(d({ importacionEstado: 'recibido', stockLibre: 5, cantidadBase: 1 }).clave, 'en_stock',
+    'importación recibida con stock → En stock');
+  assert.equal(d({ importacionEstado: 'recibido', stockLibre: 0, requerimientoId: 'r1' }).clave, 'a_importar',
+    'recibida pero sin stock: sigue el requerimiento');
+  assert.equal(d({ importacionEstado: 'cancelado', stockLibre: 0 }).clave, 'sin_stock',
+    'una importación cancelada no informa nada');
+
+  // Reservado gana sobre stock libre: está y tiene dueño.
+  assert.equal(d({ stockReservado: 2, stockLibre: 9, cantidadBase: 2 }).clave, 'reservado');
+
+  // La cantidad importa: no alcanza con que haya "algo".
+  assert.equal(d({ stockLibre: 1, cantidadBase: 5 }).clave, 'sin_stock',
+    'stock insuficiente no es "en stock"');
+  assert.equal(d({ stockLibre: 5, cantidadBase: 5 }).clave, 'en_stock', 'justo alcanza');
+  assert.equal(d({ stockReservado: 1, cantidadBase: 5, requerimientoId: 'r1' }).clave, 'a_importar',
+    'reserva parcial no cubre: manda la compra en marcha');
+
+  // Sin cantidad declarada se asume 1 — no puede quedar en "sin stock" por un 0.
+  assert.equal(d({ stockLibre: 1 }).clave, 'en_stock');
+
+  // Nada de nada: es el caso que hay que mirar.
+  assert.equal(d({}).clave, 'sin_stock');
+  assert.equal(d({}).tono, 'nada');
+  assert.equal(d({ stockLibre: 3, cantidadBase: 1 }).tono, 'ok');
+  assert.equal(d({ requerimientoId: 'r1' }).tono, 'camino');
+});
+
+// ── ENT-15: sin aceptación no hay entrega (2026-08-24) ──────────────────────
+// Caso real: P1-005016-01 llegó a 'finalizado' sin haber pasado nunca por
+// aceptado —dato previo al arranque del módulo— y sus tres repuestos figuraban
+// como pendientes de entrega sin que nadie entendiera de dónde salían.
+test('[ENT-15] un presupuesto nunca aceptado no genera filas de entrega', () => {
+  const armar = (fechaAceptacion: string | null) => buildEntregaRows({
+    presupuestos: [makePresupuestoBase({
+      items: [makeItem({ id: 'ITEM-1' })],
+      fechaAceptacion,
+    } as never)],
+    requerimientos: [], ordenesCompra: [], importaciones: [],
+    clienteNombreById: CLIENTE_NOMBRE_BY_ID,
+    now: FIXTURE_NOW,
+  });
+
+  assert.equal(armar(null).length, 0, 'sin fecha de aceptación no hay nada que entregar');
+  assert.equal(armar('2026-05-15T10:00:00.000Z').length, 1, 'aceptado sí genera la fila');
 });

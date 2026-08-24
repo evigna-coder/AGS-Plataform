@@ -26,6 +26,7 @@ export function buildEntregasFiltrosExport(
 }
 
 export const ENTREGAS_EXPORT_COLUMNS: ExportColumn<EntregaRow>[] = [
+  { header: 'Disponibilidad', width: 15, get: r => r.disponibilidadCalculada?.label ?? '' },
   { header: 'Cliente',     width: 26, get: r => r.clienteNombre },
   { header: 'Código',      width: 16, get: r => r.codigoProducto || '' },
   { header: 'Item',        width: 34, get: r => r.descripcion },
