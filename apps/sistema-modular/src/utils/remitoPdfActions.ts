@@ -1,5 +1,6 @@
 import { pdf } from '@react-pdf/renderer';
 import type { ReactElement } from 'react';
+import { mostrarPdfEnVentana, mostrarPdfEnOverlay } from './ventanaPdf';
 
 /**
  * Genera el PDF y lo abre en una pestaña nueva, listo para imprimir.
@@ -7,19 +8,26 @@ import type { ReactElement } from 'react';
  * Patrón pensado para overlays sobre papel preimpreso: el usuario carga el papel
  * en la impresora, presiona Ctrl+P en la pestaña abierta y queda impreso.
  */
-export async function openRemitoPdfInNewTab(doc: ReactElement): Promise<void> {
+export async function openRemitoPdfInNewTab(doc: ReactElement, ventana?: Window | null): Promise<void> {
   const blob = await pdf(doc).toBlob();
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
+
+  // Si el caller no la pre-abrió, se intenta igual: funciona cuando la
+  // generación fue lo bastante rápida como para no perder el gesto.
+  const win = ventana ?? window.open(url, '_blank');
+
   if (!win) {
-    // Pop-up bloqueado — caemos a download.
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `remito-${Date.now()}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // Pop-up bloqueado — se muestra ACÁ en vez de descargar. Descargar era lo
+    // que hacía aparecer "Guardar como" cuando el usuario pedía ver el PDF.
+    mostrarPdfEnOverlay(url);
+    setTimeout(() => URL.revokeObjectURL(url), 300_000);
+    return;
   }
+
+  if (ventana) {
+    mostrarPdfEnVentana(ventana, url);
+  }
+
   // Liberamos el blob URL después de un rato (la pestaña ya cargó el PDF).
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
