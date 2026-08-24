@@ -5,6 +5,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import AgendaEntryCard from '../components/agenda/AgendaEntryCard';
 import AgendaGridView from '../components/agenda/AgendaGridView';
 import { useAgenda } from '../hooks/useAgenda';
+import { useOTsAgenda, type OTInfoAgenda } from '../hooks/useOTsAgenda';
+import { useAuth } from '../contexts/AuthContext';
 import type { AgendaEntry } from '@ags/shared';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -45,12 +47,13 @@ interface WeekBlockProps {
   showEngineer?: boolean;
   /** false = se esconden los días ya pasados (default de la vista). */
   incluirPasados?: boolean;
+  infoDe: (otNumber: string | null | undefined) => OTInfoAgenda | undefined;
 }
 
 /** 'YYYY-MM-DD' de hoy en zona local — comparar strings evita el corrimiento UTC. */
 const hoyStr = () => formatDate(new Date());
 
-function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer, incluirPasados }: WeekBlockProps) {
+function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer, incluirPasados, infoDe }: WeekBlockProps) {
   const hoy = hoyStr();
   const days = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekStart, i);
@@ -96,12 +99,14 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer, incl
                         {nombre}
                       </span>
                       <div className="space-y-1.5">
-                        {engineerEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)}
+                        {engineerEntries.map(e => (
+                          <AgendaEntryCard key={e.id} entry={e} otInfo={infoDe(e.otNumber)} />
+                        ))}
                       </div>
                     </div>
                   ))
                 ) : (
-                  dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)
+                  dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} otInfo={infoDe(e.otNumber)} />)
                 )}
               </div>
             </div>
@@ -117,6 +122,20 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer, incl
 export default function AgendaPage() {
   const { loading, weekStart, entriesForDay, loadMore, weeksAhead, entries,
           isAdmin, showMine, toggleShowMine, ingenieros } = useAgenda();
+  const { usuario } = useAuth();
+
+  /**
+   * Cierre y envío de las OTs de la agenda (2026-08-23).
+   *
+   * Mismo alcance que la agenda: cuando se ven "mis OTs" se piden solo las
+   * propias; cuando un admin mira la de todos, todas. En `ordenes_trabajo` el
+   * ingeniero asignado se guarda como UID, así que el filtro va con `usuario.id`
+   * y no con el id del catálogo.
+   */
+  const { infoDe } = useOTsAgenda(
+    isAdmin && !showMine ? null : (usuario?.id ?? null),
+    !!usuario?.id,
+  );
 
   /**
    * La agenda abre en HOY (2026-08-19).
@@ -171,6 +190,7 @@ export default function AgendaPage() {
               entries={entries}
               weeks={weeks}
               currentWeekStr={currentWeekStr}
+              infoDe={infoDe}
             />
             <div className="text-center py-4">
               <button onClick={loadMore} className="text-xs text-teal-600 hover:text-teal-700 font-medium hover:underline">
@@ -196,6 +216,7 @@ export default function AgendaPage() {
                 isCurrentWeek={formatDate(ws) === currentWeekStr}
                 showEngineer={isAdmin && !showMine}
                 incluirPasados={verAnteriores}
+                infoDe={infoDe}
               />
             ))}
             <div className="text-center py-4">

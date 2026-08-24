@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { AgendaEntry } from '@ags/shared';
+import type { OTInfoAgenda } from '../../hooks/useOTsAgenda';
 import { ESTADO_AGENDA_COLORS, ESTADO_AGENDA_LABELS } from '@ags/shared';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
@@ -37,17 +38,22 @@ const BORDER_COLOR: Record<string, string> = {
 };
 
 // Mini card shown inside each grid cell — matches AgendaEntryCard design, compact
-function EntryCard({ entry }: { entry: AgendaEntry }) {
+function EntryCard({ entry, otInfo }: { entry: AgendaEntry; otInfo?: OTInfoAgenda }) {
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-100 text-slate-600';
   const borderColor = BORDER_COLOR[entry.estadoAgenda] ?? 'border-l-slate-400';
   const isManual = !entry.otNumber;
   const headline = isManual ? (entry.titulo || 'Tarea') : `OT-${entry.otNumber}`;
   const details = [entry.tipoServicio, entry.sistemaNombre, entry.equipoModelo].filter(Boolean).join(' · ');
+  // Mismo criterio que la card de la lista: atenuar, no dar color propio.
+  // Acá no entra el badge de envío — la celda es de dos líneas y no hay lugar;
+  // el tilde alcanza para el vistazo y el detalle está a un click.
+  const cerrada = otInfo?.cerrada === true;
 
   const inner = (
     <>
       <div className="flex items-start justify-between gap-1 mb-0.5">
         <span className={`text-[10px] font-bold leading-tight truncate ${isManual ? 'text-slate-700' : 'text-teal-600'}`}>
+          {cerrada && <span title="Cerrada" className="text-slate-400 mr-0.5">✓</span>}
           {headline}
         </span>
         <span className={`text-[8px] font-semibold px-1 py-px rounded-full shrink-0 leading-tight ${statusColor}`}>
@@ -66,7 +72,7 @@ function EntryCard({ entry }: { entry: AgendaEntry }) {
     </>
   );
 
-  const className = `block bg-white rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`;
+  const className = `block ${cerrada ? 'bg-slate-50 opacity-70' : 'bg-white'} rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`;
 
   return isManual
     ? <div className={className}>{inner}</div>
@@ -74,13 +80,15 @@ function EntryCard({ entry }: { entry: AgendaEntry }) {
 }
 
 interface Props {
+  /** Cierre y envío por OT. Lo resuelve `useOTsAgenda` en la página. */
+  infoDe: (otNumber: string | null | undefined) => OTInfoAgenda | undefined;
   ingenieros: { id: string; nombre: string }[];
   entries: AgendaEntry[];
   weeks: Date[];
   currentWeekStr: string;
 }
 
-export default function AgendaGridView({ ingenieros, entries, weeks, currentWeekStr }: Props) {
+export default function AgendaGridView({ ingenieros, entries, weeks, currentWeekStr, infoDe }: Props) {
   // Build lookup: ingenieroId → dateStr → entries[]
   const byEngDate = new Map<string, Map<string, AgendaEntry[]>>();
   for (const e of entries) {
@@ -186,7 +194,7 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
                           key={dk}
                           className={`border-l border-slate-100 px-1 py-1 space-y-1 min-h-[52px] overflow-hidden ${isToday(dk) ? 'bg-teal-50/40' : ''}`}
                         >
-                          {cellEntries.map(e => <EntryCard key={e.id} entry={e} />)}
+                          {cellEntries.map(e => <EntryCard key={e.id} entry={e} otInfo={infoDe(e.otNumber)} />)}
                         </div>
                       );
                     })}

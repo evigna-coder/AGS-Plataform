@@ -1,7 +1,7 @@
 import type { WorkOrderWithPdf } from '../../services/firebaseService';
 import { REPORTES_OT_URL } from '../../utils/constants';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
-import { EnvioEmailBadge } from './EnvioEmailBadge';
+import { EnvioEmailBadge } from '../ui/EnvioEmailBadge';
 import { formatDateShort } from '../../utils/formatDate';
 
 const fmt = formatDateShort;

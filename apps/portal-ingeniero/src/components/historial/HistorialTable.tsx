@@ -2,7 +2,7 @@ import type { WorkOrderWithPdf } from '../../services/firebaseService';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../ui/ColAlignIcon';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
-import { EnvioEmailBadge } from './EnvioEmailBadge';
+import { EnvioEmailBadge } from '../ui/EnvioEmailBadge';
 import { type SortDir } from '../ui/SortableHeader';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
