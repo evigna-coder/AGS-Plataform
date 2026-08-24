@@ -69,6 +69,9 @@ function buildOptions(stock: PartStockInfo): OrigenOption[] {
       kind: 'remito',
       value: `remito:${r.remitoId}:${r.itemId}`,
       label: `Remito ${r.remitoNumero} — ${r.ingenieroNombre} (×${r.cantidad})${r.serie ? ` · S/N ${r.serie}` : ''}`,
+      // La misma unidad puede venir de varios remitos abiertos: se ofrece una
+      // sola vez y acá se dice de dónde más viene (2026-08-24).
+      sub: r.tambienEn?.length ? `también en ${r.tambienEn.join(', ')}` : undefined,
       remito: r,
     });
   }

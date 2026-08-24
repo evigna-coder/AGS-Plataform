@@ -3,6 +3,8 @@ import { unidadCuentaComoDisponible } from '@ags/shared';
 import type { Part, Articulo, Patron, Remito, UnidadStock, TipoUbicacionStock } from '@ags/shared';
 import { articulosService, remitosService, unidadesService } from '../services/stockService';
 import { patronesService } from '../services/patronesService';
+import { dedupPorUnidad, type RemitoItemOrigen } from '../utils/origenRemitoDedup';
+export type { RemitoItemOrigen };
 
 /** Ubicación con stock disponible agregado (para elegir posición de descarga). */
 export interface StockPosicion {
@@ -34,16 +36,6 @@ export interface PatronLoteOrigen {
 /** Item de un remito en campo ofrecido como origen de descarga (2026-08-04):
  *  el material ya salió con un remito de salida y está en poder del ingeniero —
  *  al cerrar la OT se consume desde ahí y el remito se resuelve/cierra. */
-export interface RemitoItemOrigen {
-  remitoId: string;
-  remitoNumero: string;
-  itemId: string;
-  ingenieroNombre: string;
-  /** Cantidad pendiente del item (cantidad − consumida). */
-  cantidad: number;
-  serie: string | null;
-}
-
 /** Info de stock resuelta para una parte del cierre. */
 export interface PartStockInfo {
   /** Artículo de catálogo resuelto (por stockArticuloId o, en su defecto, por código). */
@@ -88,7 +80,7 @@ function patronLotesDisponibles(patron: Patron): PatronLoteOrigen[] {
 const REMITO_ESTADOS_EN_CAMPO = new Set(['confirmado', 'en_transito', 'completado_parcial']);
 
 /** Items 'sale y vuelve' pendientes de los remitos en campo que matchean el artículo. */
-function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?: string | null): RemitoItemOrigen[] {
+export function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?: string | null): RemitoItemOrigen[] {
   const cod = normCodigo(codigo);
   const out: RemitoItemOrigen[] = [];
   for (const r of remitos) {
@@ -109,10 +101,11 @@ function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, codigo?:
         ingenieroNombre: r.ingenieroNombre || 'Ingeniero',
         cantidad: pendiente,
         serie: it.serie ?? null,
+        unidadId: it.salidaUnidadId ?? it.unidadId ?? null,
       });
     }
   }
-  return out;
+  return dedupPorUnidad(out);
 }
 
 /** Etiqueta de la reserva de una unidad: "Cliente (P2-005099)". */
