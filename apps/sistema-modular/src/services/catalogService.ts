@@ -8,12 +8,40 @@ import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
 
+/**
+ * Fecha → ISO, tolerando lo que realmente hay guardado (2026-08-23).
+ *
+ * El bug que fija: un solo documento con `createdAt` en string tiraba
+ * `data.createdAt?.toDate is not a function` y **el listado entero de la
+ * biblioteca no cargaba**. El `?.` protegía del null pero no del tipo
+ * equivocado, que es el caso real cuando un documento se creó por consola
+ * con una fecha ISO en lugar de `Timestamp.now()`.
+ *
+ * Que un registro mal formado se lleve puesto el módulo completo es peor que
+ * el registro mal formado. Acá se degrada de a uno.
+ */
+function fechaAISO(v: unknown): string | null {
+  if (!v) return null;
+  if (typeof (v as { toDate?: unknown }).toDate === 'function') {
+    return (v as { toDate(): Date }).toDate().toISOString();
+  }
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (v instanceof Date) return v.toISOString();
+  // Timestamp serializado ({seconds, nanoseconds}) — pasa al leer un backup.
+  const seg = (v as { seconds?: number }).seconds;
+  if (typeof seg === 'number') return new Date(seg * 1000).toISOString();
+  return null;
+}
+
 function toTableCatalogEntry(id: string, data: any): TableCatalogEntry {
   return {
     id,
     ...data,
-    createdAt: data.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
-    updatedAt: data.updatedAt?.toDate().toISOString() ?? new Date().toISOString(),
+    createdAt: fechaAISO(data.createdAt) ?? new Date().toISOString(),
+    updatedAt: fechaAISO(data.updatedAt) ?? new Date().toISOString(),
   } as TableCatalogEntry;
 }
 
