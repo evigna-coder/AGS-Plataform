@@ -6,6 +6,8 @@ import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFiel
 
 interface PresupuestoItemRowProps {
   item: PresupuestoItem;
+  /** Etiqueta de la línea ("3" o "2.1"), igual a la del PDF. */
+  numero?: string;
   categoriasPresupuesto: CategoriaPresupuesto[];
   fmtMoney: (n: number) => string;
   taxes: { totalImpuestos: number };
@@ -21,7 +23,7 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
 ];
 
 export const PresupuestoItemRow = ({
-  item, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem, rowRef,
+  item, numero, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem, rowRef,
 }: PresupuestoItemRowProps) => {
   // Start expanded if the item already has availability data or a factor set (Phase 16)
   const [showDisp, setShowDisp] = useState(
@@ -33,6 +35,9 @@ export const PresupuestoItemRow = ({
   return (
     <>
       <tr ref={rowRef}>
+        {/* Número de línea (2026-08-23): el mismo que sale en el PDF, para que
+            cliente y AGS hablen del mismo renglón. */}
+        <td className="px-2 py-2 text-[10px] font-mono text-slate-400 text-center align-top pt-3">{numero ?? ''}</td>
         <td className="px-2 py-2">
           <input value={item.codigoProducto || ''} onChange={e => onUpdateItem(item.id, 'codigoProducto', e.target.value || null)}
             className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />

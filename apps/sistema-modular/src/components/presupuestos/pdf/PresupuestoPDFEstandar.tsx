@@ -2,6 +2,7 @@ import { Document, Page, View, Text, Image, Svg, Rect, Path, Line as SvgLine } f
 import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
 import { agruparPorSistemaSimple, validezHastaFecha } from './pdfUtils';
+import { numerarItemsPresupuesto } from '../../../utils/presupuestoItemNumero';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
 import { PDFRichText } from './PDFRichText';
 import { presupuestoTieneValidez } from '@ags/shared';
@@ -74,17 +75,8 @@ function formatDate(dateValue: any): string {
   }
 }
 
-const itemCols = {
-  item: '8%',
-  producto: '12%',
-  cantidad: '8%',
-  descripcion: '40%',
-  precio: '14%',
-  total: '18%',
-};
-
 /** Anchos fijos de columnas numéricas (estilo Odoo); la descripción toma el resto con flex:1. */
-const odooCols = { cantidad: 56, precio: 86, descuento: 44, total: 96 };
+const odooCols = { item: 26, cantidad: 56, precio: 86, descuento: 44, total: 96 };
 
 /**
  * Fila de item. Compactada 2026-08-09: era `fontSize: 8.5` con `paddingVertical: 7`
@@ -93,9 +85,16 @@ const odooCols = { cantidad: 56, precio: 86, descuento: 44, total: 96 };
  */
 const ITEM_FS = 7.5;
 
-function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento?: boolean }) {
+function ItemRow({ item, showDescuento, numero }: { item: PresupuestoItem; showDescuento?: boolean; numero?: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
+      {/* Numerada para que el cliente pueda referirse a un renglón concreto
+          (2026-08-23). `alignSelf: flex-start` la deja pegada arriba: la
+          descripción puede ocupar dos líneas y el número tiene que quedar a la
+          altura de la primera. */}
+      <Text style={{ width: odooCols.item, fontSize: ITEM_FS, color: COLORS.textMuted, alignSelf: 'flex-start' }}>
+        {numero ?? ''}
+      </Text>
       <View style={{ flex: 1, paddingRight: 8 }}>
         <Text style={{ fontSize: ITEM_FS, color: COLORS.text }}>{item.descripcion}</Text>
         {/* Se cotiza por el N° de parte del envase: es el que el cliente ve en
@@ -144,17 +143,21 @@ function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento
  */
 function ItemsTable({ items }: { items: PresupuestoItem[]; moneda?: string }) {
   const showDescuento = items.some(i => i.descuento && i.descuento > 0);
+  const { etiquetaPorItem } = numerarItemsPresupuesto(items);
   return (
     <View style={{ marginBottom: 12 }}>
       {/* Sin fondo gris (reforma 2026-08-12): labels azules + línea azul fina. */}
       <View style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.primary }}>
+        <Text style={{ width: odooCols.item, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4 }}>ITEM</Text>
         <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4 }}>DESCRIPCIÓN</Text>
         <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'center' }}>CANT.</Text>
         <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>PRECIO</Text>
         {showDescuento ? <Text style={{ width: odooCols.descuento, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'center' }}>DTO</Text> : null}
         <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>TOTAL</Text>
       </View>
-      {items.map((item) => <ItemRow key={item.id} item={item} showDescuento={showDescuento} />)}
+      {items.map((item) => (
+        <ItemRow key={item.id} item={item} showDescuento={showDescuento} numero={etiquetaPorItem.get(item.id)} />
+      ))}
     </View>
   );
 }
@@ -342,16 +345,20 @@ export function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
 function PDFItemsTable({ data }: { data: PresupuestoPDFData }) {
   const { items } = data.presupuesto;
   const hasGrupos = items.some(i => i.grupo && i.grupo > 0);
+  const { etiquetaPorItem, posicionPorGrupo } = numerarItemsPresupuesto(items);
 
   return (
     <View style={S.table}>
-      <View style={S.tableHeaderRow}>
-        <Text style={[S.tableHeaderCell, { width: itemCols.item }]}>Item</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.producto }]}>Producto</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.cantidad }]}>Cantidad</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.descripcion, textAlign: 'left' }]}>Descripción</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.precio }]}>Precio</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.total }]}>TOTAL</Text>
+      {/* La cabecera declaraba seis columnas con porcentajes (`itemCols`) que
+          NUNCA coincidieron con las que dibuja `ItemRow`: quedó de un layout
+          anterior y los títulos caían corridos respecto de los valores. Ahora
+          usa los mismos anchos que la fila (2026-08-23). */}
+      <View style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.primary }}>
+        <Text style={{ width: odooCols.item, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4 }}>ITEM</Text>
+        <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4 }}>DESCRIPCIÓN</Text>
+        <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'center' }}>CANT.</Text>
+        <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>PRECIO</Text>
+        <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.4, textAlign: 'right' }}>TOTAL</Text>
       </View>
 
       {hasGrupos ? (
@@ -360,15 +367,17 @@ function PDFItemsTable({ data }: { data: PresupuestoPDFData }) {
             <View key={grupo.grupo}>
               <View style={{ flexDirection: 'row', backgroundColor: COLORS.sectionBg, paddingVertical: 3, paddingHorizontal: 6, borderBottomWidth: 0.5, borderBottomColor: COLORS.border }}>
                 <Text style={{ fontSize: 7, fontWeight: 600, color: COLORS.headerBg }}>
-                  {grupo.grupo > 0 ? `${grupo.grupo}. ` : ''}{grupo.sistemaNombre.toUpperCase()}
+                  {`${posicionPorGrupo.get(grupo.grupo) ?? grupo.grupo}. `}{grupo.sistemaNombre.toUpperCase()}
                 </Text>
               </View>
-              {grupo.items.map((item) => <ItemRow key={item.id} item={item} />)}
+              {grupo.items.map((item) => (
+                <ItemRow key={item.id} item={item} numero={etiquetaPorItem.get(item.id)} />
+              ))}
             </View>
           );
         })
       ) : (
-        items.map((item) => <ItemRow key={item.id} item={item} />)
+        items.map((item) => <ItemRow key={item.id} item={item} numero={etiquetaPorItem.get(item.id)} />)
       )}
     </View>
   );

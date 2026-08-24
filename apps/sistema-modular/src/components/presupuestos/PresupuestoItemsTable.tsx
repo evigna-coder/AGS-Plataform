@@ -8,6 +8,7 @@ import { NotasTecnicasPlantillas } from './NotasTecnicasPlantillas';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 import { PresupuestoAddItemCompleto } from './PresupuestoAddItemCompleto';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
+import { numerarItemsPresupuesto } from '../../utils/presupuestoItemNumero';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import { GroupRows, TotalsFooter } from './PresupuestoItemsTableParts';
 import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
@@ -44,6 +45,7 @@ interface PresupuestoItemsTableProps {
 
 const TABLE_HEADER = (
   <tr className="bg-slate-50">
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-10">Item</th>
     <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-28">Código</th>
     <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-center">Descripcion</th>
     <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
@@ -118,10 +120,14 @@ export const PresupuestoItemsTable = ({
   const lastRowRef = useScrollToNewItem<HTMLTableRowElement>(items.length);
   const ultimoItemId = items[items.length - 1]?.id;
 
+  // Se numera sobre TODOS los items, no sobre los de cada grupo por separado:
+  // la etiqueta tiene que ser la misma que imprime el PDF.
+  const { etiquetaPorItem } = numerarItemsPresupuesto(items);
+
   const renderRows = (rowItems: PresupuestoItem[]) =>
     rowItems.map(item => (
       <Fragment key={item.id}>
-        <PresupuestoItemRow item={item} categoriasPresupuesto={categoriasPresupuesto}
+        <PresupuestoItemRow item={item} numero={etiquetaPorItem.get(item.id)} categoriasPresupuesto={categoriasPresupuesto}
           rowRef={item.id === ultimoItemId ? lastRowRef : undefined}
           fmtMoney={fmtMoney} taxes={calculateItemTaxes(item)} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
         {renderSubRow?.(item, items.findIndex(i => i.id === item.id) + 1)}

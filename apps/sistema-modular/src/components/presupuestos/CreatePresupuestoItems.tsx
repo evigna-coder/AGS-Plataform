@@ -4,6 +4,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 import { PresupuestoAddItemCompleto } from './PresupuestoAddItemCompleto';
+import { numerarItemsPresupuesto } from '../../utils/presupuestoItemNumero';
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
@@ -26,6 +27,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const wizardAddedRef = useRef(false);
   const isMixta = moneda === 'MIXTA';
+  // Mismas etiquetas que el PDF: quien carga ve el número que va a ver el cliente.
+  const { etiquetaPorItem } = numerarItemsPresupuesto(items);
   const symFor = (m: string) => MONEDA_SIMBOLO[m] || '$';
   const sym = isMixta ? '' : (MONEDA_SIMBOLO[moneda] || '$');
   const fmtMoney = (n: number, m?: string | null) => `${m ? symFor(m) : sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
@@ -107,6 +110,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-[#F0F0F0]">
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-8">Item</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center w-24">Codigo</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center">Descripcion</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14">Cant.</th>
@@ -122,6 +126,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
               {items.map((item, idx) => (
                 <Fragment key={item.id}>
                 <tr>
+                  <td className="px-2 py-1 text-[10px] text-slate-400 font-mono text-center">{etiquetaPorItem.get(item.id) ?? ''}</td>
                   <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-2 py-1">
                     <input value={item.descripcion}
