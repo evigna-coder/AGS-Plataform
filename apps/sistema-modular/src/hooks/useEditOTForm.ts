@@ -482,11 +482,34 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
           if (prev.includes(otNumber) && pres.otVinculadaNumber) continue; // ya vinculado
           const yaAvanzado = !!pres.fechaEnvio
             || ['enviado', 'aceptado', 'en_ejecucion'].includes(pres.estado);
+          /**
+           * Si la OT YA está cerrada administrativamente, el presupuesto que se
+           * suma ahora tiene que quedar listo para facturar (2026-08-24).
+           *
+           * `otsListasParaFacturar` la llena el cierre administrativo recorriendo
+           * los `budgets` que la OT tenía EN ESE MOMENTO. Corregir el presupuesto
+           * después —el caso real: lo tipearon mal en el reporte y se arregló
+           * más tarde— dejaba el vínculo hecho de los dos lados y la lista
+           * vacía: el aviso a facturación no se habilitaba nunca y el mensaje
+           * decía "guardá primero el cierre", que ya estaba guardado.
+           *
+           * La rama de QUITAR ya limpiaba esta lista; la de agregar no la
+           * escribía. Es la misma reparación que hace
+           * `vincularPresupuestoAOTCerrada`, que existe justamente por esto.
+           */
+          const otYaCerrada = ['CIERRE_ADMINISTRATIVO', 'FINALIZADO']
+            .includes(otOriginal?.estadoAdmin ?? '');
+          const listasPrev = pres.otsListasParaFacturar ?? [];
+          const sumarALista = otYaCerrada && !listasPrev.includes(otNumber);
+
           await presupuestosService.update(pres.id, deepCleanForFirestore({
             otVinculadaNumber: otNumber,
             otsVinculadasNumbers: prev.includes(otNumber) ? prev : [...prev, otNumber],
-            ...(yaAvanzado && pres.estado !== 'en_ejecucion' && pres.estado !== 'pendiente_facturacion'
-              && pres.estado !== 'finalizado' ? { estado: 'en_ejecucion' } : {}),
+            ...(sumarALista ? { otsListasParaFacturar: [...listasPrev, otNumber] } : {}),
+            ...(sumarALista && ['pendiente_oc', 'aceptado', 'en_ejecucion'].includes(pres.estado)
+              ? { estado: 'pendiente_facturacion' }
+              : (yaAvanzado && pres.estado !== 'en_ejecucion' && pres.estado !== 'pendiente_facturacion'
+                && pres.estado !== 'finalizado' ? { estado: 'en_ejecucion' } : {})),
           }) as any);
         } catch (err) {
           console.error(`[useEditOTForm] vínculo inverso con ppto ${numero} falló:`, err);
