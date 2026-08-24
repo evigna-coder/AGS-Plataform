@@ -11,6 +11,8 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { DispositivoModal } from '../../components/dispositivos/DispositivoModal';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
+import { softwareDeDispositivo, dispositivoTieneSoftware } from '@ags/shared';
+import { DispositivoSoftwareCell } from '../../components/dispositivos/DispositivoSoftwareCell';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { DISPOSITIVOS_EXPORT_COLUMNS, TIPO_DISPOSITIVO_LABELS as TIPO_LABELS } from '../../utils/exports/exportDispositivos';
@@ -63,7 +65,12 @@ export const DispositivosList = () => {
   const filtered = useMemo(() => {
     let list = items;
     if (debouncedSearch) {
-      list = list.filter(d => matchesSearch(debouncedSearch, d.marca, d.modelo, d.serie, d.asignadoANombre));
+      // El software entra en la MISMA búsqueda: "¿en qué máquinas tenemos
+      // ChemStation B.04.03?" es la pregunta que motivó el módulo, y obligar a
+      // un segundo campo para eso sería esconderla (2026-08-23).
+      list = list.filter(d =>
+        matchesSearch(debouncedSearch, d.marca, d.modelo, d.serie, d.asignadoANombre)
+        || dispositivoTieneSoftware(d, debouncedSearch));
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [items, debouncedSearch, filters.sortField, filters.sortDir]);
@@ -76,6 +83,12 @@ export const DispositivosList = () => {
       console.error('Error eliminando:', err);
     }
   };
+
+  /** Nombres ya usados, para que el mismo producto no se escriba de tres formas. */
+  const sugerenciasSoftware = useMemo(() => (
+    [...new Set(items.flatMap(d => softwareDeDispositivo(d).map(sw => sw.nombre)))]
+      .filter(Boolean).sort()
+  ), [items]);
 
   const isInitialLoad = loading && items.length === 0;
 
@@ -96,7 +109,7 @@ export const DispositivosList = () => {
           </div>
         }
       >
-        <input type="text" placeholder="Buscar por marca, modelo, serie o asignado..."
+        <input type="text" placeholder="Buscar por marca, modelo, serie, asignado o software..."
           value={localSearch} onChange={e => setLocalSearch(e.target.value)}
           className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-72 focus:outline-none focus:ring-2 focus:ring-teal-500" />
       </PageHeader>
@@ -115,11 +128,12 @@ export const DispositivosList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '30%' }} />
-                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '22%' }} />
-                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '12%' }} />
                 </colgroup>
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -128,6 +142,7 @@ export const DispositivosList = () => {
                   <SortableHeader label="Marca / Modelo" field="marca" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <SortableHeader label="Serie" field="serie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <SortableHeader label="Asignado a" field="asignadoANombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Software</th>
                   <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
@@ -145,6 +160,7 @@ export const DispositivosList = () => {
                     </td>
                     <td className={`px-4 py-2 font-mono text-xs text-slate-600 ${getAlignClass(2)}`}>{d.serie || '-'}</td>
                     <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{d.asignadoANombre || '-'}</td>
+                    <td className="px-4 py-2"><DispositivoSoftwareCell dispositivo={d} /></td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
                         <button onClick={() => { setEditItem(d); setShowModal(true); }} className="text-xs text-teal-600 hover:underline font-medium">Editar</button>
@@ -159,7 +175,8 @@ export const DispositivosList = () => {
         )}
       </div>
 
-      <DispositivoModal open={showModal} onClose={() => { setShowModal(false); setEditItem(null); }} onSaved={loadData} editData={editItem} />
+      <DispositivoModal open={showModal} onClose={() => { setShowModal(false); setEditItem(null); }}
+        onSaved={loadData} editData={editItem} sugerenciasSoftware={sugerenciasSoftware} />
     </div>
   );
 };

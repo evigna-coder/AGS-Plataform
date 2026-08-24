@@ -1,3 +1,4 @@
+import { softwareDeDispositivo } from '@ags/shared';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
 import type { ExportColumn } from '../exportToExcel';
 
@@ -21,4 +22,10 @@ export const DISPOSITIVOS_EXPORT_COLUMNS: ExportColumn<Dispositivo>[] = [
   { header: 'Serie',       width: 20, get: d => d.serie || '' },
   { header: 'Asignado a',  width: 22, get: d => d.asignadoANombre || '' },
   { header: 'Descripción', width: 30, get: d => d.descripcion || '' },
+  // El software es el dato por el que se consulta el módulo: tiene que poder
+  // salir en el Excel, una línea por producto (2026-08-23).
+  { header: 'Software', width: 50, get: d => softwareDeDispositivo(d)
+      .map(sw => `${sw.entorno}${sw.entornoTipo === 'virtual' ? ' (VM)' : ''}: ${sw.nombre}${sw.version ? ` ${sw.version}` : ''}`)
+      .join(' | ') },
+  { header: 'GPIB', width: 10, get: d => (d.tieneGPIB ? (d.gpibDetalle || 'Sí') : '') },
 ];
