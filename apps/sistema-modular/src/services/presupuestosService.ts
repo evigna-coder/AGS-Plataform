@@ -23,7 +23,7 @@ import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
 import { cantidadEnUnidadBase } from '@ags/shared';
 import { atpNetoFromStockAmplio } from './atpHelpers';
-import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual } from '../utils/cuotasFacturacion';
+import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual, tieneOCAdjunta } from '../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
@@ -2228,6 +2228,33 @@ ${linea}`,
     const pres = await this.getById(presupuestoId);
     if (!pres) throw new Error('Presupuesto no encontrado');
     if (pres.estado === 'anulado') throw new Error('No se puede facturar un presupuesto anulado');
+
+    /**
+     * Sin la OC del cliente adjunta no se avisa a facturación (2026-08-24).
+     *
+     * La OC es el respaldo de la factura y quien factura la necesita adjunta,
+     * no de palabra. Hasta ahora el aviso salía igual y el faltante aparecía
+     * recién del otro lado, con el trabajo hecho y la factura por emitir.
+     *
+     * Va acá y no en cada botón: hay seis lugares que generan el aviso
+     * —listado, presupuesto, wizard de cierre de OT, cuotas, OTs sin asociar y
+     * control semanal— y el freno tiene que valer para los seis.
+     *
+     * No alcanza con el NÚMERO tipeado a mano: eso sirve para saber que el
+     * cliente la mandó, no para adjuntarla a la factura. Ver `tieneOCAdjunta`.
+     */
+    const ocsDelPresupuesto = await Promise.all(
+      (pres.ordenesCompraIds ?? []).map(async id => {
+        const snap = await getDoc(doc(db, 'ordenesCompraCliente', id)).catch(() => null);
+        return snap?.exists() ? { id: snap.id, adjuntos: (snap.data() as any)?.adjuntos ?? [] } : null;
+      }),
+    );
+    if (!tieneOCAdjunta(pres, ocsDelPresupuesto.filter((o): o is { id: string; adjuntos: unknown[] } => !!o))) {
+      throw new Error(
+        `El presupuesto ${pres.numero || presupuestoId} no tiene la orden de compra del cliente adjunta. `
+        + 'Cargala desde el presupuesto ("Cargar OC" o el clip "Adjuntar OC") y volvé a generar el aviso.',
+      );
+    }
 
     // ── NEW: cuotaId path (anticipo) ──────────────────────────────────────
     // When cuotaId is present, the OT-listas guard is SKIPPED (BILL-03).

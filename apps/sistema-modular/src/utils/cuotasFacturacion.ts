@@ -224,6 +224,45 @@ export function tieneOCDelCliente(p: {
   return (p.adjuntos || []).some(a => a.tipo === 'orden_compra');
 }
 
+/**
+ * ¿Hay una OC del cliente CON EL PAPEL, no solo el número? (2026-08-24)
+ *
+ * Más estricta que `tieneOCDelCliente`, y la diferencia es a propósito: para
+ * marcar el hito "OC recibida" alcanza con saber que el cliente la mandó, pero
+ * para AVISAR A FACTURACIÓN hace falta el documento — es el respaldo de la
+ * factura y quien factura lo necesita adjunto, no de palabra.
+ *
+ * Dos caminos válidos, los mismos dos que carga la UI:
+ *   - un adjunto del presupuesto con `tipo: 'orden_compra'` (AdjuntarOCModal);
+ *   - una OC de la colección `ordenesCompraCliente` con archivos (FLOW-02).
+ *
+ * `ocsDelCliente` es opcional: sin la lista no se puede verificar que la OC
+ * formal traiga archivos, y se acepta el back-ref —la carga de una OC nueva
+ * EXIGE archivo, así que en la práctica los tiene—. El chequeo estricto lo hace
+ * el servicio, que sí las lee.
+ */
+export function tieneOCAdjunta(
+  p: {
+    ordenesCompraIds?: string[] | null;
+    adjuntos?: Array<{ tipo: string }> | null;
+    /**
+     * Se acepta en la firma y se IGNORA a propósito: el número tipeado a mano
+     * dice que el cliente mandó la OC, no que el papel esté. Está acá para que
+     * pasar un presupuesto entero no sea un error de tipos y para dejar
+     * explícito que no cuenta.
+     */
+    ordenCompraNumero?: string | null;
+  },
+  ocsDelCliente?: Array<{ id: string; adjuntos?: unknown[] | null }>,
+): boolean {
+  if ((p.adjuntos || []).some(a => a.tipo === 'orden_compra')) return true;
+
+  const ids = p.ordenesCompraIds || [];
+  if (ids.length === 0) return false;
+  if (!ocsDelCliente) return true;
+  return ocsDelCliente.some(oc => ids.includes(oc.id) && (oc.adjuntos?.length ?? 0) > 0);
+}
+
 function evaluateHito(
   hito: PresupuestoCuotaFacturacion['hito'],
   ppto: Pick<Presupuesto, 'estado' | 'ordenesCompraIds' | 'preEmbarque'>

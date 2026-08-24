@@ -22,6 +22,8 @@ import {
   canFinalizeFromEsquema,
   cuotasEqual,
   computeTotalsByCurrency,
+  tieneOCDelCliente,
+  tieneOCAdjunta,
 } from '../../utils/cuotasFacturacion.js';
 
 import {
@@ -417,6 +419,64 @@ async function run() {
     }
 
     console.log('  ✓ BILL-03 generarAviso-guard-no-habilitada passed');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // OC-ADJUNTA — sin el papel de la OC no se avisa a facturación (2026-08-24)
+  // ════════════════════════════════════════════════════════════════════════
+  {
+    console.log('[OC-01 tieneOCAdjunta-vs-tieneOCDelCliente]');
+
+    // El caso que lo motivó: el número tipeado a mano alcanza para saber que el
+    // cliente mandó la OC, pero NO para adjuntarla a la factura.
+    const soloNumero = { ordenCompraNumero: 'O-000100445302' };
+    assert.equal(tieneOCDelCliente(soloNumero), true, 'el número sirve para el hito oc_recibida');
+    assert.equal(tieneOCAdjunta(soloNumero), false, 'pero NO habilita el aviso a facturación');
+
+    // Adjunto del presupuesto (camino liviano: AdjuntarOCModal).
+    assert.equal(
+      tieneOCAdjunta({ adjuntos: [{ tipo: 'orden_compra' }] }), true,
+      'un adjunto tipo orden_compra habilita',
+    );
+    assert.equal(
+      tieneOCAdjunta({ adjuntos: [{ tipo: 'otro' }] }), false,
+      'otro tipo de adjunto no es una OC',
+    );
+
+    // OC formal de la colección: con archivos habilita, sin archivos no.
+    const conBackRef = { ordenesCompraIds: ['OCC-1'] };
+    assert.equal(
+      tieneOCAdjunta(conBackRef, [{ id: 'OCC-1', adjuntos: [{ url: 'x' }] }]), true,
+      'OC de la colección con archivo habilita',
+    );
+    assert.equal(
+      tieneOCAdjunta(conBackRef, [{ id: 'OCC-1', adjuntos: [] }]), false,
+      'OC sin archivo NO habilita: el papel es lo que se pide',
+    );
+    assert.equal(
+      tieneOCAdjunta(conBackRef, [{ id: 'OTRA', adjuntos: [{ url: 'x' }] }]), false,
+      'una OC de otro presupuesto no cuenta',
+    );
+
+    // Sin la lista de OCs no se puede verificar el archivo: se acepta el
+    // back-ref (la UI usa esta forma; el servicio sí las lee).
+    assert.equal(tieneOCAdjunta(conBackRef), true, 'sin lista, el back-ref alcanza');
+
+    // El adjunto del presupuesto gana aunque la OC formal no tenga archivos.
+    assert.equal(
+      tieneOCAdjunta(
+        { ordenesCompraIds: ['OCC-1'], adjuntos: [{ tipo: 'orden_compra' }] },
+        [{ id: 'OCC-1', adjuntos: [] }],
+      ),
+      true,
+      'alcanza con UNO de los dos caminos',
+    );
+
+    // Nada de nada.
+    assert.equal(tieneOCAdjunta({}), false);
+    assert.equal(tieneOCAdjunta({ ordenesCompraIds: [], adjuntos: [] }), false);
+
+    console.log('  ✓ OC-01 tieneOCAdjunta passed');
   }
 
   // ════════════════════════════════════════════════════════════════════════
