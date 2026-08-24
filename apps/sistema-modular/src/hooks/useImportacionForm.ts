@@ -17,6 +17,9 @@ export interface ImportacionPrefill {
   proveedorNombre?: string | null;
   moneda?: Moneda | null;
   incoterm?: string | null;
+  /** Flete y seguro acordados en la OC — prefill de los declarados (2026-08-24). */
+  flete?: number | null;
+  seguro?: number | null;
   items?: ItemOC[];
 }
 
@@ -124,7 +127,13 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
           setOrdenCompraId(prefill.ordenCompraId); setOrdenCompraNumero(prefill.ordenCompraNumero);
           setProveedorId(prefill.proveedorId ?? ''); setProveedorNombre(prefill.proveedorNombre ?? '');
           setMonedaOC(m);
-          setForm(prev => ({ ...prev, incoterm: prefill.incoterm ?? '', giroMoneda: m }));
+          setForm(prev => ({
+            ...prev,
+            incoterm: prefill.incoterm ?? '',
+            giroMoneda: m,
+            fleteDeclarado: prefill.flete != null ? String(prefill.flete) : prev.fleteDeclarado,
+            seguroDeclarado: prefill.seguro != null ? String(prefill.seguro) : prev.seguroDeclarado,
+          }));
           setItems(prefill.items?.length ? itemsFromOC(prefill.items, m) : []);
           setGastos(gastosPrecargados(m));
         } else {
@@ -182,6 +191,11 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       ...prev,
       incoterm: prev.incoterm || (oc.incoterm ?? ''),
       giroMoneda: m,
+      // Flete y seguro acordados en la OC → declarados. Igual que el incoterm,
+      // es un PREFILL: si el usuario ya escribió algo, no se pisa. Lo que la
+      // guía diga después manda, y se corrige acá sin tocar la OC (2026-08-24).
+      fleteDeclarado: prev.fleteDeclarado || (oc.flete != null ? String(oc.flete) : ''),
+      seguroDeclarado: prev.seguroDeclarado || (oc.seguro != null ? String(oc.seguro) : ''),
       // Si el embarque es en euros y hay sugerencia de pase, precargarla (si está vacío).
       paseEurUsd: m === 'EUR' && !prev.paseEurUsd && paseSugerido ? paseSugerido.toFixed(4) : prev.paseEurUsd,
     }));

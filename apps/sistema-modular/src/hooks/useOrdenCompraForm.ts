@@ -23,6 +23,10 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
   const [fechaProforma, setFechaProforma] = useState('');
   const [condicionesPago, setCondicionesPago] = useState('');
   const [incoterm, setIncoterm] = useState('');
+  // Flete y seguro acordados: se arrastran a la importación como declarados
+  // (2026-08-24). String para permitir el campo vacío = "no acordado".
+  const [flete, setFlete] = useState('');
+  const [seguro, setSeguro] = useState('');
   const [fechaEntregaEstimada, setFechaEntregaEstimada] = useState('');
   const [notas, setNotas] = useState('');
   const [items, setItems] = useState<ItemOC[]>([]);
@@ -47,6 +51,8 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
           setFechaProforma(data.fechaProforma ? data.fechaProforma.split('T')[0] : '');
           setCondicionesPago(data.condicionesPago || '');
           setIncoterm(data.incoterm || '');
+          setFlete(data.flete != null ? String(data.flete) : '');
+          setSeguro(data.seguro != null ? String(data.seguro) : '');
           setFechaEntregaEstimada(data.fechaEntregaEstimada ? data.fechaEntregaEstimada.split('T')[0] : '');
           setNotas(data.notas || ''); setItems(data.items || []);
           // En EDICIÓN el número se carga COMPLETO y editable (2026-08-09): hay
@@ -154,7 +160,10 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
         // Preservar el estado al editar (no volver a borrador una OC ya enviada/embarcada).
         subtotal, impuestos, total, estado: oc?.estado ?? 'borrador',
         proformaNumero: proformaNumero || null, fechaProforma: fechaProforma || null,
-        condicionesPago: condicionesPago || null, incoterm: incoterm || null, fechaEntregaEstimada: fechaEntregaEstimada || null,
+        condicionesPago: condicionesPago || null, incoterm: incoterm || null,
+        flete: flete.trim() ? Number(flete) : null,
+        seguro: seguro.trim() ? Number(seguro) : null,
+        fechaEntregaEstimada: fechaEntregaEstimada || null,
         notas: notas || null, proformaUrl: null, proformaNombre: null,
         // Preservar vínculos a presupuestos al editar (OCEditor los borraba).
         presupuestoIds: oc?.presupuestoIds ?? [], fechaRecepcion: null, importacionId: null,
@@ -183,7 +192,9 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
     tipo, setTipo, proveedorId, handleProveedorChange, moneda, setMoneda,
     numeroManual, setNumeroManual, prefijoOC,
     proformaNumero, setProformaNumero, fechaProforma, setFechaProforma,
-    condicionesPago, setCondicionesPago, incoterm, setIncoterm, fechaEntregaEstimada, setFechaEntregaEstimada,
+    condicionesPago, setCondicionesPago, incoterm, setIncoterm,
+    flete, setFlete, seguro, setSeguro,
+    fechaEntregaEstimada, setFechaEntregaEstimada,
     notas, setNotas, items, addItem, pushItem, updateItem, removeItem, calcTotal,
     save, reload: load,
   };

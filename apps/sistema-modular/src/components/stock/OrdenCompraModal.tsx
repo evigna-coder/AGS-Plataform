@@ -212,13 +212,23 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
               <Input inputSize="sm" label="Fecha proforma" type="date" value={h.fechaProforma} onChange={e => h.setFechaProforma(e.target.value)} />
               <Input inputSize="sm" label="Fecha entrega estimada" type="date" value={h.fechaEntregaEstimada} onChange={e => h.setFechaEntregaEstimada(e.target.value)} />
               {h.tipo === 'importacion' && (
-                <div>
-                  <label className={lbl}>Incoterm</label>
-                  <select value={h.incoterm} onChange={e => h.setIncoterm(e.target.value)} className={selectClass}>
-                    <option value="">—</option>
-                    {['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'].map(i => <option key={i} value={i}>{i}</option>)}
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className={lbl}>Incoterm</label>
+                    <select value={h.incoterm} onChange={e => h.setIncoterm(e.target.value)} className={selectClass}>
+                      <option value="">—</option>
+                      {['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'].map(i => <option key={i} value={i}>{i}</option>)}
+                    </select>
+                  </div>
+                  {/* Flete y seguro acordados: la importación los levanta como
+                      declarados y entran en la base CIF del costeo (2026-08-24). */}
+                  <Input inputSize="sm" type="number" value={h.flete} onChange={e => h.setFlete(e.target.value)}
+                    label={`Flete (${h.moneda})`} placeholder="0.00"
+                    description="Se arrastra a la importación" />
+                  <Input inputSize="sm" type="number" value={h.seguro} onChange={e => h.setSeguro(e.target.value)}
+                    label={`Seguro (${h.moneda})`} placeholder="0.00"
+                    description="Se arrastra a la importación" />
+                </>
               )}
               <div className="col-span-2">
                 <label className={lbl}>Condiciones de pago</label>
@@ -318,7 +328,9 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
           prefill={{
             ordenCompraId: oc.id, ordenCompraNumero: oc.numero,
             proveedorId: oc.proveedorId, proveedorNombre: oc.proveedorNombre,
-            moneda: oc.moneda, incoterm: oc.incoterm ?? null, items: oc.items ?? [],
+            moneda: oc.moneda, incoterm: oc.incoterm ?? null,
+            flete: oc.flete ?? null, seguro: oc.seguro ?? null,
+            items: oc.items ?? [],
           }}
           onClose={() => setShowImportacion(false)}
           onSaved={() => { setShowImportacion(false); h.reload(); onSaved?.(); }}
