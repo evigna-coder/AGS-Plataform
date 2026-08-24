@@ -1,9 +1,12 @@
-import { presupuestoAceptadoVigente } from '@ags/shared';
-import type { Presupuesto, WorkOrder, Ticket, Contrato, OTEstadoAdmin, TicketEstado, TicketArea, TicketPrioridad } from '@ags/shared';
+import { presupuestoAceptadoVigente, calcularEstadoCertificado } from '@ags/shared';
+import type { Presupuesto, WorkOrder, Ticket, Contrato, OTEstadoAdmin, TicketEstado, TicketArea, TicketPrioridad,
+  InstrumentoPatron, Patron, EstadoCertificado } from '@ags/shared';
 import { presupuestosService } from './presupuestosService';
 import { ordenesTrabajoService } from './otService';
 import { leadsService } from './leadsService';
 import { contratosService } from './contratosService';
+import { instrumentosService } from './catalogService';
+import { patronesService } from './patronesService';
 
 export interface PipelineKPIs {
   abiertos: { count: number; montoUSD: number; montoARS: number };
@@ -27,6 +30,21 @@ export interface TicketsKPIs {
   altaPrioridadVencida48h: number;
 }
 
+/**
+ * Vencimientos de certificados de instrumentos y lotes de patrones (2026-08-22).
+ *
+ * Responde a una observación de la auditoría: el estado del certificado ya se
+ * calculaba y se veía en cada listado, pero NADA avisaba — había que entrar al
+ * módulo y mirar. Esto lo trae al dashboard.
+ */
+export interface CalibracionKPIs {
+  instrumentos: { vencidos: number; porVencer: number; sinCertificado: number; enCalibracion: number };
+  patrones: { vencidos: number; porVencer: number; sinVencimiento: number };
+  /** Los más urgentes primero (vencidos, después por vencer). Para el detalle de la card. */
+  proximos: { id: string; tipo: 'instrumento' | 'patron'; nombre: string; detalle: string;
+    vencimiento: string | null; estado: EstadoCertificado }[];
+}
+
 export interface EquiposKPIs {
   bajoContratoTotal: number;
   contratosActivos: number;
@@ -38,8 +56,17 @@ export interface DashboardData {
   operacion: OperacionKPIs;
   tickets: TicketsKPIs;
   equipos: EquiposKPIs;
+  calibracion: CalibracionKPIs;
   loadedAt: string;
 }
+
+/**
+ * Ventana de preaviso, en días. Es el default de `calcularEstadoCertificado`, y
+ * a propósito: el número de la card tiene que coincidir con los badges
+ * "Por vencer" que se ven en los listados de instrumentos y patrones. Si se
+ * cambia acá sin cambiar allá, el dashboard dice una cosa y el módulo otra.
+ */
+const DIAS_PREAVISO_CERTIFICADO = 30;
 
 const ESTADOS_OT_ABIERTOS: OTEstadoAdmin[] = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO', 'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO'];
 
@@ -204,13 +231,66 @@ function aggregateEquipos(contratos: Contrato[]): EquiposKPIs {
   return { bajoContratoTotal: sistemasCubiertos, contratosActivos: activos, contratosVencidos: vencidos };
 }
 
+/** Orden de urgencia para el detalle de la card. */
+const PESO_ESTADO: Record<EstadoCertificado, number> = {
+  vencido: 0, sin_certificado: 1, por_vencer: 2, vigente: 3,
+};
+
+function aggregateCalibracion(instrumentos: InstrumentoPatron[], patrones: Patron[]): CalibracionKPIs {
+  const inst = { vencidos: 0, porVencer: 0, sinCertificado: 0, enCalibracion: 0 };
+  const pat = { vencidos: 0, porVencer: 0, sinVencimiento: 0 };
+  const proximos: CalibracionKPIs['proximos'] = [];
+
+  for (const i of instrumentos) {
+    // Ya está afuera calibrándose: no es una acción pendiente, es una en curso.
+    // Mismo criterio que `necesitaCalibrar` en InstrumentosList.
+    if (i.estadoCalibracion === 'en_calibracion') { inst.enCalibracion += 1; continue; }
+    const estado = calcularEstadoCertificado(i.certificadoVencimiento, DIAS_PREAVISO_CERTIFICADO);
+    if (estado === 'vigente') continue;
+    if (estado === 'vencido') inst.vencidos += 1;
+    else if (estado === 'por_vencer') inst.porVencer += 1;
+    else inst.sinCertificado += 1;
+    proximos.push({
+      id: i.id, tipo: 'instrumento', nombre: i.nombre,
+      detalle: [i.marca, i.modelo, i.serie].filter(Boolean).join(' · '),
+      vencimiento: i.certificadoVencimiento ?? null, estado,
+    });
+  }
+
+  for (const p of patrones) {
+    for (const lote of p.lotes ?? []) {
+      // Un patrón sin fecha de vencimiento no es un hallazgo: hay lotes que no
+      // vencen. Se cuenta aparte para no inflar el número de la card.
+      if (!lote.fechaVencimiento) { pat.sinVencimiento += 1; continue; }
+      const estado = calcularEstadoCertificado(lote.fechaVencimiento, DIAS_PREAVISO_CERTIFICADO);
+      if (estado === 'vigente') continue;
+      if (estado === 'vencido') pat.vencidos += 1; else pat.porVencer += 1;
+      proximos.push({
+        id: p.id, tipo: 'patron', nombre: p.descripcion || p.codigoArticulo,
+        detalle: `Lote ${lote.lote}${p.marca ? ` · ${p.marca}` : ''}`,
+        vencimiento: lote.fechaVencimiento, estado,
+      });
+    }
+  }
+
+  proximos.sort((a, b) => {
+    const d = PESO_ESTADO[a.estado] - PESO_ESTADO[b.estado];
+    if (d !== 0) return d;
+    return safeTs(a.vencimiento) - safeTs(b.vencimiento);
+  });
+
+  return { instrumentos: inst, patrones: pat, proximos };
+}
+
 export const dashboardService = {
   async load(): Promise<DashboardData> {
-    const [presupuestos, ots, tickets, contratos] = await Promise.all([
+    const [presupuestos, ots, tickets, contratos, instrumentos, patrones] = await Promise.all([
       presupuestosService.getAll().catch(() => [] as Presupuesto[]),
       ordenesTrabajoService.getAll().catch(() => [] as WorkOrder[]),
       leadsService.getAll().catch(() => [] as Ticket[]),
       contratosService.getAll().catch(() => [] as Contrato[]),
+      instrumentosService.getAll({ tipo: 'instrumento', activoOnly: true }).catch(() => [] as InstrumentoPatron[]),
+      patronesService.getAll({ activoOnly: true }).catch(() => [] as Patron[]),
     ]);
 
     return {
@@ -218,6 +298,7 @@ export const dashboardService = {
       operacion: aggregateOperacion(ots),
       tickets: aggregateTickets(tickets),
       equipos: aggregateEquipos(contratos),
+      calibracion: aggregateCalibracion(instrumentos, patrones),
       loadedAt: new Date().toISOString(),
     };
   },

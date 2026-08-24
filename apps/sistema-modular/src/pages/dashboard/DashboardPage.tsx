@@ -6,6 +6,7 @@ import { dashboardService, type DashboardData } from '../../services/dashboardSe
 import { KpiCard } from './components/KpiCard';
 import { OTFunnelChart } from './components/OTFunnelChart';
 import { TicketAreaBars } from './components/TicketAreaBars';
+import { CalibracionesCard } from './components/CalibracionesCard';
 
 const fmtMoney = (value: number, moneda: 'USD' | 'ARS') => {
   if (!value) return moneda === 'USD' ? 'US$ 0' : '$ 0';
@@ -200,6 +201,8 @@ export const DashboardPage: React.FC = () => {
             />
           </div>
         </section>
+
+        <CalibracionesCard data={data.calibracion} />
 
       </div>
     </div>
