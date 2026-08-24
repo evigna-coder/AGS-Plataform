@@ -39,6 +39,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeOCAdeudada, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
+import { tieneOCAdjunta } from '../../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
 import { sweepPresupuestosVencidos } from '../../utils/sweepPresupuestosVencidos';
@@ -316,6 +317,20 @@ export const PresupuestosList = () => {
     // filtro o clickeando los KPIs (UAT 2026-07-18).
     const enVistaContratos = filters.vista === 'contratos';
     const vistaBasica = !enVistaContratos && !filters.estado && !filters.kpi && !filters.ocPendiente && !filters.ocTrabajoRealizado;
+    /**
+     * Buscar un número es pedir ESE presupuesto (2026-08-24).
+     *
+     * La búsqueda se aplicaba DESPUÉS de los filtros de estado, y la vista por
+     * defecto solo muestra borrador, enviado, pendiente de OC y los que deben
+     * aviso. Buscar el número de un presupuesto en ejecución, facturado o
+     * finalizado no devolvía nada, y parecía que el presupuesto no existía.
+     *
+     * Con texto de búsqueda se relajan los recortes IMPLÍCITOS —la vista básica
+     * y el default `borrador_enviado`—. Un estado elegido a mano en el
+     * desplegable, o un drill-down desde una card, se siguen respetando: eso el
+     * usuario lo pidió.
+     */
+    const buscando = debouncedSearch.trim().length > 0;
     let result = presupuestos.filter(p => {
       // Pestaña Contratos: solo P5. Pestaña principal: sin P5 (no se mezclan),
       // salvo que el usuario pida tipo=contrato explícito en el dropdown.
@@ -324,7 +339,7 @@ export const PresupuestosList = () => {
       } else if (p.tipo === 'contrato' && filters.tipo !== 'contrato') {
         return false;
       }
-      if (vistaBasica) {
+      if (vistaBasica && !buscando) {
         if (p.estado === 'finalizado') return false;
         if (p.estado === 'pendiente_facturacion' && solicitudSets.activas.has(p.id)) return false;
         // 'facturado' = factura emitida, esperando cobro (2026-08-18): tampoco
@@ -345,7 +360,7 @@ export const PresupuestosList = () => {
         // ppto en pendiente_facturacion y la vista default lo hacía desaparecer
         // — nadie avisaba a facturación. Queda visible con el badge naranja
         // "OT cerrada — falta aviso" hasta que alguien genere el aviso.
-        if (!drillDownActivo && p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc' && !faltaAviso(p)) return false;
+        if (!drillDownActivo && !buscando && p.estado !== 'borrador' && p.estado !== 'enviado' && p.estado !== 'pendiente_oc' && !faltaAviso(p)) return false;
       } else if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
@@ -493,8 +508,17 @@ export const PresupuestosList = () => {
               Contratos
             </button>
           </div>
-          <input type="text" placeholder="Buscar por número, cliente..." value={localSearch} onChange={e => setLocalSearch(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
+          <div className="relative">
+            <input type="text" placeholder="Buscar por número, cliente..." value={localSearch} onChange={e => setLocalSearch(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
+            {/* Buscar mira TODOS los estados: sin este aviso, ver un finalizado
+                en la lista parece un filtro roto (2026-08-24). */}
+            {localSearch.trim() && !filters.estado && (
+              <span className="absolute left-1 -bottom-3.5 text-[9px] font-mono text-slate-400 whitespace-nowrap">
+                busca en todos los estados
+              </span>
+            )}
+          </div>
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}
               options={clienteOptions}
@@ -767,7 +791,17 @@ export const PresupuestosList = () => {
                                   </svg>
                                 </button>
                               )}
-                              {faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && (
+                              {/* Sin la OC adjunta el aviso no sale (2026-08-24): en vez de
+                                  dejar clickear y fallar, el botón lleva a cargarla. */}
+                              {faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && !tieneOCAdjunta(p) && (
+                                <button onClick={() => setCargarOCTarget(p)}
+                                  title="No se puede avisar a facturación sin la orden de compra del cliente adjunta — cargala acá"
+                                  data-testid={`falta-oc-${p.numero}`}
+                                  className="text-[10px] font-medium text-red-600 hover:text-red-800 px-1.5 py-0.5 rounded hover:bg-red-50 border border-red-200">
+                                  Falta OC
+                                </button>
+                              )}
+                              {faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && tieneOCAdjunta(p) && (
                                 <button onClick={() => handleQuickAviso(p)}
                                   title={`Generar aviso a facturación — ${(p.otsListasParaFacturar ?? []).length} OT(s) cerrada(s) sin aviso`}
                                   data-testid={`aviso-facturacion-${p.numero}`}
