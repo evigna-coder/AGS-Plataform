@@ -5578,6 +5578,37 @@ export interface IngresoEmpresa {
 
 export type TipoDispositivo = 'celular' | 'computadora' | 'tablet' | 'otro';
 
+/** Software instalado dentro de un entorno (2026-08-23). */
+export interface SoftwareDispositivo {
+  id: string;
+  /** Nombre del producto: "ChemStation", "OpenLab CDS". */
+  nombre: string;
+  /** Versión tal como la reporta el software: "B.04.03", "2.5". */
+  version?: string | null;
+  notas?: string | null;
+}
+
+/**
+ * Un sistema operativo del dispositivo: el que arranca la máquina o una
+ * máquina virtual que corre adentro (2026-08-23).
+ *
+ * Se modela PLANO —una lista con referencia al anfitrión— y no anidado. Una VM
+ * es un sistema operativo dentro de otro, así que la estructura natural sería
+ * recursiva; con la lista plana el anidamiento se dibuja por indentación pero
+ * el dato se recorre de una pasada, que es lo que necesita la búsqueda de
+ * "¿en qué máquinas está instalado tal software?".
+ */
+export interface EntornoDispositivo {
+  id: string;
+  /** "Windows 10", "Windows 7", "Ubuntu 22.04". */
+  nombre: string;
+  tipo: 'anfitrion' | 'virtual';
+  /** Entorno que hospeda esta VM. Null/ausente en el anfitrión. */
+  anfitrionId?: string | null;
+  notas?: string | null;
+  software: SoftwareDispositivo[];
+}
+
 export interface Dispositivo {
   id: string;
   tipo: TipoDispositivo;
@@ -5587,6 +5618,28 @@ export interface Dispositivo {
   descripcion?: string | null;
   asignadoAId?: string | null;
   asignadoANombre?: string | null;
+  /**
+   * Sistemas operativos y software instalado (2026-08-23). El dato más
+   * consultado del módulo: qué software tiene cada máquina y en qué versión.
+   */
+  entornos?: EntornoDispositivo[] | null;
+  /**
+   * Contraseña de Windows de la máquina. Se guarda para poder entrar cuando el
+   * equipo está en el laboratorio y quien lo usa habitualmente no está.
+   *
+   * Se muestra oculta y hay que revelarla a propósito. No es un secreto
+   * cifrado: cualquiera con acceso al módulo Dispositivos puede verla.
+   */
+  passwordWindows?: string | null;
+  /** Placa adicional para conectar instrumentos viejos por GPIB. */
+  tieneGPIB?: boolean;
+  gpibDetalle?: string | null;
+  /** Foto de frente — para identificar el equipo de un vistazo. */
+  fotoFrenteUrl?: string | null;
+  fotoFrentePath?: string | null;
+  /** Foto de atrás — en las de escritorio, para ver los puertos y el cableado. */
+  fotoDorsoUrl?: string | null;
+  fotoDorsoPath?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -5594,6 +5647,33 @@ export interface Dispositivo {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+}
+
+/** Todo el software del dispositivo, con el entorno donde está instalado. */
+export function softwareDeDispositivo(d: Pick<Dispositivo, 'entornos'>): {
+  entorno: string; entornoTipo: EntornoDispositivo['tipo']; nombre: string; version: string | null;
+}[] {
+  return (d.entornos ?? []).flatMap(e =>
+    (e.software ?? []).map(sw => ({
+      entorno: e.nombre, entornoTipo: e.tipo, nombre: sw.nombre, version: sw.version ?? null,
+    })),
+  );
+}
+
+/**
+ * ¿El dispositivo tiene software que matchee el texto? Busca en nombre y
+ * versión juntos, para que "chemstation b.04" encuentre lo que se espera.
+ */
+export function dispositivoTieneSoftware(d: Pick<Dispositivo, 'entornos'>, texto: string): boolean {
+  const q = texto.trim().toLowerCase();
+  if (!q) return true;
+  return softwareDeDispositivo(d).some(sw =>
+    `${sw.nombre} ${sw.version ?? ''}`.toLowerCase().includes(q));
+}
+
+/** Entornos virtuales que corren dentro de `anfitrionId`. */
+export function vmsDeEntorno(entornos: EntornoDispositivo[], anfitrionId: string): EntornoDispositivo[] {
+  return entornos.filter(e => e.tipo === 'virtual' && e.anfitrionId === anfitrionId);
 }
 
 // ── Seguimiento Vehicular ───────────────────────────────────────────────
