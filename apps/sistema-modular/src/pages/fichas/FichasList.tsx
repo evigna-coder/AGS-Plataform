@@ -17,6 +17,8 @@ import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { FICHAS_EXPORT_COLUMNS, estadoVisibleDeFicha, proveedorDerivadoLabel } from '../../utils/exports/exportFichas';
+import { proximaAccionFicha } from '../../utils/proximaAccionFicha';
+import { FichaProximaAccionButton } from '../../components/fichas/FichaProximaAccionButton';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 /**
@@ -313,6 +315,13 @@ export function FichasList() {
                           className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
                           Ver
                         </button>
+                        {/* El paso siguiente, cuando es inequívoco (2026-08-23):
+                            antes había que entrar al detalle para mover una ficha. */}
+                        <FichaProximaAccionButton
+                          ficha={f}
+                          accion={proximaAccionFicha(f)}
+                          onDone={() => { /* la lista se refresca por la suscripción */ }}
+                        />
                         {f.estado === 'recibido' && (
                           <button onClick={() => handleDelete(f.id)}
                             className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">

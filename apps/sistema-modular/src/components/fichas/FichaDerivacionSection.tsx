@@ -17,8 +17,8 @@ interface Props {
  *
  * La creación se hace **siempre por remito** desde "Generar remito" a nivel ficha
  * (`GenerarRemitoDevolucionModal`). Acá solo se listan derivaciones existentes y
- * se permite marcarlas como recibidas cuando el módulo o la parte vuelve, o
- * cancelarlas si se generaron por error (el item vuelve a su estado anterior).
+ * se registra la devolución cuando el módulo o la parte vuelve, o se cancelan
+ * si se generaron por error (el item vuelve a su estado anterior).
  */
 export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
   const { pathname } = useLocation();
@@ -84,8 +84,13 @@ export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
                 </div>
                 {d.estado === 'enviado' && (
                   <div className="flex items-center gap-2 mt-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleMarkReceived(d.id)}>
-                      Marcar recibido
+                    {/* Decía "Marcar recibido" y se leía como "el proveedor lo
+                        recibió", así que nadie encontraba dónde registrar que el
+                        equipo había vuelto — y la acción era justamente ésta
+                        (2026-08-23). */}
+                    <Button variant="ghost" size="sm" onClick={() => handleMarkReceived(d.id)}
+                      title="El equipo volvió del proveedor: registra la fecha de retorno y lo devuelve al taller">
+                      Registrar devolución
                     </Button>
                     <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleCancel(d.id)}>
                       Cancelar derivación
