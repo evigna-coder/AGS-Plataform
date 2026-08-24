@@ -2,6 +2,7 @@ import {
   collection, doc, getDoc, getDocs, query, where, Timestamp,
 } from 'firebase/firestore';
 import { updateDoc, deleteDoc, runTransaction } from './firebase';
+import { presupuestoEstaAceptado } from '@ags/shared';
 import type {
   OrdenCompraCliente, Presupuesto, Posta, TicketEstado, Ticket,
 } from '@ags/shared';
@@ -208,7 +209,21 @@ export const ordenesCompraClienteService = {
           throw new Error(`Presupuesto ${context.presupuestosIds[i]} no encontrado`);
         }
         const p = { id: s.id, ...(s.data() as any) } as Presupuesto;
-        if (p.estado !== 'aceptado') {
+        /**
+         * Vale cualquier estado POSTERIOR a la aceptación, no solo `aceptado`
+         * (2026-08-24).
+         *
+         * El check era `estado !== 'aceptado'` y contradecía al pre-flight de
+         * arriba, que deja pasar todo salvo `rechazado` y `vencido`: un
+         * presupuesto que ya había avanzado —`pendiente_facturacion`, típico
+         * cuando el aviso salió sin OC— rebotaba con "no está aceptado", y la
+         * OC que nunca tuvo no se podía cargar por ningún lado. Sin salida:
+         * para cargar la OC había que volver el estado a mano.
+         *
+         * Cargar la OC NO mueve el estado —solo suma el back-ref en
+         * `ordenesCompraIds`—, así que no hay riesgo de retroceder la etapa.
+         */
+        if (!presupuestoEstaAceptado(p.estado)) {
           throw new Error(
             `Presupuesto ${p.numero || p.id} no está aceptado (estado actual: ${p.estado}). No se puede cargar OC.`,
           );
