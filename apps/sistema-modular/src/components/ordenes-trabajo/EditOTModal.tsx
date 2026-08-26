@@ -109,7 +109,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
             </div>
           )}
           <EditOTFormFields
-            form={h.form} set={h.set} readOnly={h.readOnly}
+            form={h.form} set={h.set} readOnly={h.readOnly} sinAgenda={h.sinAgendaOT}
             tiposServicio={h.tiposServicio} clientes={h.clientes}
             sistemasFiltrados={h.sistemasFiltrados} modulos={h.modulos}
             contactos={h.contactos} ingenieros={h.ingenieros}

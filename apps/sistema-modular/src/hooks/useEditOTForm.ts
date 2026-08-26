@@ -11,7 +11,7 @@ import type {
   Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
   PatronSeleccionado, Presupuesto, Establecimiento,
 } from '@ags/shared';
-import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
+import { establecimientoPerteneceACliente, establecimientoUnicoId, otSinAgenda } from '@ags/shared';
 import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
 export interface EditOTFormState {
@@ -364,7 +364,11 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       alert(mensajeFinDeSemana(form.fechaServicioAprox));
       return;
     }
-    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId) { alert('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
+    // Las OTs sin agenda (entrega, proveedor externo, alquiler) no llevan
+    // responsable asignado — el sidebar hasta deshabilita el selector — así que
+    // el cierre no puede exigirlo (2026-08-25).
+    const sinAgenda = otSinAgenda({ tipoOT: otOriginal?.tipoOT, tipoServicio: form.tipoServicio });
+    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda) { alert('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
 
     const cliente = clientes.find(c => c.id === form.clienteId);
     const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId);
@@ -558,8 +562,11 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     else window.open(url, '_blank');
   };
 
+  // Para la UI: sin agenda ⇒ el label de responsable no marca obligatorio.
+  const sinAgendaOT = otSinAgenda({ tipoOT: otOriginal?.tipoOT ?? null, tipoServicio: form.tipoServicio });
+
   return {
-    loading, saving, form, set, readOnly,
+    loading, saving, form, set, readOnly, sinAgendaOT,
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
     establecimientosFiltrados, selectCliente,
     otOriginal, handleSave, openInReportesOT, handlePresupuestoChange,

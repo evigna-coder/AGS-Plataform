@@ -101,7 +101,7 @@ export const EditOTCierreTabs: React.FC<Props> = ({ h, otNumber }) => {
       <div className={tab === 'datos' ? 'space-y-3' : 'hidden'}>
         <EditOTEstadoBar form={h.form} set={h.set} readOnly={h.readOnly} />
         <EditOTFormFields
-          form={h.form} set={h.set} readOnly={h.readOnly}
+          form={h.form} set={h.set} readOnly={h.readOnly} sinAgenda={h.sinAgendaOT}
           tiposServicio={h.tiposServicio} clientes={h.clientes}
           sistemasFiltrados={h.sistemasFiltrados} modulos={h.modulos}
           contactos={h.contactos} ingenieros={h.ingenieros}

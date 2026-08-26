@@ -12,6 +12,8 @@ interface Props {
   form: EditOTFormState;
   set: (key: string, value: any) => void;
   readOnly: boolean;
+  /** OT sin agenda (entrega/proveedor externo/alquiler): el responsable no es obligatorio. */
+  sinAgenda?: boolean;
   tiposServicio: TipoServicio[];
   clientes: Cliente[];
   sistemasFiltrados: Sistema[];
@@ -27,7 +29,7 @@ interface Props {
 }
 
 export const EditOTFormFields: React.FC<Props> = ({
-  form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
+  form, set, readOnly, sinAgenda, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
   establecimientosFiltrados, onClienteChange, onPresupuestoChange,
 }) => {
   // Memoizado: identidad estable de options para el SearchableSelect.
@@ -114,14 +116,14 @@ export const EditOTFormFields: React.FC<Props> = ({
         </select>
       </div>
       <div>
-        <label className={`${lbl}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId ? ' text-amber-600' : ''}`}>
-          Responsable asignado{form.estadoAdmin !== 'CREADA' ? ' *' : ''}
+        <label className={`${lbl}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda ? ' text-amber-600' : ''}`}>
+          Responsable asignado{form.estadoAdmin !== 'CREADA' && !sinAgenda ? ' *' : ''}
         </label>
         <select value={form.ingenieroId} onChange={e => {
             set('ingenieroId', e.target.value);
             if (e.target.value && form.estadoAdmin === 'CREADA') set('estadoAdmin', 'ASIGNADA');
           }}
-          className={`${selectClass}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId ? ' ring-1 ring-amber-400 border-amber-400' : ''}`} disabled={readOnly}>
+          className={`${selectClass}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda ? ' ring-1 ring-amber-400 border-amber-400' : ''}`} disabled={readOnly}>
           <option value="">Sin asignar</option>
           {ingenieros.map(u => (
             <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>
