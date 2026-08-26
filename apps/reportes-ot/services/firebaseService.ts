@@ -274,6 +274,31 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
       throw err;
     }
 
+    // Guard anti-vaciado de protocolo (2026-08-26, incidente 30051.01): con el
+    // mismo borrador abierto en DOS sesiones, el autosave de la que nunca cargó
+    // las tablas pisa las que la otra guardó — y no hay historial del que
+    // recuperarlas. Si el doc ya tiene tablas CON DATOS (filas completadas,
+    // checklist, resultado u observaciones) y el payload entrante las dejaría
+    // en cero, se preserva lo guardado: se saca el campo del payload (merge no
+    // lo toca) y se loguea fuerte. Gemelo del guard del PDF de arriba.
+    // Vaciar deliberadamente el protocolo de un reporte con datos requiere
+    // sacar las tablas una por una en la MISMA sesión que las ve (el estado
+    // local nunca queda vacío de golpe), así que el caso legítimo no se frena.
+    const tablasGuardadas: any[] = Array.isArray(existingData?.protocolSelections)
+      ? existingData!.protocolSelections : [];
+    const tienenDatos = tablasGuardadas.some((t: any) =>
+      Object.keys(t?.filledData ?? {}).length > 0
+      || Object.keys(t?.checklistData ?? {}).length > 0
+      || (t?.resultado && t.resultado !== 'PENDIENTE')
+      || !!t?.observaciones);
+    const entranteVacio = Array.isArray(data?.protocolSelections) && data.protocolSelections.length === 0;
+    if (tienenDatos && entranteVacio) {
+      console.error('⛔ [saveReporte] guard protocolo activado: el payload vaciaría '
+        + `${tablasGuardadas.length} tabla(s) con datos de la OT ${ot} — se preservan las guardadas.`);
+      const { protocolSelections: _omitida, ...resto } = data;
+      data = resto;
+    }
+
     // Primer save DEL INGENIERO sobre el reporte → anotar quién lo empezó.
     //
     // Lo consume portal-ingeniero (Mis Reportes Pendientes) para saber qué
@@ -555,6 +580,25 @@ export class FirebaseService {
     } catch (e) {
       console.error('Error cargando tipos de servicio (se usa la lista fija):', e);
       return [];
+    }
+  }
+
+  /**
+   * Nombres de tipos de servicio que REQUIEREN protocolo (flag data-driven
+   * `requiresProtocol` del catálogo `tipos_servicio`, 2026-08-26). Devuelve
+   * null si la lectura falla — el caller cae a la lista fija de la app, mismo
+   * criterio que getTiposServicio: en planta, desactualizado es mejor que roto.
+   */
+  async getTiposConProtocolo(): Promise<Set<string> | null> {
+    try {
+      const snap = await getDocs(query(collection(db, 'tipos_servicio')));
+      return new Set(snap.docs
+        .filter(d => d.data().requiresProtocol === true)
+        .map(d => (d.data().nombre ?? '').trim())
+        .filter((n: string) => !!n));
+    } catch (e) {
+      console.warn('No se pudieron cargar los tipos con protocolo (se usa la lista fija):', e);
+      return null;
     }
   }
 

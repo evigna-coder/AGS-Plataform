@@ -344,8 +344,15 @@ export const useOTManagement = (
         hasUserInteracted.current = true;
         logger.debug("✅ OT cargada desde Firebase:", v);
 
-        // Pre-cargar firma del ingeniero si el reporte es BORRADOR y no tiene firma
-        if (loadedStatus === 'BORRADOR' && !data.signatureEngineer) {
+        // Pre-cargar firma del ingeniero si el reporte es BORRADOR y no tiene
+        // firma — SOLO si el usuario logueado es quien creó el reporte
+        // (2026-08-26). Sin este guard, un admin que abría el borrador de otro
+        // quedaba estampado como especialista vía autosave (caso 30051.01:
+        // la firma de administración reemplazó a la del ingeniero). Un reporte
+        // sin creadoPor todavía no fue guardado por nadie: se precarga normal.
+        const uidActual = auth.currentUser?.uid;
+        if (loadedStatus === 'BORRADOR' && !data.signatureEngineer
+          && (!data.creadoPor?.uid || data.creadoPor.uid === uidActual)) {
           void prefillFirma();
         }
 

@@ -40,6 +40,10 @@ function markConsented() {
   try { localStorage.setItem(CONSENT_FLAG_KEY, '1'); } catch { /* quota */ }
 }
 
+function clearConsented() {
+  try { localStorage.removeItem(CONSENT_FLAG_KEY); } catch { /* quota */ }
+}
+
 /**
  * Hook para obtener un access token con scope gmail.send via Google Identity
  * Services. Ported from sistema-modular — same silent-refresh strategy.
@@ -92,7 +96,9 @@ export function useGoogleOAuth() {
           resolve(response.access_token);
         },
         error_callback: (err: any) => {
-          reject(new Error(err?.message || err?.type || 'Error de autorizacion Google'));
+          const e = new Error(err?.message || err?.type || 'Error de autorizacion Google');
+          (e as any).gisType = err?.type ?? null;
+          reject(e);
         },
       });
       client.requestAccessToken();
@@ -110,8 +116,26 @@ export function useGoogleOAuth() {
               silentErr instanceof Error ? silentErr.message : silentErr);
           }
         }
-        const interactiveToken = await runFlow('');
-        return interactiveToken;
+        try {
+          const interactiveToken = await runFlow('');
+          return interactiveToken;
+        } catch (err) {
+          // Popup bloqueado (2026-08-26): el fallback silencioso→interactivo
+          // consume el gesto del click y el browser bloquea la ventana
+          // ("Failed to open popup window"). Se limpia la marca de
+          // consentimiento para que el PRÓXIMO click vaya directo al popup —
+          // con gesto fresco, sin intento silencioso en el medio — y el
+          // mensaje le dice al usuario exactamente eso.
+          const gisType = (err as any)?.gisType ?? '';
+          const msg = err instanceof Error ? err.message : String(err);
+          if (gisType === 'popup_failed_to_open' || /popup/i.test(msg)) {
+            clearConsented();
+            throw new Error('El navegador bloqueó la ventana de autorización de Google. '
+              + 'Tocá "Enviar" otra vez — ahora se abre directo. '
+              + 'Si vuelve a fallar, permití las ventanas emergentes para este sitio.');
+          }
+          throw err;
+        }
       } finally {
         setLoading(false);
       }
