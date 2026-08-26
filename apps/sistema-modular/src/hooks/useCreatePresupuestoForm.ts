@@ -227,11 +227,14 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     } else { setEstablecimientos([]); setContactos([]); setSistemasFiltrados([]); }
   }, [form.clienteId]);
 
-  // Load contacts + filter sistemas
+  // Load contacts + filter sistemas. Contactos por SUSCRIPCIÓN (2026-08-26):
+  // un contacto agregado desde la pestaña del cliente aparece en el selector
+  // sin cerrar el presupuesto.
   useEffect(() => {
     if (form.establecimientoId) {
-      contactosEstablecimientoService.getByEstablecimiento(form.establecimientoId).then(setContactos).catch(() => setContactos([]));
+      const unsub = contactosEstablecimientoService.subscribeByEstablecimiento(form.establecimientoId, setContactos);
       setSistemasFiltrados(sistemas.filter(s => s.establecimientoId === form.establecimientoId));
+      return unsub;
     } else if (form.clienteId) {
       setContactos([]);
       setSistemasFiltrados(sistemas.filter(s => s.clienteId === form.clienteId));

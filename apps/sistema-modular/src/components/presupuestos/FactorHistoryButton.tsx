@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Presupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { presupuestosService } from '../../services/firebaseService';
+import { useFloatingBubble, BUBBLE_RESIZE_CORNER_CLASS } from '../../hooks/useFloatingBubble';
 
 /** Estados que implican que el presupuesto fue aprobado/aceptado por el cliente. */
 const ESTADOS_APROBADO = new Set(['aceptado', 'en_ejecucion', 'finalizado']);
@@ -60,48 +61,9 @@ export const FactorHistoryButton: React.FC<Props> = ({ clienteId, clienteNombre,
   const [loading, setLoading] = useState(false);
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [error, setError] = useState(false);
-  // Posición de la burbuja flotante (arrastrable). null = cerrada / sin inicializar.
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
-
-  // Al abrir, ubicar la burbuja arrimada al costado derecho. Al cerrar, resetear.
-  useEffect(() => {
-    if (open) setPos(prev => prev ?? { x: Math.max(12, window.innerWidth - 460), y: 20 });
-    else setPos(null);
-  }, [open]);
-
-  // Cerrar con Escape. Escuchamos en fase de CAPTURA y frenamos la propagación para
-  // que el Escape NO llegue al handler del Modal padre (que cerraría todo el presupuesto).
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopImmediatePropagation();
-      e.preventDefault();
-      setOpen(false);
-    };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, [open]);
-
-  const onHeaderPointerDown = (e: React.PointerEvent) => {
-    if (!pos) return;
-    // No iniciar drag si el click es sobre un botón (ej. la ×) — sino el pointer capture
-    // se traga el click y no cierra.
-    if ((e.target as HTMLElement).closest('button')) return;
-    dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const onHeaderPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const x = Math.min(Math.max(0, e.clientX - dragRef.current.dx), window.innerWidth - 60);
-    const y = Math.min(Math.max(0, e.clientY - dragRef.current.dy), window.innerHeight - 40);
-    setPos({ x, y });
-  };
-  const onHeaderPointerUp = (e: React.PointerEvent) => {
-    dragRef.current = null;
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
-  };
+  // Drag + resize por esquina, compartidos con las otras burbujas (2026-08-26 —
+  // este componente tenía la versión inline previa al hook; migrado al unificar).
+  const { pos, dragHandlers, resizeHandlers, bubbleStyle } = useFloatingBubble(open, () => setOpen(false));
 
   useEffect(() => {
     if (!open || !clienteId) return;
@@ -135,17 +97,15 @@ export const FactorHistoryButton: React.FC<Props> = ({ clienteId, clienteNombre,
       {open && pos && createPortal(
         <div
           className="fixed z-[95] w-[420px] max-w-[92vw] max-h-[94vh] flex flex-col rounded-xl border border-white/30 bg-white/55 backdrop-blur-md shadow-2xl ring-1 ring-black/5 overflow-hidden"
-          style={{ top: pos.y, left: pos.x }}
+          style={bubbleStyle}
         >
           {/* Header (arrastrable) */}
           <div
-            onPointerDown={onHeaderPointerDown}
-            onPointerMove={onHeaderPointerMove}
-            onPointerUp={onHeaderPointerUp}
+            {...dragHandlers}
             className="flex items-center justify-between px-4 py-2 bg-teal-700/75 text-white cursor-move select-none shrink-0"
           >
             <div className="min-w-0">
-              <p className="text-[9px] font-mono uppercase tracking-widest text-teal-100">⠿ Historial de factores · arrastrá · Esc cierra</p>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-teal-100">⠿ Historial de factores · arrastrá · estirá la esquina · Esc cierra</p>
               <p className="text-xs font-serif truncate">{clienteNombre || 'Cliente'}</p>
             </div>
             <button onClick={() => setOpen(false)} className="text-teal-100 hover:text-white text-lg leading-none shrink-0 ml-2">&times;</button>
@@ -205,6 +165,9 @@ export const FactorHistoryButton: React.FC<Props> = ({ clienteId, clienteNombre,
             </span>
             <button onClick={() => setOpen(false)} className="text-[10px] text-slate-500 hover:text-slate-700">Cerrar (Esc)</button>
           </div>
+
+          {/* Esquina de resize */}
+          <div {...resizeHandlers} className={BUBBLE_RESIZE_CORNER_CLASS} title="Estirar" />
         </div>,
         document.body,
       )}

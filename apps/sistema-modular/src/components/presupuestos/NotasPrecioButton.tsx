@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { NotaPrecioCliente } from '@ags/shared';
 import { notasPrecioService } from '../../services/notasPrecioService';
-import { useFloatingBubble } from '../../hooks/useFloatingBubble';
+import { useFloatingBubble, BUBBLE_RESIZE_CORNER_CLASS } from '../../hooks/useFloatingBubble';
 import { pareceTabular, alinearTsv, insertarEnCursor } from '../../utils/pegadoTabular';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotasPrecioLista } from './NotasPrecioLista';
@@ -33,7 +33,7 @@ export const NotasPrecioButton: React.FC<Props> = ({
   const [error, setError] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
-  const { pos, dragHandlers } = useFloatingBubble(open, () => setOpen(false));
+  const { pos, dragHandlers, resizeHandlers, bubbleStyle } = useFloatingBubble(open, () => setOpen(false));
 
   const recargar = async () => {
     if (!clienteId) return;
@@ -88,12 +88,12 @@ export const NotasPrecioButton: React.FC<Props> = ({
       {open && pos && createPortal(
         <div
           className="fixed z-[95] w-[420px] max-w-[92vw] max-h-[94vh] flex flex-col rounded-xl border border-white/30 bg-white/55 backdrop-blur-md shadow-2xl ring-1 ring-black/5 overflow-hidden"
-          style={{ top: pos.y, left: pos.x }}
+          style={bubbleStyle}
         >
           <div {...dragHandlers}
             className="flex items-center justify-between px-4 py-2 bg-teal-700/75 text-white cursor-move select-none shrink-0">
             <div className="min-w-0">
-              <p className="text-[9px] font-mono uppercase tracking-widest text-teal-100">⠿ Notas de precio · arrastrá · Esc cierra</p>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-teal-100">⠿ Notas de precio · arrastrá · estirá la esquina · Esc cierra</p>
               <p className="text-xs font-serif truncate">{clienteNombre || 'Cliente'}</p>
             </div>
             <button onClick={() => setOpen(false)} className="text-teal-100 hover:text-white text-lg leading-none shrink-0 ml-2">&times;</button>
@@ -145,6 +145,9 @@ export const NotasPrecioButton: React.FC<Props> = ({
               {notas.length} nota{notas.length === 1 ? '' : 's'} · las ve todo el equipo
             </span>
           </div>
+
+          {/* Esquina de resize */}
+          <div {...resizeHandlers} className={BUBBLE_RESIZE_CORNER_CLASS} title="Estirar" />
         </div>,
         document.body,
       )}

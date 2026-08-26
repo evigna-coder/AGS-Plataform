@@ -24,6 +24,25 @@ export const contactosEstablecimientoService = {
     })) as ContactoEstablecimiento[];
   },
 
+  /**
+   * Suscripción en tiempo real a los contactos de un establecimiento
+   * (2026-08-26). Pedido: con el presupuesto abierto en una pestaña y el
+   * cliente en otra, un contacto recién cargado tenía que aparecer en el
+   * selector sin cerrar el modal. Devuelve la función de unsubscribe.
+   */
+  subscribeByEstablecimiento(
+    establecimientoId: string,
+    callback: (contactos: ContactoEstablecimiento[]) => void,
+  ): () => void {
+    return onSnapshot(collection(db, 'establecimientos', establecimientoId, 'contactos'), snap => {
+      callback(snap.docs.map(d => ({
+        id: d.id,
+        establecimientoId,
+        ...d.data(),
+      })) as ContactoEstablecimiento[]);
+    }, err => console.error('[contactosEstablecimiento] subscription error:', err));
+  },
+
   async update(establecimientoId: string, contactoId: string, data: Partial<Omit<ContactoEstablecimiento, 'id' | 'establecimientoId'>>) {
     const docRef = doc(db, 'establecimientos', establecimientoId, 'contactos', contactoId);
     await updateDoc(docRef, cleanFirestoreData(data));
