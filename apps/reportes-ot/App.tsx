@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAppLogic, CATALOG_SERVICE_TYPES } from './hooks/useAppLogic';
+import { useAppLogic } from './hooks/useAppLogic';
 import { CompanyHeader } from './components/CompanyHeader';
 import { MobileSignatureView } from './components/MobileSignatureView';
 import { OTFormSection } from './components/OTFormSection';
@@ -140,7 +140,7 @@ const App: React.FC = () => {
       </svg>
     );
 
-    const hasProtocolContent = !!(app.protocolTemplate || app.protocolSelections.length > 0 || CATALOG_SERVICE_TYPES.has(app.tipoServicio));
+    const hasProtocolContent = !!(app.protocolTemplate || app.protocolSelections.length > 0 || app.catalogServiceTypes.has(app.tipoServicio));
 
     const wizardSteps: WizardStep[] = [
       {
@@ -223,7 +223,7 @@ const App: React.FC = () => {
           <ProtocolSection
             isPreviewMode={app.isPreviewMode} readOnly={app.readOnly}
             firebase={app.firebase} sistema={app.sistema}
-            tipoServicio={app.tipoServicio} catalogServiceTypes={CATALOG_SERVICE_TYPES}
+            tipoServicio={app.tipoServicio} catalogServiceTypes={app.catalogServiceTypes}
             protocolTemplate={app.protocolTemplate}
             protocolData={app.protocolData} setProtocolData={app.setProtocolData}
             protocolSelections={app.protocolSelections} setProtocolSelections={app.setProtocolSelections}
@@ -593,7 +593,7 @@ const App: React.FC = () => {
       <ProtocolSection
         isPreviewMode={app.isPreviewMode} readOnly={app.readOnly}
         firebase={app.firebase} sistema={app.sistema}
-        tipoServicio={app.tipoServicio} catalogServiceTypes={CATALOG_SERVICE_TYPES}
+        tipoServicio={app.tipoServicio} catalogServiceTypes={app.catalogServiceTypes}
         protocolTemplate={app.protocolTemplate}
         protocolData={app.protocolData} setProtocolData={app.setProtocolData}
         protocolSelections={app.protocolSelections} setProtocolSelections={app.setProtocolSelections}

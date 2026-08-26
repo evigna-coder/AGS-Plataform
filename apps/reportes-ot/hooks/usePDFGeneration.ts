@@ -83,7 +83,7 @@ export const usePDFGeneration = (
   isModoFirma: boolean,
   clientPadRef: React.RefObject<SignaturePadHandle>,
   engineerPadRef: React.RefObject<SignaturePadHandle>,
-  validateBeforeClientConfirm: () => boolean,
+  validateBeforeClientConfirm: () => Promise<boolean>,
   showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void,
   instrumentosSeleccionados: InstrumentoPatronOption[] = [],
   certificadosIngenieroSeleccionados: CertificadoIngeniero[] = [],
@@ -786,7 +786,7 @@ export const usePDFGeneration = (
     // por lo que delivery puede llegar como MouseEvent en vez de función. Caer
     // al default en ese caso para no romper el flujo principal de descarga.
     if (typeof delivery !== 'function') delivery = defaultDelivery;
-    if (!validateBeforeClientConfirm()) {
+    if (!(await validateBeforeClientConfirm())) {
       return;
     }
 
@@ -929,7 +929,7 @@ export const usePDFGeneration = (
     // por lo que delivery puede llegar como MouseEvent en vez de función. Caer
     // al default en ese caso para no romper el flujo principal de descarga.
     if (typeof delivery !== 'function') delivery = defaultDelivery;
-    if (!validateBeforeClientConfirm()) {
+    if (!(await validateBeforeClientConfirm())) {
       return;
     }
 

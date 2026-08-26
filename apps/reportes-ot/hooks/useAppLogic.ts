@@ -116,11 +116,28 @@ export function useAppLogic(
     return () => { cancelled = true; };
   }, []);
 
+  // Tipos que requieren protocolo según el catálogo (flag requiresProtocol de
+  // tipos_servicio, 2026-08-26). UNIÓN con la lista fija: la lista fija es el
+  // piso (los tildes nunca se consumieron y pueden estar sin mantener) y el
+  // flag es la extensión data-driven — tildar un tipo nuevo en el catálogo le
+  // habilita el selector de tablas Y el aviso de protocolo faltante, sin
+  // tocar código. Selector y aviso usan EXACTAMENTE el mismo set: no pueden
+  // divergir.
+  const [tiposConProtocoloFlag, setTiposConProtocoloFlag] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    firebase.getTiposConProtocolo().then(setTiposConProtocoloFlag).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const catalogServiceTypes = useMemo(() => {
+    if (!tiposConProtocoloFlag || tiposConProtocoloFlag.size === 0) return CATALOG_SERVICE_TYPES;
+    return new Set([...CATALOG_SERVICE_TYPES, ...tiposConProtocoloFlag]);
+  }, [tiposConProtocoloFlag]);
+
   // Tablas sugeridas automáticamente según el tipo de servicio (pre-tildadas en el selector)
   const [suggestedTables, setSuggestedTables] = useState<TableCatalogEntry[]>([]);
 
   useEffect(() => {
-    if (!CATALOG_SERVICE_TYPES.has(tipoServicio) || readOnly) {
+    if (!catalogServiceTypes.has(tipoServicio) || readOnly) {
       setSuggestedTables([]);
       return;
     }
@@ -663,7 +680,7 @@ export function useAppLogic(
   };
 
   // Validación antes de confirmar firma o finalizar
-  const validateBeforeClientConfirm = () => {
+  const validateBeforeClientConfirm = async (): Promise<boolean> => {
     // Verificar firma del especialista (puede estar en el estado o en el pad)
     const engineerSignature = signatureEngineer || engineerPadRef.current?.getSignature();
 
@@ -725,6 +742,26 @@ export function useAppLogic(
         });
         return false;
       }
+    }
+
+    // Servicio que REQUIERE protocolo sin ninguna tabla cargada (2026-08-26,
+    // incidente 30051.01: una Calibración se finalizó sin protocolo y nadie lo
+    // notó hasta después). Aviso con confirmación explícita — se puede seguir
+    // (hay casos legítimos, ej. visita abortada) pero nunca más en silencio.
+    const requiereProtocolo = catalogServiceTypes.has(tipoServicio);
+    const sinTablas = protocolSelections.length === 0 && protocolData == null;
+    if (requiereProtocolo && sinTablas) {
+      const seguir = await modal.showConfirm({
+        title: 'Reporte sin protocolo',
+        message: `El servicio "${tipoServicio}" requiere protocolo y este reporte no tiene ninguna tabla cargada. El PDF va a salir SIN anexo de protocolo.
+
+¿Finalizar igual?`,
+        confirmText: 'Finalizar sin protocolo',
+        cancelText: 'Volver a cargar tablas',
+        confirmType: 'warning',
+        onConfirm: () => {},
+      });
+      if (!seguir) return false;
     }
 
     return true;
@@ -1082,8 +1119,8 @@ export function useAppLogic(
   };
 
   
-  const handleReview = () => {
-    if (!validateBeforeClientConfirm()) {
+  const handleReview = async () => {
+    if (!(await validateBeforeClientConfirm())) {
       return;
     }
     
@@ -1278,5 +1315,7 @@ export function useAppLogic(
     duplicateOt,
     // Constants
     CATALOG_SERVICE_TYPES,
+    /** Set unificado (lista fija ∪ flags del catálogo) — selector y aviso de protocolo. */
+    catalogServiceTypes,
   };
 }
