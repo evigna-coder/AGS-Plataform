@@ -10,7 +10,7 @@ export interface KitItem {
   codigo: string | null;
   /** URL del certificado (instrumentos/patrones) — habilita "Ver certificado ↗". */
   certificadoUrl: string | null;
-  tipo: 'instrumento' | 'patron' | 'minikit' | 'articulo' | 'dispositivo';
+  tipo: 'instrumento' | 'patron' | 'minikit' | 'articulo' | 'dispositivo' | 'columna';
   /**
    * Vencimiento del lote de patrón (2026-08-08). Se muestra al ingeniero
    * porque usar un patrón vencido invalida la calibración, y en campo no tiene
@@ -98,6 +98,19 @@ export function useKitIngeniero(ingenieroUsuarioId: string | null | undefined) {
               tipo: 'patron',
               vencimiento: info.fechaVencimiento,
               vencido: !!info.fechaVencimiento && info.fechaVencimiento.slice(0, 10) < hoy,
+            });
+          } else if (item.columnaId) {
+            // Columnas cromatográficas (2026-08-26): asignables desde agosto
+            // pero el kit no tenía rama para ellas — caían al vacío y el
+            // ingeniero no las veía en "Asignado al ingeniero" (reporte Fanely:
+            // dos columnas en su poder invisibles en Mis OT). La SERIE es la
+            // instancia física, igual que el lote en los patrones.
+            out.push({
+              nombre: item.columnaDescripcion || 'Columna',
+              codigo: [item.columnaCodigo, item.columnaSerie ? `S/N ${item.columnaSerie}` : null]
+                .filter(Boolean).join(' · ') || null,
+              certificadoUrl: null,
+              tipo: 'columna',
             });
           } else if (item.dispositivoId) {
             out.push({ nombre: item.dispositivoDescripcion || 'Dispositivo', codigo: null, certificadoUrl: null, tipo: 'dispositivo' });

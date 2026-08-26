@@ -8,6 +8,7 @@ const TIPO_LABEL: Record<KitItem['tipo'], string> = {
   minikit: 'Minikit',
   articulo: 'Artículo',
   dispositivo: 'Dispositivo',
+  columna: 'Columna',
 };
 
 /** "Asignado al ingeniero": instrumentos/patrones (con certificado), minikits, stock. */
