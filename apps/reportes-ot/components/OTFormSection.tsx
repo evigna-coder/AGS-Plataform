@@ -622,6 +622,30 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             </div>
           )}
 
+          {/* ID del equipo en la carátula (2026-08-26): se precarga del equipo
+              elegido pero es EDITABLE — hay clientes que le ponen un ID propio a
+              cada módulo (el cromatógrafo es L0002 y su detector de masas tiene
+              otro), y el protocolo debe salir con el ID que el cliente usa. La
+              re-vinculación del sistema al recargar va por sistemaId, así que
+              pisar este texto no rompe nada. */}
+          <div className="mb-3">
+            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">
+              ID del equipo (sale en la carátula del protocolo)
+            </label>
+            <input
+              type="text"
+              value={codigoInternoCliente}
+              placeholder="ID / código interno del cliente — ej: L0002"
+              onChange={(e) => { if (readOnly) return; setCodigoInternoCliente(e.target.value); }}
+              disabled={readOnly}
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm font-mono
+                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+            />
+            <p className="text-[9px] text-slate-400 mt-0.5">
+              Se completa solo al elegir el equipo. Si el cliente identifica este módulo con otro ID, escribilo acá.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <input
               type="text"
