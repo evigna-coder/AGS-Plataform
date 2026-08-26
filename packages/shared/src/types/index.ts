@@ -3643,6 +3643,25 @@ export interface PresentacionUsada {
 }
 
 /**
+ * Componente de un KIT de compra (2026-08-25, diseño lockeado 2026-07-29).
+ *
+ * Un kit (ej. G1313-68709) es un artículo REAL de stock que contiene N unidades
+ * de OTROS artículos. No confundir con `Presentacion` (mismo producto en otro
+ * envase, pool único): acá son artículos distintos. El kit ingresa/compra/reserva
+ * como artículo normal; la explosión en componentes es una acción manual
+ * posterior ("Explotar kit"), sin prorrateo de costo (el costo queda en el kit;
+ * los componentes nacen sin costo).
+ */
+export interface KitComponente {
+  /** FK → articulos (el componente es un artículo real del catálogo). */
+  articuloId: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  /** Unidades de este componente que contiene 1 kit (entero > 0). */
+  cantidadPorKit: number;
+}
+
+/**
  * Unidades BASE que representa una cantidad expresada en una presentación.
  * Sin presentación (o con factor inválido) la cantidad ya está en unidad base.
  *
@@ -3738,6 +3757,14 @@ export interface Articulo {
    * presentación. Siempre derivado de `presentaciones` (se mantiene en sync al guardar el artículo).
    */
   presentacionCodigos?: string[];
+  /**
+   * BOM del kit de compra (2026-08-25): componentes en los que este artículo se
+   * explota manualmente ("Explotar kit"). Vacío/ausente = no es kit. Ver `KitComponente`.
+   */
+  kitComponentes?: KitComponente[];
+  /** Índice plano de `kitComponentes[].articuloId` (array-contains, vista inversa
+   *  componente→kit para el sweep de mínimos). Derivado al guardar el artículo. */
+  kitComponenteIds?: string[];
   /**
    * Snapshot denormalizado del costo de la ÚLTIMA importación ingresada de este artículo
    * (last-wins). Conveniencia para listas/detalle sin abrir las unidades. La verdad por lote
@@ -3994,7 +4021,14 @@ export interface ItemAsignacion {
   loanerId?: string | null;
   loanerCodigo?: string | null;
   instrumentoId?: string | null;
+  /** Nombre interno del instrumento — en la práctica su código (TER-07, FLU-03). */
   instrumentoNombre?: string | null;
+  /**
+   * Marca + modelo del instrumento (2026-08-25). `instrumentoNombre` guarda el
+   * código interno, así que sin esto las pantallas mostraban "TER-07" como
+   * código Y como descripción, y no había forma de saber qué equipo era.
+   */
+  instrumentoDetalle?: string | null;
   instrumentoTipo?: 'instrumento' | 'patron' | null;
   dispositivoId?: string | null;
   dispositivoDescripcion?: string | null;
@@ -4132,7 +4166,7 @@ export interface MovimientoStock {
    * el espejo contable de una venta de Loaner. Union widening puro: consumidores que sólo leen
    * `subtipo === 'conversion'` siguen funcionando (backwards-compat).
    */
-  subtipo?: 'conversion' | 'venta_loaner' | 'cierre_ot';
+  subtipo?: 'conversion' | 'venta_loaner' | 'cierre_ot' | 'explosion_kit';
   /**
    * Phase 15 — id del Loaner cuando subtipo='venta_loaner'.
    * Permite query "movimientos de venta de tal loaner". Null/omitido en movimientos no-venta-loaner.

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { articulosService, marcasService, proveedoresService } from '../services/firebaseService';
-import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion } from '@ags/shared';
+import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion, KitComponente } from '@ags/shared';
 
 export interface ArticuloFormState {
   codigo: string; descripcion: string; categoriaEquipo: CategoriaEquipoStock;
@@ -8,13 +8,14 @@ export interface ArticuloFormState {
   precioReferencia: number | null; monedaPrecio: 'ARS' | 'USD'; proveedorIds: string[];
   posicionArancelaria: string; tratamiento: TratamientoArancelario; notas: string; origen: string;
   requiereNumeroSerie: boolean; requiereNumeroLote: boolean; presentaciones: Presentacion[];
+  kitComponentes: KitComponente[];
 }
 
 export const EMPTY_ARTICULO_FORM: ArticuloFormState = {
   codigo: '', descripcion: '', categoriaEquipo: 'GENERAL', marcaId: '', tipo: 'repuesto',
   unidadMedida: 'unidad', stockMinimo: 0, precioReferencia: null, monedaPrecio: 'USD',
   proveedorIds: [], posicionArancelaria: '', tratamiento: {}, notas: '', origen: '',
-  requiereNumeroSerie: false, requiereNumeroLote: false, presentaciones: [],
+  requiereNumeroSerie: false, requiereNumeroLote: false, presentaciones: [], kitComponentes: [],
 };
 
 export const formatPA = (raw: string): string => {
@@ -58,6 +59,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         requiereNumeroSerie: art.requiereNumeroSerie ?? false,
         requiereNumeroLote: art.requiereNumeroLote ?? false,
         presentaciones: art.presentaciones ?? [],
+        kitComponentes: art.kitComponentes ?? [],
       });
       if (art.posicionArancelaria) setComexOpen(true);
       setLoading(false);
@@ -92,6 +94,13 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
   const removePresentacion = (idx: number) =>
     setForm(prev => ({ ...prev, presentaciones: prev.presentaciones.filter((_, i) => i !== idx) }));
 
+  const addKitComponente = () =>
+    setForm(prev => ({ ...prev, kitComponentes: [...prev.kitComponentes, { articuloId: '', articuloCodigo: '', articuloDescripcion: '', cantidadPorKit: 1 }] }));
+  const updateKitComponente = (idx: number, patch: Partial<KitComponente>) =>
+    setForm(prev => ({ ...prev, kitComponentes: prev.kitComponentes.map((c, i) => i === idx ? { ...c, ...patch } : c) }));
+  const removeKitComponente = (idx: number) =>
+    setForm(prev => ({ ...prev, kitComponentes: prev.kitComponentes.filter((_, i) => i !== idx) }));
+
   const handleClose = () => { onClose(); setForm(EMPTY_ARTICULO_FORM); setCodigoDupWarning(''); setComexOpen(false); };
 
   const handleSave = async () => {
@@ -103,6 +112,10 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     const presentacionesLimpias = form.presentaciones
       .filter(p => p.codigoParte.trim() && Number(p.factor) > 0)
       .map(p => ({ codigoParte: p.codigoParte.trim(), descripcion: p.descripcion?.trim() || null, factor: Number(p.factor), activo: p.activo !== false }));
+    // Kit: descartar filas sin artículo o sin cantidad.
+    const kitLimpio = form.kitComponentes
+      .filter(c => c.articuloId && Number(c.cantidadPorKit) > 0)
+      .map(c => ({ ...c, cantidadPorKit: Number(c.cantidadPorKit) }));
     setSaving(true);
     try {
       await articulosService.update(articuloId, {
@@ -121,6 +134,9 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         presentaciones: presentacionesLimpias,
         // Índice plano para la vista inversa (findBaseDePresentacion).
         presentacionCodigos: presentacionesLimpias.map(p => p.codigoParte),
+        kitComponentes: kitLimpio,
+        // Índice plano componente→kit (array-contains) para el sweep de mínimos.
+        kitComponenteIds: kitLimpio.map(c => c.articuloId),
       });
       handleClose();
       onSaved();
@@ -132,6 +148,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     saving, loading, form, set, codigoDupWarning, comexOpen, setComexOpen,
     marcas, proveedores, toggleProveedor, updateTratamiento,
     addPresentacion, updatePresentacion, removePresentacion,
+    addKitComponente, updateKitComponente, removeKitComponente,
     handleClose, handleSave,
   };
 }

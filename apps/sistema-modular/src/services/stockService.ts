@@ -227,15 +227,17 @@ export const articulosService = {
   },
 
   /**
-   * Vista inversa de presentaciones: dado un N° de parte, encuentra el artículo BASE que lo
-   * declara como presentación (y su factor). Usa el índice plano `presentacionCodigos`
-   * (array-contains). Devuelve null si ese código no es presentación de ninguna base.
+   * Vista inversa de presentaciones: dado un N° de parte, encuentra TODOS los artículos BASE
+   * que lo declaran como presentación (y su factor). Un mismo envase puede ser presentación
+   * de más de una base (2026-08-25: 5183-2067 lo declaran 5182-0714 y 5182-0715). Usa el
+   * índice plano `presentacionCodigos` (array-contains). Ordenado por código de base.
    * Nota: requiere que la base tenga `presentacionCodigos` poblado (se setea al guardar el artículo).
    */
-  async findBaseDePresentacion(codigo: string): Promise<{ base: Articulo; presentacion: Presentacion } | null> {
-    if (!codigo) return null;
+  async findBasesDePresentacion(codigo: string): Promise<{ base: Articulo; presentacion: Presentacion }[]> {
+    if (!codigo) return [];
     const q = query(collection(db, 'articulos'), where('presentacionCodigos', 'array-contains', codigo));
     const snap = await getDocs(q);
+    const out: { base: Articulo; presentacion: Presentacion }[] = [];
     for (const d of snap.docs) {
       const base = {
         id: d.id,
@@ -244,9 +246,14 @@ export const articulosService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       } as Articulo;
       const presentacion = (base.presentaciones ?? []).find(p => p.codigoParte === codigo && p.activo !== false);
-      if (presentacion) return { base, presentacion };
+      if (presentacion) out.push({ base, presentacion });
     }
-    return null;
+    return out.sort((a, b) => (a.base.codigo ?? '').localeCompare(b.base.codigo ?? ''));
+  },
+
+  /** Primera base que declara el código como presentación. Ver `findBasesDePresentacion`. */
+  async findBaseDePresentacion(codigo: string): Promise<{ base: Articulo; presentacion: Presentacion } | null> {
+    return (await this.findBasesDePresentacion(codigo))[0] ?? null;
   },
 
   async create(data: Omit<Articulo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -464,6 +471,82 @@ export const unidadesService = {
       details: { factorEmbarque: params.factorEmbarque, actualizadas, sinCosto },
     });
     return { actualizadas, sinCosto };
+  },
+
+  /**
+   * Re-estampar el costeo ESTIMADO de una importación (2026-08-25).
+   *
+   * El estimado se congela en las unidades al ingresar la mercadería; si a
+   * alguien se le olvidó un gasto (flete, seguro, honorarios) el número queda
+   * mal durante el mes o más que tardan las facturas reales. Esto recalcula el
+   * estimado con los gastos cargados HOY y lo re-estampa en las unidades del
+   * embarque — sigue siendo estimado: NO marca `costeoConfirmadoAt` ni toca los
+   * campos `*Real`. Las unidades ya confirmadas se saltean (el real manda).
+   *
+   * El estimado anterior se pisa (a diferencia del definitivo, que lo conserva):
+   * un estimado incompleto no documenta nada útil. El valor viejo queda en el
+   * business event para auditoría.
+   *
+   * También refresca el snapshot `ultimoCosto*` del artículo, pero solo si
+   * ninguna importación posterior lo pisó (last-wins: se compara
+   * `ultimoCostoFecha` contra el ingreso de estas unidades).
+   */
+  async reestimarCosteoImportacion(params: {
+    importacionNumero: string;
+    factorEmbarque: number;
+    costoPorArticulo: Map<string, number>;
+  }): Promise<{ actualizadas: number; sinCosto: number; confirmadas: number }> {
+    const unidades = await this.getByImportacion(params.importacionNumero);
+    let actualizadas = 0, sinCosto = 0, confirmadas = 0;
+    const factorAnteriorPorArticulo = new Map<string, number | null>();
+    let ultimoIngreso = '';
+
+    for (const u of unidades) {
+      const costo = params.costoPorArticulo.get(u.articuloId);
+      if (costo == null) { sinCosto++; continue; }
+      if (u.costeoConfirmadoAt) { confirmadas++; continue; }
+      if (!factorAnteriorPorArticulo.has(u.articuloId)) {
+        factorAnteriorPorArticulo.set(u.articuloId, u.factorImportacion ?? null);
+      }
+      if (u.createdAt > ultimoIngreso) ultimoIngreso = u.createdAt;
+      await this.update(u.id, {
+        costoUnitario: costo,
+        factorImportacion: params.factorEmbarque,
+      } as Partial<UnidadStock>);
+      actualizadas++;
+    }
+
+    // Snapshot del catálogo: solo si esta impo sigue siendo la última que costeó
+    // el artículo — una posterior ya habría estampado una fecha más nueva.
+    const ahora = new Date().toISOString();
+    for (const [articuloId, costo] of params.costoPorArticulo) {
+      if (!unidades.some(u => u.articuloId === articuloId && !u.costeoConfirmadoAt)) continue;
+      try {
+        const art = await articulosService.getById(articuloId);
+        if (!art) continue;
+        if (art.ultimoCostoFecha && ultimoIngreso && art.ultimoCostoFecha > ultimoIngreso) continue;
+        await articulosService.update(articuloId, {
+          ultimoCostoImportacion: costo,
+          ultimoFactorImportacion: params.factorEmbarque,
+          ultimoCostoMoneda: 'USD',
+          ultimoCostoFecha: ahora,
+        });
+      } catch (err) {
+        console.warn(`[reestimarCosteo] snapshot artículo ${articuloId}:`, err);
+      }
+    }
+
+    logBusinessEvent({
+      eventName: 'importacion.costeo_reestimado',
+      collection: 'unidades',
+      documentId: params.importacionNumero,
+      details: {
+        factorEmbarque: params.factorEmbarque,
+        factoresAnteriores: Object.fromEntries(factorAnteriorPorArticulo),
+        actualizadas, sinCosto, confirmadas,
+      },
+    });
+    return { actualizadas, sinCosto, confirmadas };
   },
 
   async getByUbicacion(tipo: string, referenciaId: string): Promise<UnidadStock[]> {
@@ -2056,6 +2139,8 @@ export const reservasService = {
             descripcion: `${(previo.data.descripcion as string) ?? ''}\n${linea}`,
           } as never);
         } else {
+          // Área admin_soporte, pero el dueño del aviso es Materiales.
+          const responsableMateriales = await leadsService.getResponsableMateriales();
           await leadsService.create({
             clienteId: pres.clienteId ?? null,
             contactoId: null,
@@ -2071,8 +2156,8 @@ export const reservasService = {
             moduloId: null,
             estado: 'nuevo',
             postas: [],
-            asignadoA: null,
-            asignadoNombre: null,
+            asignadoA: responsableMateriales?.id ?? null,
+            asignadoNombre: responsableMateriales?.displayName ?? null,
             derivadoPor: null,
             // Regla de áreas 2026-08-05: reserva de materiales → admin de soporte.
             areaActual: 'admin_soporte',

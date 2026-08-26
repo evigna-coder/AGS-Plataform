@@ -12,6 +12,14 @@ export interface StockPosicion {
   tipo: TipoUbicacionStock;
   referenciaId: string;
   referenciaNombre: string;
+  /**
+   * Artículo dueño de las unidades agrupadas (2026-08-25). Cuando una parte de
+   * envase se cubre con VARIAS bases (5183-2067 → 5182-0714 y 5182-0715), cada
+   * posición tiene que saber de qué pool descuenta — el articulo "principal" de
+   * la parte ya no alcanza.
+   */
+  articuloId: string;
+  articuloCodigo: string;
   cantidad: number;
   /**
    * Para quién están apartadas las unidades reservadas de esta posición
@@ -40,6 +48,15 @@ export interface PatronLoteOrigen {
 export interface PartStockInfo {
   /** Artículo de catálogo resuelto (por stockArticuloId o, en su defecto, por código). */
   articulo: Articulo | null;
+  /**
+   * Conversión de presentación (2026-08-25): la parte está expresada en un N° de
+   * parte de ENVASE (ej. 5183-2067 ×1000) pero el stock vive en el artículo BASE
+   * (5182-0715 ×100). `factor` = unidades base por 1 de la parte; 1 si la parte
+   * ya está en unidad base. Todo lo que se cubre/deduce río abajo va en base.
+   */
+  presentacionFactor: number;
+  /** Código base al que se convirtió (para el hint de la UI). Null sin conversión. */
+  presentacionBaseCodigo: string | null;
   /** El artículo maneja nº de serie y/o lote → hay que elegir una unidad puntual. */
   requiereTrazabilidad: boolean;
   /** Unidades disponibles (estado 'disponible'). Para traceables: elegir unidad puntual. */
@@ -55,7 +72,8 @@ export interface PartStockInfo {
 }
 
 const EMPTY: PartStockInfo = {
-  articulo: null, requiereTrazabilidad: false, unidades: [], posiciones: [], patron: null, patronLotes: [],
+  articulo: null, presentacionFactor: 1, presentacionBaseCodigo: null,
+  requiereTrazabilidad: false, unidades: [], posiciones: [], patron: null, patronLotes: [],
   remitoOrigenes: [],
 };
 
@@ -121,9 +139,12 @@ function etiquetaReserva(u: UnidadStock): string | null {
 function agruparPosiciones(unidades: UnidadStock[]): StockPosicion[] {
   const byUbic = new Map<string, StockPosicion>();
   for (const u of unidades) {
-    const key = `${u.ubicacion.tipo}:${u.ubicacion.referenciaId}`;
+    // La clave incluye el artículo: con varias bases mezcladas, la misma
+    // ubicación puede alojar unidades de pools distintos y no deben sumarse.
+    const key = `${u.articuloId}:${u.ubicacion.tipo}:${u.ubicacion.referenciaId}`;
     const prev = byUbic.get(key) ?? {
       key, tipo: u.ubicacion.tipo, referenciaId: u.ubicacion.referenciaId,
+      articuloId: u.articuloId, articuloCodigo: u.articuloCodigo ?? '',
       referenciaNombre: u.ubicacion.referenciaNombre, cantidad: 0, reservas: [],
     };
     prev.cantidad += u.cantidad ?? 1;
@@ -183,10 +204,50 @@ export function useCierreStockUnits(articulos: Part[]): {
         if (!articulo && part.codigo) {
           articulo = await articulosService.getByCodigo(part.codigo).catch(() => null);
         }
+        // Presentaciones (2026-08-25): si el código de la parte es un N° de parte
+        // de envase (sin stock propio) que un artículo base declara como
+        // presentación, el origen es el stock del BASE y la cantidad se convierte
+        // por el factor. Caso 5183-2067 (vial ×1000) → 5182-0715 (×100): 1 envase
+        // = 10 u. base. Solo se cae al base cuando el resuelto no tiene unidades:
+        // un artículo con stock propio jamás se reinterpreta.
+        //
+        // Varias bases pueden declarar el mismo envase (0714 Y 0715): si comparten
+        // factor, se ofrece el stock de TODAS — cada posición sabe de qué pool
+        // descuenta (StockPosicion.articuloId). Con factores distintos la cuenta
+        // de cobertura sería ambigua, así que ahí gana la primera con stock.
+        let presentacionFactor = 1;
+        let presentacionBaseCodigo: string | null = null;
+        let basesExtra: Articulo[] = [];
+        if (part.codigo) {
+          const sinStockPropio = !articulo
+            || (await unidadesService.getByArticulo(articulo.id).catch(() => [])).length === 0;
+          if (sinStockPropio) {
+            const candidatas = (await articulosService.findBasesDePresentacion(part.codigo).catch(() => []))
+              .filter(c => c.base.id !== articulo?.id);
+            const conStock: typeof candidatas = [];
+            for (const c of candidatas) {
+              const uds = await unidadesService.getByArticulo(c.base.id).catch(() => []);
+              if (uds.some(u => u.activo !== false && (u.estado === 'disponible' || u.estado === 'reservado'))) {
+                conStock.push(c);
+              }
+            }
+            const usables = conStock.length > 0 ? conStock : candidatas.slice(0, 1);
+            const mismoFactor = usables.every(c => c.presentacion.factor === usables[0]?.presentacion.factor);
+            const elegidas = mismoFactor ? usables : usables.slice(0, 1);
+            if (elegidas.length > 0) {
+              articulo = elegidas[0].base;
+              basesExtra = elegidas.slice(1).map(c => c.base);
+              presentacionFactor = elegidas[0].presentacion.factor;
+              presentacionBaseCodigo = elegidas.map(c => c.base.codigo).join(' / ');
+            }
+          }
+        }
         const requiereTrazabilidad = !!(articulo?.requiereNumeroSerie || articulo?.requiereNumeroLote);
         let unidades: UnidadStock[] = [];
         if (articulo) {
-          const todas = await unidadesService.getByArticulo(articulo.id).catch(() => []);
+          const ids = [articulo.id, ...basesExtra.map(b => b.id)];
+          const porBase = await Promise.all(ids.map(id => unidadesService.getByArticulo(id).catch(() => [] as UnidadStock[])));
+          const todas = porBase.flat();
           // Lo que está en un remito NO se ofrece como stock de depósito: se elige
           // por la opción "Remito N° …" de abajo, que descuenta del remito.
           //
@@ -204,7 +265,8 @@ export function useCierreStockUnits(articulos: Part[]): {
           ?? patronPorCodigo.get(normCodigo(part.codigo))
           ?? null;
         result[part.id] = {
-          articulo, requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
+          articulo, presentacionFactor, presentacionBaseCodigo,
+          requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
           patron, patronLotes: patron ? patronLotesDisponibles(patron) : [],
           remitoOrigenes: remitoOrigenesDe(remitosEnCampo, articulo, part.codigo),
         };

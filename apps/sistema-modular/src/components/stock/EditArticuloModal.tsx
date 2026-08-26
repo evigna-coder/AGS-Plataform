@@ -5,6 +5,7 @@ import { useEditArticuloForm, formatPA } from '../../hooks/useEditArticuloForm';
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 import { EquivalenciaSection } from './EquivalenciaSection';
 import { PresentacionesSection } from './PresentacionesSection';
+import { KitComponentesSection } from './KitComponentesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
@@ -194,6 +195,16 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           onAdd={h.addPresentacion}
           onUpdate={h.updatePresentacion}
           onRemove={h.removePresentacion}
+          articuloId={articuloId}
+        />
+
+        {/* Kit de compra: BOM de componentes en los que se explota */}
+        <hr className="border-[#E5E5E5]" />
+        <KitComponentesSection
+          componentes={h.form.kitComponentes}
+          onAdd={h.addKitComponente}
+          onUpdate={h.updateKitComponente}
+          onRemove={h.removeKitComponente}
           articuloId={articuloId}
         />
 

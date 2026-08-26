@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { articulosService, unidadesService, marcasService } from '../../services/firebaseService';
 import { EquivalenciaDualDisplay } from './EquivalenciaDualDisplay';
 import { DesagregarStockModal } from './DesagregarStockModal';
+import { ExplotarKitModal } from './ExplotarKitModal';
 import { PresentacionesInfo } from './PresentacionesInfo';
 import { PresentacionInversaInfo } from './PresentacionInversaInfo';
 import { costoUnitarioVigente, factorImportacionVigente } from '@ags/shared';
@@ -68,6 +69,7 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
+  const [explotarKitOpen, setExplotarKitOpen] = useState(false);
   const [dualRefreshKey, setDualRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
@@ -219,6 +221,28 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
         <PresentacionesInfo presentaciones={articulo.presentaciones ?? []} stockBase={totalEnStock} />
         <PresentacionInversaInfo articulo={articulo} />
 
+        {/* Kit de compra: BOM + acción de explosión (2026-08-25) */}
+        {(articulo.kitComponentes?.length ?? 0) > 0 && (
+          <>
+            <hr className="border-[#E5E5E5]" />
+            <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">
+              Kit de compra — componentes
+            </p>
+            <div className="border border-indigo-200 bg-indigo-50/40 rounded-md px-3 py-2 text-xs text-slate-700">
+              {articulo.kitComponentes!.map(c => (
+                <p key={c.articuloId}>
+                  <span className="font-mono font-semibold">{c.articuloCodigo}</span> ×{c.cantidadPorKit}
+                  <span className="text-slate-400"> — {c.articuloDescripcion}</span>
+                </p>
+              ))}
+              <button onClick={() => setExplotarKitOpen(true)}
+                className="mt-1.5 text-[11px] text-teal-700 font-medium hover:underline">
+                Explotar kit… (consumir kits y dar de alta los componentes)
+              </button>
+            </div>
+          </>
+        )}
+
         {/* Unidades en stock (unificado: incluye cantidad por ubicación — antes había una tabla aparte
             "Stock por depósito" con la misma información). */}
         <hr className="border-[#E5E5E5]" />
@@ -270,6 +294,12 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
         )}
       </div>
     </Modal>
+    <ExplotarKitModal
+      open={explotarKitOpen}
+      articulo={articulo}
+      onClose={() => setExplotarKitOpen(false)}
+      onSuccess={() => load()}
+    />
     <DesagregarStockModal
       open={!!desagregarTarget}
       onClose={() => setDesagregarTarget(null)}
