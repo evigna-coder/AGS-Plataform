@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ingenierosService, asignacionesService, remitosService } from '../services/firebaseService';
+import { instrumentosService } from '../services/catalogService';
 import { matchesSearch } from '../utils/searchTerms';
-import type { Ingeniero, Asignacion, ItemAsignacion, Remito } from '@ags/shared';
+import type { Ingeniero, Asignacion, ItemAsignacion, InstrumentoPatron, Remito } from '@ags/shared';
 
 /** Estados de remito cuya mercadería todavía está afuera (= useInventarioIngeniero). */
 const REMITO_ESTADOS_EN_CAMPO = new Set(['confirmado', 'en_transito', 'en_proveedor', 'completado_parcial']);
@@ -29,14 +30,21 @@ export interface IngenieroConMaterial {
 /** Código visible de un item en campo (mismo orden de fallback que el label). */
 export function codigoItemEnCampo(i: ItemEnCampo): string {
   return i.articuloCodigo || i.patronCodigo || i.columnaCodigo || i.minikitCodigo
-    || i.loanerCodigo || i.vehiculoPatente || i.dispositivoSerie || '—';
+    // El nombre del instrumento ES su código (TER-07): va en la columna de código,
+    // y la descripción queda para la marca/modelo (2026-08-25).
+    || i.loanerCodigo || i.vehiculoPatente || i.dispositivoSerie || i.instrumentoNombre || '—';
+}
+
+/** Marca + modelo de un instrumento del catálogo, para la columna de descripción. */
+function detalleInstrumento(i: InstrumentoPatron): string {
+  return [i.marca, i.modelo].map(v => v?.trim()).filter(Boolean).join(' ');
 }
 
 function itemMatchesBusqueda(query: string, i: ItemEnCampo): boolean {
   return matchesSearch(query,
     i.articuloCodigo, i.articuloDescripcion,
     i.minikitCodigo, i.loanerCodigo,
-    i.instrumentoNombre, i.dispositivoDescripcion, i.dispositivoSerie,
+    i.instrumentoNombre, i.instrumentoDetalle, i.dispositivoDescripcion, i.dispositivoSerie,
     i.vehiculoPatente,
     i.patronCodigo, i.patronDescripcion, i.patronLote,
     i.columnaCodigo, i.columnaDescripcion, i.columnaSerie,
@@ -53,20 +61,25 @@ export function useAsignacionesVista() {
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [remitos, setRemitos] = useState<Remito[]>([]);
+  const [instrumentos, setInstrumentos] = useState<InstrumentoPatron[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ings, asgs, rems] = await Promise.all([
+      // Los instrumentos se traen para resolver marca/modelo de las asignaciones
+      // viejas, que solo guardaron el nombre interno. Catálogo chico y cacheado.
+      const [ings, asgs, rems, instr] = await Promise.all([
         ingenierosService.getAll(true),
         asignacionesService.getAll({ estado: 'activa' }),
         remitosService.getAll({ tipo: 'salida_campo' }).catch(() => [] as Remito[]),
+        instrumentosService.getAll().catch(() => [] as InstrumentoPatron[]),
       ]);
       setIngenieros(ings);
       setAsignaciones(asgs);
       setRemitos(rems);
+      setInstrumentos(instr);
     } catch (err) { console.error('Error cargando asignaciones:', err); }
     finally { setLoading(false); }
   }, []);
@@ -75,6 +88,7 @@ export function useAsignacionesVista() {
 
   const cards = useMemo<IngenieroConMaterial[]>(() => {
     const hoy = new Date().toISOString().slice(0, 10);
+    const detallePorInstrumento = new Map(instrumentos.map(i => [i.id, detalleInstrumento(i)]));
     const porIngeniero = new Map<string, { items: ItemEnCampo[]; ultima: string | null }>();
     for (const a of asignaciones) {
       for (const it of a.items ?? []) {
@@ -84,6 +98,11 @@ export function useAsignacionesVista() {
         const entry = porIngeniero.get(a.ingenieroId) ?? { items: [], ultima: null };
         entry.items.push({
           ...it,
+          // Fallback para asignaciones anteriores a `instrumentoDetalle`: se
+          // resuelve del catálogo por id (no hay migración de datos).
+          instrumentoDetalle: it.instrumentoDetalle
+            || (it.instrumentoId ? detallePorInstrumento.get(it.instrumentoId) : null)
+            || null,
           asignacionId: a.id, asignacionNumero: a.numero, asignacionCreatedAt: a.createdAt,
           neto,
           vencido: it.tipo === 'patron' && !!it.patronVencimiento && it.patronVencimiento.slice(0, 10) < hoy,
@@ -103,7 +122,7 @@ export function useAsignacionesVista() {
         patronesVencidos: items.filter(i => i.vencido),
       };
     });
-  }, [ingenieros, asignaciones]);
+  }, [ingenieros, asignaciones, instrumentos]);
 
   /** Cards visibles: con búsqueda activa, solo IST con items que matchean (filtrados). */
   const q = search.trim();

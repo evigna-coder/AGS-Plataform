@@ -62,17 +62,23 @@ export const IngenieroCard = ({ data, searchActive, onVerInventario, onDevolver,
           <p className="text-xs text-slate-400 italic py-2">Sin material en campo</p>
         ) : (
           <>
-            {visibles.map(item => (
+            {visibles.map(item => {
+              const codigo = codigoItemEnCampo(item);
+              const desc = descripcionItemAsignacion(item);
+              return (
               <div key={`${item.asignacionId}:${item.id}`} className="flex items-center gap-1.5 bg-slate-50 rounded px-2 py-[3px] min-w-0">
-                <span className="font-mono text-[10px] text-teal-700 font-semibold shrink-0">{codigoItemEnCampo(item)}</span>
+                <span className="font-mono text-[10px] text-teal-700 font-semibold shrink-0">{codigo}</span>
                 <span className="text-[11px] text-slate-700 truncate flex-1">
-                  {descripcionItemAsignacion(item, item.tipo)}
+                  {/* Sin descripción propia (minikits, instrumentos sin marca) el
+                      fallback repetía el código dos veces en la misma línea. */}
+                  {desc === codigo ? '' : desc}
                 </span>
                 <span className="shrink-0 text-[9px] bg-slate-200/60 text-slate-500 px-1 py-0.5 rounded">
                   {TIPO_LABELS[item.tipo] ?? item.tipo}
                 </span>
               </div>
-            ))}
+              );
+            })}
             {restantes > 0 && (
               <button onClick={onVerInventario} className="text-[11px] text-teal-700 font-medium hover:underline px-2">
                 + {restantes} más…

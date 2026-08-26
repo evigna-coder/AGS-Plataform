@@ -418,6 +418,8 @@ export function useAsignacionRapida() {
           loanerId: c.loanerId ?? null, loanerCodigo: c.tipo === 'loaner' ? c.codigo : null,
           instrumentoId: c.instrumentoId ?? null,
           instrumentoNombre: c.tipo === 'instrumento' ? c.label : null,
+          // `label` es el nombre interno (TER-07); la marca/modelo viaja en `codigo`.
+          instrumentoDetalle: c.tipo === 'instrumento' ? c.codigo : null,
           instrumentoTipo: c.instrumentoTipo ?? null,
           dispositivoId: c.dispositivoId ?? null,
           dispositivoDescripcion: c.tipo === 'dispositivo' ? c.label : null,

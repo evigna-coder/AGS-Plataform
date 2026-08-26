@@ -2,7 +2,7 @@ import type { ItemAsignacion } from '@ags/shared';
 
 /** Campos que puede traer un item asignado, según el tipo de entidad. */
 type ItemLike = Partial<Pick<ItemAsignacion,
-  | 'articuloDescripcion' | 'instrumentoNombre' | 'dispositivoDescripcion'
+  | 'articuloDescripcion' | 'instrumentoNombre' | 'instrumentoDetalle' | 'dispositivoDescripcion'
   | 'minikitCodigo' | 'loanerCodigo' | 'vehiculoPatente'
   | 'patronDescripcion' | 'patronCodigo' | 'patronLote'
   | 'columnaDescripcion' | 'columnaCodigo' | 'columnaSerie' | 'tipo'
@@ -20,6 +20,9 @@ type ItemLike = Partial<Pick<ItemAsignacion,
  */
 export function descripcionItemAsignacion(item: ItemLike, fallback = ''): string {
   return item.articuloDescripcion
+    // Marca/modelo antes que el nombre interno: `instrumentoNombre` es el código
+    // (TER-07) y repetirlo como descripción no dice qué equipo es.
+    || item.instrumentoDetalle
     || item.instrumentoNombre
     || item.dispositivoDescripcion
     // El LOTE identifica la instancia física del patrón: sin él, dos lotes del
