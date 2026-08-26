@@ -179,6 +179,56 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     }
   };
 
+  /**
+   * Re-estimar el costeo (2026-08-25): recalcula el ESTIMADO con los gastos
+   * cargados hoy y lo re-estampa en las unidades del embarque. Para cuando a
+   * alguien se le olvidó un gasto al ingresar y el definitivo va a tardar un
+   * mes o más. No confirma nada: sigue siendo estimado.
+   */
+  const handleReestimarCosteo = async () => {
+    if (!h.imp?.numero) return;
+    const costoPorArticulo = new Map<string, number>();
+    for (const linea of costeo.lineas) {
+      const item = (h.imp.items ?? []).find(i => i.id === linea.itemId);
+      if (!item?.articuloId || !item.cantidadPedida) continue;
+      costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
+    }
+    if (costoPorArticulo.size === 0) {
+      alert('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Actualizar costeo estimado',
+      message: `Se recalcula el costo ESTIMADO de las unidades ingresadas por ${h.imp.numero} con los gastos cargados hoy (factor ${costeo.factorEmbarque.toFixed(3)}) y se pisa el estimado anterior.
+
+Sigue siendo estimado — no confirma el costeo definitivo. Las unidades con costeo ya confirmado no se tocan.
+
+¿Actualizar?`,
+      confirmLabel: 'Actualizar estimado',
+    });
+    if (!ok) return;
+    setConfirmandoCosteo(true);
+    try {
+      const r = await unidadesService.reestimarCosteoImportacion({
+        importacionNumero: h.imp.numero,
+        factorEmbarque: costeo.factorEmbarque,
+        costoPorArticulo,
+      });
+      alert(`Estimado actualizado.
+
+Unidades actualizadas: ${r.actualizadas}` +
+        (r.confirmadas > 0 ? `
+Con costeo confirmado (no se tocaron): ${r.confirmadas}` : '') +
+        (r.sinCosto > 0 ? `
+Sin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
+    } catch (e) {
+      console.error('[ImportacionModal] re-estimar costeo:', e);
+      alert('Error al actualizar el estimado.');
+    } finally {
+      setConfirmandoCosteo(false);
+    }
+  };
+
   const handleEliminar = async () => {
     if (!h.imp) return;
     const ok = await confirm({
@@ -231,6 +281,12 @@ No se van a poder ingresar mas unidades por este embarque.`,
           {recepcionParcial && recepcion
             ? `Ingresar faltante (${recepcion.recibido}/${recepcion.pedido})`
             : 'Ingresar a stock'}
+        </Button>
+      )}
+      {h.imp?.stockIngresado && (
+        <Button variant="ghost" size="sm" onClick={() => void handleReestimarCosteo()} disabled={confirmandoCosteo}
+          title="Recalcular el costo ESTIMADO con los gastos cargados hoy y re-estamparlo en las unidades (no confirma el definitivo)">
+          Actualizar estimado
         </Button>
       )}
       {h.imp?.stockIngresado && (

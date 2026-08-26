@@ -280,14 +280,9 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         await importacionesService.update(impId, payload as Partial<Importacion>);
         return impId;
       }
+      // La OC ya NO se fuerza a 'embarcada' acá (2026-08-25): el servicio la
+      // sincroniza con el estado real de la impo — en preparación queda enviada.
       const id = await importacionesService.create({ estado: 'preparacion', documentos: [], ...payload } as any);
-      // Crear la importación pasa la OC a 'embarcada' (salvo recibida/cancelada).
-      try {
-        const oc = await ordenesCompraService.getById(ordenCompraId);
-        if (oc && oc.estado !== 'recibida' && oc.estado !== 'cancelada') {
-          await ordenesCompraService.update(ordenCompraId, { estado: 'embarcada' });
-        }
-      } catch (err) { console.error('[useImportacionForm] no se pudo marcar OC embarcada:', err); }
       return id;
     } catch (err) {
       console.error('Error guardando importación:', err);

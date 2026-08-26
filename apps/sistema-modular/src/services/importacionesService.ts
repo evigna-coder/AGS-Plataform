@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion } from '@ags/shared';
+import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion, EstadoImportacion, EstadoOC } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
@@ -340,6 +340,59 @@ export const requerimientosService = {
 
 // ========== IMPORTACIONES ==========
 
+/**
+ * Estado de OC que corresponde a cada estado de importación (2026-08-25).
+ *
+ * Antes crear la importación pasaba la OC directo a 'embarcada', pero las impos
+ * se crean en 'preparación' para ir costeando — la OC mentía que la mercadería
+ * ya viajaba. La OC ahora REPLICA el estado de la impo: en preparación/en origen
+ * sigue 'enviada'; embarcado en adelante → 'embarcada'; recibido → 'recibida'.
+ * 'cancelado' no mapea: cancelar la impo no dice nada sobre la OC.
+ */
+const ESTADO_IMPO_A_OC: Partial<Record<EstadoImportacion, EstadoOC>> = {
+  preparacion: 'enviada_proveedor',
+  en_origen: 'enviada_proveedor',
+  embarcado: 'embarcada',
+  en_transito: 'embarcada',
+  en_aduana: 'embarcada',
+  despachado: 'embarcada',
+  recibido: 'recibida',
+};
+
+/**
+ * Sincroniza el estado de la OC con el de la importación. Best-effort: un fallo
+ * acá no debe frenar el guardado de la impo. Nunca toca OCs recibidas o
+ * canceladas (estados terminales).
+ */
+async function syncOCConImportacion(ordenCompraId: string | null | undefined, estadoImpo: EstadoImportacion): Promise<void> {
+  if (!ordenCompraId) return;
+  const objetivo = ESTADO_IMPO_A_OC[estadoImpo];
+  if (!objetivo) return;
+  try {
+    // Import dinámico: ordenesCompraService vive en presupuestosService y un
+    // import estático armaría un ciclo entre servicios.
+    const { ordenesCompraService } = await import('./presupuestosService');
+    const oc = await ordenesCompraService.getById(ordenCompraId);
+    if (!oc || oc.estado === 'recibida' || oc.estado === 'cancelada') return;
+    if (oc.estado === objetivo) return;
+    await ordenesCompraService.update(ordenCompraId, { estado: objetivo });
+  } catch (err) {
+    console.warn('[syncOCConImportacion] no se pudo sincronizar la OC:', err);
+  }
+}
+
+/**
+ * Ancla una fecha a Timestamp sin corrimiento de día (2026-08-25). Los inputs
+ * date entregan 'YYYY-MM-DD' y `new Date('YYYY-MM-DD')` lo interpreta como
+ * medianoche UTC — en Argentina (UTC-3) eso es las 21:00 del día ANTERIOR, y
+ * toda vista que formatee con toLocaleDateString mostraba la fecha corrida un
+ * día ("la fecha no se actualiza"). Solo-fecha se ancla a medianoche LOCAL.
+ */
+function tsDesdeFecha(v: string): Timestamp {
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T00:00:00` : v;
+  return Timestamp.fromDate(new Date(iso));
+}
+
 export const importacionesService = {
   async getNextNumber(): Promise<string> {
     const q = query(collection(db, 'importaciones'), orderBy('numero', 'desc'));
@@ -405,12 +458,14 @@ export const importacionesService = {
     };
     const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago', 'fechaRecepcion'] as const;
     for (const f of dateFields) {
-      if (data[f as keyof typeof data]) payload[f] = Timestamp.fromDate(new Date((data as any)[f]!));
+      if (data[f as keyof typeof data]) payload[f] = tsDesdeFecha((data as any)[f]!);
     }
     const batch = createBatch();
     batch.set(doc(db, 'importaciones', id), payload);
     batchAudit(batch, { action: 'create', collection: 'importaciones', documentId: id, after: payload });
     await batch.commit();
+    // La OC replica el estado de la impo (en preparación NO queda embarcada).
+    await syncOCConImportacion(data.ordenCompraId, (data.estado ?? 'preparacion') as EstadoImportacion);
     return id;
   },
 
@@ -418,12 +473,17 @@ export const importacionesService = {
     const payload: any = { ...cleanFirestoreData(data as any), ...getUpdateTrace(), updatedAt: Timestamp.now() };
     const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago', 'fechaRecepcion'] as const;
     for (const f of dateFields) {
-      if ((data as any)[f]) payload[f] = Timestamp.fromDate(new Date((data as any)[f]));
+      if ((data as any)[f]) payload[f] = tsDesdeFecha((data as any)[f]);
     }
     const batch = createBatch();
     batch.update(docRef('importaciones', id), payload);
     batchAudit(batch, { action: 'update', collection: 'importaciones', documentId: id, after: payload });
     await batch.commit();
+    // Si cambió el estado, la OC lo replica (embarcado→embarcada, recibido→recibida).
+    if (data.estado) {
+      const ocId = data.ordenCompraId ?? (await this.getById(id))?.ordenCompraId;
+      await syncOCConImportacion(ocId, data.estado as EstadoImportacion);
+    }
   },
 
   async delete(id: string): Promise<void> {

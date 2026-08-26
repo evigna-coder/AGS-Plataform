@@ -79,7 +79,10 @@ export const ImportacionesList = () => {
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
-    return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    // Del TEXTO ISO, no de Date+toLocaleDateString: los datos viejos guardados a
+    // medianoche UTC retrocedían un día al formatear en huso argentino.
+    const [y, m, dd] = d.slice(0, 10).split('-');
+    return `${dd}/${m}/${y.slice(2)}`;
   };
 
   return (
@@ -204,7 +207,7 @@ export const ImportacionesList = () => {
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(3)}`}>{formatDate(imp.fechaEmbarque)}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(4)}`}>{formatDate(imp.fechaEstimadaArribo)}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(5)}`}>{formatDate(imp.fechaDespacho)}</td>
-                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(6)}`}>{imp.despachante || '-'}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(6)}`}>{imp.despachante || (imp.esCourier ? 'Courier' : '-')}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(7)}`}>{imp.agenteCarga || '-'}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap font-mono ${getAlignClass(8)}`}>{imp.numeroGuia || '-'}</td>
                   </tr>

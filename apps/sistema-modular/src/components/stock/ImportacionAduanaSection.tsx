@@ -53,7 +53,10 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
-    return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Del TEXTO ISO, no de Date+toLocaleDateString: los datos viejos guardados a
+    // medianoche UTC retrocedían un día al formatear en huso argentino.
+    const [y, m, dd] = d.slice(0, 10).split('-');
+    return `${dd}/${m}/${y}`;
   };
 
   return (
@@ -82,7 +85,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Despachante</label>
-            <p className="text-xs text-slate-700">{imp.despachante || '-'}</p>
+            <p className="text-xs text-slate-700">{imp.despachante || (imp.esCourier ? 'Courier' : '-')}</p>
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Numero de despacho</label>

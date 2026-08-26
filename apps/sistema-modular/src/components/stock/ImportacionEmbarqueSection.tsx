@@ -51,7 +51,10 @@ export const ImportacionEmbarqueSection: React.FC<Props> = ({ imp, onUpdate }) =
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
-    return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Del TEXTO ISO, no de Date+toLocaleDateString: los datos viejos guardados a
+    // medianoche UTC retrocedían un día al formatear en huso argentino.
+    const [y, m, dd] = d.slice(0, 10).split('-');
+    return `${dd}/${m}/${y}`;
   };
 
   return (
