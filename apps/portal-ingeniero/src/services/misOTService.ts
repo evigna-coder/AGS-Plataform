@@ -282,7 +282,14 @@ export const misOTService = {
       where('activo', '==', true),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock));
+    // El consumo/entrega marca el ESTADO pero no muda la ubicación del doc:
+    // sin este filtro el kit mostraba unidades ya consumidas o entregadas como
+    // si el ingeniero las siguiera teniendo (reporte Fanely 2026-08-26). Mismo
+    // criterio que getUnidadesDeMinikit.
+    const YA_NO_ESTA = ['consumido', 'vendido', 'entregado', 'baja'];
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock))
+      .filter(u => !YA_NO_ESTA.includes(u.estado));
   },
 
   /** Instrumentos asignados al ingeniero (asignadoAId), con certificadoUrl. */

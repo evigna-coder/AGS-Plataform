@@ -61,6 +61,11 @@ export function useKitIngeniero(ingenieroUsuarioId: string | null | undefined) {
       for (const asg of asignaciones) {
         for (const item of asg.items) {
           if (item.estado === 'devuelto' || item.estado === 'consumido') continue;
+          // Neto real en campo (2026-08-26): consumos/devoluciones PARCIALES no
+          // cambian el estado del ítem — sin esta resta, lo ya consumido seguía
+          // apareciendo en el kit. Mismo cálculo que el panel de sistema-modular.
+          const neto = (item.cantidad ?? 1) - (item.cantidadDevuelta ?? 0) - (item.cantidadConsumida ?? 0);
+          if (neto <= 0) continue;
           if (item.minikitId) {
             out.push({ nombre: item.articuloDescripcion || 'Minikit', codigo: item.minikitCodigo ?? null, certificadoUrl: null, tipo: 'minikit' });
           } else if (item.instrumentoId) {
