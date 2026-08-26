@@ -17,6 +17,10 @@ interface Props {
   cliente: string;
   onClienteChange: (val: string) => void;
   clientes: { value: string; label: string }[];
+  /** 'tipo:id' — minikit / posición / ingeniero de donde salió el movimiento. */
+  origen: string;
+  onOrigenChange: (val: string) => void;
+  origenes: { value: string; label: string }[];
 }
 
 const inputCls = 'px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
@@ -34,6 +38,7 @@ export function MovimientosFilters({
   fechaDesde, onFechaDesdeChange,
   fechaHasta, onFechaHastaChange,
   cliente, onClienteChange, clientes,
+  origen, onOrigenChange, origenes,
 }: Props) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -52,6 +57,11 @@ export function MovimientosFilters({
         <SearchableSelect value={cliente} onChange={onClienteChange} size="sm"
           options={[{ value: '', label: 'Todos los clientes' }, ...clientes]}
           placeholder="Todos los clientes" emptyMessage="Sin clientes" />
+      </div>
+      <div className="w-64">
+        <SearchableSelect value={origen} onChange={onOrigenChange} size="sm"
+          options={[{ value: '', label: 'Todos los orígenes' }, ...origenes]}
+          placeholder="Todos los orígenes" emptyMessage="Sin orígenes" />
       </div>
       <label className="flex items-center gap-1.5">
         <span className={labelCls}>Desde</span>

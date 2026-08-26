@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { movimientosService, clientesService } from '../../services/firebaseService';
+import { movimientosService, clientesService, posicionesStockService, minikitsService, ingenierosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
@@ -43,6 +43,8 @@ export const MovimientosPage = () => {
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
     cliente: { type: 'string' as const, default: '' },
+    // 'tipo:id' (ej. 'minikit:abc123') — ver origenOptions.
+    origen: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
     sortField: { type: 'string' as const, default: 'createdAt' },
@@ -65,6 +67,25 @@ export const MovimientosPage = () => {
         .sort((a, b) => a.label.localeCompare(b.label))))
       .catch(err => console.error('Error cargando clientes:', err));
   }, []);
+  // Orígenes para el filtro "¿de dónde salió?" (pedido 2026-08-26: "todos los
+  // consumos del minikit 2"). Se ofrecen las tres ubicaciones internas que
+  // originan consumos/egresos: posiciones, minikits e ingenieros. El value es
+  // 'tipo:id' porque los ids de colecciones distintas podrían colisionar.
+  const [origenOptions, setOrigenOptions] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    Promise.all([
+      posicionesStockService.getAll(false),
+      minikitsService.getAll(false),
+      ingenierosService.getAll(false),
+    ]).then(([posiciones, minikits, ingenieros]) => {
+      setOrigenOptions([
+        ...minikits.map(m => ({ value: `minikit:${m.id}`, label: `Minikit · ${m.codigo} — ${m.nombre}` })),
+        ...posiciones.map(p => ({ value: `posicion:${p.id}`, label: `Posición · ${p.codigo} — ${p.nombre}` })),
+        ...ingenieros.map(i => ({ value: `ingeniero:${i.id}`, label: `Ingeniero · ${i.nombre}` })),
+      ]);
+    }).catch(err => console.error('Error cargando orígenes:', err));
+  }, []);
+
   // Local search state for responsive typing — syncs to URL debounced
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -79,8 +100,11 @@ export const MovimientosPage = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
   }, []);
-  // Cuando hay término de búsqueda cargamos TODO el historial; sin búsqueda, sólo el mes.
+  // Cuando hay término de búsqueda O filtro de origen cargamos TODO el historial
+  // (el caso de uso del filtro de origen es "todos los consumos del minikit X",
+  // no solo los del mes); sin nada de eso, sólo el mes.
   const hayBusqueda = debouncedSearch.trim().length > 0;
+  const hayOrigen = !!filters.origen;
 
   // Prioridad de suscripción (server-side `desde`, sin índice compuesto con `tipo`):
   //  1) búsqueda → todo el historial ({}), para poder encontrar cualquier OC/serie vieja.
@@ -89,9 +113,9 @@ export const MovimientosPage = () => {
   // `fechaHasta` (y `fechaDesde` cuando no manda la suscripción) se aplican client-side
   // en `filtered`, así el rango es exacto sin pedir índices nuevos.
   const desdeSub = useMemo<Date | null>(() => {
-    if (hayBusqueda) return null;
+    if (hayBusqueda || hayOrigen) return null;
     return parseInicioDia(filters.fechaDesde) ?? inicioMes;
-  }, [hayBusqueda, filters.fechaDesde, inicioMes]);
+  }, [hayBusqueda, hayOrigen, filters.fechaDesde, inicioMes]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -120,6 +144,12 @@ export const MovimientosPage = () => {
     if (filters.cliente) {
       list = list.filter(m => m.clienteId === filters.cliente);
     }
+    if (filters.origen) {
+      const sep = filters.origen.indexOf(':');
+      const origenTipo = filters.origen.slice(0, sep);
+      const origenId = filters.origen.slice(sep + 1);
+      list = list.filter(m => m.origenTipo === origenTipo && m.origenId === origenId);
+    }
     if (debouncedSearch) {
       list = list.filter(m => matchesSearch(
         debouncedSearch,
@@ -140,11 +170,12 @@ export const MovimientosPage = () => {
       });
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [items, filters.tipo, filters.cliente, debouncedSearch, filters.fechaDesde, filters.fechaHasta, filters.sortField, filters.sortDir]);
+  }, [items, filters.tipo, filters.cliente, filters.origen, debouncedSearch, filters.fechaDesde, filters.fechaHasta, filters.sortField, filters.sortDir]);
 
   // Texto de contexto: refleja el modo activo (búsqueda / rango / mes por defecto).
   const hint = useMemo(() => {
     if (hayBusqueda) return 'Buscando en todo el historial.';
+    if (hayOrigen) return 'Filtrando por origen en todo el historial.';
     const desde = parseInicioDia(filters.fechaDesde);
     const hasta = parseFinDia(filters.fechaHasta);
     if (desde || hasta) {
@@ -153,7 +184,7 @@ export const MovimientosPage = () => {
       return `Rango ${desdeTxt} — ${hastaTxt}.`;
     }
     return `Mostrando movimientos desde el ${formatDay(inicioMes)} — buscá o usá el rango para ver el resto del historial.`;
-  }, [hayBusqueda, filters.fechaDesde, filters.fechaHasta, inicioMes]);
+  }, [hayBusqueda, hayOrigen, filters.fechaDesde, filters.fechaHasta, inicioMes]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -168,7 +199,7 @@ export const MovimientosPage = () => {
               data={filtered}
               titulo="Movimientos de Stock"
               filename="movimientos-stock"
-              filtrosAplicados={buildMovimientosFiltrosExport(filters, debouncedSearch, clientes)}
+              filtrosAplicados={buildMovimientosFiltrosExport(filters, debouncedSearch, clientes, origenOptions)}
             />
             <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>+ Registrar movimiento</Button>
             <Button size="sm" onClick={() => setShowIngreso(true)}>+ Ingresar stock</Button>
@@ -187,6 +218,9 @@ export const MovimientosPage = () => {
           cliente={filters.cliente}
           onClienteChange={v => setFilter('cliente', v)}
           clientes={clientes}
+          origen={filters.origen}
+          onOrigenChange={v => setFilter('origen', v)}
+          origenes={origenOptions}
         />
       </PageHeader>
 

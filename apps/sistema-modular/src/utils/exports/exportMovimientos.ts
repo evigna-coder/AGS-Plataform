@@ -14,13 +14,15 @@ export const TIPO_MOVIMIENTO_LABELS: Record<TipoMovimiento, string> = {
 
 /** Línea "Filtros: …" del export — refleja los filtros activos de MovimientosPage. */
 export function buildMovimientosFiltrosExport(
-  filters: { tipo: string; cliente: string; fechaDesde: string; fechaHasta: string },
+  filters: { tipo: string; cliente: string; origen: string; fechaDesde: string; fechaHasta: string },
   busqueda: string,
   clientes: { value: string; label: string }[],
+  origenes: { value: string; label: string }[],
 ): string[] {
   return filtrosAplicadosDesc({
     Tipo: filters.tipo ? (TIPO_MOVIMIENTO_LABELS[filters.tipo as TipoMovimiento] ?? filters.tipo) : '',
     Cliente: clientes.find(c => c.value === filters.cliente)?.label,
+    Origen: origenes.find(o => o.value === filters.origen)?.label,
     'Búsqueda': busqueda.trim() ? `'${busqueda.trim()}'` : '',
     Desde: filters.fechaDesde,
     Hasta: filters.fechaHasta,
