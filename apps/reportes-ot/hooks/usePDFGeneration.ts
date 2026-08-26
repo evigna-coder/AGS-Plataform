@@ -93,9 +93,10 @@ export const usePDFGeneration = (
   patronesSeleccionados: PatronSeleccionado[] = [],
   columnasSeleccionadas: ColumnaSeleccionada[] = [],
   clienteRequiereTrazabilidad: boolean = false,
-  // OT de entrega de materiales: el cliente firma el remito físico, no el reporte —
-  // la firma del cliente deja de ser obligatoria (autorizado 2026-07-15).
-  tipoOT: 'servicio' | 'entrega' = 'servicio',
+  // OT de entrega de materiales o de proveedor externo: el cliente firma el remito
+  // físico, no el reporte — la firma del cliente deja de ser obligatoria
+  // (entrega autorizado 2026-07-15; proveedor externo 2026-08-26).
+  tipoOT: 'servicio' | 'entrega' | 'proveedor_externo' | 'alquiler' = 'servicio',
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
@@ -793,8 +794,8 @@ export const usePDFGeneration = (
     const clientSignature = (signatureClient || clientPadRef.current?.getSignature()) ?? null;
     const engineerSignature = signatureEngineer || engineerPadRef.current?.getSignature();
 
-    // Entrega: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
-    const requiereFirmaCliente = tipoOT !== 'entrega';
+    // Entrega / proveedor externo: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
+    const requiereFirmaCliente = tipoOT !== 'entrega' && tipoOT !== 'proveedor_externo';
     if (!engineerSignature || (requiereFirmaCliente && !clientSignature)) {
       showAlert({
         title: 'Error',
@@ -936,11 +937,12 @@ export const usePDFGeneration = (
     const clientSig = (signatureClient || clientPadRef.current?.getSignature()) ?? null;
     const engineerSig = signatureEngineer || engineerPadRef.current?.getSignature();
 
-    // Entrega: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
-    if (!engineerSig || (tipoOT !== 'entrega' && !clientSig)) {
+    // Entrega / proveedor externo: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
+    const firmaClienteObligatoria = tipoOT !== 'entrega' && tipoOT !== 'proveedor_externo';
+    if (!engineerSig || (firmaClienteObligatoria && !clientSig)) {
       showAlert({
         title: 'Error',
-        message: tipoOT !== 'entrega'
+        message: firmaClienteObligatoria
           ? 'Se requieren ambas firmas (Cliente y Especialista) antes de confirmar.'
           : 'Se requiere la firma del Especialista antes de confirmar.',
         type: 'error'

@@ -18,9 +18,10 @@ interface SignaturesSectionProps {
   assetProgress?: { loaded: number; total: number };
   assetReady?: boolean;
   onConfirmClientAndFinalize: () => void;
-  /** OT de entrega: la firma del cliente es opcional (firma el remito) — el botón
-   *  de finalizar aparece aunque el pad esté vacío. Autorizado 2026-07-15. */
-  tipoOT?: 'servicio' | 'entrega';
+  /** OT de entrega o de proveedor externo: la firma del cliente es opcional
+   *  (firma el remito) — el botón de finalizar aparece aunque el pad esté vacío.
+   *  Entrega autorizado 2026-07-15; proveedor externo 2026-08-26. */
+  tipoOT?: 'servicio' | 'entrega' | 'proveedor_externo' | 'alquiler';
 }
 
 export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
@@ -34,6 +35,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
   tipoOT = 'servicio',
 }) => {
   const esEntrega = tipoOT === 'entrega';
+  const firmaClienteOpcional = esEntrega || tipoOT === 'proveedor_externo';
   return (
     <div className="no-print grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
       {/* ================= FIRMA CLIENTE ================= */}
@@ -57,8 +59,8 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
           disabled={readOnly}
         />
 
-        {/* BOTÓN – DISPARADOR (entrega: disponible sin firma — el cliente firma el remito) */}
-        {!readOnly && (signatureClient || esEntrega) && (
+        {/* BOTÓN – DISPARADOR (entrega / proveedor externo: disponible sin firma — el cliente firma el remito) */}
+        {!readOnly && (signatureClient || firmaClienteOpcional) && (
           <button
             onClick={onConfirmClientAndFinalize}
             disabled={isGenerating}
@@ -67,9 +69,11 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             {isGenerating ? (generationStep || 'Finalizando…') : (signatureClient ? 'Confirmar firma del cliente' : 'Finalizar sin firma (firma en remito)')}
           </button>
         )}
-        {!readOnly && esEntrega && !signatureClient && (
+        {!readOnly && firmaClienteOpcional && !signatureClient && (
           <p className="text-[10px] text-slate-400 text-center">
-            Entrega de materiales: la firma del cliente queda en el remito adjunto — no es obligatoria acá.
+            {esEntrega
+              ? 'Entrega de materiales: la firma del cliente queda en el remito adjunto — no es obligatoria acá.'
+              : 'Trabajo en proveedor externo: la firma del cliente queda en el remito adjunto — no es obligatoria acá.'}
           </p>
         )}
         {!readOnly && assetProgress && assetProgress.total > 0 && !assetReady && (

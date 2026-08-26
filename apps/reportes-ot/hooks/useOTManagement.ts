@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { TipoOT } from '@ags/shared';
+import { tipoOTEfectivo, type TipoOT } from '@ags/shared';
 import { auth } from '../services/authService';
 import { FirebaseService } from '../services/firebaseService';
 import { Part, ProtocolData } from '../types';
@@ -275,8 +275,13 @@ export const useOTManagement = (
         setDireccion(data.direccion || '');
         setLocalidad(data.localidad || '');
         setProvincia(data.provincia || '');
-        const esEntrega = data.tipoOT === 'entrega';
-        setTipoOT(esEntrega ? 'entrega' : 'servicio');
+        // Tipo efectivo: el campo si está, si no derivado del nombre del tipo de
+        // servicio (OTs previas al campo `tipoOT`). Proveedor externo también
+        // finaliza sin firma del cliente (firma en remito, 2026-08-26); alquiler
+        // se trata como servicio en el reporte.
+        const tipoEfectivo = tipoOTEfectivo({ tipoOT: data.tipoOT, tipoServicio: data.tipoServicio });
+        const esEntrega = tipoEfectivo === 'entrega';
+        setTipoOT(esEntrega ? 'entrega' : tipoEfectivo === 'proveedor_externo' ? 'proveedor_externo' : 'servicio');
         // OT de entrega de materiales: el equipo no aplica — precargar "N/A" en los
         // campos vacíos (editables por si el técnico quiere detallar). Autorizado 2026-07-15.
         setSistema(data.sistema || '');
