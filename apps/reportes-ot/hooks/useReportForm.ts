@@ -232,8 +232,11 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [moduloDescripcion, setModuloDescripcion] = useState('');
   const [moduloSerie, setModuloSerie] = useState('');
   const [codigoInternoCliente, setCodigoInternoCliente] = useState('');
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
-  const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0]);
+  // Fechas SIN precargar (2026-08-25): con el día de hoy puesto de antemano, el
+  // ingeniero que carga el reporte otro día no lo notaba y quedaba mal informado.
+  // Vacías obligan a completarlas a mano; la validación de finalizar las exige.
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
   const [horasTrabajadas, setHorasTrabajadas] = useState('');

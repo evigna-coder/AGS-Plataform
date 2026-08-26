@@ -285,8 +285,10 @@ export const useOTManagement = (
         setModuloDescripcion(data.moduloDescripcion || (esEntrega ? 'N/A' : ''));
         setModuloSerie(data.moduloSerie || (esEntrega ? 'N/A' : ''));
         setCodigoInternoCliente(data.codigoInternoCliente || '');
-        setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
-        setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
+        // Sin fecha guardada, queda VACÍA (2026-08-25) — antes se precargaba hoy
+        // y el ingeniero no siempre lo corregía. La validación de finalizar la exige.
+        setFechaInicio(data.fechaInicio || '');
+        setFechaFin(data.fechaFin || '');
         setHoraInicio(data.horaInicio || '');
         setHoraFin(data.horaFin || '');
         setHorasTrabajadas(data.horasTrabajadas || '');
