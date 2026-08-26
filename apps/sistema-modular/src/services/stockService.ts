@@ -2700,6 +2700,27 @@ export const reservasService = {
     let deducidas = 0;
     let cubiertasPorReserva = 0;
     for (const selection of params.selections) {
+      // Caso 0a — origen ASIGNACIÓN en campo (2026-08-27): el material está en
+      // poder de un ingeniero; se consume vía la asignación, que deja TODO
+      // consistente de una: cantidadConsumida + OT en el ítem, unidad →
+      // consumido, línea del remito interno resuelta y movimiento en el kardex.
+      if (selection.origenTipo === 'ingeniero' && selection.asignacionId && selection.asignacionItemId) {
+        try {
+          const { asignacionesService } = await import('./firebaseService');
+          await asignacionesService.consumirItems(selection.asignacionId, [{
+            itemId: selection.asignacionItemId,
+            cantidad: selection.cantidad ?? 1,
+            otNumber: params.otNumber,
+          }]);
+          deducidas += selection.cantidad ?? 1;
+        } catch (err) {
+          const motivo = err instanceof Error ? err.message : String(err);
+          console.error(`[entregarSeleccionesCierre] consumo desde asignación ${selection.asignacionId} falló:`, err);
+          fallos.push(`${selection.partCodigo ?? 'item'} desde asignación (${selection.origenNombre}): ${motivo}`);
+        }
+        continue;
+      }
+
       // Caso 0 — origen REMITO en campo (2026-08-04): el material ya salió con un
       // remito de salida; se consume desde el remito (que se resuelve/cierra solo
       // si no le quedan items pendientes) en vez de descontar del depósito.

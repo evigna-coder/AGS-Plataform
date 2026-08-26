@@ -1,5 +1,5 @@
 import type { StockSelection, UnidadStock, CondicionUnidad } from '@ags/shared';
-import type { StockPosicion, PartStockInfo, PatronLoteOrigen, RemitoItemOrigen } from '../../hooks/useCierreStockUnits';
+import type { StockPosicion, PartStockInfo, PatronLoteOrigen, RemitoItemOrigen, AsignacionItemOrigen } from '../../hooks/useCierreStockUnits';
 
 const CONDICION_LABEL: Record<CondicionUnidad, string> = {
   nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacond.',
@@ -46,6 +46,7 @@ function loteLabel(l: PatronLoteOrigen): string {
 export type OrigenOption =
   | { kind: 'patron'; value: string; label: string; sub?: string; lote: PatronLoteOrigen }
   | { kind: 'remito'; value: string; label: string; sub?: string; remito: RemitoItemOrigen }
+  | { kind: 'asignacion'; value: string; label: string; sub?: string; asignacion: AsignacionItemOrigen }
   | { kind: 'unidad'; value: string; label: string; sub?: string; unidad: UnidadStock }
   | { kind: 'posicion'; value: string; label: string; sub?: string; pos: StockPosicion };
 
@@ -65,6 +66,17 @@ export function buildOptions(stock: PartStockInfo): OrigenOption[] {
       // sola vez y acá se dice de dónde más viene (2026-08-24).
       sub: r.tambienEn?.length ? `también en ${r.tambienEn.join(', ')}` : undefined,
       remito: r,
+    });
+  }
+  // En poder de un ingeniero por ASIGNACIÓN (2026-08-27): consumirlo desde el
+  // cierre imputa la OT en la asignación, la unidad, el remito interno y el
+  // kardex — el desvío por el inventario (con la OT tipeada a mano) sobra.
+  for (const a of stock.asignacionOrigenes) {
+    opts.push({
+      kind: 'asignacion',
+      value: `asignacion:${a.asignacionId}:${a.itemId}`,
+      label: `En poder de ${a.ingenieroNombre} (×${a.cantidad})${a.serie ? ` · S/N ${a.serie}` : ''}`,
+      asignacion: a,
     });
   }
   if (stock.requiereTrazabilidad) {
@@ -102,6 +114,7 @@ export function aporteDeOpcion(opt: OrigenOption, pendiente: number): number {
   switch (opt.kind) {
     case 'unidad': return Math.min(opt.unidad.cantidad ?? 1, cap);
     case 'remito': return Math.min(opt.remito.cantidad, cap);
+    case 'asignacion': return Math.min(opt.asignacion.cantidad, cap);
     case 'posicion': return Math.min(opt.pos.cantidad, cap);
     case 'patron': return Math.min(opt.lote.cantidad ?? cap, cap);
   }
@@ -140,6 +153,22 @@ export function patchFromOption(opt: OrigenOption, stock: PartStockInfo): Partia
         patronId: null,
         patronLote: null,
       };
+    // Ítem asignado a un ingeniero: al cerrar se consume vía la asignación
+    // (asignacionesService.consumirItems con la OT).
+    case 'asignacion':
+      return {
+        articuloId: stock.articulo?.id ?? null,
+        origenTipo: 'ingeniero',
+        origenId: opt.asignacion.asignacionId,
+        origenNombre: `En poder de ${opt.asignacion.ingenieroNombre}`,
+        asignacionId: opt.asignacion.asignacionId,
+        asignacionItemId: opt.asignacion.itemId,
+        unidadStockId: null,
+        nroSerie: opt.asignacion.serie,
+        nroLote: null,
+        patronId: null,
+        patronLote: null,
+      };
     // Lote de patrón (activo). Descuenta la cantidad del lote al cerrar.
     case 'patron':
       return {
@@ -173,6 +202,7 @@ export function patchFromOption(opt: OrigenOption, stock: PartStockInfo): Partia
 export function selectionValue(sel: StockSelection): string {
   if (sel.origenTipo === 'patron' && sel.patronLote) return `patron:${sel.patronLote}`;
   if (sel.origenTipo === 'remito' && sel.remitoId && sel.remitoItemId) return `remito:${sel.remitoId}:${sel.remitoItemId}`;
+  if (sel.asignacionId && sel.asignacionItemId) return `asignacion:${sel.asignacionId}:${sel.asignacionItemId}`;
   if (sel.unidadStockId) return `unidad:${sel.unidadStockId}`;
   if (sel.origenId) return `posicion:${sel.origenId}:${sel.articuloId ?? ''}`;
   return '';

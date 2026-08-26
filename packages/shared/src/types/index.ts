@@ -355,6 +355,17 @@ export interface StockSelection {
   remitoId?: string | null;
   remitoNumero?: string | null;
   remitoItemId?: string | null;
+  /**
+   * Descarga desde una ASIGNACIÓN en campo (2026-08-27) — cuando
+   * `origenTipo='ingeniero'` y estos ids están presentes: el material está en
+   * poder del ingeniero por asignación; al cerrar la OT se consume vía
+   * asignacionesService.consumirItems (unidad → consumido, línea del remito
+   * interno resuelta, kardex con la OT). Doctrina: TODO se consume desde el
+   * cierre administrativo — este origen faltaba y obligaba al desvío por el
+   * inventario del ingeniero.
+   */
+  asignacionId?: string | null;
+  asignacionItemId?: string | null;
   /** Artículo de catálogo resuelto — driver de la deducción por posición (no-serializados). */
   articuloId?: string | null;
   /** Unidad de stock puntual elegida (artículos con serie/lote). Driver de la deducción al cierre. */

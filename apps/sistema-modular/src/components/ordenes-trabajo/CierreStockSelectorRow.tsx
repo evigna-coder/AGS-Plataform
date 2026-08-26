@@ -73,6 +73,7 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
 
   const patronGroup = options.filter(o => o.kind === 'patron');
   const remitoGroup = options.filter(o => o.kind === 'remito');
+  const asignacionGroup = options.filter(o => o.kind === 'asignacion');
   const stockGroup = options.filter(o => o.kind === 'unidad' || o.kind === 'posicion');
 
   /** Opciones ofrecidas en la fila `index`: sin las ya tomadas por las otras filas. */
@@ -86,6 +87,7 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
       ...(index < selections.length ? [{ value: '', label: '— Quitar origen —' }] : []),
       ...patronGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `Patrón (activo) · ${o.sub}` : 'Patrón (activo)' })),
       ...remitoGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `En campo (remito) · ${o.sub}` : 'En campo (remito)' })),
+      ...asignacionGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `En campo (asignación) · ${o.sub}` : 'En campo (asignación)' })),
       ...stockGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `Stock · ${o.sub}` : 'Stock' })),
     ];
   };

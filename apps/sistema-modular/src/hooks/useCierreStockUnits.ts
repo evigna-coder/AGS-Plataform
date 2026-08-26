@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { unidadCuentaComoDisponible } from '@ags/shared';
 import type { Part, Articulo, Patron, Remito, UnidadStock, TipoUbicacionStock } from '@ags/shared';
 import { articulosService, remitosService, unidadesService } from '../services/stockService';
+import { asignacionesService } from '../services/firebaseService';
 import { patronesService } from '../services/patronesService';
 import { dedupPorUnidad, type RemitoItemOrigen } from '../utils/origenRemitoDedup';
 export type { RemitoItemOrigen };
@@ -44,6 +45,19 @@ export interface PatronLoteOrigen {
 /** Item de un remito en campo ofrecido como origen de descarga (2026-08-04):
  *  el material ya salió con un remito de salida y está en poder del ingeniero —
  *  al cerrar la OT se consume desde ahí y el remito se resuelve/cierra. */
+
+/** Ítem ASIGNADO a un ingeniero ofrecido como origen (2026-08-27): consume la
+ *  asignación con la OT (unidad, remito interno y kardex quedan consistentes). */
+export interface AsignacionItemOrigen {
+  asignacionId: string;
+  itemId: string;
+  ingenieroNombre: string;
+  /** Neto en campo: cantidad − devuelta − consumida. */
+  cantidad: number;
+  serie: string | null;
+  unidadId: string | null;
+}
+
 /** Info de stock resuelta para una parte del cierre. */
 export interface PartStockInfo {
   /** Artículo de catálogo resuelto (por stockArticuloId o, en su defecto, por código). */
@@ -69,12 +83,14 @@ export interface PartStockInfo {
   patronLotes: PatronLoteOrigen[];
   /** Items de remitos en campo que matchean el artículo — origen "Remito N° xxx". */
   remitoOrigenes: RemitoItemOrigen[];
+  /** Ítems asignados a ingenieros que matchean el artículo — origen "En poder de X". */
+  asignacionOrigenes: AsignacionItemOrigen[];
 }
 
 const EMPTY: PartStockInfo = {
   articulo: null, presentacionFactor: 1, presentacionBaseCodigo: null,
   requiereTrazabilidad: false, unidades: [], posiciones: [], patron: null, patronLotes: [],
-  remitoOrigenes: [],
+  remitoOrigenes: [], asignacionOrigenes: [],
 };
 
 /** Normaliza un código para el match parte↔patrón (trim; case-insensitive por las dudas). */
@@ -195,6 +211,12 @@ export function useCierreStockUnits(articulos: Part[]): {
       const remitosEnCampo = (await remitosService.getAll().catch(() => []))
         .filter(r => REMITO_ESTADOS_EN_CAMPO.has(r.estado));
 
+      // Asignaciones activas (2026-08-27): lo que un ingeniero tiene en su
+      // inventario también se descarga desde el cierre — antes era invisible
+      // acá y obligaba a consumir desde el inventario, contra la doctrina de
+      // que todo consumo sale del cierre administrativo.
+      const asignacionesActivas = await asignacionesService.getAll({ estado: 'activa' }).catch(() => []);
+
       const result: Record<string, PartStockInfo> = {};
       await Promise.all(articulos.map(async part => {
         let articulo: Articulo | null = null;
@@ -244,10 +266,14 @@ export function useCierreStockUnits(articulos: Part[]): {
         }
         const requiereTrazabilidad = !!(articulo?.requiereNumeroSerie || articulo?.requiereNumeroLote);
         let unidades: UnidadStock[] = [];
+        // Todas las unidades del artículo (cualquier estado) — para resolver la
+        // serie de los ítems asignados más abajo.
+        let todasLasUnidades: UnidadStock[] = [];
         if (articulo) {
           const ids = [articulo.id, ...basesExtra.map(b => b.id)];
           const porBase = await Promise.all(ids.map(id => unidadesService.getByArticulo(id).catch(() => [] as UnidadStock[])));
           const todas = porBase.flat();
+          todasLasUnidades = todas;
           // Lo que está en un remito NO se ofrece como stock de depósito: se elige
           // por la opción "Remito N° …" de abajo, que descuenta del remito.
           //
@@ -264,11 +290,39 @@ export function useCierreStockUnits(articulos: Part[]): {
         const patron = (articulo ? patronPorArticulo.get(articulo.id) : null)
           ?? patronPorCodigo.get(normCodigo(part.codigo))
           ?? null;
+        const remitoOrigenes = remitoOrigenesDe(remitosEnCampo, articulo, part.codigo);
+        // Ítems asignados que matchean el artículo. Se excluyen los que ya se
+        // ofrecen por su remito de salida (misma pieza, dos puertas): consumir
+        // por cualquiera de las dos converge en la asignación, pero ofrecerla
+        // dos veces confunde.
+        const unidadesEnRemitos = new Set(remitoOrigenes.map(r => r.unidadId).filter(Boolean));
+        const cod = (part.codigo ?? '').trim().toUpperCase();
+        const asignacionOrigenes: AsignacionItemOrigen[] = [];
+        for (const a of asignacionesActivas) {
+          for (const it of a.items ?? []) {
+            if (it.estado !== 'asignado') continue;
+            const matchArt = (articulo && it.articuloId === articulo.id)
+              || (!!cod && (it.articuloCodigo ?? '').trim().toUpperCase() === cod);
+            if (!matchArt) continue;
+            const neto = (it.cantidad ?? 1) - (it.cantidadDevuelta ?? 0) - (it.cantidadConsumida ?? 0);
+            if (neto <= 0) continue;
+            if (it.unidadId && unidadesEnRemitos.has(it.unidadId)) continue;
+            const serie = it.unidadId
+              ? (todasLasUnidades.find(u => u.id === it.unidadId)?.nroSerie ?? null)
+              : null;
+            asignacionOrigenes.push({
+              asignacionId: a.id, itemId: it.id, ingenieroNombre: a.ingenieroNombre,
+              cantidad: neto, serie, unidadId: it.unidadId ?? null,
+            });
+          }
+        }
+
         result[part.id] = {
           articulo, presentacionFactor, presentacionBaseCodigo,
           requiereTrazabilidad, unidades, posiciones: agruparPosiciones(unidades),
           patron, patronLotes: patron ? patronLotesDisponibles(patron) : [],
-          remitoOrigenes: remitoOrigenesDe(remitosEnCampo, articulo, part.codigo),
+          remitoOrigenes,
+          asignacionOrigenes,
         };
       }));
       if (!cancelled) { setInfo(result); setLoading(false); }
