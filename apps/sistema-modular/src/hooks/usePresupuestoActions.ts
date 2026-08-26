@@ -182,7 +182,23 @@ export function usePresupuestoActions({
   };
 
   const handleDelete = async () => {
-    if (!await confirm(`¿Eliminar permanentemente ${form.numero}? Esta acción no se puede deshacer.`)) return;
+    // Guard OTs vinculadas (2026-08-26, caso P1-005072-01): se eliminó un ppto
+    // con 3 OTs vinculadas sin que nada lo señalara. Casi siempre es un error
+    // — el aviso enumera las OTs y exige una confirmación consciente. Se lee
+    // fresco del doc: el form puede no reflejar vínculos agregados después.
+    let otsVinculadas: string[] = [];
+    try {
+      const fresh = await presupuestosService.getById(presupuestoId);
+      otsVinculadas = fresh?.otsVinculadasNumbers ?? [];
+    } catch { /* si no se puede leer, cae al confirm simple */ }
+    const aviso = otsVinculadas.length > 0
+      ? '⚠ Este presupuesto tiene ' + otsVinculadas.length + ' orden(es) de trabajo vinculada(s):\n'
+        + otsVinculadas.map(n => '   • OT ' + n).join('\n')
+        + '\n\nEliminarlo las deja sin presupuesto — en la mayoría de los casos esto es un error. '
+        + 'Si lo que buscás es que no se facture, anulalo en lugar de eliminarlo.\n\n'
+        + '¿Eliminar permanentemente ' + form.numero + ' igual? Esta acción no se puede deshacer.'
+      : `¿Eliminar permanentemente ${form.numero}? Esta acción no se puede deshacer.`;
+    if (!await confirm(aviso)) return;
     try {
       setDeleting(true);
       await presupuestosService.hardDelete(presupuestoId);
