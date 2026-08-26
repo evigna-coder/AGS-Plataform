@@ -161,7 +161,13 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
       const entriesToResize = findEntriesAtCell(entries, srcIngId, srcFecha, srcQuarter);
       for (const entry of entriesToResize) {
         if (targetFecha < entry.fechaInicio) continue; // can't resize before start
-        updateEntry(entry.id, { fechaFin: targetFecha, quarterEnd: targetQuarter });
+        // Mismo día: el fin no puede caer ANTES del cuarto de inicio (2026-08-26).
+        // Soltar el resize sobre un Q anterior escribía quarterEnd < quarterStart
+        // y la entrada desaparecía de la grilla (span negativo → null).
+        const quarterEnd = targetFecha === entry.fechaInicio
+          ? (Math.max(targetQuarter, entry.quarterStart) as 1 | 2 | 3 | 4)
+          : targetQuarter;
+        updateEntry(entry.id, { fechaFin: targetFecha, quarterEnd });
       }
       return;
     }

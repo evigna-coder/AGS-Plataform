@@ -1,4 +1,4 @@
-import { type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
 import { esTrabajoEnBench } from '../../utils/agendaCellColor';
@@ -27,6 +27,23 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
   entries,
   cellRect,
 }) => {
+  // Scroll con la rueda (2026-08-25): el popover no captura el mouse
+  // (pointerEvents none, ver abajo) así que la rueda tampoco le llegaba y con
+  // muchas OTs la lista quedaba cortada sin forma de deslizar. Mientras el
+  // popover está abierto Y su contenido desborda, la rueda lo scrollea a él —
+  // sin moverse de la celda. Si entra completo, la rueda sigue en la grilla.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const el = scrollRef.current;
+      if (!el || el.scrollHeight <= el.clientHeight) return;
+      el.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, []);
+
   const vh = window.innerHeight;
   const vw = window.innerWidth;
   // Altura estimada REAL (2026-08-03): ~54px por card + padding. El umbral
@@ -61,9 +78,11 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
 
   return (
     <div
+      ref={scrollRef}
       style={style}
       // Transparencia leve + blur: la agenda de fondo se sigue viendo (pedido
-      // 2026-08-03). overflow-y-auto: si ni arriba entra todo, scrollea.
+      // 2026-08-03). overflow-y-auto: si ni arriba entra todo, scrollea (la
+      // rueda entra por el listener de window — ver arriba).
       className="bg-white/90 backdrop-blur-[2px] border border-slate-200 rounded-lg shadow-xl overflow-y-auto"
     >
       <div className="p-1.5 space-y-1">

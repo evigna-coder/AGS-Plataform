@@ -179,10 +179,27 @@ export function buildWeekdayColumns(weekDays: Date[]): GridColumn[] {
  * Calculates the column start/end in the columns array
  * for a given agenda entry within a specific week's columns.
  */
+/**
+ * Rango efectivo de una entrada, con el fin invertido normalizado (2026-08-26).
+ *
+ * Datos con `quarterEnd < quarterStart` en el mismo día existían (resize
+ * soltado sobre un Q anterior, sin guard) y rompían TODO lo que evalúa el
+ * rango: la grilla la escondía (span negativo → null) y el manito de resize no
+ * la encontraba bajo su propia celda — no se podía ni corregir estirándola.
+ * Clampear el fin al inicio la muestra de un cuarto y la deja operable.
+ */
+export function rangoEfectivo(entry: AgendaEntry): AgendaEntry {
+  if (entry.fechaInicio === entry.fechaFin && entry.quarterEnd < entry.quarterStart) {
+    return { ...entry, quarterEnd: entry.quarterStart };
+  }
+  return entry;
+}
+
 export function calculateEntryColumns(
   entry: AgendaEntry,
   columns: GridColumn[],
 ): { startIdx: number; endIdx: number } | null {
+  entry = rangoEfectivo(entry);
   const entryStart = parseISO(entry.fechaInicio);
   const entryEnd = parseISO(entry.fechaFin);
 
@@ -295,7 +312,10 @@ export interface SelectedCell {
 export function findEntriesAtCell(
   entries: AgendaEntry[], ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4,
 ): AgendaEntry[] {
-  return entries.filter(e => {
+  return entries.filter(raw => {
+    // Rango invertido normalizado — misma razón que en calculateEntryColumns:
+    // sin esto el resize no encontraba la entrada bajo su propia celda.
+    const e = rangoEfectivo(raw);
     if (e.ingenieroId !== ingenieroId) return false;
     if (fecha < e.fechaInicio || fecha > e.fechaFin) return false;
     if (fecha === e.fechaInicio && quarter < e.quarterStart) return false;
