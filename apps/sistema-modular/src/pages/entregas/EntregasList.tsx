@@ -72,7 +72,7 @@ export const EntregasList: React.FC = () => {
       if (filters.estadoImp && r.importacionEstado !== filters.estadoImp) return false;
       if (term) {
         const hay = [
-          r.descripcion, r.presupuestoNumero,
+          r.codigoProducto ?? '', r.descripcion, r.presupuestoNumero,
           r.otNumeroVinculada ?? '', r.ocNumero ?? '',
           r.importacionNumero ?? '', r.clienteNombre,
         ].join(' ').toLowerCase();
