@@ -46,6 +46,28 @@ async function resolveDefaultResponsableForArea(
 
 export const leadsService = {
   /**
+   * Resuelve el responsable de Materiales (adminConfig/flujos.usuarioMaterialesId).
+   * Los avisos operativos de materiales (p.ej. "Reservar stock físicamente") viven
+   * en el área `admin_soporte`, pero su dueño real es Materiales — no el responsable
+   * por defecto del área. Devuelve null si no está configurado, no existe o está
+   * inactivo; en ese caso el ticket cae al default del área. Falla soft.
+   */
+  async getResponsableMateriales(): Promise<{ id: string; displayName: string } | null> {
+    try {
+      const { adminConfigService } = await import('./adminConfigService');
+      const { usuariosService } = await import('./personalService');
+      const cfg = await adminConfigService.getWithDefaults();
+      if (!cfg.usuarioMaterialesId) return null;
+      const user = await usuariosService.getById(cfg.usuarioMaterialesId);
+      if (!user || user.status !== 'activo') return null;
+      return { id: user.id, displayName: user.displayName };
+    } catch (err) {
+      console.warn('[getResponsableMateriales] failed:', err);
+      return null;
+    }
+  },
+
+  /**
    * Extrae la parte numérica de un numero de ticket: "TKT-00042" → 42.
    * Devuelve 0 si el formato no matchea (tickets legacy sin numero).
    */
@@ -942,4 +964,5 @@ export const leadsService = {
       skippedSinDefault, skippedAreaSistema, skippedUsuarioInactivo, detalleAsignados,
     };
   },
+
 };

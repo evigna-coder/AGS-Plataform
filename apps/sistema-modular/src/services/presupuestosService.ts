@@ -1520,6 +1520,9 @@ export const presupuestosService = {
       // 'materiales' (leadsService.create resuelve responsablePorArea). Best-effort.
       if (reservasResumen.length > 0) {
         try {
+          // El área es admin de soporte, pero el dueño del aviso es Materiales
+          // (usuarioMaterialesId), no el responsable por defecto del área.
+          const responsableMateriales = await leadsService.getResponsableMateriales();
           await leadsService.create({
             clienteId: pres.clienteId ?? null,
             contactoId: null,
@@ -1535,8 +1538,8 @@ export const presupuestosService = {
             moduloId: null,
             estado: 'nuevo',
             postas: [],
-            asignadoA: null,
-            asignadoNombre: null,
+            asignadoA: responsableMateriales?.id ?? null,
+            asignadoNombre: responsableMateriales?.displayName ?? null,
             derivadoPor: actor?.uid ?? null,
             // Regla de áreas 2026-08-05: reserva de materiales va a ADMIN de
             // soporte técnico (antes 'materiales').
