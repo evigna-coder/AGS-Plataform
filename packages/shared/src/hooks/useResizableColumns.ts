@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 export type ColAlign = 'left' | 'center' | 'right';
 
@@ -46,6 +46,31 @@ export function useResizableColumns(storageKey?: string) {
       try { localStorage.setItem(`col-widths:${storageKey}`, JSON.stringify(widths)); } catch {}
     }
   }, [storageKey]);
+
+  // Ajuste al contenedor (2026-08-25): los anchos persistidos son píxeles
+  // absolutos. Restaurados en una ventana más angosta (o tras un autofit sobre
+  // contenido largo) su suma supera el contenedor, y con table-fixed la tabla
+  // se sale del margen — la última columna (Acciones) quedaba inalcanzable y
+  // el arrastre no lo arregla porque es suma-cero entre columnas vecinas.
+  // Se re-escalan proporcionalmente para que la suma entre en el ancho real.
+  useEffect(() => {
+    const fit = () => {
+      const parent = tableRef.current?.parentElement;
+      if (!parent) return;
+      setColWidths(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const avail = parent.clientWidth;
+        if (avail <= 0) return prev;
+        const sum = prev.reduce((a, b) => a + b, 0);
+        if (sum <= 0 || Math.abs(sum - avail) < 2) return prev;
+        return prev.map(w => Math.max(40, (w / sum) * avail));
+      });
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Helper: read current pixel widths from the DOM */
   const readCurrentWidths = useCallback((): number[] => {
