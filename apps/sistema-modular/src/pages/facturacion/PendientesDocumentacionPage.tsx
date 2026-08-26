@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { WorkOrder, RequisitoFacturacion } from '@ags/shared';
 import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
-import { ordenesTrabajoService } from '../../services/firebaseService';
+import { ordenesTrabajoService, establecimientosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -19,25 +19,36 @@ import { PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS } from '../../utils/exports/exp
 interface Grupo {
   clienteId: string;
   clienteNombre: string;
+  /** Establecimiento del grupo (2026-08-25): la documentación se gestiona por
+   *  planta — cada sede de YPF certifica lo suyo — así que la cola agrupa por
+   *  cliente + establecimiento, no solo por cliente. */
+  establecimientoId: string;
+  establecimientoNombre: string | null;
   requisito: RequisitoFacturacion;
   ots: WorkOrder[];
 }
 
-function agrupar(ots: WorkOrder[]): Grupo[] {
+function agrupar(ots: WorkOrder[], nombresEstablecimiento: Map<string, string>): Grupo[] {
   const map = new Map<string, Grupo>();
   for (const ot of ots) {
-    const key = ot.clienteId || 'sin-cliente';
+    const key = `${ot.clienteId || 'sin-cliente'}:${ot.establecimientoId || ''}`;
     if (!map.has(key)) {
       map.set(key, {
         clienteId: ot.clienteId || '',
         clienteNombre: ot.razonSocial || 'Sin cliente',
+        establecimientoId: ot.establecimientoId || '',
+        establecimientoNombre: ot.establecimientoId
+          ? (nombresEstablecimiento.get(ot.establecimientoId) ?? null)
+          : null,
         requisito: ot.requisitoFacturacionPendiente || 'remito_firmado',
         ots: [],
       });
     }
     map.get(key)!.ots.push(ot);
   }
-  return [...map.values()].sort((a, b) => a.clienteNombre.localeCompare(b.clienteNombre));
+  return [...map.values()].sort((a, b) =>
+    a.clienteNombre.localeCompare(b.clienteNombre)
+    || (a.establecimientoNombre ?? '').localeCompare(b.establecimientoNombre ?? ''));
 }
 
 const otLabel = (ot: WorkOrder) => `${ot.sistema || ''}${ot.tipoServicio ? ` · ${ot.tipoServicio}` : ''}`;
@@ -57,15 +68,19 @@ export const PendientesDocumentacionPage = () => {
 
   /** OTs que ya están dentro de un pedido de certificación abierto. */
   const [enCertificacion, setEnCertificacion] = useState<Set<string>>(new Set());
+  /** id → nombre, para rotular los grupos (la OT solo guarda el id). */
+  const [nombresEst, setNombresEst] = useState<Map<string, string>>(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ots, certs] = await Promise.all([
+      const [ots, certs, ests] = await Promise.all([
         ordenesTrabajoService.getRetenidas(),
         certificacionesService.getAbiertas().catch(() => []),
+        establecimientosService.getAll().catch(() => []),
       ]);
       setRetenidas(ots);
+      setNombresEst(new Map(ests.map(e => [e.id, e.nombre])));
       // Una OT ya pedida al cliente NO es un pendiente de armar: aparecía en las
       // dos listas y la de abajo la hacía parecer sin resolver (2026-08-19).
       const pedidas = new Set<string>();
@@ -76,7 +91,7 @@ export const PendientesDocumentacionPage = () => {
 
   useEffect(() => { void load(); }, [load]);
 
-  const grupos = agrupar(retenidas.filter(ot => !enCertificacion.has(ot.otNumber)));
+  const grupos = agrupar(retenidas.filter(ot => !enCertificacion.has(ot.otNumber)), nombresEst);
 
   /**
    * Descartar el requisito documental de una OT (2026-08-19).
@@ -143,10 +158,13 @@ export const PendientesDocumentacionPage = () => {
         ) : grupos.length === 0 ? (
           <p className="text-slate-400 text-sm">No hay OTs retenidas por documentación.</p>
         ) : grupos.map(g => (
-          <Card key={g.clienteId || g.clienteNombre} compact>
+          <Card key={`${g.clienteId || g.clienteNombre}:${g.establecimientoId}`} compact>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-slate-800">{g.clienteNombre}</h3>
+                {(g.establecimientoNombre || g.establecimientoId) && (
+                  <span className="text-xs text-slate-500">— {g.establecimientoNombre ?? 'Establecimiento sin nombre'}</span>
+                )}
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${g.requisito === 'certificacion' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}`}>
                   {REQUISITO_FACTURACION_LABELS[g.requisito]}
                 </span>
