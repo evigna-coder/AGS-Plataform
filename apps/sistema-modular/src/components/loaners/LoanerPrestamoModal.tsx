@@ -67,6 +67,11 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     const d = new Date();
     d.setDate(d.getDate() + 20);
     setFechaRetorno(toDateInput(d));
+    // Prefill con el próximo número del talonario preimpreso (2026-08-26):
+    // era el ÚNICO modal de remitos que lo pedía a mano desde cero.
+    remitosService.getProximoNumeroPreimpreso()
+      .then(n => setNumeroRemito(prev => prev || n))
+      .catch(() => {});
   }, [open]);
 
   useEffect(() => {

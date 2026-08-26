@@ -806,6 +806,14 @@ export const ordenesTrabajoService = {
       } catch (err) {
         console.error('[otService] avanzarOTAsignadaAHija failed (non-blocking):', err);
       }
+      // Loaners prestados vinculados a una hija anterior de esta base: la hija
+      // nueva se suma a sus otIds (la cadena completa queda navegable).
+      try {
+        const { loanersService } = await import('./loanersService');
+        await loanersService.avanzarOTPrestamoAHija(otData.otNumber);
+      } catch (err) {
+        console.error('[otService] avanzarOTPrestamoAHija failed (non-blocking):', err);
+      }
     }
 
     // Loaners: OT sobre módulo AGS → vincular el número al loaner (otIds).

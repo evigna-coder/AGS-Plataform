@@ -361,6 +361,82 @@ export const loanersService = {
     await this.update(loanerId, { otIds: [...actuales, otNumber] });
   },
 
+  /**
+   * Vincula a POSTERIORI un préstamo activo con una OT y/o una ficha (2026-08-26).
+   *
+   * El triple vínculo OT ↔ préstamo ↔ ficha solo se podía declarar AL CREAR
+   * cada pieza; si el préstamo se registraba primero (caso típico: la visita
+   * deja el loaner y recién después se crea la ficha del módulo que se trajo a
+   * bench), quedaba suelto para siempre. Estampa en las dos direcciones:
+   * préstamo.otNumber/fichaId, loaner.otIds y ficha.loanerId.
+   */
+  async vincularPrestamo(loanerId: string, prestamoId: string, links: {
+    otNumber?: string | null;
+    ficha?: { id: string; numero: string } | null;
+  }): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const prestamos = loaner.prestamos.map(p =>
+      p.id === prestamoId
+        ? {
+            ...p,
+            ...(links.otNumber ? { otNumber: links.otNumber } : {}),
+            ...(links.ficha ? { fichaId: links.ficha.id, fichaNumero: links.ficha.numero } : {}),
+          }
+        : p);
+    await this.update(loanerId, { prestamos });
+    if (links.otNumber) await this.vincularOT(loanerId, links.otNumber);
+    if (links.ficha) {
+      const { fichasService } = await import('./fichasService');
+      await fichasService.update(links.ficha.id, {
+        loanerId,
+        loanerCodigo: loaner.codigo,
+      });
+      // Con OT + ficha juntas, armar la CADENA de ítems (2026-08-26): asignar la
+      // OT a los ítems de la ficha que aún no tienen una — eso registra otIds +
+      // historial y activa el avance automático .01 → .02 → … al crearse cada
+      // hija nueva (fichasService.avanzarOTAsignadaAHija) y el asiento del
+      // cierre (syncCierreOT). Sin esto el vínculo quedaba congelado en la hija
+      // elegida.
+      if (links.otNumber) {
+        const ficha = await fichasService.getById(links.ficha.id);
+        for (const item of ficha?.items ?? []) {
+          if (item.otAsignada) continue;
+          try {
+            await fichasService.asignarOTaItem(links.ficha.id, item.id, links.otNumber);
+          } catch (err) {
+            console.warn(`[vincularPrestamo] otAsignada del item ${item.subId}:`, err);
+          }
+        }
+      }
+    }
+  },
+
+  /**
+   * Al crearse una OT hija nueva (ej. 30166.04): si un loaner tiene un préstamo
+   * ACTIVO vinculado a una hija anterior de la misma base, agrega la hija nueva
+   * a `otIds` — el loaner sigue la cadena de ítems de la visita que lo dejó
+   * (2026-08-26). Espejo de fichasService.avanzarOTAsignadaAHija. Best-effort,
+   * la llama otService.create.
+   */
+  async avanzarOTPrestamoAHija(nuevaOtNumber: string): Promise<void> {
+    if (!nuevaOtNumber.includes('.')) return;
+    const base = nuevaOtNumber.split('.')[0];
+    const loaners = await this.getAll();
+    for (const l of loaners) {
+      const prestamoActivo = (l.prestamos ?? []).find(p => p.estado === 'activo');
+      if (!prestamoActivo) continue;
+      const vinculadoABase = (prestamoActivo.otNumber ?? '').startsWith(`${base}.`)
+        || (l.otIds ?? []).some(n => n.startsWith(`${base}.`));
+      if (!vinculadoABase) continue;
+      try {
+        await this.vincularOT(l.id, nuevaOtNumber);
+      } catch (err) {
+        console.warn(`[avanzarOTPrestamoAHija] loaner ${l.codigo}:`, err);
+      }
+    }
+  },
+
   /** Anota en el préstamo el número de la OT de recalificación auto-creada. */
   async setOtRecalificacionEnPrestamo(loanerId: string, prestamoId: string, otNumber: string): Promise<void> {
     const loaner = await this.getById(loanerId);

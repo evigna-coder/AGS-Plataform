@@ -10,6 +10,7 @@ import { LoanerVentaSection } from '../../components/loaners/LoanerVentaSection'
 import { LoanerOTsSection } from '../../components/loaners/LoanerOTsSection';
 import { LoanerFotosSection } from '../../components/loaners/LoanerFotosSection';
 import { LoanerPrestamoModal } from '../../components/loaners/LoanerPrestamoModal';
+import { LoanerVincularModal } from '../../components/loaners/LoanerVincularModal';
 import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucionModal';
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
 import type { IngresoStockExtraccion } from '../../components/loaners/LoanerExtraccionIngresoStock';
@@ -33,6 +34,7 @@ export function LoanerDetail() {
   const [loading, setLoading] = useState(true);
 
   const [prestamoOpen, setPrestamoOpen] = useState(false);
+  const [vincularOpen, setVincularOpen] = useState(false);
   const [devolucionOpen, setDevolucionOpen] = useState(false);
   const [extraccionOpen, setExtraccionOpen] = useState(false);
   const [ventaOpen, setVentaOpen] = useState(false);
@@ -210,7 +212,15 @@ export function LoanerDetail() {
             </>
           )}
           {loaner.estado === 'en_cliente' && prestamoActivo && (
-            <Button variant="primary" size="sm" onClick={() => setDevolucionOpen(true)}>Registrar devolucion</Button>
+            <>
+              <Button variant="primary" size="sm" onClick={() => setDevolucionOpen(true)}>Registrar devolucion</Button>
+              {/* Vincular a posteriori con la OT de la visita y/o la ficha del
+                  equipo traído a bench (2026-08-26): el vínculo solo se podía
+                  declarar al CREAR el préstamo. */}
+              <Button variant="secondary" size="sm" onClick={() => setVincularOpen(true)}>
+                Vincular OT / ficha
+              </Button>
+            </>
           )}
           {loaner.activo && loaner.estado !== 'vendido' && (
             <Button variant="ghost" size="sm" onClick={() => setExtraccionOpen(true)}>Extraer pieza</Button>
@@ -245,6 +255,10 @@ export function LoanerDetail() {
 
       {/* Modals */}
       <LoanerPrestamoModal open={prestamoOpen} onClose={() => setPrestamoOpen(false)} loaner={loaner} onConfirm={handlePrestamo} />
+      {prestamoActivo && (
+        <LoanerVincularModal open={vincularOpen} onClose={() => setVincularOpen(false)}
+          loaner={loaner} prestamo={prestamoActivo} onLinked={() => { /* subscription refresh */ }} />
+      )}
       {prestamoActivo && (
         <LoanerDevolucionModal open={devolucionOpen} onClose={() => setDevolucionOpen(false)} clienteNombre={prestamoActivo.clienteNombre} onConfirm={handleDevolucion} />
       )}
