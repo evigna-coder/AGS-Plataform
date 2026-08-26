@@ -295,6 +295,39 @@ export const fichasService = {
 
     await this.update(fichaId, { items });
 
+    // Resolver la línea del REMITO de salida (2026-08-26). La ficha marcaba el
+    // retorno pero el remito de derivación quedaba "En proveedor externo" para
+    // siempre — las líneas de ficha no tenían evento de vuelta (las de stock lo
+    // resuelve registrarRetornoUnidad y las de loaner marcarLoanerRetornado).
+    // Se marca devuelta la línea de ESTE item en ESE remito y, si no queda nada
+    // pendiente, el remito se completa. Best-effort post-commit.
+    const subIdRecibido = ficha.items.find(it => it.id === itemId)?.subId ?? null;
+    if (derivRecibida?.remitoSalidaId && subIdRecibido) {
+      try {
+        const { remitosService } = await import('./stockService');
+        const remito = await remitosService.getById(derivRecibida.remitoSalidaId);
+        if (remito) {
+          let cambioRemito = false;
+          const itemsRemito = (remito.items ?? []).map(it => {
+            if (it.fichaId === fichaId && it.itemSubId === subIdRecibido && !it.devuelto && !it.consumido) {
+              cambioRemito = true;
+              return { ...it, devuelto: true, fechaDevolucion: now };
+            }
+            return it;
+          });
+          if (cambioRemito) {
+            const todoResuelto = itemsRemito.every(it => it.devuelto || it.consumido);
+            await remitosService.update(remito.id, {
+              items: itemsRemito,
+              ...(todoResuelto ? { estado: 'completado' as const, fechaDevolucion: now } : {}),
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[markDerivacionRecibida] no se pudo resolver el remito de salida:', err);
+      }
+    }
+
     // Calificación pendiente del proveedor (best-effort post-commit,
     // 2026-08-12). Consolidada: UNA por ficha+proveedor — el origenKey dedupea
     // aunque vuelvan varias derivaciones de la misma ficha al mismo proveedor.

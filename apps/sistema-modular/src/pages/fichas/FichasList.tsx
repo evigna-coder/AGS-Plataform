@@ -27,15 +27,22 @@ import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
  * completar todavía), cae al nombre del artículo o descripción libre del item
  * para que la columna no quede vacía.
  */
-function summarizeItems(f: FichaPropiedad): string {
+function summarizeItems(f: FichaPropiedad, catalogoModelos?: Map<string, string>): string {
   const items = f.items ?? [];
   if (items.length === 0) return '';
   const first = items[0];
-  const desc = first.descripcionProblema
+  let desc = first.descripcionProblema
     || first.articuloDescripcion
     || first.descripcionLibre
     || first.subId
     || 'Item';
+  // Ítem cargado solo con el CÓDIGO del módulo (módulo del cliente sin
+  // descripción propia, 2026-08-26): se completa desde el catálogo de
+  // categorías de módulo — "G2614A" → "G2614A — Válvula de inyección…".
+  // Solo cuando el texto entero ES un código del catálogo: una descripción
+  // real nunca matchea.
+  const delCatalogo = catalogoModelos?.get(desc.trim().toUpperCase());
+  if (delCatalogo) desc = `${desc.trim()} — ${delCatalogo}`;
   return items.length === 1 ? desc : `${desc} (+${items.length - 1})`;
 }
 
@@ -87,6 +94,8 @@ export function FichasList() {
 
   const [fichas, setFichas] = useState<FichaPropiedad[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  /** codigo de modelo (upper) → descripción, del catálogo de categorías de módulo. */
+  const [catalogoModelos, setCatalogoModelos] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   // Derivación a proveedor en lote (2026-08-06): un remito con items de fichas
@@ -99,9 +108,18 @@ export function FichasList() {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  // Load reference data (clientes) once
+  // Load reference data (clientes + catálogo de modelos de módulo) once
   useEffect(() => {
     clientesService.getAll().then(setClientes).catch(err => console.error('Error cargando clientes:', err));
+    import('../../services/firebaseService').then(({ categoriasModuloService }) =>
+      categoriasModuloService.getAll().then(cats => {
+        const m = new Map<string, string>();
+        for (const c of cats) for (const mod of c.modelos ?? []) {
+          if (mod.codigo && mod.descripcion) m.set(mod.codigo.trim().toUpperCase(), mod.descripcion.trim());
+        }
+        setCatalogoModelos(m);
+      }),
+    ).catch(err => console.warn('Catálogo de modelos no disponible (descripciones sin enriquecer):', err));
   }, []);
 
   // Subscribe to fichas, re-subscribe when showEntregadas changes
@@ -279,8 +297,8 @@ export function FichasList() {
                       <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>
                     <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={`${f.clienteNombre}${sufijoEstab(f.clienteId, f.establecimientoId)}`}>{f.clienteNombre}{sufijoEstab(f.clienteId, f.establecimientoId)}</td>
-                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={summarizeItems(f)}>
-                      {summarizeItems(f) || <span className="text-slate-300">—</span>}
+                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={summarizeItems(f, catalogoModelos)}>
+                      {summarizeItems(f, catalogoModelos) || <span className="text-slate-300">—</span>}
                     </td>
                     <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(3)}`} title={firstItemModelo(f) ?? ''}>
                       {firstItemModelo(f) || <span className="text-slate-300">—</span>}

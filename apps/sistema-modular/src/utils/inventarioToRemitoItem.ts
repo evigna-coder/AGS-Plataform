@@ -62,13 +62,20 @@ export function inventarioToRemitoItem(
  * imprimir S/C teniendo el código a la vista.
  *
  * Es deliberadamente restrictivo — solo matchea un prefijo que PARECE código:
- * sin espacios, con al menos un dígito, separado por guión largo o medio. Así
+ * sin espacios, con al menos un dígito, separado por guión largo/medio o el
+ * punto medio de las descripciones compuestas ("G2614A · S/N CN54..."). Así
  * "Detector de fluorescencia (FLD) — ..." no se confunde con un código.
+ *
+ * También acepta el texto que ES un código solo (2026-08-26): un módulo del
+ * cliente cargado como "G2614A" pelado salía S/C en el papel teniendo el
+ * modelo a la vista.
  */
-const CODIGO_EN_DESCRIPCION = /^([^\s·]{2,20})\s+[—-]\s+(.+)$/;
+const CODIGO_EN_DESCRIPCION = /^([^\s·]{2,20})\s*[·—-]\s+(.+)$/;
+const CODIGO_SOLO = /^[^\s·]{2,20}$/;
 
 export function partirCodigoDescripcion(texto: string | null | undefined): { codigo: string | null; resto: string } {
   const t = (texto || '').trim();
+  if (CODIGO_SOLO.test(t) && /\d/.test(t)) return { codigo: t, resto: '' };
   const m = t.match(CODIGO_EN_DESCRIPCION);
   if (!m) return { codigo: null, resto: t };
   const posibleCodigo = m[1];

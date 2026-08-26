@@ -183,10 +183,16 @@ export function useFichaItemOptions(open: boolean, clienteId: string) {
     if (value.startsWith('mod:')) {
       const [, sistemaId, moduloId] = value.split(':');
       const entry = modulosCliente.find(mc => mc.sistema.id === sistemaId && mc.modulo.id === moduloId);
+      // El nombre del módulo suele SER su N° de parte ("G2614A"): si parece un
+      // código (sin espacios, con dígito), se estampa como articuloCodigo — sin
+      // esto el remito de la ficha salía "S/C" en la columna Producto (2026-08-26).
+      const nombre = entry?.modulo.nombre?.trim() ?? '';
+      const esCodigo = /^\S{2,20}$/.test(nombre) && /\d/.test(nombre);
       return {
         ...limpio,
         sistemaId,
         moduloId,
+        articuloCodigo: esCodigo ? nombre : '',
         descripcionLibre: entry
           ? [entry.modulo.nombre, entry.modulo.descripcion].filter(Boolean).join(' — ')
           : draft.descripcionLibre,
