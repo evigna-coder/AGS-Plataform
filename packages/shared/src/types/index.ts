@@ -5986,7 +5986,11 @@ export const APP_LABELS: Record<AppId, string> = {
 export const MODULO_GROUPS: { label: string; modulos: ModuloId[] }[] = [
   { label: 'General', modulos: ['dashboard'] },
   { label: 'Comercial', modulos: ['clientes', 'establecimientos', 'ingreso-empresas', 'leads', 'presupuestos', 'contratos', 'facturacion'] },
-  { label: 'Operaciones', modulos: ['ordenes-trabajo', 'equipos', 'agenda', 'pendientes'] },
+  // OJO: todo ModuloId nuevo tiene que entrar acá — el modal de permisos
+  // renderiza ESTOS grupos; un módulo fuera de ellos no se puede otorgar por
+  // override (caso control-semanal, 2026-08-26: existía, tenía ruta y rol
+  // defaults, pero era in-otorgable por usuario).
+  { label: 'Operaciones', modulos: ['ordenes-trabajo', 'equipos', 'agenda', 'pendientes', 'control-semanal'] },
   { label: 'Stock', modulos: ['stock-operacion', 'stock-compras', 'stock-catalogos', 'pagos', 'calificacion-proveedores'] },
   { label: 'Activos propios', modulos: ['instrumentos', 'patrones', 'dispositivos', 'vehiculos', 'fichas', 'loaners'] },
   { label: 'Administración', modulos: ['control-facturas', 'usuarios', 'table-catalog', 'admin'] },
