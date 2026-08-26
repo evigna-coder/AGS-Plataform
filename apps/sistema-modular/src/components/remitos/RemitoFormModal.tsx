@@ -185,15 +185,16 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
 
         <div className="border-t border-slate-200 pt-3">
           <RemitoItemsEditor
-            items={h.items}
+            filas={h.filas}
             unidades={h.unidades}
-            maxCantidad={h.maxCantidad}
             presentacionesPorArticulo={h.presentacionesPorArticulo}
             itemsUnidadPerdida={h.itemsUnidadPerdida}
+            lastAddedId={h.lastAddedId}
             onAdd={h.addUnidad}
             onAddManual={h.addManual}
-            onUpdate={h.updateItem}
-            onRemove={h.removeItem}
+            onUpdateFila={h.updateFila}
+            onRemoveFila={h.removeFila}
+            onSetCantidadFungible={h.setCantidadFungible}
             onNormalizeCantidad={h.normalizarCantidad}
           />
         </div>

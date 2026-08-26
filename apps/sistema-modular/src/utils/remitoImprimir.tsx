@@ -1,4 +1,4 @@
-import type { Remito } from '@ags/shared';
+import type { Remito, RemitoItem } from '@ags/shared';
 import { movimientosAplicarService, remitoMueveStock } from '../services/movimientosAplicar';
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 
@@ -43,6 +43,21 @@ interface OverlayParty {
 }
 
 /**
+ * AGS como transportista (2026-08-25). Cuando la mercadería la lleva un
+ * ingeniero de campo (o nadie cargó un flete), el transporte ES AGS — la
+ * columna salía VACÍA en el papel. Vivía como constante privada del modal de
+ * loaners; ahora es el default de TODO remito sin transportista explícito.
+ */
+export const TRANSPORTISTA_AGS: OverlayParty = {
+  razonSocial: 'AGS Analítica S.A.',
+  domicilio: 'Arenales 605 — Piso 15',
+  localidad: 'Buenos Aires',
+  provincia: 'Buenos Aires',
+  iva: 'Responsable Inscripto',
+  cuit: '30-70861861-2',
+};
+
+/**
  * Núcleo de impresión calibrada (2026-08-06): triplicado silencioso sobre el
  * papel preimpreso con LOS offsets calibrados. Único punto — cualquier remito
  * (stock, ficha, loaner, derivación) imprime por acá para salir igual.
@@ -58,7 +73,7 @@ export async function imprimirRemitoOverlay(opts: {
     <RemitoOverlayPDF
       fecha={opts.fecha}
       destinatario={opts.destinatario}
-      transportista={opts.transportista ?? null}
+      transportista={opts.transportista ?? TRANSPORTISTA_AGS}
       items={opts.items}
       observaciones={opts.observaciones ?? null}
       globalOffsetX={OFFSET_X} globalOffsetY={OFFSET_Y} fieldOffsets={FIELD_OFFSETS}
@@ -143,7 +158,30 @@ export async function imprimirRemitoStock(remito: Remito): Promise<void> {
   const itemsRemito = await enriquecerItemsRemito(remito.items)
     .catch(err => { console.error('[imprimirRemitoStock] enriquecer items falló:', err); return remito.items; });
 
-  const items: RemitoOverlayItem[] = itemsRemito.map((it, i) => ({
+  // Consolidación de fungibles (2026-08-25): el stock sale en varios documentos
+  // (2+1+2) y el remito guarda una línea por documento, pero el papel tiene que
+  // decir UNA línea ×5 — tres renglones iguales gastaban el talonario (11 por
+  // hoja) y confundían al cliente. Se agrupa por lo que IMPRIME la línea
+  // (código + descripción + envase); las líneas con serie nunca se agrupan.
+  const consolidados: RemitoItem[] = [];
+  const porClave = new Map<string, RemitoItem>();
+  for (const it of itemsRemito) {
+    const clave = [
+      getRemitoItemCodigo(it), lineaDescripcionRemito(it),
+      it.presentacion?.codigoParte ?? '', it.presentacion?.factor ?? '',
+      it.tipoItem,
+    ].join('|');
+    const prev = !it.serie ? porClave.get(clave) : undefined;
+    if (prev) {
+      prev.cantidad += it.cantidad;
+    } else {
+      const copia = { ...it };
+      if (!it.serie) porClave.set(clave, copia);
+      consolidados.push(copia);
+    }
+  }
+
+  const items: RemitoOverlayItem[] = consolidados.map((it, i) => ({
     numero: i + 1,
     // Cantidad EN ENVASES si la línea se entrega por presentación (2026-08-14):
     // el papel tiene que decir "5183-2067 · 1", no "5182-0715 · 10".

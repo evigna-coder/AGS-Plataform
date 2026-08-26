@@ -72,6 +72,16 @@ const X_LEFT_AJUSTE = -5 * MM;
 const MAX_CHARS_CAMPO = 54;
 const MAX_RENGLONES_CAMPO = 2;
 
+/**
+ * Corte de la columna TRANSPORTISTA (2026-08-25). Los 54 caracteres están
+ * medidos contra la casilla del DESTINATARIO (columna izquierda); la del
+ * transportista es más angosta y una razón social de ~40 caracteres pasaba el
+ * chequeo sin partirse y se desbordaba del recuadro. Estimado geométrico
+ * (arranca en ~346 pt de los ~595 del A4) — calibrable contra papel real como
+ * el resto de los offsets.
+ */
+const MAX_CHARS_TRANSPORTISTA = 38;
+
 /** Alto de renglón del segundo renglón de un campo (fontSize 9 × 1,05). */
 const FIELD_LINE_H = 9.5;
 
@@ -283,12 +293,14 @@ function valuePos(x: number, y: number, ox: number, oy: number) {
  * El segundo renglón cae `FIELD_LINE_H` abajo — hay ~25 pt hasta la casilla
  * siguiente, así que no la invade.
  */
-function Campo({ x, y, ox, oy, texto }: {
+function Campo({ x, y, ox, oy, texto, max }: {
   x: number; y: number; ox: number; oy: number; texto: string;
+  /** Ancho del renglón en caracteres — default: la casilla del destinatario. */
+  max?: number;
 }) {
   return (
     <>
-      {partirEnRenglones(texto).map((renglon, i) => (
+      {partirEnRenglones(texto, max ?? MAX_CHARS_CAMPO).map((renglon, i) => (
         <Text key={i} style={[styles.field, valuePos(x, y + i * FIELD_LINE_H, ox, oy)]}>{renglon}</Text>
       ))}
     </>
@@ -326,12 +338,12 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
         <>
           {/* +1 mm a la derecha SOLO el nombre (papel real 2026-08-18): la
               casilla del transportista arranca corrida respecto de las de abajo. */}
-          <Campo x={X_VALUE_RIGHT + 1 * MM} y={Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial} ox={ox} oy={oy} texto={transportista.razonSocial} />
-          <Campo x={X_VALUE_RIGHT} y={Y_DOMICILIO + DY_TRANSPORTISTA.domicilio}  ox={ox} oy={oy} texto={transportista.domicilio} />
-          <Campo x={X_VALUE_RIGHT} y={Y_LOCALIDAD + DY_TRANSPORTISTA.localidad}  ox={ox} oy={oy} texto={transportista.localidad} />
-          <Campo x={X_VALUE_RIGHT} y={Y_PROVINCIA + DY_TRANSPORTISTA.provincia}  ox={ox} oy={oy} texto={transportista.provincia} />
-          <Campo x={X_VALUE_RIGHT} y={Y_IVA + DY_TRANSPORTISTA.iva}              ox={ox} oy={oy} texto={transportista.iva} />
-          <Campo x={X_VALUE_RIGHT} y={Y_CUIT + DY_TRANSPORTISTA.cuit}            ox={ox} oy={oy} texto={transportista.cuit} />
+          <Campo x={X_VALUE_RIGHT + 1 * MM} y={Y_RAZON_SOCIAL + DY_TRANSPORTISTA.razonSocial} ox={ox} oy={oy} texto={transportista.razonSocial} max={MAX_CHARS_TRANSPORTISTA} />
+          <Campo x={X_VALUE_RIGHT} y={Y_DOMICILIO + DY_TRANSPORTISTA.domicilio}  ox={ox} oy={oy} texto={transportista.domicilio} max={MAX_CHARS_TRANSPORTISTA} />
+          <Campo x={X_VALUE_RIGHT} y={Y_LOCALIDAD + DY_TRANSPORTISTA.localidad}  ox={ox} oy={oy} texto={transportista.localidad} max={MAX_CHARS_TRANSPORTISTA} />
+          <Campo x={X_VALUE_RIGHT} y={Y_PROVINCIA + DY_TRANSPORTISTA.provincia}  ox={ox} oy={oy} texto={transportista.provincia} max={MAX_CHARS_TRANSPORTISTA} />
+          <Campo x={X_VALUE_RIGHT} y={Y_IVA + DY_TRANSPORTISTA.iva}              ox={ox} oy={oy} texto={transportista.iva} max={MAX_CHARS_TRANSPORTISTA} />
+          <Campo x={X_VALUE_RIGHT} y={Y_CUIT + DY_TRANSPORTISTA.cuit}            ox={ox} oy={oy} texto={transportista.cuit} max={MAX_CHARS_TRANSPORTISTA} />
         </>
       )}
 

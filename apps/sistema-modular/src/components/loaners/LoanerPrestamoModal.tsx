@@ -9,15 +9,8 @@ import { establecimientoUnicoId, loanerEstaIncompleto, loanerPartesFaltantes } f
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { NUMERO_REGEX } from '../../hooks/useGenerarRemito';
 
-/** El préstamo lo transporta AGS. Snapshot, igual que el resto de los remitos. */
-const TRANSPORTISTA_AGS = {
-  razonSocial: 'AGS Analítica S.A.',
-  domicilio: 'Arenales 605 — Piso 15',
-  localidad: 'Buenos Aires',
-  provincia: 'Buenos Aires',
-  iva: 'Responsable Inscripto',
-  cuit: '30-70861861-2',
-};
+// El préstamo lo transporta AGS — constante compartida de la impresión de remitos.
+import { TRANSPORTISTA_AGS } from '../../utils/remitoImprimir';
 
 interface Props {
   open: boolean;

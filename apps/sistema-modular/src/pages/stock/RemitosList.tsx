@@ -73,6 +73,24 @@ export const RemitosList = () => {
     finally { setActingId(null); }
   };
 
+  /**
+   * Completar es un cambio de ESTADO, no una descarga: no descuenta stock ni
+   * resuelve items. Si quedan items pendientes, el remito desaparece del cierre
+   * de OT con la mercadería sin imputar (caso 0001-00017420, 2026-08-25) — se
+   * avisa antes de dejar hacerlo.
+   */
+  const handleCompletar = async (r: Remito) => {
+    const pendientes = (r.items ?? []).filter(it =>
+      !it.devuelto && !it.consumido && it.cantidad - (it.cantidadConsumida ?? 0) > 0);
+    if (pendientes.length > 0 && !confirm(
+      `El remito ${r.numero} tiene ${pendientes.length} ítem(s) sin resolver (ni devueltos ni consumidos).\n\n` +
+      'Completarlo NO descuenta stock, y esas partes dejan de ofrecerse como origen en el cierre de OT.\n' +
+      'Si la mercadería se va a imputar a una OT, dejá el remito como está y descargala desde el cierre.\n\n' +
+      '¿Completar igual?'
+    )) return;
+    await handleEstado(r, 'completado', { fechaDevolucion: new Date().toISOString() });
+  };
+
   /** Entregado en el proveedor: además del remito, estampa la fecha en las
    *  unidades de stock que viajaban (no pasan por ficha). */
   const handleEntregado = async (r: Remito) => {
@@ -424,7 +442,7 @@ export const RemitosList = () => {
                             </button>
                           )}
                           {(r.estado === 'en_transito' || r.estado === 'en_proveedor' || r.estado === 'completado_parcial') && !esDescargable(r) && (
-                            <button onClick={() => void handleEstado(r, 'completado', { fechaDevolucion: new Date().toISOString() })}
+                            <button onClick={() => void handleCompletar(r)}
                               disabled={actingId === r.id}
                               className="text-xs text-green-600 hover:underline font-medium disabled:opacity-40">
                               Completar

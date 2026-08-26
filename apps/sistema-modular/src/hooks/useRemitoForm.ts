@@ -29,6 +29,22 @@ export interface RemitoFormState {
   observaciones: string;
 }
 
+/**
+ * Fila VISIBLE del editor de items (2026-08-25). Una fila fungible (artículo sin
+ * serie) puede agrupar varias líneas internas, cada una atada a su documento de
+ * stock; `cantidad` es la suma y `max` el techo disponible del artículo.
+ */
+export interface RemitoFila {
+  /** Línea plantilla (la primera del grupo) — fuente de los campos editables. */
+  item: RemitoItem;
+  ids: string[];
+  /** Documentos de stock tomados por las líneas de la fila. */
+  unidadIds: string[];
+  cantidad: number;
+  fungible: boolean;
+  max: number | null;
+}
+
 /** Mismo formato que el modal de derivación: 0001-00017405. */
 export const NUMERO_PREIMPRESO_REGEX = /^\d{4}-\d{8}$/;
 
@@ -219,6 +235,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       observaciones: null,
     }]);
     setMaxCantidad(prev => ({ ...prev, [id]: u.cantidad ?? 1 }));
+    setLastAddedId(id);
   }, [unidades, form.tipo]);
 
   /** Ítem manual (sin unidad de stock): no genera movimiento — para bienes que
@@ -296,6 +313,114 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   const removeItem = useCallback((id: string) => {
     setItems(prev => prev.filter(it => it.id !== id));
   }, []);
+
+  // ── Filas fungibles (2026-08-25) ──────────────────────────────────────────
+  // El stock vive en documentos por tanda (2+1+2) y cada línea del remito se ata
+  // a UN documento — necesario para la trazabilidad y el costo por lote. Pero
+  // para un artículo SIN serie es indistinto qué documento sale: mostrar tres
+  // filas de 01018-22707 era ruido puro. La vista agrupa esas líneas en UNA fila
+  // por artículo; el detalle por documento sigue existiendo por dentro.
+
+  /** Última línea agregada — para que el editor enfoque su fila (que puede ser
+   *  una fila agrupada ya existente). */
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+
+  const filas = useMemo<RemitoFila[]>(() => {
+    const out: RemitoFila[] = [];
+    const grupos = new Map<string, RemitoFila>();
+    for (const it of items) {
+      const fungible = !!it.unidadId && !it.serie;
+      if (!fungible) {
+        out.push({ item: it, ids: [it.id], unidadIds: it.unidadId ? [it.unidadId] : [],
+          cantidad: it.cantidad, fungible: false,
+          max: it.unidadId ? (maxCantidad[it.id] ?? null) : null });
+        continue;
+      }
+      const key = `${it.articuloId}|${it.tipoItem}|${it.presentacion?.codigoParte ?? ''}`;
+      const g = grupos.get(key);
+      if (g) { g.ids.push(it.id); g.unidadIds.push(it.unidadId!); g.cantidad += it.cantidad; }
+      else {
+        const f: RemitoFila = { item: it, ids: [it.id], unidadIds: [it.unidadId!], cantidad: it.cantidad, fungible: true, max: null };
+        grupos.set(key, f);
+        out.push(f);
+      }
+    }
+    // Techo de una fila fungible: todo el stock del artículo no usado por OTRAS filas.
+    for (const f of out) {
+      if (!f.fungible) continue;
+      const enOtras = new Set(items.filter(x => !f.ids.includes(x.id)).map(x => x.unidadId).filter(Boolean));
+      f.max = unidades
+        .filter(u => u.articuloId === f.item.articuloId && !enOtras.has(u.id))
+        .reduce((s, u) => s + (u.cantidad ?? 1), 0);
+    }
+    return out;
+  }, [items, unidades, maxCantidad]);
+
+  /** Aplica un patch a todas las líneas de una fila agrupada. */
+  const updateFila = useCallback((ids: string[], patch: Partial<RemitoItem>) => {
+    setItems(prev => prev.map(it => ids.includes(it.id) ? { ...it, ...patch } : it));
+  }, []);
+
+  const removeFila = useCallback((ids: string[]) => {
+    setItems(prev => prev.filter(it => !ids.includes(it.id)));
+  }, []);
+
+  /**
+   * Fija la cantidad de una fila fungible redistribuyéndola FIFO entre los
+   * documentos de stock del artículo (primero los que la fila ya usaba, después
+   * el resto no usado por otras filas). Reconstruye las líneas del grupo en la
+   * posición de la primera.
+   */
+  const setCantidadFungible = useCallback((ids: string[], deseadaRaw: number) => {
+    const grupo = items.filter(x => ids.includes(x.id));
+    if (grupo.length === 0) return;
+    const plantilla = grupo[0];
+    const deseada = Math.max(1, Math.floor(deseadaRaw) || 1);
+    const enOtras = new Set(items.filter(x => !ids.includes(x.id)).map(x => x.unidadId).filter(Boolean));
+    const docsGrupo = grupo
+      .map(g => unidades.find(u => u.id === g.unidadId))
+      .filter((u): u is UnidadStock => !!u);
+    const extras = unidades.filter(u =>
+      u.articuloId === plantilla.articuloId && !enOtras.has(u.id) && !docsGrupo.some(d => d.id === u.id));
+
+    let resto = deseada;
+    const asignaciones: { unidad: UnidadStock; tomar: number }[] = [];
+    for (const u of [...docsGrupo, ...extras]) {
+      if (resto <= 0) break;
+      const tomar = Math.min(resto, u.cantidad ?? 1);
+      asignaciones.push({ unidad: u, tomar });
+      resto -= tomar;
+    }
+    if (resto > 0) {
+      alert(`De ${plantilla.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
+    }
+    const nuevas: RemitoItem[] = asignaciones.map(a => ({
+      id: crypto.randomUUID(),
+      unidadId: a.unidad.id,
+      articuloId: a.unidad.articuloId,
+      articuloCodigo: a.unidad.articuloCodigo,
+      articuloDescripcion: a.unidad.articuloDescripcion,
+      cantidad: a.tomar,
+      tipoItem: plantilla.tipoItem,
+      devuelto: false,
+      serie: null,
+      observaciones: plantilla.observaciones ?? null,
+      ...(plantilla.presentacion ? { presentacion: plantilla.presentacion } : {}),
+    }));
+    setItems(prev => {
+      const idx = prev.findIndex(x => x.id === ids[0]);
+      const sin = prev.filter(x => !ids.includes(x.id));
+      const at = Math.min(idx < 0 ? sin.length : idx, sin.length);
+      return [...sin.slice(0, at), ...nuevas, ...sin.slice(at)];
+    });
+    setMaxCantidad(prev => {
+      const next = { ...prev };
+      for (const id of ids) delete next[id];
+      for (const [i, a] of asignaciones.entries()) next[nuevas[i].id] = a.unidad.cantidad ?? 1;
+      return next;
+    });
+    if (nuevas.length > 0) setLastAddedId(nuevas[0].id);
+  }, [items, unidades]);
 
   /**
    * Ítems atados a una unidad que YA NO está disponible (2026-08-14).
@@ -394,5 +519,6 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
     ingenieros, transportistas, clientes, establecimientosFiltrados, unidades, otsCliente,
     presentacionesPorArticulo, itemsUnidadPerdida,
     addOt, removeOt, addUnidad, addManual, updateItem, removeItem, normalizarCantidad, guardar,
+    filas, updateFila, removeFila, setCantidadFungible, lastAddedId,
   };
 }
