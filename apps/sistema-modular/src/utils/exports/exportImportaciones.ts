@@ -15,6 +15,8 @@ export const IMPORTACIONES_EXPORT_COLUMNS: ExportColumn<Importacion>[] = [
   { header: 'Embarque',    width: 10, get: i => fmtDateShort(i.fechaEmbarque) },
   { header: 'Arribo est.', width: 10, get: i => fmtDateShort(i.fechaEstimadaArribo) },
   { header: 'Arribo real', width: 10, get: i => fmtDateShort(i.fechaArriboReal) },
+  { header: 'Despacho',    width: 10, get: i => fmtDateShort(i.fechaDespacho) },
+  { header: 'Recepción',   width: 10, get: i => fmtDateShort(i.fechaRecepcion) },
   { header: 'Moneda',      width: 8,  get: i => i.giroMoneda || '', align: 'center' },
   { header: 'Monto giro',  width: 12, get: i => i.giroMonto ?? '', align: 'right' },
 ];

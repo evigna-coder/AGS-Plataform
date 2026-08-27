@@ -3584,6 +3584,67 @@ export function costoEsEstimado(u: { costeoConfirmadoAt?: string | null }): bool
   return !u.costeoConfirmadoAt;
 }
 
+export interface PromedioCostoFactor {
+  /** Promedio ponderado por cantidad, en `moneda`. null si ninguna unidad tiene costo. */
+  costo: number | null;
+  moneda: string | null;
+  /** Promedio ponderado del factor de importación. null si ninguna unidad lo tiene. */
+  factor: number | null;
+  /** true si alguna unidad promediada sigue con costeo estimado (sin confirmar). */
+  algunEstimado: boolean;
+  /** Unidades físicas que entraron al promedio (suma de cantidades con costo o factor). */
+  unidades: number;
+}
+
+/**
+ * Promedio ponderado (por cantidad) de costo y factor de importación del stock
+ * VIVO de un artículo (2026-08-27). Es el número que se muestra a nivel
+ * artículo — en el listado de unidades y como referencia al presupuestar; el
+ * detalle por embarque vive en el módulo de importaciones. Solo cuenta unidades
+ * activas en stock (disponible/reservado/asignado/en tránsito). Si conviven
+ * monedas distintas, el costo se promedia solo sobre la moneda dominante
+ * (mezclar USD con ARS daría un número sin sentido); el factor es adimensional
+ * y promedia sobre todas.
+ */
+export function promedioCostoFactor(unidades: Array<Pick<UnidadStock,
+  'cantidad' | 'estado' | 'activo' | 'costoUnitario' | 'costoUnitarioReal'
+  | 'factorImportacion' | 'factorImportacionReal' | 'monedaCosto' | 'costeoConfirmadoAt'>>): PromedioCostoFactor | null {
+  const EN_STOCK = new Set(['disponible', 'reservado', 'asignado', 'en_transito']);
+  const vivas = unidades.filter(u => u.activo !== false && EN_STOCK.has(u.estado));
+
+  // Moneda dominante entre las unidades con costo (por cantidad).
+  const porMoneda = new Map<string, number>();
+  for (const u of vivas) {
+    if (costoUnitarioVigente(u) == null) continue;
+    const m = u.monedaCosto ?? 'USD';
+    porMoneda.set(m, (porMoneda.get(m) ?? 0) + (u.cantidad ?? 1));
+  }
+  const moneda = [...porMoneda.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  let costoSum = 0, costoQty = 0, factorSum = 0, factorQty = 0, algunEstimado = false;
+  const conDato = new Set<(typeof vivas)[number]>();
+  for (const u of vivas) {
+    const qty = u.cantidad ?? 1;
+    const costo = costoUnitarioVigente(u);
+    const factor = factorImportacionVigente(u);
+    if (costo != null && (u.monedaCosto ?? 'USD') === moneda) {
+      costoSum += costo * qty; costoQty += qty; conDato.add(u);
+    }
+    if (factor != null) {
+      factorSum += factor * qty; factorQty += qty; conDato.add(u);
+    }
+    if ((costo != null || factor != null) && costoEsEstimado(u)) algunEstimado = true;
+  }
+  if (costoQty === 0 && factorQty === 0) return null;
+  return {
+    costo: costoQty > 0 ? costoSum / costoQty : null,
+    moneda: costoQty > 0 ? moneda : null,
+    factor: factorQty > 0 ? factorSum / factorQty : null,
+    algunEstimado,
+    unidades: [...conDato].reduce((s, u) => s + (u.cantidad ?? 1), 0),
+  };
+}
+
 export interface PosicionStock {
   id: string;
   codigo: string;
@@ -5458,6 +5519,14 @@ export interface Importacion {
   vepMonto?: number | null;
   vepMoneda?: 'ARS' | 'USD' | null;
   vepFechaPago?: string | null;
+  /**
+   * VEP efectivamente pagado (confirmación explícita, 2026-08-27). Antes el flujo
+   * de fondos lo daba por pagado recién con la impo en 'recibido'; el pago real
+   * ocurre semanas antes (se paga para despachar) y seguía sumando en pendientes.
+   */
+  vepPagado?: boolean | null;
+  /** Fecha en que se efectivizó el pago del VEP (registro de la confirmación). */
+  vepFechaPagado?: string | null;
   // Giro al exterior (pago al proveedor) — suele ser ~30 días post VEP,
   // a veces al momento del VEP. Para la vista de flujo de fondos.
   giroMonto?: number | null;
@@ -5469,6 +5538,8 @@ export interface Importacion {
    * del ingreso a stock). El flujo de fondos solo lo da por cumplido con este flag.
    */
   giroPagado?: boolean | null;
+  /** Fecha en que se efectivizó el giro (registro de la confirmación, 2026-08-27). */
+  giroFechaPagado?: string | null;
   /**
    * % de la mercadería pagado por anticipado (0 = 100% diferido). El giro al exterior
    * (saldo a pagar al proveedor) = valor de factura de la OC × (1 − anticipoPct/100),

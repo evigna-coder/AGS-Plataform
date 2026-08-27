@@ -25,6 +25,12 @@ export interface ImportacionPrefill {
 
 const uuid = () => crypto.randomUUID();
 
+/** Hoy en formato date-input (YYYY-MM-DD, hora local). */
+const hoyISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 /** Convierte ItemOC[] → ItemImportacion[] (todo el embarque por defecto). */
 const itemsFromOC = (items: ItemOC[], ocMoneda: Moneda): ItemImportacion[] =>
   items.map(io => ({
@@ -65,10 +71,10 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [proveedorNombre, setProveedorNombre] = useState('');
   const [monedaOC, setMonedaOC] = useState<Moneda>('USD');
   const [form, setForm] = useState({
-    fechaEmbarque: '', fechaEstimadaArribo: '', incoterm: '', agenteCarga: '',
-    numeroGuia: '', despachoNumero: '', fechaRecepcion: '', tipoCambio: '' as string, paseEurUsd: '' as string,
+    fechaEmbarque: '', fechaEstimadaArribo: '', fechaArriboReal: '', incoterm: '', agenteCarga: '',
+    numeroGuia: '', despachoNumero: '', fechaDespacho: '', fechaRecepcion: '', tipoCambio: '' as string, paseEurUsd: '' as string,
     fleteDeclarado: '' as string, seguroDeclarado: '' as string,
-    vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '',
+    vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '', vepPagado: false,
     giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', giroPagado: false, anticipoPct: '' as string,
     esCourier: false, despachante: '',
     notas: '',
@@ -98,8 +104,10 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
           setForm({
             fechaEmbarque: (data.fechaEmbarque ?? '').slice(0, 10),
             fechaEstimadaArribo: (data.fechaEstimadaArribo ?? '').slice(0, 10),
+            fechaArriboReal: (data.fechaArriboReal ?? '').slice(0, 10),
             incoterm: data.incoterm ?? '', agenteCarga: data.agenteCarga ?? '',
             numeroGuia: data.numeroGuia ?? '', despachoNumero: data.despachoNumero ?? '',
+            fechaDespacho: (data.fechaDespacho ?? '').slice(0, 10),
             fechaRecepcion: (data.fechaRecepcion ?? '').slice(0, 10),
             tipoCambio: data.tipoCambio != null ? String(data.tipoCambio) : '',
             paseEurUsd: data.paseEurUsd != null ? String(data.paseEurUsd) : '',
@@ -107,6 +115,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             seguroDeclarado: data.seguroDeclarado != null ? String(data.seguroDeclarado) : '',
             vepNumero: data.vepNumero ?? '', vepMonto: data.vepMonto != null ? String(data.vepMonto) : '',
             vepMoneda: (data.vepMoneda ?? 'ARS') as Moneda, vepFechaPago: (data.vepFechaPago ?? '').slice(0, 10),
+            vepPagado: data.vepPagado === true,
             giroMonto: data.giroMonto != null ? String(data.giroMonto) : '',
             giroMoneda: (data.giroMoneda ?? data.items?.[0]?.moneda ?? 'USD') as Moneda,
             giroFechaEstimada: (data.giroFechaEstimada ?? '').slice(0, 10),
@@ -256,6 +265,8 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         estado,
         fechaEmbarque: form.fechaEmbarque || null,
         fechaEstimadaArribo: form.fechaEstimadaArribo || null,
+        fechaArriboReal: form.fechaArriboReal || null,
+        fechaDespacho: form.fechaDespacho || null,
         fechaRecepcion: form.fechaRecepcion || null,
         incoterm: form.incoterm || null, agenteCarga: form.agenteCarga || null,
         numeroGuia: form.numeroGuia || null, despachoNumero: form.despachoNumero || null,
@@ -266,9 +277,14 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         factorEmbarque: factorEmbarque ?? null,
         vepNumero: form.vepNumero || null, vepMonto: form.vepMonto ? Number(form.vepMonto) : null,
         vepMoneda: form.vepMoneda, vepFechaPago: form.vepFechaPago || null,
+        vepPagado: form.vepPagado,
+        // Fecha efectiva: se estampa al CONFIRMAR (hoy) y se conserva la original
+        // en ediciones posteriores; desmarcar la borra.
+        vepFechaPagado: form.vepPagado ? ((imp?.vepFechaPagado ?? '').slice(0, 10) || hoyISO()) : null,
         giroMonto: form.giroMonto ? Number(form.giroMonto) : null,
         giroMoneda: form.giroMoneda, giroFechaEstimada: form.giroFechaEstimada || null,
         giroPagado: form.giroPagado,
+        giroFechaPagado: form.giroPagado ? ((imp?.giroFechaPagado ?? '').slice(0, 10) || hoyISO()) : null,
         anticipoPct: form.anticipoPct ? Number(form.anticipoPct) : null,
         esCourier: form.esCourier,
         despachante: form.despachante || null,

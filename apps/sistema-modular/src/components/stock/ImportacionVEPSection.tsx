@@ -41,6 +41,23 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
     }
   };
 
+  // Confirmación explícita del pago (2026-08-27): estampa la fecha efectiva y
+  // saca el VEP de los pendientes del flujo de fondos (vista Pagos VEP).
+  const setPagado = async (pagado: boolean) => {
+    try {
+      setSaving(true);
+      await importacionesService.update(imp.id, {
+        vepPagado: pagado,
+        vepFechaPagado: pagado ? new Date().toISOString().slice(0, 10) : null,
+      });
+      onUpdate();
+    } catch {
+      alert('Error al confirmar el pago');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -62,7 +79,22 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
             <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          <div className="flex items-center gap-2">
+            {imp.vepPagado ? (
+              <>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                  Pagado{imp.vepFechaPagado ? ` el ${formatDate(imp.vepFechaPagado)}` : ''}
+                </span>
+                <button onClick={() => void setPagado(false)} disabled={saving}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline">deshacer</button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => void setPagado(true)} disabled={saving}>
+                Confirmar pago
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          </div>
         )
       }
     >

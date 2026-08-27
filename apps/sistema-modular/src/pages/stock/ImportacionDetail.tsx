@@ -7,6 +7,7 @@ import { ImportacionInfoSidebar } from '../../components/stock/ImportacionInfoSi
 import { ImportacionEmbarqueSection } from '../../components/stock/ImportacionEmbarqueSection';
 import { ImportacionAduanaSection } from '../../components/stock/ImportacionAduanaSection';
 import { ImportacionVEPSection } from '../../components/stock/ImportacionVEPSection';
+import { ImportacionGiroSection } from '../../components/stock/ImportacionGiroSection';
 import { ImportacionGastosSection } from '../../components/stock/ImportacionGastosSection';
 import { ImportacionDocumentosSection } from '../../components/stock/ImportacionDocumentosSection';
 import { ImportacionItemsSection } from '../../components/stock/ImportacionItemsSection';
@@ -180,6 +181,7 @@ No se van a poder ingresar más unidades por este embarque.`,
             <ImportacionEmbarqueSection imp={imp} onUpdate={loadData} />
             <ImportacionAduanaSection imp={imp} onUpdate={loadData} />
             <ImportacionVEPSection imp={imp} onUpdate={loadData} />
+            <ImportacionGiroSection imp={imp} onUpdate={loadData} />
             <ImportacionGastosSection imp={imp} onUpdate={loadData} />
             <ImportacionDocumentosSection imp={imp} onUpdate={loadData} />
           </div>

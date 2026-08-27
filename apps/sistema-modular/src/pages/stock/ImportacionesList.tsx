@@ -3,6 +3,7 @@ import { useImportaciones } from '../../hooks/useImportaciones';
 import { ImportacionModal } from '../../components/stock/ImportacionModal';
 import { ImportacionItemsPanel } from '../../components/stock/ImportacionItemsPanel';
 import { articulosService } from '../../services/stockService';
+import { ImportacionAccionCell } from '../../components/stock/ImportacionAccionCell';
 import type { Articulo } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -41,10 +42,12 @@ export const ImportacionesList = () => {
   const [modalImpId, setModalImpId] = useState<string | null>(null);
   const openImp = (id: string | null) => { setModalImpId(id); setModalOpen(true); };
   const reloadList = () => loadImportaciones(filters.estado ? { estado: filters.estado } : undefined);
-  // v3 (2026-08-07): 6 → 9 columnas (embarque, liberación, despachante). Al
-  // cambiar la cantidad de columnas hay que versionar la key o los anchos
-  // guardados empujan las últimas fuera de la tabla.
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('importaciones-list-v3');
+  // v5 (2026-08-27): 9 → 11 columnas. "Liberación" pasó a llamarse "Despacho"
+  // (siempre mostró fechaDespacho), se agregó "Recepción" (fechaRecepcion) y la
+  // columna "Acción" (confirmación secuencial arribo → VEP → giro). Al cambiar
+  // la cantidad de columnas hay que versionar la key o los anchos guardados
+  // empujan las últimas fuera de la tabla.
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('importaciones-list-v5');
 
   // Detalle desplegable por fila (2026-08-07): artículos con factor individual.
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
@@ -138,15 +141,17 @@ export const ImportacionesList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '17%' }} />
+                  <col style={{ width: '10%' }} />
                   <col style={{ width: '13%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
                   <col style={{ width: '11%' }} />
-                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '10%' }} />
                   <col style={{ width: '9%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '11%' }} />
                 </colgroup>
               )}
               <thead>
@@ -166,10 +171,12 @@ export const ImportacionesList = () => {
                     <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
                     <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={`${thClass} relative ${getAlignClass(5)}`}>Liberación<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} relative ${getAlignClass(6)}`}>Despachante<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} relative ${getAlignClass(7)}`}>Agente de carga<ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} /><div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} relative ${getAlignClass(8)}`}>N° guia<ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} /><div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(5)}`}>Despacho<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(6)}`}>Recepción<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(7)}`}>Despachante<ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} /><div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(8)}`}>Agente de carga<ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} /><div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(9)}`}>N° guia<ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} /><div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(10)}`}>Acciones<ColAlignIcon align={colAligns?.[10] || 'left'} onClick={() => cycleAlign(10)} /><div onMouseDown={e => onResizeStart(10, e)} onDoubleClick={() => onAutoFit(10)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -207,13 +214,17 @@ export const ImportacionesList = () => {
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(3)}`}>{formatDate(imp.fechaEmbarque)}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(4)}`}>{formatDate(imp.fechaEstimadaArribo)}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(5)}`}>{formatDate(imp.fechaDespacho)}</td>
-                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(6)}`}>{imp.despachante || (imp.esCourier ? 'Courier' : '-')}</td>
-                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(7)}`}>{imp.agenteCarga || '-'}</td>
-                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap font-mono ${getAlignClass(8)}`}>{imp.numeroGuia || '-'}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(6)}`}>{formatDate(imp.fechaRecepcion)}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(7)}`}>{imp.despachante || (imp.esCourier ? 'Courier' : '-')}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 truncate ${getAlignClass(8)}`}>{imp.agenteCarga || '-'}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap font-mono ${getAlignClass(9)}`}>{imp.numeroGuia || '-'}</td>
+                    <td className={`text-xs py-2 px-4 whitespace-nowrap ${getAlignClass(10)}`}>
+                      <ImportacionAccionCell imp={imp} onDone={reloadList} />
+                    </td>
                   </tr>
                   {abierta && (
                     <tr>
-                      <td colSpan={9} className="p-0">
+                      <td colSpan={11} className="p-0">
                         <ImportacionItemsPanel imp={imp} articulosById={articulosById} />
                       </td>
                     </tr>

@@ -339,6 +339,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
           <div className="grid grid-cols-3 gap-3">
             <Input inputSize="sm" label="Fecha de carga" type="date" value={h.form.fechaEmbarque} onChange={e => h.set('fechaEmbarque', e.target.value)} />
             <Input inputSize="sm" label="Fecha de arribo" type="date" value={h.form.fechaEstimadaArribo} onChange={e => h.set('fechaEstimadaArribo', e.target.value)} />
+            <Input inputSize="sm" label="Arribo real (confirmado)" type="date" value={h.form.fechaArriboReal} onChange={e => h.set('fechaArriboReal', e.target.value)} />
             <div>
               <label className={lbl}>Tipo de cambio (ARS/USD)</label>
               <div className="flex gap-1">
@@ -428,6 +429,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
             </div>
             <Input inputSize="sm" label="N° de guía" value={h.form.numeroGuia} onFocus={selectAll} onChange={e => h.set('numeroGuia', e.target.value)} />
             <Input inputSize="sm" label="Despacho N°" value={h.form.despachoNumero} onFocus={selectAll} onChange={e => h.set('despachoNumero', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de despacho" type="date" value={h.form.fechaDespacho} onChange={e => h.set('fechaDespacho', e.target.value)} />
             <Input inputSize="sm" label="Fecha de recepción" type="date" value={h.form.fechaRecepcion} onChange={e => h.set('fechaRecepcion', e.target.value)} />
           </div>
 
@@ -450,7 +452,16 @@ No se van a poder ingresar mas unidades por este embarque.`,
 
           {/* VEP — flujo de fondos. Monto mostrado en ARS y USD vía TC mayorista. */}
           <div className="border-t border-slate-200 pt-3">
-            <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">VEP</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">VEP</p>
+              {/* Confirmación explícita: saca el VEP de los pendientes del flujo de fondos. */}
+              <label className="flex items-center gap-1.5 text-[10px] text-slate-600 cursor-pointer select-none">
+                <input type="checkbox" checked={h.form.vepPagado}
+                  onChange={e => h.set('vepPagado', e.target.checked)}
+                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                VEP pagado{h.imp?.vepFechaPagado ? ` (el ${h.imp.vepFechaPagado.slice(0, 10).split('-').reverse().join('/')})` : ''}
+              </label>
+            </div>
             <div className="grid grid-cols-4 gap-3 items-start">
               <Input inputSize="sm" label="N° VEP" value={h.form.vepNumero} onFocus={selectAll} onChange={e => h.set('vepNumero', e.target.value)} />
               <div>
@@ -487,7 +498,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
                   <input type="checkbox" checked={h.form.giroPagado}
                     onChange={e => h.set('giroPagado', e.target.checked)}
                     className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
-                  Giro pagado
+                  Giro pagado{h.imp?.giroFechaPagado ? ` (el ${h.imp.giroFechaPagado.slice(0, 10).split('-').reverse().join('/')})` : ''}
                 </label>
                 <button type="button" onClick={giroPostVep} disabled={!h.form.vepFechaPago}
                   className="text-[10px] text-teal-600 hover:underline disabled:text-slate-300">30 días post VEP</button>

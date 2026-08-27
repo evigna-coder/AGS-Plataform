@@ -57,6 +57,23 @@ export const ImportacionEmbarqueSection: React.FC<Props> = ({ imp, onUpdate }) =
     return `${dd}/${m}/${y}`;
   };
 
+  // Confirmación del arribo (2026-08-27): estampa hoy como arribo real y saca
+  // el evento "arribo" de los próximos en el flujo de fondos (vista Pagos VEP).
+  const confirmarArribo = async () => {
+    try {
+      setSaving(true);
+      const d = new Date();
+      const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      await importacionesService.update(imp.id, { fechaArriboReal: hoy });
+      setForm(prev => ({ ...prev, fechaArriboReal: hoy }));
+      onUpdate();
+    } catch {
+      alert('Error al confirmar el arribo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Card
       title="Embarque"
@@ -68,7 +85,18 @@ export const ImportacionEmbarqueSection: React.FC<Props> = ({ imp, onUpdate }) =
             <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          <div className="flex items-center gap-2">
+            {imp.fechaArriboReal ? (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                Arribó el {formatDate(imp.fechaArriboReal)}
+              </span>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => void confirmarArribo()} disabled={saving}>
+                Confirmar arribo
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          </div>
         )
       }
     >
