@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo } from '@ags/shared';
-import { MONEDA_SIMBOLO } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, PromedioCostoFactor, Sistema } from '@ags/shared';
+import { MONEDA_SIMBOLO, promedioCostoFactor } from '@ags/shared';
+import { unidadesService } from '../../services/firebaseService';
+import { PromedioStockHint } from './PromedioStockHint';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -25,9 +27,21 @@ interface Props {
    */
   inline?: boolean;
   onClose?: () => void;
+  /** Sistemas del cliente (2026-08-27): cada ítem puede elegir su equipo — un
+   *  ppto de MP+CO de DOS equipos agrupa los ítems por sistema. */
+  sistemas?: Sistema[];
+  /** Prefill del selector de equipo (ej. el único sistema ya vinculado al ppto). */
+  defaultSistemaId?: string | null;
 }
 
 const ITEM_INICIAL: Partial<PresupuestoItem> = { cantidad: 1, unidad: 'unidad' };
+
+/** Campos de equipo del ítem a partir del sistema elegido (multi-sistema 2026-08-27). */
+const sistemaFields = (s: Sistema | null | undefined): Partial<PresupuestoItem> => ({
+  sistemaId: s?.id ?? null,
+  sistemaNombre: s?.nombre ?? null,
+  sistemaCodigoInterno: s?.codigoInternoCliente ?? null,
+});
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const inp = 'w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs';
 
@@ -36,29 +50,46 @@ const inp = 'w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs';
  * (código, descripción, cantidad, precio, dto, factor, categoría con preview de
  * impuestos y disponibilidad). Convive con la carga rápida (wizard).
  */
-export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresupuesto, moneda, onAdd, inline, onClose }: Props) {
+export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresupuesto, moneda, onAdd, inline, onClose, sistemas, defaultSistemaId }: Props) {
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [item, setItem] = useState<Partial<PresupuestoItem>>(ITEM_INICIAL);
+  // Prefill del equipo (único sistema ya vinculado): solo si el ítem no eligió uno.
+  useEffect(() => {
+    if (!defaultSistemaId) return;
+    setItem(prev => prev.sistemaId !== undefined && prev.sistemaId !== null && prev.sistemaId !== ''
+      ? prev
+      : { ...prev, ...sistemaFields((sistemas ?? []).find(s => s.id === defaultSistemaId)) });
+  }, [defaultSistemaId, sistemas]);
   const [seleccion, setSeleccion] = useState('');
   const [disponibilidadTouched, setDisponibilidadTouched] = useState(false);
   const [atpHint, setAtpHint] = useState<{ atp: number } | null>(null);
+  const [promedio, setPromedio] = useState<PromedioCostoFactor | null>(null);
   const prevArticuloId = useRef<string | null | undefined>(undefined);
   // Loop de teclado del modo inline (paridad con el wizard — pedido 2026-07-30):
   // buscar → cantidad → Enter agrega → el foco VUELVE al buscador.
   const searchRef = useRef<HTMLDivElement>(null);
   const cantidadRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
+  // Suscripción en vivo (2026-08-27): un artículo dado de alta en otra pestaña
+  // aparece acá sin cerrar y reabrir el modal (antes: getAll una sola vez + caché).
+  useEffect(() => {
+    const unsub = articulosService.subscribe(undefined, setArticulos, () => {});
+    return unsub;
+  }, []);
 
   const focusBuscador = () => {
     searchRef.current?.querySelector('input')?.focus();
   };
 
   const reset = () => {
-    setItem(ITEM_INICIAL);
+    setItem({
+      ...ITEM_INICIAL,
+      ...(defaultSistemaId ? sistemaFields((sistemas ?? []).find(s => s.id === defaultSistemaId)) : {}),
+    });
     setSeleccion('');
     setDisponibilidadTouched(false);
     setAtpHint(null);
+    setPromedio(null);
     prevArticuloId.current = undefined;
   };
 
@@ -67,6 +98,13 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
     const artId = item.stockArticuloId ?? null;
     if (artId === prevArticuloId.current) return;
     prevArticuloId.current = artId;
+    // Costo/factor promedio del stock vivo (2026-08-27): referencia de precio.
+    setPromedio(null);
+    if (artId) {
+      unidadesService.getByArticulo(artId)
+        .then(us => { if (prevArticuloId.current === artId) setPromedio(promedioCostoFactor(us)); })
+        .catch(() => {});
+    }
     if (disponibilidadTouched) return;
     if (!artId) { setAtpHint(null); return; }
     let cancelled = false;
@@ -158,10 +196,30 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
 
   const campos = (
     <div className="space-y-3">
-      <div ref={searchRef}>
-        <label className={lbl}>Vincular servicio o artículo (opcional, precarga los campos)</label>
-        <SearchableSelect value={seleccion} onChange={applySeleccion} options={searchOptions}
-          placeholder="Buscar servicio o artículo…" />
+      <div className={(sistemas?.length ?? 0) > 0 ? 'grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3' : undefined}>
+        <div ref={searchRef}>
+          <label className={lbl}>Vincular servicio o artículo (opcional, precarga los campos)</label>
+          <SearchableSelect value={seleccion} onChange={applySeleccion} options={searchOptions}
+            placeholder="Buscar servicio o artículo…" />
+        </div>
+        {/* Equipo del ítem (2026-08-27): un ppto puede cubrir VARIOS sistemas
+            (MP + CO de dos equipos) — cada ítem elige el suyo y el PDF agrupa. */}
+        {(sistemas?.length ?? 0) > 0 && (
+          <div>
+            <label className={lbl}>Equipo / sistema (opcional)</label>
+            <SearchableSelect
+              value={item.sistemaId ?? ''}
+              onChange={v => setItem(prev => ({ ...prev, ...sistemaFields((sistemas ?? []).find(s => s.id === v)) }))}
+              options={[
+                { value: '', label: 'Sin equipo (servicios generales)' },
+                ...(sistemas ?? []).map(s => ({
+                  value: s.id,
+                  label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`,
+                })),
+              ]}
+              placeholder="Seleccionar equipo..." />
+          </div>
+        )}
       </div>
       <div className={inline ? 'grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3' : 'space-y-3'}>
         <div>
@@ -194,6 +252,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
           <label className={lbl}>Precio unit. *</label>
           <input type="number" min="0" step="any" value={item.precioUnitario || ''} onFocus={e => e.currentTarget.select()}
             onChange={e => setItem(prev => ({ ...prev, precioUnitario: Number(e.target.value) || 0 }))} className={inp} />
+          {!inline && <PromedioStockHint promedio={promedio} />}
         </div>
         <div>
           <label className={lbl}>Dto %</label>
@@ -217,6 +276,8 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
           </>
         )}
       </div>
+      {/* Inline: la fila de 6 columnas no tiene lugar — el hint va como línea aparte. */}
+      {inline && <PromedioStockHint promedio={promedio} />}
       {!inline && (
         <div className="space-y-3">
           <div>

@@ -122,6 +122,8 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           <CreatePresupuestoItems
             items={h.items} onAdd={h.addItem} onRemove={h.removeItem} onUpdate={h.updateItem}
             categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda}
+            sistemas={h.sistemasFiltrados}
+            defaultSistemaId={h.form.sistemaId && h.form.sistemaId !== '__ALL_SISTEMAS__' ? h.form.sistemaId : null}
             renderSubRow={h.form.tipo === 'ventas' ? (item, idx) => (
               <SubItemsRow item={item} itemNumero={idx} colSpan={h.form.moneda === 'MIXTA' ? 10 : 9}
                 presupuestoId={null} onChangeSubItems={(subs) => h.updateItem(item.id, 'subItems', subs)} />

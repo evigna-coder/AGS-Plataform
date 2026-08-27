@@ -1,41 +1,22 @@
-import { Document, Page, View, Text } from '@react-pdf/renderer';
-import { baseStyles, COLORS } from './pdfStyles';
+import { Document, Page } from '@react-pdf/renderer';
+import { baseStyles } from './pdfStyles';
 import './pdfFonts';
-import { presupuestoTieneValidez } from '@ags/shared';
 import {
   PDFHeader,
   PDFClienteInfo,
   PDFCondiciones,
+  PDFCondicionesFila,
+  PDFTotalesNeto,
   PDFConformidad,
   PDFFooter,
   VentasMetadataBlock,
 } from './PresupuestoPDFEstandar';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
-import { validezHastaFecha } from './pdfUtils';
 import { PDFEquiposItemsTable } from './equipos/PDFEquiposItemsTable';
 import { PDFEquiposConfigDetalles, collectBloquesDetalle } from './equipos/PDFEquiposConfigDetalles';
 
 const S = baseStyles;
-
-/** Tarjeta de validez + forma de pago (mismo contenido que el estándar). */
-function ValidezCard({ data }: { data: PresupuestoPDFData }) {
-  const { presupuesto, condicionPago } = data;
-  return (
-    <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }} wrap={false}>
-      <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
-        {presupuestoTieneValidez(presupuesto.estado)
-          ? `Propuesta válida por ${presupuesto.validezDias || 15} días — hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
-          : 'Presupuesto aceptado'}
-        {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
-      </Text>
-      <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
-        No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de métodos
-        analíticos, repuestos o consumibles no especificados, etc.
-      </Text>
-    </View>
-  );
-}
 
 /**
  * Template de presupuesto tipo 'ventas' (Equipos) — formato JAS170-C.
@@ -64,15 +45,17 @@ export function PresupuestoPDFEquipos({ data }: { data: PresupuestoPDFData }) {
 
         {presupuesto.ventasMetadata && <VentasMetadataBlock metadata={presupuesto.ventasMetadata} />}
 
-        <PDFEquiposItemsTable
-          items={presupuesto.items}
-          moneda={presupuesto.moneda}
-          total={data.totalesPorMoneda[presupuesto.moneda] ?? presupuesto.total ?? 0}
-          montoEnLetras={data.montoEnLetras}
-          impuestos={data.impuestos}
-        />
+        <PDFEquiposItemsTable items={presupuesto.items} />
 
-        <ValidezCard data={data} />
+        {/* Misma caja de totales que partes/servicios (2026-08-27): el
+            protagonista es el valor SIN IVA, con el desglose subordinado. */}
+        <PDFTotalesNeto data={data} />
+
+        {/* Misma fila de condiciones con iconitos que partes/servicios (2026-08-27):
+            almanaque de vigencia, tarjeta de forma de pago, documento de condiciones.
+            El texto de alcance conserva el propio de equipos. */}
+        <PDFCondicionesFila data={data}
+          alcance="No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de métodos analíticos, repuestos o consumibles no especificados, etc." />
 
         {(presupuesto.esquemaFacturacion?.length ?? 0) > 0 && (
           <PdfEsquemaFacturacionSection presupuesto={presupuesto} esquema={presupuesto.esquemaFacturacion!} />

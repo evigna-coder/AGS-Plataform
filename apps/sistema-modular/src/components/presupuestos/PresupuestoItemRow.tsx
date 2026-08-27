@@ -43,8 +43,12 @@ export const PresupuestoItemRow = ({
             className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />
         </td>
         <td className="px-3 py-2">
-          <input value={item.descripcion} onChange={e => onUpdateItem(item.id, 'descripcion', e.target.value)}
-            className="w-full outline-none bg-transparent text-xs" placeholder="Descripcion..." />
+          {/* Textarea (2026-08-27): la descripción admite interlineado — pegar un
+              texto en renglones los conserva (el input los aplastaba) y el PDF
+              respeta los saltos de línea. field-sizing hace crecer la altura. */}
+          <textarea value={item.descripcion} onChange={e => onUpdateItem(item.id, 'descripcion', e.target.value)}
+            rows={1} style={{ fieldSizing: 'content' } as React.CSSProperties}
+            className="w-full outline-none bg-transparent text-xs resize-none" placeholder="Descripcion..." />
         </td>
         <td className="px-2 py-2">
           <input type="number" min="0" step="any" value={item.cantidad}

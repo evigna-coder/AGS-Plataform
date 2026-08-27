@@ -447,19 +447,56 @@ function CondicionSegmento({ icono, label, valor, primero }: {
   );
 }
 
-function PDFTotals({ data }: { data: PresupuestoPDFData }) {
-  const { presupuesto, impuestos, condicionPago } = data;
-  const { moneda, subtotal, total, montoEnLetras } = { ...presupuesto, montoEnLetras: data.montoEnLetras };
+/**
+ * Fila de condiciones con iconitos (almanaque / tarjeta / documento — mockup de
+ * dirección 2026-08-12): vigencia, forma de pago y remisión a condiciones, con
+ * el alcance en cuerpo menor debajo. Extraída de PDFTotals (2026-08-27) para que
+ * el template de EQUIPOS use el mismo formato que partes/servicios.
+ * La validez desaparece una vez aceptado (2026-08-09).
+ */
+export function PDFCondicionesFila({ data, alcance }: { data: PresupuestoPDFData; alcance?: string }) {
+  const { presupuesto, condicionPago } = data;
+  return (
+    <View style={{ marginBottom: 8, borderTopWidth: 0.5, borderTopColor: COLORS.borderLight, paddingTop: 8 }} wrap={false}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+        <CondicionSegmento
+          icono="calendario"
+          label={presupuestoTieneValidez(presupuesto.estado) ? 'Vigencia:' : ''}
+          valor={presupuestoTieneValidez(presupuesto.estado)
+            ? `${presupuesto.validezDias || 15} días — hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
+            : 'Presupuesto aceptado'}
+          primero
+        />
+        {condicionPago ? (
+          <CondicionSegmento
+            icono="tarjeta"
+            label="Forma de pago:"
+            valor={`${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}`}
+          />
+        ) : null}
+        {presupuesto.condicionesComerciales ? (
+          <CondicionSegmento icono="documento" label="Condiciones generales:" valor="ver página 2" />
+        ) : null}
+      </View>
+      <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
+        {alcance ?? 'El servicio comprende exclusivamente el alcance indicado en esta propuesta.'}
+      </Text>
+    </View>
+  );
+}
 
+/**
+ * Caja de totales "D + B" (dirección 2026-08-11): el protagonista es el precio
+ * SIN IVA — caja con tinte azul y borde primario para el neto, y debajo el
+ * desglose IVA + total final como tabla fina gris, visible pero subordinado.
+ * Cierra con el monto en letras. Reforma 2026-08-12: caja y cifra ~25% más
+ * chicas. Exportada (2026-08-27) para que EQUIPOS use el mismo formato.
+ */
+export function PDFTotalesNeto({ data }: { data: PresupuestoPDFData }) {
+  const { presupuesto, impuestos } = data;
+  const { moneda, subtotal, total, montoEnLetras } = { ...presupuesto, montoEnLetras: data.montoEnLetras };
   return (
     <View>
-      {/* Totales — el protagonista es el precio SIN IVA (formato "D + B" elegido
-          por dirección sobre docs/design/presupuesto-totales-alternativas.pen,
-          2026-08-11): caja con tinte azul y borde primario para el neto, y
-          debajo el desglose IVA + total final como tabla fina gris — visible
-          pero subordinado. */}
-      {/* Reforma 2026-08-12: caja y cifra ~25% más chicas — el total se
-          localiza rápido pero no domina la página. */}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
         <View style={{ width: 240 }}>
           {(() => {
@@ -507,36 +544,18 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
 
       {/* Monto en letras */}
       <Text style={[S.monedaLetras, { marginBottom: 8 }]}>{montoEnLetras}</Text>
+    </View>
+  );
+}
 
-      {/* Condiciones comerciales SIN caja gris (reforma 2026-08-12): fila de
-          tres segmentos con iconitos (almanaque / tarjeta / documento, como el
-          mockup de dirección) separados por filetes, y debajo el alcance en
-          cuerpo menor. La validez desaparece una vez aceptado (2026-08-09). */}
-      <View style={{ marginBottom: 8, borderTopWidth: 0.5, borderTopColor: COLORS.borderLight, paddingTop: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-          <CondicionSegmento
-            icono="calendario"
-            label={presupuestoTieneValidez(presupuesto.estado) ? 'Vigencia:' : ''}
-            valor={presupuestoTieneValidez(presupuesto.estado)
-              ? `${presupuesto.validezDias || 15} días — hasta el ${validezHastaFecha(presupuesto.createdAt, presupuesto.validezDias)}`
-              : 'Presupuesto aceptado'}
-            primero
-          />
-          {condicionPago ? (
-            <CondicionSegmento
-              icono="tarjeta"
-              label="Forma de pago:"
-              valor={`${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}`}
-            />
-          ) : null}
-          {presupuesto.condicionesComerciales ? (
-            <CondicionSegmento icono="documento" label="Condiciones generales:" valor="ver página 2" />
-          ) : null}
-        </View>
-        <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
-          El servicio comprende exclusivamente el alcance indicado en esta propuesta.
-        </Text>
-      </View>
+function PDFTotals({ data }: { data: PresupuestoPDFData }) {
+  const { presupuesto } = data;
+
+  return (
+    <View>
+      <PDFTotalesNeto data={data} />
+
+      <PDFCondicionesFila data={data} />
 
       {/* Billing section: Phase 12 esquema (non-contrato) OR legacy cuotas[] (contrato / legacy) */}
       {(presupuesto.esquemaFacturacion?.length ?? 0) > 0 && presupuesto.tipo !== 'contrato' ? (

@@ -46,10 +46,13 @@ export const SubItemEquipoRow = ({
         onChange={e => onUpdate({ cantidad: Number(e.target.value) || 0 })}
         className={`${inputCls} text-center`} />
 
-      <input value={sub.descripcion}
+      {/* Textarea (2026-08-27): admite interlineado — pegar renglones los
+          conserva y el PDF respeta los saltos de línea. */}
+      <textarea value={sub.descripcion}
         onChange={e => onUpdate({ descripcion: e.target.value })}
         placeholder="Descripción corta..."
-        className={inputCls} />
+        rows={1} style={{ fieldSizing: 'content' } as React.CSSProperties}
+        className={`${inputCls} resize-none`} />
 
       <input type="number" min="0" step="any"
         value={sub.precioUnitario ?? ''}

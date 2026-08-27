@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad, PresentacionUsada } from '@ags/shared';
-import { MONEDA_SIMBOLO, cantidadEnUnidadBase } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad, PresentacionUsada, PromedioCostoFactor, Sistema } from '@ags/shared';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { MONEDA_SIMBOLO, cantidadEnUnidadBase, promedioCostoFactor } from '@ags/shared';
+import { unidadesService } from '../../services/firebaseService';
+import { PromedioStockHint } from './PromedioStockHint';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
@@ -16,6 +19,11 @@ interface Props {
   moneda?: string;
   onAdd: (item: Partial<PresupuestoItem>) => void;
   onClose: () => void;
+  /** Sistemas del cliente (2026-08-27): cada ítem puede elegir su equipo — un
+   *  ppto de MP+CO de DOS equipos agrupa los ítems por sistema. */
+  sistemas?: Sistema[];
+  /** Prefill del selector de equipo (ej. el único sistema ya vinculado al ppto). */
+  defaultSistemaId?: string | null;
 }
 
 type Step = 'buscar' | 'cantidad' | 'precio';
@@ -36,7 +44,7 @@ const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 upperca
 const ctrl = 'w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700';
 
 /** Wizard de carga rápida: buscador unificado (servicios + artículos) → cantidad → precio. */
-export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, categoriasPresupuesto, moneda, onAdd, onClose }) => {
+export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, categoriasPresupuesto, moneda, onAdd, onClose, sistemas, defaultSistemaId }) => {
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [step, setStep] = useState<Step>('buscar');
   const [search, setSearch] = useState('');
@@ -49,12 +57,22 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const [precio, setPrecio] = useState<number | null>(null);
   const [descuento, setDescuento] = useState(0);
   const [factor, setFactor] = useState<number | null>(null);
+  // Costo y factor promedio del stock vivo del artículo elegido (2026-08-27):
+  // referencia para poner el precio — antes había que ir a Unidades a buscarlo.
+  const [promedio, setPromedio] = useState<PromedioCostoFactor | null>(null);
+  // Equipo del ítem (2026-08-27): multi-sistema por ítem — MP+CO de dos equipos.
+  const [sistemaSelId, setSistemaSelId] = useState<string>(defaultSistemaId ?? '');
   const [highlightIdx, setHighlightIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const sym = MONEDA_SIMBOLO[(moneda as keyof typeof MONEDA_SIMBOLO) || 'USD'] || '$';
 
-  useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
+  // Suscripción en vivo (2026-08-27): un artículo dado de alta en otra pestaña
+  // aparece acá sin cerrar y reabrir el modal (antes: getAll una sola vez + caché).
+  useEffect(() => {
+    const unsub = articulosService.subscribe(undefined, setArticulos, () => {});
+    return unsub;
+  }, []);
   useEffect(() => {
     const t = setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select?.(); }, 30);
     return () => clearTimeout(t);
@@ -98,6 +116,12 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const selectResultado = (r: Resultado) => {
     setSel(r);
     if (r.precio) setPrecio(r.precio);
+    setPromedio(null);
+    if (r.tipo === 'articulo') {
+      unidadesService.getByArticulo(r.refId)
+        .then(us => setPromedio(promedioCostoFactor(us)))
+        .catch(() => {});
+    }
     // Envases del artículo (Fase 3, 2026-08-13): se cotiza por el N° de parte
     // con el que se vende; el stock se compromete en el pool del base.
     const activas = (r.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0);
@@ -116,6 +140,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const finish = async () => {
     if (!sel) return;
     const catDefault = findCategoriaIvaDefaultId(categoriasPresupuesto);
+    const sistemaSel = (sistemas ?? []).find(s => s.id === sistemaSelId) ?? null;
     const base: Partial<PresupuestoItem> = {
       descripcion: sel.descripcion,
       codigoProducto: sel.codigo,
@@ -124,6 +149,10 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
       descuento: descuento || 0,
       factor: factor ?? null,
       categoriaPresupuestoId: sel.categoriaPresupuestoId || catDefault,
+      // Equipo del ítem: agrupa el ppto por sistema (multi-equipo, 2026-08-27).
+      sistemaId: sistemaSel?.id ?? null,
+      sistemaNombre: sistemaSel?.nombre ?? null,
+      sistemaCodigoInterno: sistemaSel?.codigoInternoCliente ?? null,
     };
     if (sel.tipo === 'concepto') {
       onAdd({ ...base, conceptoServicioId: sel.refId || null, itemRequiereImportacion: false });
@@ -207,6 +236,25 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
             <input ref={inputRef} type="number" min={0} step="any" inputMode="decimal" className={ctrl} value={cantidad}
               onChange={e => setCantidad(Number(e.target.value.replace(',', '.')) || 0)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setStep('precio'); } if (e.key === 'Escape') onClose(); }} />
+            {/* Equipo del ítem (2026-08-27): un ppto puede cubrir VARIOS sistemas
+                (MP + CO de dos equipos) — cada ítem elige el suyo y el PDF los
+                agrupa. Opcional: sin equipo va a "Servicios generales". */}
+            {(sistemas?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <label className={lbl}>Equipo / sistema <span className="text-slate-300 normal-case">(opcional)</span></label>
+                <SearchableSelect
+                  value={sistemaSelId}
+                  onChange={setSistemaSelId}
+                  options={[
+                    { value: '', label: 'Sin equipo (servicios generales)' },
+                    ...(sistemas ?? []).map(s => ({
+                      value: s.id,
+                      label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}`,
+                    })),
+                  ]}
+                  placeholder="Seleccionar equipo..." />
+              </div>
+            )}
             {/* Envase cotizado (Fase 3, 2026-08-13). El precio del paso siguiente
                 es POR ENVASE; el stock se compromete en unidades base. */}
             {presentaciones.length > 0 && (
@@ -243,6 +291,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
             <div>
               <label className={lbl}>Precio unitario ({sym})</label>
               <MoneyInput value={precio} onChange={setPrecio} autoFocus className={ctrl} onEnter={() => void finish()} placeholder="0.00" />
+              <PromedioStockHint promedio={promedio} />
             </div>
             <div>
               <label className={lbl}>Descuento %</label>

@@ -46,18 +46,14 @@ function ItemPrincipalRow({ item, numero }: { item: PresupuestoItem; numero: num
 /**
  * Tabla de items del presupuesto tipo 'ventas' (Equipos) — réplica del formato
  * JAS170-C: item principal, fila "Detalles:", sub-ítems N.1, N.2… (precio vacío
- * si no tienen), items simples, y fila final "Son: <total en letras>" + TOTAL.
+ * si no tienen) e items simples. Los totales NO van acá (2026-08-27): el
+ * template usa la misma caja "TOTAL sin IVA" del estándar (PDFTotalesNeto) —
+ * antes cerraba con una barra de total final propia y quedaba desalineado del
+ * formato D+B que resalta el valor sin IVA.
  */
-export function PDFEquiposItemsTable({ items, moneda, total, montoEnLetras, impuestos }: {
+export function PDFEquiposItemsTable({ items }: {
   items: PresupuestoItem[];
-  moneda: string;
-  /** Total FINAL (neto + impuestos) — lo arma generatePresupuestoPDF. */
-  total: number;
-  montoEnLetras: string;
-  impuestos: { iva21: number; iva105: number; ganancias: number; iibb: number };
 }) {
-  const totalImpuestos = impuestos.iva21 + impuestos.iva105 + impuestos.ganancias + impuestos.iibb;
-  const subtotalItems = items.reduce((s, i) => s + (i.subtotal || 0), 0);
   return (
     <View style={{ marginBottom: 10 }}>
       {/* Header */}
@@ -87,30 +83,6 @@ export function PDFEquiposItemsTable({ items, moneda, total, montoEnLetras, impu
         </View>
       ))}
 
-      {/* Impuestos (si el presupuesto los desglosa por categoría) */}
-      {totalImpuestos > 0 && (
-        <View style={{ borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }}>
-          {([
-            ['Subtotal', subtotalItems] as const,
-            impuestos.iva105 > 0 ? ['I.V.A 10,5%', impuestos.iva105] as const : null,
-            impuestos.iva21 > 0 ? ['I.V.A 21%', impuestos.iva21] as const : null,
-            impuestos.ganancias > 0 ? ['Ganancias', impuestos.ganancias] as const : null,
-            impuestos.iibb > 0 ? ['IIBB', impuestos.iibb] as const : null,
-          ].filter(Boolean) as readonly (readonly [string, number])[]).map(([label, value]) => (
-            <View key={label} style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingVertical: 2.5, paddingHorizontal: 4 }}>
-              <Text style={{ fontSize: 8, color: COLORS.textMuted, marginRight: 10 }}>{label}</Text>
-              <Text style={{ fontSize: 8, color: COLORS.text, width: W.total, textAlign: 'right' }}>{fmt(value)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Fila final: total en letras + TOTAL <moneda> */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingVertical: 7, paddingHorizontal: 8, marginTop: 4, borderRadius: 4 }} wrap={false}>
-        <Text style={{ flex: 1, fontSize: 8, fontStyle: 'italic', color: COLORS.white, paddingRight: 10 }}>{montoEnLetras}</Text>
-        <Text style={{ fontSize: 9.5, fontWeight: 'bold', color: COLORS.white, marginRight: 10 }}>TOTAL {moneda}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 'bold', color: COLORS.white }}>{fmt(total)}</Text>
-      </View>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, useRef, useState } from 'react';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, TipoPresupuesto } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, TipoPresupuesto, Sistema } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -39,6 +39,8 @@ interface PresupuestoItemsTableProps {
   calculateItemTaxes: (item: PresupuestoItem) => { iva: number; ganancias: number; iibb: number; totalImpuestos: number };
   itemsByGrupo?: GrupoSistema[];
   getGrupo?: (sistemaId: string | null | undefined) => number;
+  /** Sistemas del cliente (2026-08-27): habilita elegir el equipo por ítem — multi-sistema. */
+  sistemas?: Sistema[];
   /** Fila extra a renderizar bajo cada item (Equipos: editor de sub-ítems). `index` es 1-based sobre `items`. */
   renderSubRow?: (item: PresupuestoItem, index: number) => React.ReactNode;
 }
@@ -63,7 +65,7 @@ export const PresupuestoItemsTable = ({
   totals, notasTecnicas, tipoPresupuesto,
   onAddItem, onUpdateItem, onRemoveItem,
   onNotasTecnicasChange, calculateItemTaxes,
-  itemsByGrupo, getGrupo, renderSubRow,
+  itemsByGrupo, getGrupo, sistemas, renderSubRow,
 }: PresupuestoItemsTableProps) => {
   const [showWizard, setShowWizard] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
@@ -73,6 +75,18 @@ export const PresupuestoItemsTable = ({
   const sym = MONEDA_SIMBOLO[moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
   const hasGrupos = itemsByGrupo && itemsByGrupo.some(g => g.grupo > 0);
+  // Multi-sistema (2026-08-27): prefill del selector de equipo cuando el ppto ya
+  // tiene UN solo sistema vinculado; y número de grupo para sistemas nuevos.
+  const gruposConSistema = (itemsByGrupo ?? []).filter(g => g.grupo > 0);
+  const defaultSistemaId = gruposConSistema.length === 1 ? gruposConSistema[0].sistemaId : null;
+  const grupoDe = (sistemaId: string | null | undefined): number | null => {
+    if (!getGrupo) return null;
+    if (!sistemaId) return getGrupo(null);
+    const g = getGrupo(sistemaId);
+    if (g > 0) return g;
+    // Sistema que debuta en el ppto: siguiente número de grupo.
+    return Math.max(0, ...gruposConSistema.map(g2 => g2.grupo)) + 1;
+  };
 
   // Alta desde el wizard "Agregar artículo" (servicios + artículos): completa el item con defaults.
   const addFromWizard = (p: Partial<PresupuestoItem>) => {
@@ -93,10 +107,13 @@ export const PresupuestoItemsTable = ({
       codigoProducto: p.codigoProducto ?? null,
       conceptoServicioId: p.conceptoServicioId ?? null,
       stockArticuloId: p.stockArticuloId ?? null,
-      sistemaId: null, sistemaNombre: null, sistemaCodigoInterno: null,
+      // Equipo del ítem (multi-sistema 2026-08-27): lo eligió el form de alta.
+      sistemaId: p.sistemaId ?? null,
+      sistemaNombre: p.sistemaNombre ?? null,
+      sistemaCodigoInterno: p.sistemaCodigoInterno ?? null,
       moduloId: null, moduloNombre: null, moduloSerie: null, moduloMarca: null,
       servicioCode: null, subItem: null, esBonificacion: false,
-      grupo: getGrupo ? getGrupo(null) : null,
+      grupo: grupoDe(p.sistemaId),
       subtotal: descuento ? base * (1 - descuento / 100) : base,
       disponibilidad: p.disponibilidad ?? null,
       etaDiasEstimados: p.etaDiasEstimados ?? null,
@@ -160,6 +177,8 @@ export const PresupuestoItemsTable = ({
             categoriasPresupuesto={categoriasPresupuesto}
             moneda={moneda}
             onAdd={addFromWizard}
+            sistemas={sistemas}
+            defaultSistemaId={defaultSistemaId}
           />
         </div>
 
@@ -210,6 +229,8 @@ export const PresupuestoItemsTable = ({
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
+          sistemas={sistemas}
+          defaultSistemaId={defaultSistemaId}
         />
       )}
     </div>

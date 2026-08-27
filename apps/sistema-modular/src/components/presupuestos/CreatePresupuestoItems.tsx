@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef, useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
@@ -18,9 +18,13 @@ interface Props {
   moneda: MonedaPresupuesto;
   /** Fila extra bajo cada item (Equipos: editor de sub-ítems). `index` es 1-based. */
   renderSubRow?: (item: PresupuestoItem, index: number) => React.ReactNode;
+  /** Sistemas del cliente (2026-08-27): habilita elegir el equipo por ítem — multi-sistema. */
+  sistemas?: Sistema[];
+  /** Prefill del selector de equipo (el sistema elegido a nivel presupuesto). */
+  defaultSistemaId?: string | null;
 }
 
-export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow }: Props) => {
+export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow, sistemas, defaultSistemaId }: Props) => {
   const [showWizard, setShowWizard] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
@@ -65,6 +69,10 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
       conceptoServicioId: p.conceptoServicioId ?? null,
       servicioCode: null,
       stockArticuloId: p.stockArticuloId ?? null,
+      // Equipo del ítem (multi-sistema 2026-08-27): el grupo lo asigna el save.
+      sistemaId: p.sistemaId ?? null,
+      sistemaNombre: p.sistemaNombre ?? null,
+      sistemaCodigoInterno: p.sistemaCodigoInterno ?? null,
       subtotal: descuento ? base * (1 - descuento / 100) : base,
       ...(isMixta ? { moneda: 'USD' } : {}),
     });
@@ -93,6 +101,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
         categoriasPresupuesto={categoriasPresupuesto}
         moneda={moneda}
         onAdd={addFromWizard}
+        sistemas={sistemas}
+        defaultSistemaId={defaultSistemaId}
       />
       {showWizard && (
         <PresupuestoAddItemWizard
@@ -101,6 +111,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
           moneda={moneda}
           onAdd={addFromWizard}
           onClose={closeWizard}
+          sistemas={sistemas}
+          defaultSistemaId={defaultSistemaId}
         />
       )}
 
@@ -129,9 +141,12 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
                   <td className="px-2 py-1 text-[10px] text-slate-400 font-mono text-center">{etiquetaPorItem.get(item.id) ?? ''}</td>
                   <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-2 py-1">
-                    <input value={item.descripcion}
+                    {/* Textarea (2026-08-27): admite interlineado — pegar renglones
+                        los conserva y el PDF respeta los saltos de línea. */}
+                    <textarea value={item.descripcion}
                       onChange={e => onUpdate(item.id, 'descripcion', e.target.value)}
-                      className="w-full outline-none bg-transparent text-xs text-slate-700" />
+                      rows={1} style={{ fieldSizing: 'content' } as React.CSSProperties}
+                      className="w-full outline-none bg-transparent text-xs text-slate-700 resize-none" />
                   </td>
                   <td className="px-1 py-1">
                     <input type="number" min="0" step="any" value={item.cantidad}

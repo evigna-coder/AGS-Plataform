@@ -397,6 +397,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             calculateItemTaxes={calculateItemTaxes}
             itemsByGrupo={itemsByGrupo}
             getGrupo={getGrupo}
+            sistemas={clienteSistemas}
             renderSubRow={form.tipo === 'ventas' ? (item, idx) => (
               <SubItemsRow item={item} itemNumero={idx} colSpan={9} presupuestoId={presupuestoId}
                 onChangeSubItems={(subs) => updateItem(item.id, 'subItems', subs)} />
