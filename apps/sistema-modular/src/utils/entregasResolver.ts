@@ -150,6 +150,14 @@ export interface BuildEntregaRowsInput {
   stockLibrePorArticulo?: Map<string, number>;
   stockReservadoPorPptoArticulo?: Map<string, number>;
   /**
+   * Unidades ya ENTREGADAS desde stock (2026-08-27): `${presupuestoId}:${articuloId}` →
+   * unidades consumidas/entregadas que estaban reservadas para ese presupuesto
+   * (el consumo del cierre de OT conserva `reservadoParaPresupuestoId` como traza).
+   * Cuando cubren la cantidad base del ítem, la fila pasa a 'entregado' sola —
+   * antes solo salían del visor las importaciones recibidas o el tilde manual.
+   */
+  stockEntregadoPorPptoArticulo?: Map<string, number>;
+  /**
    * Ids de las condiciones de pago ANTICIPADAS (2026-08-24).
    *
    * Se pasan resueltas desde el catálogo en vez de hardcodear un id: la
@@ -421,7 +429,15 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         item.etaDiasEstimados ?? null,
       );
       const diasRestantes = etaFecha ? diasEntre(etaFecha, now) : null;
-      const entregado = item.entregadoManual === true || imp?.entregado === true;
+      // Entregado desde stock: lo reservado para este ppto que ya se consumió
+      // (cierre de OT) cubre la cantidad base del ítem.
+      const cantidadBaseItem = cantidadEnUnidadBase(item.cantidad, item.presentacion);
+      const entregadoStock = stockArticuloId
+        ? (input.stockEntregadoPorPptoArticulo?.get(`${ppto.id}:${stockArticuloId}`) ?? 0)
+        : 0;
+      const entregado = item.entregadoManual === true
+        || imp?.entregado === true
+        || (cantidadBaseItem > 0 && entregadoStock >= cantidadBaseItem);
       const semaforo = computeSemaforo(diasRestantes, { entregado });
 
       rows.push({

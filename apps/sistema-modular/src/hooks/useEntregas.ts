@@ -98,6 +98,10 @@ export function useEntregas(): UseEntregasReturn {
       // vive en un minikit o con un ingeniero (no está para entregar en mostrador).
       const stockLibrePorArticulo = new Map<string, number>();
       const stockReservadoPorPptoArticulo = new Map<string, number>();
+      // Entregado desde stock (2026-08-27): el consumo del cierre de OT conserva
+      // reservadoParaPresupuestoId — sumamos lo ya consumido/entregado por
+      // ppto+artículo para que la fila salga sola del visor.
+      const stockEntregadoPorPptoArticulo = new Map<string, number>();
       for (const u of unidades as UnidadStock[]) {
         if (u.activo === false || !u.articuloId) continue;
         const cant = u.cantidad ?? 1;
@@ -106,6 +110,9 @@ export function useEntregas(): UseEntregasReturn {
         } else if (u.estado === 'reservado' && u.reservadoParaPresupuestoId) {
           const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
           stockReservadoPorPptoArticulo.set(k, (stockReservadoPorPptoArticulo.get(k) ?? 0) + cant);
+        } else if ((u.estado === 'consumido' || u.estado === 'entregado') && u.reservadoParaPresupuestoId) {
+          const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
+          stockEntregadoPorPptoArticulo.set(k, (stockEntregadoPorPptoArticulo.get(k) ?? 0) + cant);
         }
       }
 
@@ -117,6 +124,7 @@ export function useEntregas(): UseEntregasReturn {
         clienteNombreById,
         stockLibrePorArticulo,
         stockReservadoPorPptoArticulo,
+        stockEntregadoPorPptoArticulo,
         condicionesAnticipadas,
         ocClienteById,
       });
