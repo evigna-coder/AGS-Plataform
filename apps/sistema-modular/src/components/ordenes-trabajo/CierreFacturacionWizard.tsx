@@ -3,7 +3,7 @@ import { presupuestosService, facturacionService } from '../../services/firebase
 import { ordenesTrabajoService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, SolicitudFacturacion } from '@ags/shared';
-import { MONEDA_SIMBOLO } from '@ags/shared';
+import { MONEDA_SIMBOLO, presupuestoEstaAceptado, ESTADO_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Button } from '../ui/Button';
 
 interface Props {
@@ -97,12 +97,21 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
   const handleEnviarAFacturacion = async (info: PresupuestoInfo) => {
     try {
       setSendingId(info.presupuesto.id);
-      // Re-read del ppto al click: el estado real lo escribe el cierre admin
-      // (otsListasParaFacturar + pendiente_facturacion con la ÚLTIMA OT cerrada).
+      // Re-read del ppto al click: la lista real la escribe el cierre admin
+      // (otsListasParaFacturar con cada OT cerrada). El estado exigido es
+      // "aceptado en adelante", NO el literal 'pendiente_facturacion' (2026-08-27,
+      // caso 30057-30060): un ppto que se acepta DESPUÉS de cerrar sus OTs queda
+      // en 'aceptado' para siempre — el avance a pendiente_facturacion lo hacía
+      // solo el cierre de la última OT, que ya corrió.
       const fresh = await presupuestosService.getById(info.presupuesto.id);
       if (!fresh) throw new Error('Presupuesto no encontrado');
+      if (!presupuestoEstaAceptado(fresh.estado)) {
+        alert(`El presupuesto está "${ESTADO_PRESUPUESTO_LABELS[fresh.estado] ?? fresh.estado}" — `
+          + 'el aviso a facturación se genera recién con el presupuesto aceptado (cargá la OC del cliente o marcalo aceptado).');
+        return;
+      }
       const otsListas = fresh.otsListasParaFacturar ?? [];
-      if (fresh.estado !== 'pendiente_facturacion' || otsListas.length === 0) {
+      if (otsListas.length === 0) {
         alert('El aviso a facturación se habilita al cerrar la última OT del presupuesto. '
           + 'Guardá primero el cierre administrativo de esta OT y volvé a intentar.');
         return;
@@ -133,6 +142,10 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
       {presupuestosInfo.map(info => {
         const hasExisting = info.solicitudesExistentes.length > 0;
         const bloqueada = info.otsPendientes.length > 0;
+        // Sin aceptación no hay nada que facturar (2026-08-27, caso 30057-30060):
+        // un ppto ENVIADO vinculado a OTs cerradas mostraba el botón habilitado —
+        // el guard del server lo frenaba, pero con un mensaje que hablaba de OTs.
+        const noAceptado = !presupuestoEstaAceptado(info.presupuesto.estado);
         const sent = sentIds.has(info.presupuesto.id);
         const sym = MONEDA_SIMBOLO[info.presupuesto.moneda] || '$';
         return (
@@ -150,14 +163,28 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
                 <Button
                   size="sm" variant="outline"
                   onClick={() => handleEnviarAFacturacion(info)}
-                  disabled={sendingId !== null || bloqueada}
-                  title={bloqueada ? 'Se habilita al cerrar la última OT del presupuesto' : undefined}
+                  disabled={sendingId !== null || bloqueada || noAceptado}
+                  title={noAceptado
+                    ? 'El presupuesto todavía no está aceptado'
+                    : bloqueada ? 'Se habilita al cerrar la última OT del presupuesto' : undefined}
                 >
                   {sendingId === info.presupuesto.id ? 'Enviando...' : 'Enviar a facturacion'}
                 </Button>
               )}
             </div>
-            {bloqueada && !sent && (
+            {/* OTs del presupuesto — antes la tarjeta no las mencionaba (2026-08-27). */}
+            {info.otNumbers.length > 0 && (
+              <p className="text-[10px] text-slate-500">
+                OTs vinculadas: <span className="font-mono">{[...info.otNumbers].sort().join(', ')}</span>
+              </p>
+            )}
+            {noAceptado && !sent && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                El presupuesto está "{ESTADO_PRESUPUESTO_LABELS[info.presupuesto.estado] ?? info.presupuesto.estado}" —
+                el aviso a facturación se habilita cuando esté aceptado (cargá la OC del cliente o marcalo aceptado).
+              </p>
+            )}
+            {bloqueada && !sent && !noAceptado && (
               <p className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded">
                 El aviso se habilita al cerrar la última OT del presupuesto.
                 Quedan sin cerrar: {info.otsPendientes.join(', ')}
