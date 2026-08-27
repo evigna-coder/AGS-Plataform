@@ -67,8 +67,14 @@ export function formatMoney(value: number | null | undefined, moneda: MonedaPres
  * vigencia de la OFERTA. Una vez que el cliente aceptó, el presupuesto no
  * puede "vencer" — antes un ppto aceptado o en ejecución se pintaba de rojo
  * como si tuviera un problema comercial.
+ *
+ * `pendiente_oc` NO está (2026-08-27, caso P2-005103-01): es un ACEPTADO al
+ * que solo le falta el papel de la OC — doctrina 2026-08-09, misma que
+ * `presupuestoTieneValidez` en shared. Tenerlo acá hacía que el barrido de
+ * vencidos pudiera anular un aceptado y que el flujo de cargar la OC lo
+ * rechazara "por vencido".
  */
-export const ESTADOS_VALIDEZ_APLICA: string[] = ['borrador', 'enviado', 'pendiente_oc'];
+export const ESTADOS_VALIDEZ_APLICA: string[] = ['borrador', 'enviado'];
 
 /** True si la validez todavía corre para este presupuesto (pre-aceptación). */
 export function validezAplica(p: Pick<Presupuesto, 'estado'>): boolean {
