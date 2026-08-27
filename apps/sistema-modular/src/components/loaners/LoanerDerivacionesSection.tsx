@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { LoanerDerivacion } from '@ags/shared';
+import { diasDesde, semaforoProveedorCls } from '../../utils/loanerSemaforo';
 
 interface Props {
   derivaciones: LoanerDerivacion[];
@@ -52,6 +53,15 @@ export function LoanerDerivacionesSection({ derivaciones }: Props) {
                   }`}>
                     {d.fechaRetorno ? 'Recibido' : 'En proveedor'}
                   </span>
+                  {/* Derivación abierta: días en proveedor con semáforo (2026-08-27). */}
+                  {!d.fechaRetorno && (() => {
+                    const dias = diasDesde(d.fechaEnvio);
+                    return dias != null && (
+                      <span className={`ml-1.5 text-[10px] font-bold ${semaforoProveedorCls(dias)}`} title={`${dias} día(s) en proveedor externo`}>
+                        {dias}d
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-xs">
                   <Link to={`/stock/remitos/${d.remitoId}`} state={fromState} className="text-teal-600 hover:underline">

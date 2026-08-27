@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { PrestamoLoaner } from '@ags/shared';
+import { diasDesde, semaforoPrestamoCls } from '../../utils/loanerSemaforo';
 
 interface Props {
   prestamos: PrestamoLoaner[];
@@ -55,6 +56,15 @@ export function LoanerPrestamosSection({ prestamos }: Props) {
                   }`}>
                     {p.estado === 'activo' ? 'Activo' : p.estado === 'devuelto' ? 'Devuelto' : 'Cancelado'}
                   </span>
+                  {/* Préstamo activo: días en cliente con semáforo (2026-08-27). */}
+                  {p.estado === 'activo' && (() => {
+                    const dias = diasDesde(p.fechaSalida);
+                    return dias != null && (
+                      <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(dias)}`} title={`${dias} día(s) en cliente`}>
+                        {dias}d
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-xs">
                   {p.fichaId ? <Link to={`/fichas/${p.fichaId}`} state={fromState} className="text-teal-600 hover:underline">{p.fichaNumero}</Link> : '-'}

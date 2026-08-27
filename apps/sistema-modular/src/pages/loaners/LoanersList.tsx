@@ -19,6 +19,7 @@ import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { LOANERS_EXPORT_COLUMNS, buildLoanerExportRows } from '../../utils/exports/exportLoaners';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
+import { diasDesde, semaforoPrestamoCls, semaforoProveedorCls } from '../../utils/loanerSemaforo';
 
 const FILTER_SCHEMA = {
   estado: { type: 'string' as const, default: '' },
@@ -26,11 +27,6 @@ const FILTER_SCHEMA = {
 };
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-const ALERTA_DIAS = 30;
-
-function diasPrestamo(fechaSalida: string): number {
-  return Math.floor((Date.now() - new Date(fechaSalida).getTime()) / (1000 * 60 * 60 * 24));
-}
 
 export function LoanersList() {
   const navigate = useNavigate();
@@ -223,8 +219,11 @@ export function LoanersList() {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(l => {
                   const prestamo = getPrestamoActivo(l);
-                  const diasFuera = prestamo ? diasPrestamo(prestamo.fechaSalida) : 0;
-                  const alerta = prestamo && diasFuera > ALERTA_DIAS;
+                  // Semáforo de días SIEMPRE visible (2026-08-27, mismo espíritu
+                  // que tickets): préstamo ≤14 verde / 15-25 naranja / >25 rojo;
+                  // proveedor ≤10 verde / 11-20 naranja / >20 rojo.
+                  const diasFuera = prestamo ? diasDesde(prestamo.fechaSalida) : null;
+                  const diasProveedor = l.enProveedor ? diasDesde(l.enProveedor.fechaEnvio) : null;
 
                   return (
                     <tr key={l.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/loaners/${l.id}`)}>
@@ -240,9 +239,14 @@ export function LoanersList() {
                         <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
                           {ESTADO_LOANER_LABELS[l.estado]}
                         </span>
-                        {alerta && (
-                          <span className="ml-1.5 inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700" title={`${diasFuera} dias en cliente`}>
+                        {diasFuera != null && (
+                          <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(diasFuera)}`} title={`${diasFuera} día(s) en cliente`}>
                             {diasFuera}d
+                          </span>
+                        )}
+                        {diasProveedor != null && (
+                          <span className={`ml-1.5 text-[10px] font-bold ${semaforoProveedorCls(diasProveedor)}`} title={`${diasProveedor} día(s) en proveedor externo`}>
+                            {diasProveedor}d
                           </span>
                         )}
                         {/* Incompleto (2026-08-20): el estado dice DONDE esta, esto dice

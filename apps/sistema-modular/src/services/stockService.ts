@@ -1321,8 +1321,12 @@ export const remitosService = {
           remitoNumero: input.numero,
           fechaEnvio: input.fecha,
           alcance: (l.partes && l.partes.length > 0 ? 'parte' : 'modulo'),
+          // Con el N° de parte adelante (2026-08-27): "G1530-60600 — Electronic
+          // Board · S/N x". Antes solo la descripción y el código se perdía.
           parteDescripcion: l.partes && l.partes.length > 0
-            ? l.partes.map(p => p.descripcion).filter(Boolean).join(', ')
+            ? l.partes
+                .map(p => [p.articuloCodigo, p.descripcion].filter(Boolean).join(' — '))
+                .filter(Boolean).join(', ')
             : null,
         };
         const patch = deepCleanForFirestore({

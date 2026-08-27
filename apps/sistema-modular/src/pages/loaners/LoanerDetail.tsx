@@ -15,6 +15,7 @@ import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucion
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
 import type { IngresoStockExtraccion } from '../../components/loaners/LoanerExtraccionIngresoStock';
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
+import { LoanerRetornoProveedorButton } from '../../components/loaners/LoanerRetornoProveedorButton';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import { iniciarRecalificacion, liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import type { Loaner, VentaLoaner } from '@ags/shared';
@@ -221,6 +222,11 @@ export function LoanerDetail() {
                 Vincular OT / ficha
               </Button>
             </>
+          )}
+          {/* Retorno de proveedor (2026-08-27): módulo completo o parte, resuelve
+              SOLO la línea de este loaner en el remito de derivación en lote. */}
+          {loaner.activo && loaner.enProveedor && (
+            <LoanerRetornoProveedorButton loaner={loaner} />
           )}
           {loaner.activo && loaner.estado !== 'vendido' && (
             <Button variant="ghost" size="sm" onClick={() => setExtraccionOpen(true)}>Extraer pieza</Button>
