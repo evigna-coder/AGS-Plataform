@@ -86,11 +86,22 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       return [...otsDelPresupuesto(p, ots)].some(n => OT_CERRADA.has(estadoPorOt.get(n) ?? ''));
     });
 
-    // OT cerrada lista para facturar pero SIN aviso a facturación generado
-    // (UAT 2026-07-17: el estado dice "pendiente de facturación" pero lo que
-    // falta es el aviso — hay que mostrarlo explícito).
-    const pendientesAviso = presupuestos.filter(p =>
-      p.estado === 'pendiente_facturacion' && !solicitadoIds.has(p.id));
+    // OT cerradas SIN aviso a facturación (ampliado 2026-08-27, caso
+    // P2-005103-01): además de los que ya están en 'pendiente_facturacion',
+    // cuenta los aceptados (pendiente_oc / aceptado / en_ejecucion) cuyas OTs
+    // están TODAS cerradas administrativamente — el trabajo terminó y nadie
+    // avisó. Antes esos quedaban invisibles salvo mirando "todos".
+    const ACEPTADO_FAM = new Set(['pendiente_oc', 'aceptado', 'en_ejecucion']);
+    const OT_CERRADA_ADMIN = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    const pendientesAviso = presupuestos.filter(p => {
+      if (solicitadoIds.has(p.id)) return false;
+      if (p.estado === 'pendiente_facturacion') return true;
+      if (!ACEPTADO_FAM.has(p.estado)) return false;
+      const estados = [...otsDelPresupuesto(p, ots)]
+        .map(n => estadoPorOt.get(n))
+        .filter((e): e is string => e !== undefined);
+      return estados.length > 0 && estados.every(e => OT_CERRADA_ADMIN.has(e));
+    });
 
     // Solicitudes pendientes de facturación
     const solicitudesPendientes = solicitudes.filter(s => s.estado === 'pendiente');
@@ -132,7 +143,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       borradores,
       borradoresConTrabajo,
     };
-  }, [presupuestos, solicitudes]);
+  }, [presupuestos, solicitudes, ots]);
 
   const fmtPipeline = (map: Record<string, number>) =>
     Object.entries(map).filter(([, v]) => v > 0)
@@ -268,9 +279,9 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             onClick={(e) => { e.stopPropagation(); toggle('pendiente_aviso'); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggle('pendiente_aviso'); } }}
             className={`block text-[9px] mt-0.5 text-orange-600 hover:underline truncate ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
-            title="OT cerrada lista para facturar, pero el aviso a facturación no se generó todavía"
+            title="Presupuestos con las OTs ya cerradas y el aviso a facturación sin generar — click para filtrarlos"
           >
-            ⚠ {metrics.pendientesAviso.length} sin aviso
+            ⚠ {metrics.pendientesAviso.length} OT cerradas sin aviso
           </span>
         )}
       </button>

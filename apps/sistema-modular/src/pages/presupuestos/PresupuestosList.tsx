@@ -37,6 +37,7 @@ import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
+import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeOCAdeudada, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
 import { tieneOCAdjunta } from '../../utils/cuotasFacturacion';
@@ -274,9 +275,27 @@ export const PresupuestosList = () => {
     return { activas, pendientes, facturadas };
   }, [solicitudes]);
 
-  // OT cerrada lista para facturar pero sin aviso a facturación generado.
-  const faltaAviso = (p: Presupuesto) =>
-    p.estado === 'pendiente_facturacion' && !solicitudSets.activas.has(p.id);
+  // OT cerradas SIN aviso a facturación (ampliado 2026-08-27, espejo del
+  // dashboard): pendiente_facturacion sin solicitud, MÁS los aceptados
+  // (pendiente_oc / aceptado / en_ejecucion) con TODAS sus OTs cerradas
+  // administrativamente — el trabajo terminó y nadie avisó.
+  const faltaAvisoIds = useMemo(() => {
+    const ACEPTADO_FAM = new Set(['pendiente_oc', 'aceptado', 'en_ejecucion']);
+    const OT_CERRADA_ADMIN = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    const estadoPorOt = new Map(todasOts.map(o => [o.otNumber, o.estadoAdmin ?? '']));
+    const ids = new Set<string>();
+    for (const p of presupuestos) {
+      if (solicitudSets.activas.has(p.id)) continue;
+      if (p.estado === 'pendiente_facturacion') { ids.add(p.id); continue; }
+      if (!ACEPTADO_FAM.has(p.estado)) continue;
+      const estados = [...otsDelPresupuesto(p, todasOts)]
+        .map(n => estadoPorOt.get(n))
+        .filter((e): e is string => e !== undefined);
+      if (estados.length > 0 && estados.every(e => OT_CERRADA_ADMIN.has(e))) ids.add(p.id);
+    }
+    return ids;
+  }, [presupuestos, todasOts, solicitudSets]);
+  const faltaAviso = (p: Presupuesto) => faltaAvisoIds.has(p.id);
 
   // Pptos SIN OC del cliente pero CON al menos una OT cerrada: el trabajo ya se
   // hizo y la OC se debe (UAT 2026-07-17 item 1). Mismo join que la analítica.

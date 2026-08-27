@@ -1253,6 +1253,49 @@ export const presupuestosService = {
       }
     }
 
+    // ── Paso 5a-bis (2026-08-27, caso P2-005103-01 / OT 30042.01): reconciliar
+    // OTs YA CERRADAS al aceptar. El cierre administrativo saltea a los pptos
+    // en borrador al estampar otsListasParaFacturar (correcto: nada vendido
+    // todavía) — pero si la aceptación llega DESPUÉS del cierre, nadie volvía
+    // a registrar esas OTs y el aviso a facturación quedaba mudo para siempre.
+    // Best-effort: un fallo acá no bloquea la aceptación.
+    try {
+      const { ordenesTrabajoService } = await import('./otService');
+      const nums = new Set<string>([
+        ...(pres.otsVinculadasNumbers ?? []),
+        ...(pres.otVinculadaNumber ? [pres.otVinculadaNumber] : []),
+      ]);
+      for (const o of await ordenesTrabajoService.queryByBudget(String(pres.numero))) nums.add(o.otNumber);
+      if (nums.size > 0) {
+        const CERRADA = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+        const estadoPorOt = new Map<string, string>();
+        for (const num of nums) {
+          const o = await ordenesTrabajoService.getByOtNumber(num).catch(() => null);
+          if (o) estadoPorOt.set(num, o.estadoAdmin ?? '');
+        }
+        const cerradas = [...estadoPorOt].filter(([, e]) => CERRADA.has(e)).map(([n]) => n);
+        if (cerradas.length > 0) {
+          const freshP = await this.getById(presupuestoId);
+          const listas = freshP?.otsListasParaFacturar ?? [];
+          const nuevas = cerradas.filter(n => !listas.includes(n));
+          // Padres con hijas presentes no cuentan (contenedores que nunca cierran).
+          const padresConHijas = new Set([...nums].filter(n => n.includes('.')).map(n => n.split('.')[0]));
+          const todasCerradas = [...estadoPorOt]
+            .filter(([n]) => !padresConHijas.has(n))
+            .every(([, e]) => CERRADA.has(e));
+          if (nuevas.length > 0 || (todasCerradas && freshP?.estado !== 'pendiente_facturacion')) {
+            await this.update(presupuestoId, deepCleanForFirestore({
+              ...(nuevas.length > 0 ? { otsListasParaFacturar: [...listas, ...nuevas] } : {}),
+              ...(todasCerradas ? { estado: 'pendiente_facturacion' } : {}),
+            }) as Partial<Presupuesto>);
+            console.log(`[aceptarConRequerimientos] ppto ${pres.numero}: ${nuevas.length} OT(s) ya cerradas registradas para facturar${todasCerradas ? ' — pasa a pendiente_facturacion' : ''}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[aceptarConRequerimientos] reconciliación de OTs cerradas falló:', err);
+    }
+
     // ── Paso 5b: auto-reservar stock disponible + auto-generar requerimientos ──
     // Para cada item con stockArticuloId: reservar unidades disponibles hasta
     // item.cantidad; si la cantidad post-reserva queda bajo articulo.stockMinimo,
