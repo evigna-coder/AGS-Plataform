@@ -117,6 +117,30 @@ export const UnidadesList = () => {
       setLiberandoId(null);
     }
   };
+  // Liberar un grupo unificado del desglose (2026-08-27): misma reserva
+  // desglosada en N tandas idénticas — una confirmación, N liberaciones.
+  const handleLiberarGrupo = async (us: UnidadStock[]) => {
+    const u = us[0];
+    const total = us.reduce((s, x) => s + (x.cantidad ?? 1), 0);
+    const ref = u.reservadoParaPresupuestoNumero ? `\n\nReservadas para ${u.reservadoParaPresupuestoNumero}${u.reservadoParaClienteNombre ? ` (${u.reservadoParaClienteNombre})` : ''}.` : '';
+    if (!await confirm(`¿Liberar la reserva de ${total} unidad(es) de ${u.articuloCodigo}?${ref}\n\nVuelven a Disponible en su ubicación anterior.`)) return;
+    setLiberandoId(u.id);
+    try {
+      for (const unidad of us) {
+        await reservasService.liberar({
+          unidadId: unidad.id,
+          unidad,
+          motivo: 'Liberada manualmente desde Unidades',
+          solicitadoPorNombre: usuario?.displayName || 'Sistema',
+        });
+      }
+    } catch (err) {
+      console.error('Error liberando reservas del grupo:', err);
+      alert(err instanceof Error ? err.message : 'Error al liberar las reservas');
+    } finally {
+      setLiberandoId(null);
+    }
+  };
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
@@ -264,7 +288,7 @@ export const UnidadesList = () => {
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onArticulo={setVerArticuloId} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} />
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
