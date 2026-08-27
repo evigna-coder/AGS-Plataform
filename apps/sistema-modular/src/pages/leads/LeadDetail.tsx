@@ -14,6 +14,7 @@ import { LeadAdjuntosSection } from '../../components/leads/LeadAdjuntosSection'
 import { ContactosTicketSection } from '../../components/leads/ContactosTicketSection';
 import type { ContactoTicket } from '@ags/shared';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
 import { OTResumenModal } from '../../components/ordenes-trabajo/OTResumenModal';
 import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
 import { TicketFacturaCard } from '../../components/control-facturas/TicketFacturaCard';
@@ -32,6 +33,7 @@ export const LeadDetail = () => {
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
+  const [showCrearOT, setShowCrearOT] = useState(false);
   const [resumenOt, setResumenOt] = useState<string | null>(null);
   const [comentario, setComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
@@ -164,16 +166,13 @@ export const LeadDetail = () => {
     setShowCrearPresupuesto(true);
   };
 
+  // Modal de creación, no la página vieja OTNew (2026-08-27): el flujo por
+  // query params abría el formulario de pantalla completa y el ticket no
+  // quedaba vinculado a la OT creada. El modal precarga cliente/equipo/contacto
+  // y estampa leadId — la creación linkea el ticket (leadsService.linkOT).
   const handleCrearOT = () => {
     if (!lead) return;
-    const params = new URLSearchParams();
-    if (lead.clienteId) params.set('cliente', lead.clienteId);
-    if (lead.sistemaId) params.set('sistema', lead.sistemaId);
-    if (lead.moduloId) params.set('modulo', lead.moduloId);
-    if (lead.contacto) params.set('contactoNombre', lead.contacto);
-    if (lead.email) params.set('email', lead.email);
-    params.set('leadId', lead.id);
-    navigate(`/ordenes-trabajo/nuevo?${params.toString()}`);
+    setShowCrearOT(true);
   };
 
   const handleCompletarAccion = async () => {
@@ -399,6 +398,19 @@ export const LeadDetail = () => {
           origenTipo: 'lead',
           origenId: lead.id,
           origenRef: lead.razonSocial,
+        }}
+      />
+      <CreateOTModal
+        open={showCrearOT}
+        onClose={() => setShowCrearOT(false)}
+        onCreated={() => setShowCrearOT(false)}
+        prefill={{
+          clienteId: lead.clienteId || undefined,
+          sistemaId: lead.sistemaId || undefined,
+          moduloId: lead.moduloId || undefined,
+          contactoNombre: lead.contacto || undefined,
+          leadId: lead.id,
+          problemaFallaInicial: lead.descripcion || lead.motivoContacto || undefined,
         }}
       />
     </div>

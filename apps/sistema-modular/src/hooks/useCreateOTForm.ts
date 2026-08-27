@@ -615,6 +615,15 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         }
       }
 
+      // Ticket ↔ OT (2026-08-27): la OT guardaba leadId pero el ticket nunca
+      // recibía el número — creada desde el ticket, la OT no figuraba ahí.
+      // El vínculo va a la HIJA (el trabajo real), misma doctrina que el ppto.
+      if (form.leadId) {
+        await leadsService.linkOT(form.leadId, otHija).catch(err =>
+          console.error('Error vinculando OT al ticket:', err),
+        );
+      }
+
       // Base "presupuesto pendiente": OT creada sin presupuesto aún → ticket a Adm. Soporte
       // (Miguel Barrios) para que prepare y envíe el presupuesto. Best-effort.
       if (form.motivoFacturacion === 'pendiente') {
