@@ -9,6 +9,7 @@ const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 trac
 
 /** Por qué este presupuesto está en el control y qué falta para sacarlo. */
 const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
+  if (row.facturadoEstaSemana) return <p className="text-[10px] text-emerald-700 font-semibold">✓ Facturado esta semana</p>;
   if (row.avisoEnviado) return <p className="text-[10px] text-emerald-600 font-medium">✓ Aviso enviado</p>;
   const items: React.ReactNode[] = [];
   // Aviso parcial (2026-08-20): se pasó una parte a facturar y falta el resto.

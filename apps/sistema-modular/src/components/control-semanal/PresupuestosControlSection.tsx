@@ -47,7 +47,10 @@ export const PresupuestosControlSection: React.FC<Props> = ({
 }) => {
   const [verArrastre, setVerArrastre] = useState(false);
   const enviados = rows.filter(r => r.avisoEnviado);
-  const visibles = mostrarEnviados ? rows : rows.filter(r => !r.avisoEnviado);
+  // Los FACTURADOS de la semana se ven siempre (2026-08-27): son la
+  // confirmación de que lo que tenía que hacerse se hizo — no van detrás
+  // del tilde "mostrar enviados".
+  const visibles = mostrarEnviados ? rows : rows.filter(r => !r.avisoEnviado || r.facturadoEstaSemana);
   const semana = visibles.filter(r => !r.arrastre);
   const arrastre = visibles.filter(r => r.arrastre);
 

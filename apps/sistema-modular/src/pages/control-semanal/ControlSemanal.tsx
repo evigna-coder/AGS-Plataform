@@ -47,7 +47,7 @@ export const ControlSemanal = () => {
   const {
     loading, error, refetch,
     agendaRows, agendaExcluidas, excluirDelControl, tareasSinOT, agendaKpis,
-    entregasPendientes, entregasExcluidas, excluirEntregaDelControl, presupuestoIdByNumero,
+    entregasPendientes, entregasExcluidas, excluirEntregaDelControl, presupuestoIdByNumero, presupuestoPorNumero,
     establecimientoPorOT,
     presupuestoRows, presupuestosExcluidos, excluirPresupuestoDelControl, presupuestoKpis,
     facturacionRows, facturacionKpis,
@@ -214,6 +214,7 @@ export const ControlSemanal = () => {
             <EntregasControlSection
               entregas={entregasPendientes}
               establecimientoPorOT={establecimientoPorOT}
+              presupuestoPorNumero={presupuestoPorNumero}
               onExcluir={quitarEntregaDelControl}
               excluidas={entregasExcluidas.length}
               onVerExcluidas={reponerEntregas}

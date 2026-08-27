@@ -1,11 +1,13 @@
-import { OT_ESTADO_COLORS, OT_ESTADO_LABELS } from '@ags/shared';
-import type { WorkOrder } from '@ags/shared';
+import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, MONEDA_SIMBOLO } from '@ags/shared';
+import type { Presupuesto, WorkOrder } from '@ags/shared';
 import { StatusBadge } from '../ui/StatusBadge';
 
 interface Props {
   entregas: WorkOrder[];
   /** Establecimiento por OT — solo con nombre si el cliente tiene varios (2026-08-20). */
   establecimientoPorOT?: Map<string, string | null>;
+  /** numero de ppto → doc, para la columna Valor (2026-08-27). */
+  presupuestoPorNumero?: Map<string, Presupuesto>;
   onOpenOT: (otNumber: string) => void;
   onOpenPresupuestoNumero?: (numero: string) => void;
   /** Saca la entrega del control de esta semana (se trasladó a la siguiente). */
@@ -37,12 +39,18 @@ const fmtFecha = (v: unknown) => {
  * así que la sección 1 (agenda vs cierre) no las ve: esta lista las mantiene
  * a la vista TODAS las semanas hasta que se entreguen (cierre técnico).
  */
-export const EntregasControlSection: React.FC<Props> = ({ entregas, establecimientoPorOT, onOpenOT, onOpenPresupuestoNumero, onExcluir, excluidas, onVerExcluidas }) => {
+export const EntregasControlSection: React.FC<Props> = ({ entregas, establecimientoPorOT, presupuestoPorNumero, onOpenOT, onOpenPresupuestoNumero, onExcluir, excluidas, onVerExcluidas }) => {
   if (entregas.length === 0) return null;
+  const fmtValor = (num: string) => {
+    const p = presupuestoPorNumero?.get(num);
+    if (!p || p.total == null) return null;
+    const sym = MONEDA_SIMBOLO[p.moneda] || p.moneda || '$';
+    return `${sym} ${p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+  };
   return (
     <section className="space-y-2">
       <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-        1b · Entregas de partes pendientes ({entregas.length}) — no se agendan: figuran acá hasta entregarse
+        1b · Entregas de partes y alquileres pendientes ({entregas.length}) — no se agendan: figuran acá hasta entregarse
       </p>
       <div className="bg-white rounded-xl border border-orange-200 shadow-sm overflow-x-auto">
         <table className="tabla-compacta w-full">
@@ -52,6 +60,7 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, establecimie
               <th className={thClass}>Cliente</th>
               <th className={thClass}>Servicio</th>
               <th className={thClass}>Presupuesto</th>
+              <th className={`${thClass} text-right`}>Valor</th>
               <th className={thClass}>Estado</th>
               <th className={thClass}>Creada</th>
               <th className={thClass} />
@@ -92,6 +101,16 @@ export const EntregasControlSection: React.FC<Props> = ({ entregas, establecimie
                         {num}
                       </button>
                     ))}
+                </td>
+                {/* Valor del ppto (2026-08-27): las entregas/alquileres se controlan
+                    también por la plata que representan. Varios pptos → uno por línea. */}
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  {(ot.budgets ?? []).map(num => fmtValor(num)).filter(Boolean).length === 0
+                    ? <span className="text-[10px] text-slate-300">—</span>
+                    : (ot.budgets ?? []).map(num => {
+                        const v = fmtValor(num);
+                        return v && <div key={num} className="text-[10px] font-mono text-slate-600 tabular-nums">{v}</div>;
+                      })}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <StatusBadge
