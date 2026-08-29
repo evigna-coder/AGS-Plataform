@@ -79,7 +79,10 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
 
           infos.push({
             presupuesto: pres,
-            otNumbers: [...nums],
+            // Sin OTs padre (2026-08-28): son contenedores visuales — en la
+            // tarjeta confundían ("29969, 29969.01" parece dos OTs de trabajo).
+            // Mismo criterio que el gate de otsPendientes.
+            otNumbers: [...nums].filter(n => !padresConHijas.has(n)),
             otsPendientes,
             solicitudesExistentes: solicitudes.filter(s => s.estado !== 'anulada'),
           });
@@ -155,9 +158,14 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
                 <p className="text-xs font-medium text-teal-700">{info.presupuesto.numero}</p>
                 <p className="text-[10px] text-slate-400">{sym} {info.presupuesto.total?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
               </div>
-              {sent ? (
+              {sent || hasExisting ? (
+                // Con una solicitud ACTIVA ya generada (de esta sesión o de un
+                // cierre anterior) no se re-ofrece el botón (2026-08-28): el
+                // segundo click creaba solicitud + ticket duplicados. Si hace
+                // falta re-avisar de verdad, se anula la solicitud desde
+                // Facturación y el botón vuelve.
                 <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
-                  Aviso enviado
+                  {sent ? 'Aviso enviado' : 'Ya enviado a facturación'}
                 </span>
               ) : (
                 <Button

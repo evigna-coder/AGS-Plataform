@@ -2791,6 +2791,13 @@ export const reservasService = {
         solicitadoPorNombre: params.solicitadoPorNombre,
       });
       deducidas += r.deducidas;
+      // Fallo VISIBLE también para posición/patrón (2026-08-28, caso 29960.01):
+      // asignación y remito ya reportaban; este camino se quedaba mudo y la OT
+      // cerraba "bien" con el stock intacto.
+      const pedidas = sel.cantidad ?? 1;
+      if (r.deducidas < pedidas) {
+        fallos.push(`${selection.partCodigo ?? 'item'}: ${pedidas - r.deducidas} u. sin descontar — sin disponible en ${selection.origenNombre || 'la ubicación elegida'}`);
+      }
     }
     return { deducidas, cubiertasPorReserva, fallos };
   },

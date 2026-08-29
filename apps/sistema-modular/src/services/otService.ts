@@ -2028,14 +2028,17 @@ export const ordenesTrabajoService = {
         }
       }
 
-      // ── Auditoría B5: marcar stockDeducido SOLO si se procesó ≥1 unidad, o si se
-      // verificó que no había nada que deducir (sin selecciones y pptos sin items de
-      // stock). Antes se marcaba por la sola existencia de pptos vinculados: una OT
-      // cerrada antes del ingreso de la mercadería quedaba con el flag prendido y 0
-      // unidades descontadas, y el guard de re-entrada bloqueaba el retry para siempre.
+      // ── Auditoría B5: marcar stockDeducido SOLO si se procesó ≥1 unidad. Antes
+      // se marcaba por la sola existencia de pptos vinculados: una OT cerrada antes
+      // del ingreso de la mercadería quedaba con el flag prendido y 0 unidades
+      // descontadas, y el guard de re-entrada bloqueaba el retry para siempre.
+      // 2026-08-28 (caso 29960.01): también se marcaba con "nada que deducir"
+      // (0 selecciones, pptos sin items de stock) — pero si la OT se REABRÍA y el
+      // admin agregaba selecciones, el re-cierre veía el flag y salteaba la
+      // deducción entera. Con 0 procesadas el flag queda apagado SIEMPRE: re-correr
+      // la deducción sin nada que deducir es un no-op, no un doble descuento.
       const hayItemsDeStock = presupuestosPorNumero.some(p => (p?.items ?? []).some(i => i.stockArticuloId));
-      const nadaQueDeducir = stockSelections.length === 0 && !hayItemsDeStock;
-      const marcarDeducido = totalProcesadas > 0 || (presupuestoIds.length > 0 && nadaQueDeducir);
+      const marcarDeducido = totalProcesadas > 0;
 
       // Rastro visible: unidades de ppto que quedaron adeudadas (ni reservadas ni
       // entregadas) en los pptos NO diferidos por I1. Best-effort: si el cálculo
