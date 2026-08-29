@@ -3,6 +3,7 @@ import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shar
 import { minikitsService } from '../services/stockService';
 import { instrumentosService } from '../services/catalogService';
 import { asignacionesService } from '../services/asignacionesService';
+import { esItemInstrumento } from './inventarioToRemitoItem';
 
 /** "termometro" → "Termómetro". Sirve para instrumentos y para patrones. */
 function etiquetaCategoria(categorias: string[] | undefined): string {
@@ -39,7 +40,7 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
       .map(i => (i.minikitCodigo as string).trim().toLowerCase()),
   )];
   const instrumentoIds = [...new Set(
-    items.filter(i => i.tipoEntidad === 'instrumento' && i.instrumentoId)
+    items.filter(i => esItemInstrumento(i) && i.instrumentoId)
       .map(i => i.instrumentoId as string),
   )];
   // Columnas cromatográficas (2026-08-19): el item del remito NO trae ningún
@@ -110,7 +111,7 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
         serie: item.serie || col.serie,
       };
     }
-    if (item.tipoEntidad === 'instrumento' && item.instrumentoId) {
+    if (esItemInstrumento(item) && item.instrumentoId) {
       const ins = instrumentoPorId.get(item.instrumentoId);
       if (!ins) return item;
       // El NOMBRE es el identificador interno (TER-03) y va a Código; qué ES el

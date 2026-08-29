@@ -94,6 +94,10 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
           cantidad: 1,
           tipoItem: 'sale_y_vuelve' as const,
           devuelto: false,
+          // Sin `tipoEntidad` (bug hasta 2026-08-28) los getters de código/
+          // descripción caían a la rama de artículo y el remito quedaba grabado
+          // e impreso con las dos columnas VACÍAS.
+          tipoEntidad: 'instrumento' as const,
           instrumentoId: i.id,
           // `nombre` ES el identificador del instrumento (TER-01, FLO-08): va
           // como código. La descripción dice qué es, sin repetirlo.

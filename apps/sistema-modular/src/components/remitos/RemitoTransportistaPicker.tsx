@@ -4,6 +4,7 @@ import { RemitoPartyFields } from './RemitoPartyFields';
 import { proveedorEsCategoria } from '@ags/shared';
 import type { Proveedor } from '@ags/shared';
 import type { DatosTransportista } from '../../services/stockService';
+import { domicilioSinLocalidadNiProvincia } from '../../utils/domicilioRemito';
 
 export const EMPTY_PARTY: DatosTransportista = {
   razonSocial: '', domicilio: '', localidad: '', provincia: '', iva: '', cuit: '',
@@ -24,11 +25,14 @@ export const EMPTY_PARTY: DatosTransportista = {
  */
 export function partyFromProveedor(p: Proveedor): DatosTransportista {
   const esExterior = p.tipo === 'internacional';
+  const provincia = p.provincia || (esExterior ? (p.pais ?? '') : '');
   return {
     razonSocial: p.nombre,
-    domicilio: p.direccion ?? '',
+    // Sin la localidad/provincia concatenadas (2026-08-28): varios proveedores
+    // tienen la dirección entera en `direccion` y salía repetida en el papel.
+    domicilio: domicilioSinLocalidadNiProvincia(p.direccion, p.localidad, provincia),
     localidad: p.localidad ?? '',
-    provincia: p.provincia || (esExterior ? (p.pais ?? '') : ''),
+    provincia,
     iva: p.condicionIva || (esExterior ? 'Exterior' : ''),
     cuit: p.cuit ?? '',
   };

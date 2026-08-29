@@ -564,16 +564,30 @@ function registerIpcHandlers() {
   });
 
   // Print: imprimir un PDF EN SILENCIO a la impresora predeterminada del sistema.
-  // Ventana oculta que carga el PDF y dispara print({silent:true}) — no se abre nada.
-  // El PDF ya viene con las N copias como páginas (RemitoOverlayPDF copies=3), así que
-  // print imprime esas páginas 1 vez. Devuelve {success, failureReason} para que el
-  // renderer caiga al patrón "abrir PDF" si la impresión falla.
+  // El PDF ya viene con las N copias como páginas (RemitoOverlayPDF copies=3).
+  // Devuelve {success, failureReason} para que el renderer caiga al patrón
+  // "abrir PDF" si la impresión falla.
   // OJO: no se puede validar sin impresora real — cambio de runtime, va por release.
   ipcMain.handle('print:pdf-silent', async (_event, buffer) => {
     const tmpDir = join(os.tmpdir(), 'ags-pdfs');
     if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
     const filePath = join(tmpDir, `remito-print-${Date.now()}.pdf`);
     writeFileSync(filePath, Buffer.from(buffer));
+
+    // SumatraPDF primero (2026-08-28, caso "del triplicado salió solo la hoja 1"):
+    // webContents.print sobre el visor PDF interno imprime lo que alcanzó a
+    // renderizar la ventana oculta — según timing, solo la primera página.
+    // pdf-to-printer manda el ARCHIVO completo a la impresora. copies:1 explícito
+    // porque hay impresoras con default de copias 3 (mismo caso que html-silent)
+    // y las copias ya son páginas del PDF. Fallback: la ventana oculta de siempre.
+    try {
+      const { print } = require('pdf-to-printer');
+      await print(filePath, { copies: 1, scale: 'noscale' });
+      try { unlinkSync(filePath); } catch (_) { /* noop */ }
+      return { success: true, failureReason: null };
+    } catch (err) {
+      console.error('[print:pdf-silent] pdf-to-printer falló, fallback a ventana oculta:', err);
+    }
 
     return await new Promise((resolve) => {
       const printWin = new BrowserWindow({ show: false, webPreferences: { plugins: true } });

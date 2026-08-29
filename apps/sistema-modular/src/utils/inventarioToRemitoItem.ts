@@ -83,12 +83,22 @@ export function partirCodigoDescripcion(texto: string | null | undefined): { cod
   return { codigo: posibleCodigo, resto: m[2].trim() };
 }
 
+/**
+ * Las derivaciones de calibración crearon items SIN `tipoEntidad` hasta el
+ * 2026-08-28: el vínculo `instrumentoId` alcanza para tratarlos como
+ * instrumento — cubre los remitos ya grabados y sus reimpresiones, que sin
+ * esto salían con Código y Descripción vacíos.
+ */
+export function esItemInstrumento(item: RemitoItem): boolean {
+  return item.tipoEntidad === 'instrumento' || (!item.tipoEntidad && !!item.instrumentoId);
+}
+
 /** Resuelve código para display según tipoEntidad del RemitoItem */
 export function getRemitoItemCodigo(item: RemitoItem): string {
   // El NOMBRE del instrumento es su identificador interno ("TER-03", "FLU-03"),
   // no una descripción: va a la columna Código (2026-08-08). Antes esta columna
   // salía vacía y el código aparecía en Descripción.
-  if (item.tipoEntidad === 'instrumento') return item.instrumentoCodigo || item.instrumentoDescripcion || '';
+  if (esItemInstrumento(item)) return item.instrumentoCodigo || item.instrumentoDescripcion || '';
   if (item.tipoEntidad === 'dispositivo') return item.dispositivoCodigo || '';
   // Columna cromatográfica (2026-08-19): salía 'S/C' porque no tenía rama. Su
   // código de artículo lo completa `enriquecerItemsRemito` desde el catálogo.
@@ -143,7 +153,7 @@ export function getRemitoItemDescripcion(item: RemitoItem): string {
     const t = (texto || '').trim();
     return t && t.toLowerCase() !== codigo.trim().toLowerCase() ? t : '';
   };
-  if (item.tipoEntidad === 'instrumento') return sinRepetir(item.instrumentoDescripcion);
+  if (esItemInstrumento(item)) return sinRepetir(item.instrumentoDescripcion);
   if (item.tipoEntidad === 'dispositivo') return sinRepetir(item.dispositivoDescripcion);
   if (item.tipoEntidad === 'vehiculo') return sinRepetir(item.vehiculoDescripcion);
   if (item.tipoEntidad === 'columna') return sinRepetir(item.columnaDescripcion);

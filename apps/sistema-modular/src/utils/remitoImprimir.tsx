@@ -13,7 +13,7 @@ const OFFSET_Y = -3.6 * CM; // 2026-08-04: +1mm (bajar todo 1mm, calibración co
 // Ronda 2 — correcciones por campo medidas sobre el papel:
 const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
   razonSocial: { y: 1 * MM },        // 1 mm abajo
-  domicilio:   { y: -1 * MM },       // 1 mm arriba
+  domicilio:   { y: -2 * MM },       // 2 mm arriba (2026-08-28: salía 1 mm bajo la casilla)
   localidad:   { y: -5 * MM },       // 5 mm arriba
   provincia:   { y: -8 * MM },       // 8 mm arriba
   cuit:        { y: -15 * MM },      // 1,5 cm arriba
@@ -69,11 +69,19 @@ export async function imprimirRemitoOverlay(opts: {
   items: RemitoOverlayItem[];
   observaciones?: string | null;
 }): Promise<void> {
+  // El papel tiene casillas SEPARADAS para Domicilio/Localidad/Provincia, pero
+  // varios clientes y proveedores tienen la dirección cargada entera en un solo
+  // campo: salía todo concatenado en Domicilio Y repetido abajo (2026-08-28,
+  // caso derivación LABCI). Se recorta acá — punto único de TODO remito.
+  const limpiar = (p: OverlayParty): OverlayParty => ({
+    ...p,
+    domicilio: domicilioSinLocalidadNiProvincia(p.domicilio, p.localidad, p.provincia),
+  });
   await printRemitoSilentOrOpen(
     <RemitoOverlayPDF
       fecha={opts.fecha}
-      destinatario={opts.destinatario}
-      transportista={opts.transportista ?? TRANSPORTISTA_AGS}
+      destinatario={limpiar(opts.destinatario)}
+      transportista={limpiar(opts.transportista ?? TRANSPORTISTA_AGS)}
       items={opts.items}
       observaciones={opts.observaciones ?? null}
       globalOffsetX={OFFSET_X} globalOffsetY={OFFSET_Y} fieldOffsets={FIELD_OFFSETS}
