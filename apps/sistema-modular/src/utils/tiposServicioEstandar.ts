@@ -32,6 +32,8 @@ export const TIPOS_SERVICIO_ESTANDAR = [
   'Proveedor externo AZN',
   'Alquiler',
   'Venta concretada',
-  'Recalificación de operación',
+  // 'Recalificación de operación' se dio de BAJA (2026-08-28): duplicaba
+  // 'Recalificación post reparación' (el único válido — es el que conocen el
+  // reporte técnico y la biblioteca de tablas). No re-agregarlo.
   'Entrega de lámpara',
 ];
