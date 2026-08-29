@@ -8,13 +8,15 @@ export interface OTProtocolSectionProps {
   problemaFallaInicial: string;
   reporteTecnico: string;
   materialesParaServicio: string;
+  /** Se cargaba al crear la OT pero después no se veía ni editaba (2026-08-28). */
+  comentarioFacturacion: string;
   accionesTomar: string;
   onFieldChange: (field: string, value: string) => void;
 }
 
 export const OTProtocolSection: React.FC<OTProtocolSectionProps> = ({
   readOnly, problemaFallaInicial, reporteTecnico,
-  materialesParaServicio, accionesTomar, onFieldChange,
+  materialesParaServicio, comentarioFacturacion, accionesTomar, onFieldChange,
 }) => {
   return (
     <div className="space-y-4">
@@ -53,6 +55,19 @@ export const OTProtocolSection: React.FC<OTProtocolSectionProps> = ({
           rows={3}
           disabled={readOnly}
           placeholder="Describa los materiales necesarios para realizar el servicio..."
+          className={textareaCls}
+        />
+      </Card>
+
+      {/* Comentario para Facturación — se cargaba al crear la OT y desaparecía */}
+      <Card compact>
+        <p className={sec}>Comentario para Facturación</p>
+        <textarea
+          value={comentarioFacturacion}
+          onChange={e => onFieldChange('comentarioFacturacion', e.target.value)}
+          rows={2}
+          disabled={readOnly}
+          placeholder="Notas para el área de facturación..."
           className={textareaCls}
         />
       </Card>

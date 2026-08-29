@@ -204,6 +204,7 @@ export const OTDetail = () => {
               problemaFallaInicial={ot.problemaFallaInicial}
               reporteTecnico={ot.reporteTecnico}
               materialesParaServicio={ot.materialesParaServicio}
+              comentarioFacturacion={ot.comentarioFacturacion}
               accionesTomar={ot.accionesTomar}
               onFieldChange={ot.handleFieldChange}
             />

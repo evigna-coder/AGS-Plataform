@@ -30,6 +30,8 @@ export interface OTFormState {
   aclaracionCliente: string;
   aclaracionEspecialista: string;
   materialesParaServicio: string;
+  /** Se carga en la creación pero no se veía ni editaba en el detalle (2026-08-28). */
+  comentarioFacturacion: string;
   problemaFallaInicial: string;
   estadoAdmin: OTEstadoAdmin;
   estadoAdminFecha: string;
@@ -59,7 +61,7 @@ const INITIAL_FORM: OTFormState = {
   tipoServicio: '', fechaInicio: '', fechaFin: '', horasTrabajadas: '', tiempoViaje: '',
   reporteTecnico: '', accionesTomar: '', articulos: [], budgets: [''],
   esFacturable: false, tieneContrato: false, esGarantia: false, status: 'BORRADOR',
-  aclaracionCliente: '', aclaracionEspecialista: '', materialesParaServicio: '', problemaFallaInicial: '',
+  aclaracionCliente: '', aclaracionEspecialista: '', materialesParaServicio: '', comentarioFacturacion: '', problemaFallaInicial: '',
   estadoAdmin: 'CREADA', estadoAdminFecha: '', estadoHistorial: [],
   ordenCompra: '', fechaServicioAprox: '',
   ingenieroAsignadoId: null, ingenieroAsignadoNombre: null,
@@ -103,6 +105,7 @@ export function useOTFormState() {
       aclaracionCliente: ot.aclaracionCliente || '',
       aclaracionEspecialista: ot.aclaracionEspecialista || '',
       materialesParaServicio: ot.materialesParaServicio || '',
+      comentarioFacturacion: ot.comentarioFacturacion || '',
       problemaFallaInicial: ot.problemaFallaInicial || '',
       estadoAdmin: ot.estadoAdmin || (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'CREADA'),
       estadoAdminFecha: ot.estadoAdminFecha || '',
@@ -137,6 +140,7 @@ export function useOTFormState() {
     aclaracionCliente: cleanValue(form.aclaracionCliente),
     aclaracionEspecialista: cleanValue(form.aclaracionEspecialista),
     materialesParaServicio: cleanValue(form.materialesParaServicio),
+    comentarioFacturacion: cleanValue(form.comentarioFacturacion),
     problemaFallaInicial: cleanValue(form.problemaFallaInicial),
     estadoAdmin: form.estadoAdmin, estadoAdminFecha: cleanValue(form.estadoAdminFecha),
     estadoHistorial: form.estadoHistorial,

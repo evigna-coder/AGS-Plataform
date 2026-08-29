@@ -296,6 +296,7 @@ export function useOTDetail(otNumber?: string) {
     esFacturable: form.esFacturable, tieneContrato: form.tieneContrato, esGarantia: form.esGarantia,
     budgets: form.budgets, problemaFallaInicial: form.problemaFallaInicial,
     reporteTecnico: form.reporteTecnico, materialesParaServicio: form.materialesParaServicio,
+    comentarioFacturacion: form.comentarioFacturacion,
     accionesTomar: form.accionesTomar, articulos: form.articulos, items,
     validate, leadId: form.leadId, presupuestoOrigenId: form.presupuestoOrigenId, presupuestoOrigenNumero,
   };
