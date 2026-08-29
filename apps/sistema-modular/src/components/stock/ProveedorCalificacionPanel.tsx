@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { calificacionesService, promedioPonderado } from '../../services/calificacionesService';
 import type { CalificacionProveedor, EstadoCalificacion } from '@ags/shared';
 import { ORIGEN_CALIFICACION_LABELS } from '@ags/shared';
+import { detalleCalificacion } from '../../utils/calificaciones';
 
 const ESTADO_COLORS: Record<EstadoCalificacion, string> = {
   aprobado: 'bg-emerald-100 text-emerald-700',
@@ -59,8 +60,8 @@ export function ProveedorCalificacionPanel({ proveedorId }: { proveedorId: strin
               <div key={c.id} className="flex items-center justify-between py-1.5 gap-2">
                 <div className="min-w-0">
                   <p className="text-[10px] text-slate-400 font-mono">{c.fechaRecepcion}</p>
-                  <p className="text-xs text-slate-600 truncate" title={c.origenLabel ?? ''}>
-                    {ORIGEN_CALIFICACION_LABELS[c.origen ?? 'manual']}{c.origenLabel ? ` · ${c.origenLabel}` : ''}
+                  <p className="text-xs text-slate-600 truncate" title={detalleCalificacion(c)}>
+                    {ORIGEN_CALIFICACION_LABELS[c.origen ?? 'manual']}{detalleCalificacion(c) ? ` · ${detalleCalificacion(c)}` : ''}
                   </p>
                 </div>
                 <span className={`shrink-0 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full ${c.estado ? ESTADO_COLORS[c.estado] : 'bg-slate-100 text-slate-500'}`}>

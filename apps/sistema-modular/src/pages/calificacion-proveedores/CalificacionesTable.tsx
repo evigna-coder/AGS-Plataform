@@ -1,26 +1,13 @@
+import { useMemo } from 'react';
 import type { CalificacionProveedor, EstadoCalificacion } from '@ags/shared';
-import { ORIGEN_CALIFICACION_LABELS, ORIGEN_CALIFICACION_COLORS } from '@ags/shared';
+import { ORIGEN_CALIFICACION_COLORS, ORIGEN_CALIFICACION_LABELS } from '@ags/shared';
 import { SortableHeader, type SortDir } from '../../components/ui/SortableHeader';
+import { eventoCalificacion } from '../../utils/calificaciones';
+import { CalificacionRow } from './CalificacionRow';
 
 export type CicloTab = 'pendiente' | 'calificada' | 'omitida' | '';
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
-const ESTADO_COLORS: Record<string, string> = {
-  aprobado: 'bg-emerald-100 text-emerald-700',
-  condicional: 'bg-amber-100 text-amber-700',
-  no_aprobado: 'bg-red-100 text-red-700',
-  sin_datos: 'bg-slate-100 text-slate-500',
-};
-const ESTADO_LABELS: Record<string, string> = {
-  aprobado: 'Aprobado', condicional: 'Condicional', no_aprobado: 'No aprobado', sin_datos: 'Sin datos',
-};
-
-const diasDesde = (iso?: string | null) => {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  return isNaN(t) ? null : Math.max(0, Math.floor((Date.now() - t) / 86400000));
-};
 
 interface Props {
   items: CalificacionProveedor[];
@@ -35,11 +22,43 @@ interface Props {
   onEliminar: (id: string) => void;
 }
 
+/**
+ * Grupos por EVENTO (2026-08-28): un embarque genera una calificación por actor
+ * (vendedor / agente / despachante) que sueltas parecen sin relación — se
+ * agrupan bajo un encabezado con la OC. El grupo se ancla en la posición de su
+ * primera fila según el orden vigente; el resto de los orígenes queda igual.
+ */
+type Fila =
+  | { tipo: 'suelta'; c: CalificacionProveedor }
+  | { tipo: 'grupo'; key: string; rows: CalificacionProveedor[] };
+
+function agruparPorEvento(items: CalificacionProveedor[]): Fila[] {
+  const filas: Fila[] = [];
+  const idxPorGrupo = new Map<string, number>();
+  for (const c of items) {
+    const gkey = (c.origen === 'importacion_embarque' && c.origenId) ? `emb:${c.origenId}` : null;
+    if (!gkey) { filas.push({ tipo: 'suelta', c }); continue; }
+    const idx = idxPorGrupo.get(gkey);
+    if (idx == null) {
+      idxPorGrupo.set(gkey, filas.length);
+      filas.push({ tipo: 'grupo', key: gkey, rows: [c] });
+    } else {
+      (filas[idx] as Extract<Fila, { tipo: 'grupo' }>).rows.push(c);
+    }
+  }
+  return filas;
+}
+
 /** Tabla del listado de calificaciones — columnas según la pestaña de ciclo. */
 export function CalificacionesTable({ items, tab, promedios, sortField, sortDir, onSort, onCalificar, onOmitir, onEditar, onEliminar }: Props) {
   const esPend = tab === 'pendiente';
   const esOmit = tab === 'omitida';
   const conPuntaje = tab === 'calificada' || tab === '';
+  const numCols = 5 + (esPend ? 1 : 0) + (esOmit ? 1 : 0) + (tab === '' ? 1 : 0) + (conPuntaje ? 3 : 0) + (!esPend ? 1 : 0);
+
+  const filas = useMemo(() => agruparPorEvento(items), [items]);
+
+  const rowProps = { tab, onCalificar, onOmitir, onEditar, onEliminar };
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
@@ -65,77 +84,30 @@ export function CalificacionesTable({ items, tab, promedios, sortField, sortDir,
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {items.map(c => {
-            const ciclo = c.estadoCiclo ?? 'calificada';
-            const origen = c.origen ?? 'manual';
-            const prom = promedios[c.proveedorId];
-            const detalle = c.origenLabel || [c.ordenCompraNro && `OC ${c.ordenCompraNro}`, c.remitoNro && `Rto ${c.remitoNro}`].filter(Boolean).join(' · ');
-            const antiguedad = diasDesde(c.fechaEvento ?? c.fechaRecepcion);
-            return (
-              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-3 py-2 text-slate-600 font-mono text-xs whitespace-nowrap">{c.fechaRecepcion}</td>
-                <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[180px]">{c.proveedorNombre}</td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ORIGEN_CALIFICACION_COLORS[origen]}`}>
-                    {ORIGEN_CALIFICACION_LABELS[origen]}
+          {filas.map(f => {
+            if (f.tipo === 'suelta' || f.rows.length === 1) {
+              const c = f.tipo === 'suelta' ? f.c : f.rows[0];
+              return <CalificacionRow key={c.id} c={c} prom={promedios[c.proveedorId]} {...rowProps} />;
+            }
+            const primera = f.rows[0];
+            return [
+              <tr key={f.key} className="bg-slate-50/80">
+                <td className="px-3 py-1.5 text-slate-500 font-mono text-xs whitespace-nowrap">{primera.fechaRecepcion}</td>
+                <td colSpan={numCols - 1} className="px-3 py-1.5 whitespace-nowrap">
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ORIGEN_CALIFICACION_COLORS.importacion_embarque}`}>
+                    {ORIGEN_CALIFICACION_LABELS.importacion_embarque}
                   </span>
+                  <span className="ml-2 text-xs font-medium text-slate-700">{eventoCalificacion(primera)}</span>
+                  <span className="ml-2 text-[10px] text-slate-400">{f.rows.length} proveedores</span>
                 </td>
-                <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[240px]" title={detalle}>{detalle || <span className="text-slate-300">—</span>}</td>
-                {esPend && (
-                  <td className="px-3 py-2 text-center whitespace-nowrap">
-                    {antiguedad != null ? (
-                      <span className={`font-mono text-xs ${antiguedad > 7 ? 'text-red-600 font-bold' : 'text-slate-500'}`}>{antiguedad} d</span>
-                    ) : <span className="text-slate-300 text-xs">—</span>}
-                  </td>
-                )}
-                {esOmit && <td className="px-3 py-2 text-[10px] text-slate-400 truncate max-w-[200px] italic" title={c.omitidaMotivo ?? ''}>{c.omitidaMotivo || '—'}</td>}
-                {tab === '' && (
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ciclo === 'pendiente' ? 'bg-amber-100 text-amber-700' : ciclo === 'omitida' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {ciclo === 'pendiente' ? 'Pendiente' : ciclo === 'omitida' ? 'Omitida' : 'Calificada'}
-                    </span>
-                  </td>
-                )}
-                {conPuntaje && (
-                  <>
-                    <td className="px-3 py-2 text-center font-mono font-bold text-xs">{typeof c.puntajeTotal === 'number' ? c.puntajeTotal : <span className="text-slate-300 font-normal">—</span>}</td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      {prom && prom.count > 0 ? (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[prom.estado]}`}>{prom.promedio} ({prom.count})</span>
-                      ) : <span className="text-slate-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {c.estado ? (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[c.estado]}`}>{ESTADO_LABELS[c.estado]}</span>
-                      ) : <span className="text-slate-300 text-xs">—</span>}
-                    </td>
-                  </>
-                )}
-                {!esPend && <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[100px] whitespace-nowrap">{c.responsable || '—'}</td>}
-                <td className="px-3 py-2 text-right whitespace-nowrap">
-                  <div className="flex items-center justify-end gap-1">
-                    {ciclo === 'pendiente' ? (
-                      <>
-                        <button onClick={() => onCalificar(c)}
-                          className="text-[10px] font-medium text-teal-700 hover:text-teal-900 px-1.5 py-0.5 rounded hover:bg-teal-50">Calificar</button>
-                        <button onClick={() => onOmitir(c)}
-                          className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1.5 py-0.5 rounded hover:bg-slate-100">Omitir…</button>
-                      </>
-                    ) : ciclo === 'calificada' ? (
-                      <>
-                        <button onClick={() => onEditar(c)}
-                          className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Editar</button>
-                        <button onClick={() => onEliminar(c.id)}
-                          className="text-[10px] font-medium text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50">×</button>
-                      </>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            );
+              </tr>,
+              ...f.rows.map(c => (
+                <CalificacionRow key={c.id} c={c} prom={promedios[c.proveedorId]} enGrupo {...rowProps} />
+              )),
+            ];
           })}
           {items.length === 0 && (
-            <tr><td colSpan={12} className="text-center py-8 text-slate-400">
+            <tr><td colSpan={numCols} className="text-center py-8 text-slate-400">
               {esPend ? 'No hay calificaciones pendientes' : 'No hay calificaciones registradas'}
             </td></tr>
           )}

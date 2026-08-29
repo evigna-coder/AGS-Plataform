@@ -315,6 +315,9 @@ export const calificacionesService = {
       const pedida = (imp.items ?? []).reduce((s, it) => s + (it.cantidadPedida ?? 0), 0);
       const recibida = (imp.items ?? []).reduce((s, it) => s + Math.min(it.cantidadRecibida ?? 0, it.cantidadPedida ?? 0), 0);
       const fechaEvento = new Date().toISOString();
+      // El negocio identifica el evento por la ORDEN DE COMPRA, no por el
+      // número interno de importación (pedido 2026-08-28).
+      const eventoLabel = imp.ordenCompraNumero ? `OC ${imp.ordenCompraNumero}` : `Importación ${imp.numero}`;
       const base = {
         fechaEvento,
         fechaPrometida: imp.fechaEstimadaArribo ?? null,
@@ -333,7 +336,7 @@ export const calificacionesService = {
         origen: 'importacion_embarque',
         origenKey: `importacion_embarque:${imp.id}:${imp.proveedorId}`,
         origenId: imp.id,
-        origenLabel: `Importación ${imp.numero} — vendedor`,
+        origenLabel: `${eventoLabel} — vendedor`,
       });
 
       // Agente de carga y despachante — por nombre contra el catálogo.
@@ -359,7 +362,7 @@ export const calificacionesService = {
           origen: 'importacion_embarque',
           origenKey: `importacion_embarque:${imp.id}:${prov.id}`,
           origenId: imp.id,
-          origenLabel: `Importación ${imp.numero} — ${actor.rol}`,
+          origenLabel: `${eventoLabel} — ${actor.rol}`,
         });
       }
     } catch (err) {

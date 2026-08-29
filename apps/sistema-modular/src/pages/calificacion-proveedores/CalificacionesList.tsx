@@ -12,7 +12,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { usePrompt } from '../../components/ui/PromptDialog';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ExportarButton } from '../../components/ui/ExportarButton';
+import { InformesButton } from './InformesButton';
 import { CALIFICACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportCalificaciones';
+import { detalleCalificacion } from '../../utils/calificaciones';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 const FILTER_SCHEMA = {
@@ -92,7 +94,7 @@ export function CalificacionesList() {
   const handleOmitir = async (c: CalificacionProveedor) => {
     const motivo = await promptText({
       title: 'Omitir calificación',
-      label: `Motivo (${c.proveedorNombre} — ${c.origenLabel ?? ''})`,
+      label: `Motivo (${c.proveedorNombre} — ${detalleCalificacion(c)})`,
       required: true,
       multiline: true,
     });
@@ -140,6 +142,7 @@ export function CalificacionesList() {
         count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex items-center gap-2">
+            <InformesButton items={items} />
             <ExportarButton
               columnas={CALIFICACIONES_EXPORT_COLUMNS}
               data={filtered}

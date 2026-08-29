@@ -5,6 +5,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { CalificacionProveedor, CriterioEvaluacion, Proveedor } from '@ags/shared';
 import { CRITERIOS_DEFAULT, CRITERIOS_POR_ORIGEN, ORIGEN_CALIFICACION_LABELS } from '@ags/shared';
 import { calcEstadoCalificacion } from '../../services/calificacionesService';
+import { detalleCalificacion } from '../../utils/calificaciones';
 import { getCurrentUser } from '../../services/currentUser';
 import { CriteriosEditor } from './CriteriosEditor';
 
@@ -139,7 +140,7 @@ export function CalificacionModal({ open, onClose, onSave, onCalificar, proveedo
         {pendiente && (
           <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600">
             <span className="font-medium">{ORIGEN_CALIFICACION_LABELS[pendiente.origen ?? 'manual']}</span>
-            {' — '}{pendiente.origenLabel}
+            {' — '}{detalleCalificacion(pendiente)}
             {metricas.length > 0 && (
               <span className="block mt-0.5 font-mono text-[10px] text-slate-400">{metricas.join(' · ')}</span>
             )}
