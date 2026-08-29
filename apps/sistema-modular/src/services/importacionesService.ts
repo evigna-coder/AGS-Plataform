@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, getDocsFromServer, doc, getDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion, EstadoImportacion, EstadoOC } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
@@ -206,15 +206,36 @@ export const posicionesArancelariasService = {
 // ========== REQUERIMIENTOS DE COMPRA ==========
 
 export const requerimientosService = {
+  /**
+   * Próximo REQ-NNNN — atómico vía `_counters/requerimientoNumber` (2026-08-28,
+   * caso REQ-0041/REQ-0050 duplicados): el scan-and-max leía la colección con
+   * getDocs y una respuesta servida por la caché offline devolvió un
+   * subconjunto viejo — dos requerimientos nuevos nacieron con números ya
+   * tomados. Mismo patrón que presupuestos / tickets / remitos: counter con
+   * bootstrap scan-and-max la primera vez.
+   */
   async getNextNumber(): Promise<string> {
-    const q = query(collection(db, 'requerimientos_compra'), orderBy('numero', 'desc'));
-    const snap = await getDocs(q);
-    let maxNum = 0;
-    snap.docs.forEach(d => {
-      const match = d.data().numero?.match(/REQ-(\d+)/);
-      if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+    const counterRef = doc(db, '_counters', 'requerimientoNumber');
+    const next = await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        // Primera vez: escanear la colección para inicializar el counter.
+        const qs = await getDocs(query(collection(db, 'requerimientos_compra'), orderBy('numero', 'desc')));
+        let maxNum = 0;
+        qs.docs.forEach(d => {
+          const match = d.data().numero?.match(/REQ-(\d+)/);
+          if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+        });
+        current = maxNum;
+      }
+      const value = current + 1;
+      tx.set(counterRef, { value, updatedAt: Timestamp.now() });
+      return value;
     });
-    return `REQ-${String(maxNum + 1).padStart(4, '0')}`;
+    return `REQ-${String(next).padStart(4, '0')}`;
   },
 
   async getAll(filters?: { estado?: string; origen?: string; presupuestoId?: string; articuloId?: string }): Promise<RequerimientoCompra[]> {
@@ -235,12 +256,32 @@ export const requerimientosService = {
   },
 
   /**
+   * TODOS los requerimientos, leídos DEL SERVIDOR (2026-08-28, caso REQ-0040/0043):
+   * los chequeos anti-duplicado (sweep de stock mínimo, consolidación al aceptar)
+   * no pueden decidir sobre una respuesta de la caché offline — una lectura vieja
+   * ya generó números repetidos y reqs redundantes que la consolidación no vio.
+   * Offline directo: getDocsFromServer TIRA — el caller aborta en vez de decidir
+   * a ciegas (mejor no crear que duplicar).
+   */
+  async getAllFromServer(): Promise<RequerimientoCompra[]> {
+    const snap = await getDocsFromServer(query(collection(db, 'requerimientos_compra'), orderBy('createdAt', 'desc')));
+    return snap.docs.map(d => ({
+      id: d.id, ...d.data(),
+      fechaSolicitud: d.data().fechaSolicitud?.toDate?.()?.toISOString() ?? d.data().fechaSolicitud,
+      fechaAprobacion: d.data().fechaAprobacion?.toDate?.()?.toISOString() ?? null,
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    })) as RequerimientoCompra[];
+  },
+
+  /**
    * Requerimientos de un artículo, SIN orderBy: una sola igualdad no requiere
    * índice compuesto (getAll con filtros + orderBy sí, y si el índice falta el
    * error se traga fácil — ver duplicados UAT 2026-07-16). Orden no garantizado.
+   * DEL SERVIDOR (2026-08-28): lo consumen los chequeos de dedupe/consolidación.
    */
   async getByArticulo(articuloId: string): Promise<RequerimientoCompra[]> {
-    const snap = await getDocs(query(
+    const snap = await getDocsFromServer(query(
       collection(db, 'requerimientos_compra'),
       where('articuloId', '==', articuloId),
     ));

@@ -72,11 +72,15 @@ export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean })
   if (!opts?.force && now - lastSweep < SWEEP_INTERVAL_MS) return { creados: 0, cancelados: 0 };
   lastSweep = now;
 
+  // Reqs DEL SERVIDOR (2026-08-28, caso REQ-0040/0043): el dedupe "¿ya hay un
+  // req abierto para este artículo?" decidía sobre la caché offline — una
+  // respuesta vieja hizo crear un req redundante junto al del presupuesto.
+  // Offline: getAllFromServer tira y el sweep se saltea (mejor que duplicar).
   const [articulos, unidades, ocs, reqs] = await Promise.all([
     articulosService.getAll({ activoOnly: true }),
     unidadesService.getAll({ activoOnly: true }),
     ordenesCompraService.getAll(),
-    requerimientosService.getAll(),
+    requerimientosService.getAllFromServer(),
   ]);
 
   const dispo = disponiblePorArticulo(unidades);

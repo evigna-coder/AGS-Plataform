@@ -192,6 +192,33 @@ export const RequerimientosList = () => {
       console.error('[RequerimientosList] sweep stock mínimo falló:', err));
   }, []);
 
+  // Recalcular a demanda (2026-08-28): fuerza el sweep (salteando el freno de
+  // 5 min) y recarga los datos auxiliares que se traen una sola vez al montar
+  // (clientes de pptos, proveedores). La tabla en sí ya es una suscripción viva.
+  const [recalculando, setRecalculando] = useState(false);
+  const handleRecalcular = async () => {
+    setRecalculando(true);
+    try {
+      const r = await sweepStockMinimoRequerimientos({ force: true });
+      const [ps, cs, provs] = await Promise.all([
+        presupuestosService.getAll(),
+        clientesService.getAll(true),
+        proveedoresService.getAll(true),
+      ]);
+      const nombre = new Map(cs.map(c => [c.id, c.razonSocial]));
+      setClientePorPresupuesto(new Map(ps.map(p => [p.id, nombre.get(p.clienteId) ?? ''])));
+      setProveedores((provs as Array<{ id: string; nombre: string }>).map(p => ({ id: p.id, nombre: p.nombre })));
+      if (r.creados > 0 || r.cancelados > 0) {
+        alert(`Recalculado: ${r.creados} requerimiento(s) nuevo(s) por stock mínimo, ${r.cancelados} cancelado(s) por stock repuesto.`);
+      }
+    } catch (err) {
+      console.error('[RequerimientosList] recalcular falló:', err);
+      alert('Error al recalcular');
+    } finally {
+      setRecalculando(false);
+    }
+  };
+
   const unsubRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     unsubRef.current?.();
@@ -263,6 +290,10 @@ export const RequerimientosList = () => {
         actions={
           filters.tab === 'partes' ? undefined :
           <>
+            <Button size="sm" variant="outline" onClick={() => void handleRecalcular()} disabled={recalculando}
+              title="Corre el barrido de stock mínimo ahora (sin esperar los 5 min) y refresca clientes/proveedores. La tabla ya se actualiza sola en vivo.">
+              {recalculando ? 'Recalculando…' : '↻ Recalcular'}
+            </Button>
             <ExportarButton
               columnas={REQUERIMIENTOS_EXPORT_COLUMNS}
               data={exportRows}

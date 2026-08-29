@@ -100,6 +100,19 @@ export const RequerimientoRow = ({
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ORIGEN_COLORS[r.origen] ?? ''}`}>
           {ORIGEN_REQUERIMIENTO_LABELS[r.origen]}
         </span>
+        {/* N° de presupuesto SIEMPRE visible para reqs de presupuesto (2026-08-28) —
+            antes solo asomaba en el tooltip del chip Condicional o en el desglose. */}
+        {r.origen === 'presupuesto' && r.presupuestoNumero && (
+          r.presupuestoId ? (
+            <Link to={`/presupuestos/${r.presupuestoId}`} onClick={e => e.stopPropagation()}
+              className="block text-[10px] font-mono text-teal-600 hover:underline truncate mt-0.5"
+              title={`Abrir ${r.presupuestoNumero}`}>
+              {r.presupuestoNumero}
+            </Link>
+          ) : (
+            <span className="block text-[10px] font-mono text-slate-500 truncate mt-0.5">{r.presupuestoNumero}</span>
+          )
+        )}
         {clienteNombre && (
           <span className="block text-[10px] text-slate-500 truncate mt-0.5" title={clienteNombre}>{clienteNombre}</span>
         )}
