@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, getDocsFromServer, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero, ESTADO_PRESUPUESTO_LABELS, presupuestoEstaAceptado } from '@ags/shared';
@@ -1112,6 +1112,46 @@ export const presupuestosService = {
       return { requerimientosIds: [] };
     }
 
+    // ── Paso 1b: auto-match por código (2026-08-28, casos CP9078 / G1312-87303) ──
+    // Los ítems tipeados a mano con un código que existe EXACTO en el catálogo se
+    // vinculan solos al aceptar — sin esto quedaban fuera del circuito de reservas
+    // y requerimientos y nadie compraba la parte. Match solo si hay exactamente un
+    // artículo activo con ese código. Best-effort: si falla, la aceptación sigue igual.
+    try {
+      const itemsSinVincular = (pres.items ?? []).filter((it: any) =>
+        !it?.stockArticuloId &&
+        !it?.conceptoServicioId && !it?.servicioCode && // los servicios no son partes físicas
+        (it?.codigoProducto ?? '').trim() !== '',
+      );
+      if (itemsSinVincular.length > 0) {
+        const codigos = [...new Set(itemsSinVincular.map((it: any) => String(it.codigoProducto).trim()))];
+        const matchPorCodigo = new Map<string, string>(); // codigo → articuloId
+        for (const codigo of codigos) {
+          const snap = await getDocs(query(collection(db, 'articulos'), where('codigo', '==', codigo)));
+          const activos = snap.docs.filter(d => (d.data() as any).activo !== false);
+          // 0 o 2+ artículos con el mismo código → ambiguo, no tocar el ítem
+          if (activos.length === 1) matchPorCodigo.set(codigo, activos[0].id);
+        }
+        if (matchPorCodigo.size > 0) {
+          const items = (pres.items ?? []).map((it: any) => {
+            const codigo = (it?.codigoProducto ?? '').trim();
+            const articuloId = !it?.stockArticuloId && !it?.conceptoServicioId && !it?.servicioCode
+              ? matchPorCodigo.get(codigo)
+              : undefined;
+            if (!articuloId) return it;
+            console.log(`[aceptarConRequerimientos] item "${codigo}" vinculado automáticamente al artículo ${articuloId} del catálogo`);
+            return { ...it, stockArticuloId: articuloId };
+          });
+          await this.update(presupuestoId, deepCleanForFirestore({ items }) as Partial<Presupuesto>);
+          // Actualizar el objeto local para que TODO lo que sigue (itemsImport,
+          // itemsConStock, reservas, requerimientos) vea los ítems ya vinculados.
+          pres.items = items;
+        }
+      }
+    } catch (err) {
+      console.error('[aceptarConRequerimientos] auto-match por código falló:', err);
+    }
+
     const itemsImport = (pres.items || []).filter(
       (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
     );
@@ -1122,7 +1162,12 @@ export const presupuestosService = {
     // Fail-safe: si el check falla, no crear (mejor un req de menos que duplicados).
     let itemsImportSinReq: any[] = itemsImport;
     try {
-      const previos = await requerimientosService.getByPresupuesto(presupuestoId);
+      // DEL SERVIDOR (2026-08-28): el dedupe no puede decidir sobre caché vieja.
+      const previosSnap = await getDocsFromServer(query(
+        collection(db, 'requerimientos_compra'),
+        where('presupuestoId', '==', presupuestoId),
+      ));
+      const previos = previosSnap.docs.map(d => ({ id: d.id, ...d.data() })) as RequerimientoCompra[];
       const articulosConReq = new Set(
         previos.filter(r => r.estado !== 'cancelado').map(r => r.articuloId),
       );
@@ -1138,15 +1183,10 @@ export const presupuestosService = {
     // arbitraria). Computamos el max una vez y generamos N numeros consecutivos.
     const numerosReservados: string[] = [];
     if (itemsImportSinReq.length > 0) {
-      const qReq = query(collection(db, 'requerimientos_compra'), orderBy('numero', 'desc'));
-      const snapReq = await getDocs(qReq);
-      let maxNum = 0;
-      snapReq.docs.forEach(d => {
-        const m = d.data().numero?.match(/REQ-(\d+)/);
-        if (m) { const n = parseInt(m[1]); if (n > maxNum) maxNum = n; }
-      });
-      for (let i = 1; i <= itemsImportSinReq.length; i++) {
-        numerosReservados.push(`REQ-${String(maxNum + i).padStart(4, '0')}`);
+      // Counter atómico (2026-08-28): el scan-and-max local duplicó números
+      // cuando la caché offline sirvió un subconjunto viejo (REQ-0041/0050).
+      for (let i = 0; i < itemsImportSinReq.length; i++) {
+        numerosReservados.push(await requerimientosService.getNextNumber());
       }
     }
 
@@ -1337,7 +1377,23 @@ export const presupuestosService = {
       // Resumen de lo efectivamente reservado, para el aviso a Materiales (1 ticket al final).
       const reservasResumen: string[] = [];
 
+      // Consolidación por artículo (2026-08-28, caso P1-005120-02): el mismo
+      // artículo puede aparecer en VARIOS ítems del ppto (items 6 y 13 con
+      // 01018-60025 ×3 c/u). Procesar ítem por ítem hacía que el segundo
+      // encontrara el req del primero y lo AJUSTARA a su propia cantidad — el
+      // pedido quedaba por 3 en vez de 6. Se procesa cada artículo UNA vez con
+      // la suma de todos sus ítems (en unidades base).
+      const cantidadBasePorArticulo = new Map<string, number>();
+      for (const it of itemsConStock) {
+        const artId = it.stockArticuloId!;
+        cantidadBasePorArticulo.set(artId,
+          (cantidadBasePorArticulo.get(artId) ?? 0) + cantidadEnUnidadBase(it.cantidad, it.presentacion));
+      }
+      const articulosProcesados = new Set<string>();
+
       for (const item of itemsConStock) {
+        if (articulosProcesados.has(item.stockArticuloId!)) continue;
+        articulosProcesados.add(item.stockArticuloId!);
         try {
           const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
           const unidadesRaw = await unidadesService
@@ -1361,11 +1417,10 @@ export const presupuestosService = {
           const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0)
             + qtyEnKits;
           const stockMinimo = articulo?.stockMinimo ?? 0;
-          // Cantidad del ítem en UNIDADES BASE (Fase 3 presentaciones,
-          // 2026-08-13): cotizar "1 × vial de 1000" cuando ese envase vale 10
-          // compromete 10 unidades del pool, no 1. Todo lo de abajo —el
-          // faltante, el requerimiento y la reserva— trabaja en base.
-          const cantidadBase = cantidadEnUnidadBase(item.cantidad, item.presentacion);
+          // Cantidad en UNIDADES BASE (Fase 3 presentaciones, 2026-08-13),
+          // SUMADA sobre todos los ítems del ppto con este artículo (2026-08-28).
+          const cantidadBase = cantidadBasePorArticulo.get(item.stockArticuloId!)
+            ?? cantidadEnUnidadBase(item.cantidad, item.presentacion);
           const qtyResultante = qtyDisponible - cantidadBase;
 
           // Auto-req: la ACEPTACIÓN manda (2026-08-04). Si ya hay un req
@@ -1423,7 +1478,9 @@ export const presupuestosService = {
 
           let reqsPrevios: Array<{ id: string; estado: string; cantidad: number }> | null = null;
           try {
-            const reqSnap = await getDocs(query(
+            // DEL SERVIDOR (2026-08-28): decidir crear/ajustar sobre caché vieja
+            // dejó reqs redundantes (caso REQ-0040/0043). Offline → catch → no crear.
+            const reqSnap = await getDocsFromServer(query(
               collection(db, 'requerimientos_compra'),
               where('presupuestoId', '==', presupuestoId),
               where('articuloId', '==', item.stockArticuloId!),
@@ -1464,31 +1521,76 @@ export const presupuestosService = {
           }
 
           if (reqsPrevios && reqsPrevios.length === 0 && qtyReq > 0) {
-            reqCubreMinimo = true;
-            await requerimientosService.create({
-              desglose,
-              articuloId: item.stockArticuloId ?? null,
-              articuloCodigo: articulo?.codigo ?? null,
-              articuloDescripcion: articulo?.descripcion ?? item.descripcion,
-              cantidad: qtyReq,
-              unidadMedida: articulo?.unidadMedida ?? 'unidad',
-              motivo: `Auto-generado por presupuesto ${pres.numero} (aceptado)`,
-              origen: 'presupuesto',
-              origenRef: presupuestoId,
-              estado: 'pendiente',
-              presupuestoId,
-              presupuestoNumero: pres.numero ?? null,
-              presupuestoItemId: item.id ?? null, // join key del visor de entregas
-              proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
-              proveedorSugeridoNombre: null,
-              ordenCompraId: null,
-              ordenCompraNumero: null,
-              solicitadoPor: actor?.name || 'Sistema',
-              fechaSolicitud: new Date().toISOString(),
-              fechaAprobacion: null,
-              urgencia: 'media',
-              notas: null,
-            });
+            if (parteCliente === 0) {
+              // La compra pendiente es SOLO reposición de mínimo (2026-08-28,
+              // caso REQ-0043 / 2140-0820): el cliente quedó cubierto por la
+              // reserva — el req no debe colgar del presupuesto (ya servido)
+              // sino ser de STOCK MÍNIMO. Si el sweep ya tiene uno abierto, se
+              // ajusta ese; si no, se crea uno de stock_minimo.
+              if (reqsMinimoPrevios.length > 0) {
+                const [principalMin, ...extrasMin] = reqsMinimoPrevios;
+                if ((principalMin.cantidad ?? 0) !== qtyReq) {
+                  await requerimientosService.update(principalMin.id, {
+                    cantidad: qtyReq,
+                    notas: `Cantidad ajustada al aceptar ${pres.numero}: la reserva del presupuesto dejó el stock bajo mínimo (reposición ${qtyReq} u.).`,
+                  }).catch(err => console.error('[aceptarConRequerimientos] ajuste de req de mínimo falló:', err));
+                }
+                for (const extra of extrasMin) {
+                  await requerimientosService.update(extra.id, {
+                    estado: 'cancelado',
+                    notas: `Duplicado — consolidado en ${principalMin.numero} al aceptar ${pres.numero}.`,
+                  }).catch(err => console.error('[aceptarConRequerimientos] cancelación de req de mínimo duplicado falló:', err));
+                }
+              } else {
+                await requerimientosService.create({
+                  desglose,
+                  articuloId: item.stockArticuloId ?? null,
+                  articuloCodigo: articulo?.codigo ?? null,
+                  articuloDescripcion: articulo?.descripcion ?? item.descripcion,
+                  cantidad: qtyReq,
+                  unidadMedida: articulo?.unidadMedida ?? 'unidad',
+                  motivo: `Reposición de stock mínimo — la reserva de ${cantidadBase} u. para ${pres.numero} dejó el stock bajo el mínimo`,
+                  origen: 'stock_minimo',
+                  origenRef: item.stockArticuloId!,
+                  estado: 'pendiente',
+                  proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+                  proveedorSugeridoNombre: null,
+                  ordenCompraId: null,
+                  ordenCompraNumero: null,
+                  solicitadoPor: actor?.name || 'Sistema',
+                  fechaSolicitud: new Date().toISOString(),
+                  fechaAprobacion: null,
+                  urgencia: 'media',
+                  notas: null,
+                });
+              }
+            } else {
+              reqCubreMinimo = true;
+              await requerimientosService.create({
+                desglose,
+                articuloId: item.stockArticuloId ?? null,
+                articuloCodigo: articulo?.codigo ?? null,
+                articuloDescripcion: articulo?.descripcion ?? item.descripcion,
+                cantidad: qtyReq,
+                unidadMedida: articulo?.unidadMedida ?? 'unidad',
+                motivo: `Auto-generado por presupuesto ${pres.numero} (aceptado)`,
+                origen: 'presupuesto',
+                origenRef: presupuestoId,
+                estado: 'pendiente',
+                presupuestoId,
+                presupuestoNumero: pres.numero ?? null,
+                presupuestoItemId: item.id ?? null, // join key del visor de entregas
+                proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+                proveedorSugeridoNombre: null,
+                ordenCompraId: null,
+                ordenCompraNumero: null,
+                solicitadoPor: actor?.name || 'Sistema',
+                fechaSolicitud: new Date().toISOString(),
+                fechaAprobacion: null,
+                urgencia: 'media',
+                notas: null,
+              });
+            }
           }
 
           // Consolidación: cancelar los reqs de stock mínimo del sweep — su
