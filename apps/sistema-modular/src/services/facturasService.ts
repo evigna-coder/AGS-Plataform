@@ -211,6 +211,7 @@ export const facturasService = {
         asignadoNombre: factura.createdByName,
         derivadoPor: null,
         areaActual: 'administracion',
+        esAutogenerado: true,
         accionPendiente: resumen,
         prioridad: 'normal',
         proximoContacto: null,

@@ -483,6 +483,15 @@ export async function getAdminSoporteAssignee(): Promise<{ id: string; nombre: s
 }
 
 /**
+ * Assignee del ticket "Revisar cierre de OT" que crea el cierre administrativo
+ * (2026-08-30): Esteban Vigna, que revisa si queda algo pendiente de facturación
+ * antes de que el circuito pase a Administración.
+ */
+export async function getRevisarCierreAssignee(): Promise<{ id: string; nombre: string } | null> {
+  return getUsuarioPorEmail('evigna@agsanalitica.com');
+}
+
+/**
  * Assignee de los avisos de FACTURA CARGADA (2026-08-17): Esteban Vigna.
  * El ticket vuelve de Administración a Administración Soporte para cerrar el
  * circuito comercial — sin esto, facturar no le avisaba a nadie.

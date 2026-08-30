@@ -7,7 +7,7 @@ import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
 import { clientesService } from './clientesService';
-import { getAdminSoporteAssignee } from './personalService';
+import { getAdminSoporteAssignee, getRevisarCierreAssignee } from './personalService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
 import { fichasService } from './fichasService';
@@ -1710,6 +1710,10 @@ export const ordenesTrabajoService = {
     const newAdminTicketRef = newDocRef('leads');
     const newMailQueueRef = newDocRef('mailQueue');
 
+    // Responsable del "Revisar cierre de OT" (2026-08-30). Se resuelve ANTES de
+    // la transacción; si falla, el ticket queda sin asignar como antes.
+    const revisorCierre = yaCerrada ? null : await getRevisarCierreAssignee().catch(() => null);
+
     // ── Transaction: reads-before-writes invariant ──────────────────────────────
     const txResult = yaCerrada
       ? { adminTicketId: '', mailQueueId: '' }
@@ -1767,10 +1771,13 @@ export const ordenesTrabajoService = {
         moduloId: ot.moduloId ?? null,
         estado: 'nuevo' as TicketEstado,
         postas: [],
-        asignadoA: null,
-        asignadoNombre: null,
+        // Este ticket nace de un tx.set crudo (no pasa por leadsService.create),
+        // así que sin esto quedaba sin responsable y fuera de la solapa Sistema.
+        asignadoA: revisorCierre?.id ?? null,
+        asignadoNombre: revisorCierre?.nombre ?? null,
         derivadoPor: actor?.uid ?? null,
         areaActual: 'admin_soporte' as TicketArea,
+        esAutogenerado: true,
         accionPendiente: 'Revisar cierre de OT',
         adjuntos: [],
         presupuestosIds: presupuestoIds,

@@ -499,14 +499,49 @@ export const leadsService = {
       return { skipped: true, reason: 'order' };
     }
 
+    // FLOW-01 (camino sync): al pasar a ENVIADO, el seguimiento recae en el usuario
+    // de seguimiento configurado (config de flujos), sin importar de dónde nació el
+    // presupuesto. El spawn de T_n ya asigna así; este es el caso del ticket origen
+    // vivo, que antes conservaba su asignado. Best-effort: sin config o usuario
+    // inactivo, el ticket queda con el asignado actual.
+    let nextAsignadoA: string | null = null;
+    let nextAsignadoNombre: string | null = null;
+    if (newEstado === 'enviado') {
+      try {
+        const { adminConfigService } = await import('./adminConfigService');
+        const { usuariosService } = await import('./personalService');
+        const cfg = await adminConfigService.getWithDefaults();
+        const respArea = lead.areaActual && lead.areaActual !== 'sistema'
+          ? cfg.responsablePorArea?.[lead.areaActual]
+          : undefined;
+        const candidatos = [cfg.usuarioSeguimientoId, respArea].filter((x): x is string => !!x);
+        for (const cid of candidatos) {
+          const u = await usuariosService.getById(cid).catch(() => null);
+          if (u && u.status === 'activo') {
+            nextAsignadoA = u.id;
+            nextAsignadoNombre = u.displayName ?? null;
+            break;
+          }
+        }
+        if (nextAsignadoA === lead.asignadoA) {
+          nextAsignadoA = null;
+          nextAsignadoNombre = null;
+        }
+      } catch (err) {
+        console.warn('[syncFromPresupuesto] derivación a seguimiento falló, ticket queda con asignado actual:', err);
+      }
+    }
+
     const posta: Posta = {
       id: crypto.randomUUID(),
       fecha: new Date().toISOString(),
       deUsuarioId: user?.uid ?? 'system',
       deUsuarioNombre: user?.name ?? 'Sistema',
-      aUsuarioId: lead.asignadoA || '',
-      aUsuarioNombre: lead.asignadoNombre || '',
-      comentario: `Presupuesto ${presupuestoNumero} → ${estadoLabel}`,
+      aUsuarioId: nextAsignadoA ?? (lead.asignadoA || ''),
+      aUsuarioNombre: nextAsignadoNombre ?? (lead.asignadoNombre || ''),
+      comentario: nextAsignadoA
+        ? `Presupuesto ${presupuestoNumero} → ${estadoLabel} · derivado a ${nextAsignadoNombre || 'seguimiento'}`
+        : `Presupuesto ${presupuestoNumero} → ${estadoLabel}`,
       estadoAnterior: lead.estado,
       estadoNuevo: nuevoEstadoLead || lead.estado,
     };
@@ -523,6 +558,11 @@ export const leadsService = {
     if (nuevoEstadoLead && nuevoEstadoLead !== lead.estado) {
       updates.estado = nuevoEstadoLead;
       stateChanged = true;
+    }
+    if (nextAsignadoA) {
+      updates.asignadoA = nextAsignadoA;
+      updates.asignadoNombre = nextAsignadoNombre;
+      updates.accionPendiente = 'Esperar OC del cliente';
     }
     // Presupuesto aceptado → mover lead a coordinación
     if (newEstado === 'aceptado') {
@@ -576,7 +616,8 @@ export const leadsService = {
           if (materiales && materiales.status === 'activo') {
             nextAsignadoA = materiales.id;
             nextAsignadoNombre = materiales.displayName ?? null;
-            nextAreaActual = 'administracion' as TicketArea;
+            // Materiales pertenece a Administración de Soporte (corrección 2026-08-30).
+            nextAreaActual = 'admin_soporte' as TicketArea;
             nextAccionPendiente = `OT-${otNumber} cerrada técnicamente — ejecutar cierre administrativo (descarga artículos + facturación)`;
           }
         }
@@ -610,6 +651,9 @@ export const leadsService = {
       updates.asignadoNombre = nextAsignadoNombre;
       updates.areaActual = nextAreaActual;
       updates.accionPendiente = nextAccionPendiente;
+      // Desde acá el ticket es un aviso del flujo de cierre administrativo:
+      // pasa a la solapa Sistema de la lista de tickets (decisión 2026-08-30).
+      updates.esAutogenerado = true;
     }
     if (newEstadoAdmin === 'FINALIZADO') {
       updates.finalizadoAt = Timestamp.now();

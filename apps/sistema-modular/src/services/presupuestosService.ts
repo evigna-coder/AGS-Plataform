@@ -3252,6 +3252,19 @@ export const ordenesCompraService = {
   },
 
   async update(id: string, data: Partial<OrdenCompra>): Promise<void> {
+    // El envío real de la OC suele hacerse por mail AFUERA del sistema y acá solo
+    // se marca el estado. La transición borrador → enviada_proveedor se detecta
+    // acá (y no solo en markEnviada) para que todos los caminos disparen los
+    // avisos: modal de envío, cambio manual de estado, o cualquier flujo futuro.
+    let ocPrevia: OrdenCompra | null = null;
+    if (data.estado === 'enviada_proveedor') {
+      ocPrevia = await this.getById(id);
+    }
+    const esPrimerEnvio = ocPrevia?.estado === 'borrador';
+    // El marcado manual también estampa la fecha del envío si no vino.
+    if (esPrimerEnvio && !data.fechaEnvio && !ocPrevia?.fechaEnvio) {
+      data = { ...data, fechaEnvio: new Date().toISOString() };
+    }
     const payload: any = { ...cleanFirestoreData(data as any), ...getUpdateTrace(), updatedAt: Timestamp.now() };
     if (data.fechaRecepcion) payload.fechaRecepcion = Timestamp.fromDate(new Date(data.fechaRecepcion));
     if (data.fechaProforma) payload.fechaProforma = Timestamp.fromDate(new Date(data.fechaProforma));
@@ -3260,6 +3273,16 @@ export const ordenesCompraService = {
     batch.update(docRef('ordenes_compra', id), payload);
     batchAudit(batch, { action: 'update', collection: 'ordenes_compra', documentId: id, after: payload });
     await batch.commit();
+    // Primer envío → tickets a espera_importacion + derivación a Materiales +
+    // aviso a Coordinación. Best-effort: el estado ya quedó committeado.
+    if (esPrimerEnvio && ocPrevia) {
+      try {
+        const { notificarEnvioOCProveedor } = await import('./ocProveedorHelpers');
+        await notificarEnvioOCProveedor({ ...ocPrevia, ...data });
+      } catch (err) {
+        console.warn('[ordenesCompraService.update] avisos de envío fallaron:', err);
+      }
+    }
   },
 
   // Marca la OC como enviada al proveedor (tras mandar el mail). Solo avanza
@@ -3268,6 +3291,7 @@ export const ordenesCompraService = {
     const oc = await this.getById(id);
     if (!oc) throw new Error('Orden de compra no encontrada');
     // Registra siempre la fecha del envío; avanza el estado solo si está en borrador.
+    // La transición borrador → enviada_proveedor dispara los avisos desde update().
     const patch: Partial<OrdenCompra> = { fechaEnvio: new Date().toISOString() };
     if (oc.estado === 'borrador') patch.estado = 'enviada_proveedor';
     await this.update(id, patch);
