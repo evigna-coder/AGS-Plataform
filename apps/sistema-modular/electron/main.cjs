@@ -579,10 +579,13 @@ function registerIpcHandlers() {
     // renderizar la ventana oculta — según timing, solo la primera página.
     // pdf-to-printer manda el ARCHIVO completo a la impresora. copies:1 explícito
     // porque hay impresoras con default de copias 3 (mismo caso que html-silent)
-    // y las copias ya son páginas del PDF. Fallback: la ventana oculta de siempre.
+    // y las copias ya son páginas del PDF. side:'simplex' explícito (2026-08-31,
+    // caso "el triplicado salió doble faz"): sin el flag hereda el default de la
+    // impresora, y el original/duplicado terminan frente y dorso de la misma hoja.
+    // Fallback: la ventana oculta de siempre.
     try {
       const { print } = require('pdf-to-printer');
-      await print(filePath, { copies: 1, scale: 'noscale' });
+      await print(filePath, { copies: 1, scale: 'noscale', side: 'simplex' });
       try { unlinkSync(filePath); } catch (_) { /* noop */ }
       return { success: true, failureReason: null };
     } catch (err) {
@@ -603,7 +606,7 @@ function registerIpcHandlers() {
         // Delay para que el visor PDF interno termine de renderizar antes de imprimir.
         setTimeout(() => {
           try {
-            printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+            printWin.webContents.print({ silent: true, printBackground: true, duplexMode: 'simplex' }, (success, failureReason) => {
               finish({ success, failureReason: failureReason || null });
             });
           } catch (err) {
