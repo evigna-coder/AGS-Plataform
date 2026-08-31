@@ -61,6 +61,10 @@ export function useIngresarStock() {
         seguroDeclarado: imp.seguroDeclarado ?? 0,
         tipoCambio: imp.tipoCambio ?? null,
         paseEurUsd: imp.paseEurUsd ?? null,
+        // Sin esto un embarque courier se costeaba como régimen general al
+        // ingresar (estadística + IIBB + financiero de percepciones que no
+        // existen): las unidades quedaban ~9% sobrevaluadas vs el panel.
+        esCourier: imp.esCourier ?? null,
       });
       const lineaByItemId = new Map(costeo.lineas.map(l => [l.itemId, l]));
       const nowIso = new Date().toISOString();
