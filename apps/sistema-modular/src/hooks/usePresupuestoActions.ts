@@ -186,17 +186,46 @@ export function usePresupuestoActions({
     // con 3 OTs vinculadas sin que nada lo señalara. Casi siempre es un error
     // — el aviso enumera las OTs y exige una confirmación consciente. Se lee
     // fresco del doc: el form puede no reflejar vínculos agregados después.
+    //
+    // 2026-08-31: el aviso también enumera lo que el delete hace con stock y
+    // compras — antes pasaba en silencio y el residuo (req comprometido que
+    // queda vivo) desorientaba. Todo best-effort: si una lectura falla, el
+    // renglón no aparece pero el confirm sale igual.
     let otsVinculadas: string[] = [];
+    let reqsComprometidos: { numero?: string | null; ordenCompraNumero?: string | null }[] = [];
+    let reservadas = 0;
     try {
-      const fresh = await presupuestosService.getById(presupuestoId);
+      const { requerimientosService } = await import('../services/importacionesService');
+      const { reservasService } = await import('../services/stockService');
+      const [fresh, reqs, reservas] = await Promise.all([
+        presupuestosService.getById(presupuestoId),
+        requerimientosService.getByPresupuesto(presupuestoId).catch(() => []),
+        reservasService.getByPresupuesto(presupuestoId).catch(() => []),
+      ]);
       otsVinculadas = fresh?.otsVinculadasNumbers ?? [];
+      reqsComprometidos = reqs.filter(r => r.estado === 'en_compra' || r.estado === 'comprado');
+      reservadas = reservas.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
     } catch { /* si no se puede leer, cae al confirm simple */ }
-    const aviso = otsVinculadas.length > 0
-      ? '⚠ Este presupuesto tiene ' + otsVinculadas.length + ' orden(es) de trabajo vinculada(s):\n'
+    const renglones: string[] = [];
+    if (otsVinculadas.length > 0) {
+      renglones.push(
+        '⚠ Tiene ' + otsVinculadas.length + ' orden(es) de trabajo vinculada(s):\n'
         + otsVinculadas.map(n => '   • OT ' + n).join('\n')
-        + '\n\nEliminarlo las deja sin presupuesto — en la mayoría de los casos esto es un error. '
-        + 'Si lo que buscás es que no se facture, anulalo en lugar de eliminarlo.\n\n'
-        + '¿Eliminar permanentemente ' + form.numero + ' igual? Esta acción no se puede deshacer.'
+        + '\nEliminarlo las deja sin presupuesto — en la mayoría de los casos esto es un error. '
+        + 'Si lo que buscás es que no se facture, anulalo en lugar de eliminarlo.',
+      );
+    }
+    if (reservadas > 0) {
+      renglones.push(`⚠ Tiene ${reservadas} unidad(es) de stock reservada(s): se van a LIBERAR y la entrega pendiente desaparece de la cola.`);
+    }
+    if (reqsComprometidos.length > 0) {
+      renglones.push(
+        '⚠ Tiene compra(s) ya comprometida(s) que NO se eliminan (se administran desde su OC):\n'
+        + reqsComprometidos.map(r => `   • ${r.numero ?? 'REQ'}${r.ordenCompraNumero ? ` — OC ${r.ordenCompraNumero}` : ''}`).join('\n'),
+      );
+    }
+    const aviso = renglones.length > 0
+      ? renglones.join('\n\n') + '\n\n¿Eliminar permanentemente ' + form.numero + ' igual? Esta acción no se puede deshacer.'
       : `¿Eliminar permanentemente ${form.numero}? Esta acción no se puede deshacer.`;
     if (!await confirm(aviso)) return;
     try {
