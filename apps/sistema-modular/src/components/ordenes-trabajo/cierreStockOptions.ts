@@ -13,7 +13,7 @@ export function unidadLabel(u: UnidadStock): string {
     : u.nroLote
       ? `Lote ${u.nroLote}${(u.cantidad ?? 1) > 1 ? ` (×${u.cantidad})` : ''}`
       : 'Sin ident.';
-  return `${ident} · ${u.ubicacion.referenciaNombre} · ${CONDICION_LABEL[u.condicion] ?? u.condicion}`;
+  return `${ident} · ${u.ubicacion?.referenciaNombre ?? 'Sin ubicación'} · ${CONDICION_LABEL[u.condicion] ?? u.condicion}`;
 }
 
 /**
@@ -127,9 +127,9 @@ export function patchFromOption(opt: OrigenOption, stock: PartStockInfo): Partia
     case 'unidad':
       return {
         articuloId: opt.unidad.articuloId,
-        origenTipo: opt.unidad.ubicacion.tipo === 'ingeniero' ? 'ingeniero' : 'posicion',
-        origenId: opt.unidad.ubicacion.referenciaId,
-        origenNombre: opt.unidad.ubicacion.referenciaNombre,
+        origenTipo: opt.unidad.ubicacion?.tipo === 'ingeniero' ? 'ingeniero' : 'posicion',
+        origenId: opt.unidad.ubicacion?.referenciaId ?? '',
+        origenNombre: opt.unidad.ubicacion?.referenciaNombre ?? 'Sin ubicación',
         unidadStockId: opt.unidad.id,
         nroSerie: opt.unidad.nroSerie ?? null,
         nroLote: opt.unidad.nroLote ?? null,

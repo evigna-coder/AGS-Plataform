@@ -124,7 +124,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
           onAddPart={onAddPart}
           onUpdatePart={onUpdatePart}
           onRemovePart={onRemovePart}
-          tienePresupuestos={!!budgets && budgets.length > 0}
+          budgets={budgets}
         />
 
         {/* Notas de cierre */}

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Articulo, CierreAdministrativo, Part } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
+import { useReservasCierre } from '../../hooks/useReservasCierre';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const chk = 'w-3.5 h-3.5 accent-teal-600';
@@ -22,17 +23,21 @@ interface Props {
   onAddPart?: (prefill?: { codigo: string; descripcion: string }) => void;
   onUpdatePart?: (id: string, field: keyof Part, value: any) => void;
   onRemovePart?: (id: string) => void;
-  /** True si la OT tiene presupuestos vinculados (las reservas se entregan solas al finalizar). */
-  tienePresupuestos?: boolean;
+  /** Números de presupuesto vinculados (las reservas se entregan solas al finalizar). */
+  budgets?: string[];
 }
 
 export const CierreMaterialesBlock: React.FC<Props> = ({
   articulos, cierreAdmin, disabled, onChange,
-  onAddPart, onUpdatePart, onRemovePart, tienePresupuestos,
+  onAddPart, onUpdatePart, onRemovePart, budgets,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [stockArticulos, setStockArticulos] = useState<Articulo[]>([]);
   const editable = !disabled && !!onAddPart;
+  const tienePresupuestos = !!budgets && budgets.length > 0;
+  // Qué va a entregar el camino automático de reservas al finalizar (2026-08-31:
+  // el consumo tiene que verse ANTES de confirmar, no descubrirse en el kardex).
+  const reservas = useReservasCierre(budgets);
 
   useEffect(() => {
     if (showPicker && stockArticulos.length === 0) {
@@ -117,11 +122,27 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
         </p>
       )}
       {tienePresupuestos && (
-        <p className="text-[10px] text-cyan-700 mt-1.5">
-          ℹ Las unidades <span className="font-semibold">reservadas</span> de los presupuestos vinculados
-          se entregan automáticamente al cerrar la última OT del presupuesto (no hace falta seleccionarlas
-          acá; si las seleccionás igual, se descuenta la reserva — no una unidad extra).
-        </p>
+        <div className="mt-1.5">
+          <p className="text-[10px] text-cyan-700">
+            ℹ Las unidades <span className="font-semibold">reservadas</span> de los presupuestos vinculados
+            se entregan automáticamente al cerrar la última OT del presupuesto (no hace falta seleccionarlas
+            acá; si las seleccionás igual, se descuenta la reserva — no una unidad extra).
+          </p>
+          {reservas.length > 0 && (
+            <div className="mt-1 border border-cyan-100 bg-cyan-50/50 rounded px-2 py-1">
+              <p className="text-[10px] font-semibold text-cyan-800">Se consumirá al finalizar:</p>
+              <ul className="mt-0.5 space-y-0.5">
+                {reservas.map((r, i) => (
+                  <li key={i} className="text-[10px] text-slate-700 font-mono">
+                    {r.cantidad} × {r.articuloCodigo || r.articuloDescripcion}
+                    {r.nroSerie ? ` · S/N ${r.nroSerie}` : r.nroLote ? ` · Lote ${r.nroLote}` : ''}
+                    {' — '}{r.ubicacionNombre || 'sin ubicación'} · {r.presupuestoNumero}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
       <div className="flex flex-col gap-1.5 mt-2">
         <label className="flex items-center gap-2 cursor-pointer">

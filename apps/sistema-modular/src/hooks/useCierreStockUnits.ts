@@ -155,13 +155,17 @@ function etiquetaReserva(u: UnidadStock): string | null {
 function agruparPosiciones(unidades: UnidadStock[]): StockPosicion[] {
   const byUbic = new Map<string, StockPosicion>();
   for (const u of unidades) {
+    // Guard (2026-08-31, caso 30236.01): una unidad legacy SIN `ubicacion`
+    // tiraba TypeError acá y volteaba el resolver entero — todas las partes del
+    // cierre quedaban "Sin stock disponible" aunque hubiera reservadas sanas.
+    const ubicacion = u.ubicacion ?? { tipo: 'posicion' as TipoUbicacionStock, referenciaId: '', referenciaNombre: 'Sin ubicación' };
     // La clave incluye el artículo: con varias bases mezcladas, la misma
     // ubicación puede alojar unidades de pools distintos y no deben sumarse.
-    const key = `${u.articuloId}:${u.ubicacion.tipo}:${u.ubicacion.referenciaId}`;
+    const key = `${u.articuloId}:${ubicacion.tipo}:${ubicacion.referenciaId}`;
     const prev = byUbic.get(key) ?? {
-      key, tipo: u.ubicacion.tipo, referenciaId: u.ubicacion.referenciaId,
+      key, tipo: ubicacion.tipo, referenciaId: ubicacion.referenciaId,
       articuloId: u.articuloId, articuloCodigo: u.articuloCodigo ?? '',
-      referenciaNombre: u.ubicacion.referenciaNombre, cantidad: 0, reservas: [],
+      referenciaNombre: ubicacion.referenciaNombre, cantidad: 0, reservas: [],
     };
     prev.cantidad += u.cantidad ?? 1;
     const reserva = etiquetaReserva(u);
@@ -218,7 +222,11 @@ export function useCierreStockUnits(articulos: Part[]): {
       const asignacionesActivas = await asignacionesService.getAll({ estado: 'activa' }).catch(() => []);
 
       const result: Record<string, PartStockInfo> = {};
+      // try/catch POR PARTE (2026-08-31): antes un error en una sola parte
+      // rechazaba el Promise.all y ninguna fila recibía su stock — el cierre
+      // entero mostraba "Sin stock disponible" con el header en "cargando…".
       await Promise.all(articulos.map(async part => {
+        try {
         let articulo: Articulo | null = null;
         if (part.stockArticuloId) {
           articulo = await articulosService.getById(part.stockArticuloId).catch(() => null);
@@ -324,9 +332,17 @@ export function useCierreStockUnits(articulos: Part[]): {
           remitoOrigenes,
           asignacionOrigenes,
         };
+        } catch (err) {
+          console.error(`[useCierreStockUnits] resolver stock de la parte ${part.codigo || part.id} falló — la fila queda sin opciones:`, err);
+          result[part.id] = EMPTY;
+        }
       }));
       if (!cancelled) { setInfo(result); setLoading(false); }
-    })();
+    })().catch(err => {
+      // Última red: nada de este resolver puede dejar el cierre colgado en "cargando…".
+      console.error('[useCierreStockUnits] resolver global falló:', err);
+      if (!cancelled) { setInfo({}); setLoading(false); }
+    });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

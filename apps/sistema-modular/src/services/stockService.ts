@@ -1894,6 +1894,17 @@ export interface CreateRemitoServicioInput {
 
 // ========== RESERVAS DE STOCK ==========
 
+/** Fila del aviso "se consumirá al cerrar" (reservas de pptos vinculados). */
+export interface ReservaVisibleCierre {
+  presupuestoNumero: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  cantidad: number;
+  ubicacionNombre: string;
+  nroSerie: string | null;
+  nroLote: string | null;
+}
+
 export const reservasService = {
   /** Unidades actualmente reservadas para un presupuesto (estado 'reservado'). */
   async getByPresupuesto(presupuestoId: string): Promise<UnidadStock[]> {
@@ -2803,6 +2814,52 @@ export const reservasService = {
   },
 
   /**
+   * Unidades todavía RESERVADAS para los presupuestos dados (por número), para
+   * que el cierre MUESTRE qué va a entregar el camino automático de reservas
+   * (pedido 2026-08-31: "que se vea siempre de dónde se consume"). Las filas
+   * sin serie se agrupan por artículo+ubicación+ppto sumando cantidad.
+   */
+  async reservadasPorNumeros(numeros: string[]): Promise<ReservaVisibleCierre[]> {
+    const limpios = [...new Set(numeros.filter(Boolean))];
+    if (limpios.length === 0) return [];
+    const porClave = new Map<string, ReservaVisibleCierre>();
+    for (let i = 0; i < limpios.length; i += 10) {
+      const pSnap = await getDocs(query(
+        collection(db, 'presupuestos'),
+        where('numero', 'in', limpios.slice(i, i + 10)),
+      ));
+      for (const p of pSnap.docs) {
+        const uSnap = await getDocs(query(
+          collection(db, 'unidades'),
+          where('reservadoParaPresupuestoId', '==', p.id),
+          where('estado', '==', 'reservado'),
+        ));
+        for (const d of uSnap.docs) {
+          const u = d.data();
+          if (u.activo === false) continue;
+          const fila: ReservaVisibleCierre = {
+            presupuestoNumero: (p.data().numero as string) ?? p.id,
+            articuloCodigo: (u.articuloCodigo as string) ?? '',
+            articuloDescripcion: (u.articuloDescripcion as string) ?? '',
+            cantidad: (u.cantidad as number) ?? 1,
+            ubicacionNombre: (u.ubicacion?.referenciaNombre as string) ?? '',
+            nroSerie: (u.nroSerie as string | null) ?? null,
+            nroLote: (u.nroLote as string | null) ?? null,
+          };
+          // Serie identifica pieza única → fila propia. Sin serie, se agrupa.
+          const clave = fila.nroSerie
+            ? `s:${d.id}`
+            : `${fila.presupuestoNumero}|${fila.articuloCodigo}|${fila.nroLote ?? ''}|${fila.ubicacionNombre}`;
+          const previa = porClave.get(clave);
+          if (previa) previa.cantidad += fila.cantidad;
+          else porClave.set(clave, fila);
+        }
+      }
+    }
+    return [...porClave.values()];
+  },
+
+  /**
    * Unidades de stock que un presupuesto todavía ADEUDA al cliente:
    * suma de items con `stockArticuloId` − (reservadas + entregadas) para ese ppto.
    * Usado por el cierre de OT (auditoría B5) para dejar rastro visible cuando la
@@ -2825,7 +2882,10 @@ export const reservasService = {
     const cubiertasPorArt = new Map<string, number>();
     snap.docs
       .map(d => d.data())
-      .filter(u => u.estado === 'reservado' || u.estado === 'entregado')
+      // 'consumido' también cubre (2026-08-31, caso 30236.01): el camino B del
+      // cierre deja las reservas entregadas en 'consumido', y sin contarlas la
+      // nota [stock] reportaba como adeudado lo que se acababa de entregar.
+      .filter(u => u.estado === 'reservado' || u.estado === 'entregado' || u.estado === 'consumido')
       .forEach(u => cubiertasPorArt.set(u.articuloId, (cubiertasPorArt.get(u.articuloId) ?? 0) + (u.cantidad ?? 1)));
     let pendiente = 0;
     for (const [art, nec] of necesariasPorArt) {
