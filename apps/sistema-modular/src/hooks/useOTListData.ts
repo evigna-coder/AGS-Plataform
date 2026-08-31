@@ -146,16 +146,14 @@ export function useOTListData(filters: OTListFilters) {
     return true;
   }, [padresConHijas]);
 
-  // Grouping: parents + sus items + orphans.
-  const grouped = useMemo<GroupedOT[]>(() => {
+  // Universo filtrado por TODO menos estadoAdmin (2026-08-31): las cards de KPI
+  // deben reflejar los filtros activos (fechas, contrato, facturable, tipo de
+  // servicio, ingeniero, búsquedas) — antes se calculaban sobre todas las OTs y
+  // "seguían enumerando como si no existieran los filtros". estadoAdmin queda
+  // afuera A PROPÓSITO: las cards son el selector de estado, y elegir una no
+  // debe vaciar los contadores de las demás.
+  const filtradasBase = useMemo<WorkOrderConAsignacion[]>(() => {
     let list = ordenes;
-    if (filters.estadoAdmin === '__pendientes__') {
-      list = list.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO');
-    } else if (filters.estadoAdmin === '__sin_agenda__') {
-      list = list.filter(esSinAgendaAccionable);
-    } else if (filters.estadoAdmin) {
-      list = list.filter(ot => resolveEstadoOT(ot) === filters.estadoAdmin);
-    }
     const q = filters.busqueda.trim();
     const hasSearch = !!q;
     if (hasSearch) {
@@ -203,6 +201,26 @@ export function useOTListData(filters: OTListFilters) {
     if (filters.soloFacturable) list = list.filter(ot => ot.esFacturable);
     if (filters.soloContrato) list = list.filter(ot => ot.tieneContrato);
     if (filters.soloGarantia) list = list.filter(ot => ot.esGarantia);
+    return list;
+  }, [
+    ordenes, parentsWithChildren, sistemaNombreById,
+    filters.tipoServicio, filters.ingenieroId,
+    filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
+    filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
+    filters.busqueda, filters.busquedaDescripcion,
+  ]);
+
+  // Grouping: parents + sus items + orphans. Sobre el universo filtrado, con el
+  // filtro de estado encima.
+  const grouped = useMemo<GroupedOT[]>(() => {
+    let list: WorkOrderConAsignacion[] = filtradasBase;
+    if (filters.estadoAdmin === '__pendientes__') {
+      list = list.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO');
+    } else if (filters.estadoAdmin === '__sin_agenda__') {
+      list = list.filter(esSinAgendaAccionable);
+    } else if (filters.estadoAdmin) {
+      list = list.filter(ot => resolveEstadoOT(ot) === filters.estadoAdmin);
+    }
 
     const parents: WorkOrder[] = [];
     const itemsByParent: Record<string, WorkOrder[]> = {};
@@ -250,30 +268,24 @@ export function useOTListData(filters: OTListFilters) {
     sortedOrphans.forEach(ot => result.push({ ot, isItem: false, hasItems: false }));
 
     return result;
-  }, [
-    ordenes, parentsWithChildren, sistemaNombreById,
-    filters.estadoAdmin, filters.tipoServicio, filters.ingenieroId,
-    filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
-    filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
-    filters.busqueda, filters.busquedaDescripcion,
-    filters.sortField, filters.sortDir,
-  ]);
+  }, [filtradasBase, esSinAgendaAccionable, filters.estadoAdmin, filters.sortField, filters.sortDir]);
 
-  // KPIs sobre todas las OTs (no filtradas).
+  // KPIs sobre el universo FILTRADO (sin el filtro de estado — ver filtradasBase):
+  // las cards acompañan a la tabla, no al total histórico.
   const kpis = useMemo(() => {
     const byEstado: Record<string, number> = {};
     let totalHsLab = 0, totalHsViaje = 0, facturables = 0;
-    ordenes.forEach(ot => {
+    filtradasBase.forEach(ot => {
       const est = resolveEstadoOT(ot);
       byEstado[est] = (byEstado[est] || 0) + 1;
       totalHsLab += Number(ot.horasTrabajadas) || 0;
       totalHsViaje += Number(ot.tiempoViaje) || 0;
       if (ot.esFacturable) facturables++;
     });
-    const pendientes = ordenes.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO').length;
-    const sinAgenda = ordenes.filter(esSinAgendaAccionable).length;
-    return { byEstado, totalHsLab, totalHsViaje, pendientes, sinAgenda, facturables, total: ordenes.length };
-  }, [ordenes]);
+    const pendientes = filtradasBase.filter(ot => resolveEstadoOT(ot) !== 'FINALIZADO').length;
+    const sinAgenda = filtradasBase.filter(esSinAgendaAccionable).length;
+    return { byEstado, totalHsLab, totalHsViaje, pendientes, sinAgenda, facturables, total: filtradasBase.length };
+  }, [filtradasBase, esSinAgendaAccionable]);
 
   return {
     ordenes, clientes, sistemas, tiposServicioList, ingenierosList,
