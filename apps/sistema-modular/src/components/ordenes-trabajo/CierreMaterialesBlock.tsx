@@ -121,27 +121,24 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
           {editable && ' — podés cargarlos con «+ Desde stock» (el selector de origen aparece al agregar)'}.
         </p>
       )}
-      {tienePresupuestos && (
-        <div className="mt-1.5">
-          <p className="text-[10px] text-cyan-700">
-            ℹ Las unidades <span className="font-semibold">reservadas</span> de los presupuestos vinculados
-            se entregan automáticamente al cerrar la última OT del presupuesto (no hace falta seleccionarlas
-            acá; si las seleccionás igual, se descuenta la reserva — no una unidad extra).
+      {tienePresupuestos && reservas.length > 0 && (
+        <div className="mt-1.5 border border-slate-200 bg-slate-50 rounded px-2 py-1.5">
+          <p className="text-[10px] font-semibold text-slate-600">
+            Reservado para los presupuestos vinculados — <span className="font-normal">no se descuenta solo</span>
           </p>
-          {reservas.length > 0 && (
-            <div className="mt-1 border border-cyan-100 bg-cyan-50/50 rounded px-2 py-1">
-              <p className="text-[10px] font-semibold text-cyan-800">Se consumirá al finalizar:</p>
-              <ul className="mt-0.5 space-y-0.5">
-                {reservas.map((r, i) => (
-                  <li key={i} className="text-[10px] text-slate-700 font-mono">
-                    {r.cantidad} × {r.articuloCodigo || r.articuloDescripcion}
-                    {r.nroSerie ? ` · S/N ${r.nroSerie}` : r.nroLote ? ` · Lote ${r.nroLote}` : ''}
-                    {' — '}{r.ubicacionNombre || 'sin ubicación'} · {r.presupuestoNumero}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ul className="mt-1 space-y-0.5">
+            {reservas.map((r, i) => (
+              <li key={i} className="text-[10px] text-slate-600 font-mono">
+                {r.cantidad} × {r.articuloCodigo || r.articuloDescripcion}
+                {r.nroSerie ? ` · S/N ${r.nroSerie}` : r.nroLote ? ` · Lote ${r.nroLote}` : ''}
+                {' — '}{r.ubicacionNombre || 'sin ubicación'} · {r.presupuestoNumero}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-slate-500 mt-1">
+            Si alguna se usó, agregala arriba como material y elegila en «Origen de materiales».
+            Las que no selecciones siguen reservadas.
+          </p>
         </div>
       )}
       <div className="flex flex-col gap-1.5 mt-2">

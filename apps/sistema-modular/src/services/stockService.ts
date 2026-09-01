@@ -2371,51 +2371,12 @@ export const reservasService = {
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
   },
 
-  /**
-   * Entrega todas las unidades reservadas para un presupuesto (al cerrar la OT).
-   * Best-effort por unidad: si una falla (estado cambiado, race), loguea y sigue.
-   * Devuelve cuántas unidades se entregaron efectivamente.
-   *
-   * Nota (auditoría I1): las reservas son a nivel PRESUPUESTO — no discriminan OT.
-   * El caller (otService.cerrarAdministrativamente) solo invoca esto cuando cierra
-   * la ÚLTIMA OT del ppto; invocarlo antes entrega stock que corresponde a OTs
-   * todavía abiertas.
-   */
-  async entregarPorPresupuesto(params: {
-    presupuestoId: string;
-    otNumber: string;
-    solicitadoPorNombre: string;
-    clienteId?: string | null;
-    clienteNombre?: string | null;
-  }): Promise<{ entregadas: number }> {
-    const q = query(
-      collection(db, 'unidades'),
-      where('reservadoParaPresupuestoId', '==', params.presupuestoId),
-      where('estado', '==', 'reservado'),
-    );
-    const snap = await getDocs(q);
-    let entregadas = 0;
-    for (const d of snap.docs) {
-      const data = d.data();
-      if (data.activo === false) continue;
-      const unidad = { id: d.id, ...data } as UnidadStock;
-      try {
-        await this.entregar({
-          unidadId: d.id,
-          unidad,
-          otNumber: params.otNumber,
-          motivo: `Consumido al cerrar OT ${params.otNumber}`,
-          solicitadoPorNombre: params.solicitadoPorNombre,
-          clienteId: params.clienteId ?? null,
-          clienteNombre: params.clienteNombre ?? null,
-        });
-        entregadas += data.cantidad ?? 1;
-      } catch (err) {
-        console.error(`[entregarPorPresupuesto] unidad ${d.id} no entregada:`, err);
-      }
-    }
-    return { entregadas };
-  },
+  // `entregarPorPresupuesto` se ELIMINÓ el 2026-09-01. Entregaba de una todas
+  // las unidades reservadas de un presupuesto al cerrar su última OT, sin que
+  // nadie las eligiera. La reserva dice qué se pensaba usar, no qué se usó: en
+  // la práctica el cierre descontaba material que había quedado sin usar, o
+  // material de otro presupuesto. Hoy el único camino de consumo es la selección
+  // manual del cierre (`entregarSeleccionesCierre`). No reponerla.
 
   /**
    * Concilia el caso "la parte presupuestada salió del minikit" (UAT 2026-07-23):

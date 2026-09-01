@@ -1954,15 +1954,27 @@ export const ordenesTrabajoService = {
     if (ot.cierreAdmin?.stockDeducido) {
       console.log(`[cerrarAdmin] OT ${otNumber} ya tiene stock deducido; se omite la deducción.`);
     } else {
-      // Total de unidades efectivamente procesadas por ambos caminos. Auditoría B5:
-      // el flag stockDeducido se marca según este total real, NO por la mera
-      // existencia de selections/presupuestos vinculados.
+      // Total de unidades efectivamente descontadas. Auditoría B5: el flag
+      // stockDeducido se marca según este total real, NO por la mera existencia
+      // de selections/presupuestos vinculados.
       let totalProcesadas = 0;
       let seleccionesSinStock = 0;      // pedidas por selección manual y no descontadas
       const fallosSeleccion: string[] = [];   // motivo por el que cada una no se descontó
-      const pptosDiferidos = new Set<string>(); // camino B pospuesto a la última OT (I1)
 
-      // Camino A — SELECCIÓN manual del cierre (entrega de partes).
+      // ÚNICO camino de consumo: la SELECCIÓN manual del cierre.
+      //
+      // Hasta 2026-09-01 existía un segundo camino que, al cerrar la última OT
+      // del presupuesto, entregaba SOLO POR ESTAR RESERVADAS todas sus unidades.
+      // Se eliminó a pedido del usuario: la reserva expresa una intención de
+      // compra, no lo que el técnico terminó usando. En la práctica el material
+      // reservado a menudo no se usa —o se usa otro—, y el cierre descontaba
+      // igual, sin que nadie lo eligiera. Caso que lo destapó: una OT con cuatro
+      // materiales propios que iba a consumir tres unidades distintas de otro
+      // presupuesto.
+      //
+      // Ahora sale del inventario lo que el administrativo selecciona, y nada
+      // más. Las unidades reservadas que no se seleccionan SIGUEN reservadas: se
+      // liberan anulando el presupuesto o desde el módulo de stock.
       // Las unidades/posiciones elegidas en cierreAdmin.stockSelections se descuentan
       // (disponible→entregado). Auditoría I2: se pasan los presupuestoIds vinculados
       // para que lo seleccionado que ya esté RESERVADO por esos pptos consuma la
@@ -1997,44 +2009,6 @@ export const ordenesTrabajoService = {
         }
       }
 
-      // Camino B — entregar unidades RESERVADAS de los presupuestos vinculados.
-      // Las unidades reservadas (estado 'reservado') pasan a 'entregado' → salen del ATP.
-      // Auditoría I1: las reservas son a nivel PRESUPUESTO (sin vínculo a una OT
-      // concreta), así que entregarlas al cerrar la PRIMERA OT de un ppto multi-OT
-      // adelantaba TODO el stock reservado. Criterio elegido: se entregan recién al
-      // cierre de la ÚLTIMA OT del ppto (reutiliza el check todas-cerradas de
-      // avanzaEstadoPorPpto, que ya excluye OTs padre contenedoras). Lo que salió
-      // físicamente con ESTA OT lo marca el admin por selección manual (camino A),
-      // que consume reservas vía el dedupe I2. Fail-safe: sin dato en el map
-      // (default true) se entrega como siempre — nunca bloquea por error del check.
-      // Best-effort: si falla, el cierre admin no se revierte (el stock se ajusta a mano).
-      if (presupuestoIds.length > 0) {
-        let stockEntregado = 0;
-        for (const presupuestoId of presupuestoIds) {
-          if (avanzaEstadoPorPpto.get(presupuestoId) === false) {
-            pptosDiferidos.add(presupuestoId);
-            console.log(`[cerrarAdmin.stock] ppto ${presupuestoId}: quedan OTs sin cerrar — las reservas se entregarán al cierre de la última OT (I1)`);
-            continue;
-          }
-          try {
-            const { entregadas } = await reservasService.entregarPorPresupuesto({
-              presupuestoId,
-              otNumber,
-              solicitadoPorNombre: actor?.name || 'Sistema',
-              clienteId: ot.clienteId ?? null,
-              clienteNombre: ot.razonSocial ?? null,
-            });
-            stockEntregado += entregadas;
-          } catch (err) {
-            console.warn(`[cerrarAdmin.stock] ppto ${presupuestoId}:`, err);
-          }
-        }
-        totalProcesadas += stockEntregado;
-        if (stockEntregado > 0) {
-          console.log(`[cerrarAdmin] ${stockEntregado} unidad(es) entregada(s) por cierre de OT ${otNumber}`);
-        }
-      }
-
       // ── Auditoría B5: marcar stockDeducido SOLO si se procesó ≥1 unidad. Antes
       // se marcaba por la sola existencia de pptos vinculados: una OT cerrada antes
       // del ingreso de la mercadería quedaba con el flag prendido y 0 unidades
@@ -2047,13 +2021,12 @@ export const ordenesTrabajoService = {
       const hayItemsDeStock = presupuestosPorNumero.some(p => (p?.items ?? []).some(i => i.stockArticuloId));
       const marcarDeducido = totalProcesadas > 0;
 
-      // Rastro visible: unidades de ppto que quedaron adeudadas (ni reservadas ni
-      // entregadas) en los pptos NO diferidos por I1. Best-effort: si el cálculo
-      // falla, no se agrega la nota (el warn de consola queda igual).
+      // Rastro visible: unidades de ppto que quedaron adeudadas — el ppto las
+      // pidió y no hay ni una reservada ni entregada para cubrirlas. Best-effort:
+      // si el cálculo falla, no se agrega la nota (el warn de consola queda igual).
       let pendientesPpto = 0;
       if (hayItemsDeStock) {
         for (const presupuestoId of presupuestoIds) {
-          if (pptosDiferidos.has(presupuestoId)) continue;
           try {
             pendientesPpto += await reservasService.pendienteDeEntrega(presupuestoId);
           } catch (err) {
@@ -2068,7 +2041,7 @@ export const ordenesTrabajoService = {
         for (const f of fallosSeleccion) lineasStock.push(`[stock] · ${f}`);
       }
       if (pendientesPpto > 0) {
-        lineasStock.push(`[stock] ${pendientesPpto} u. de presupuesto sin descontar al cierre (sin stock reservado — ¿mercadería aún no ingresada?). ${marcarDeducido ? 'Ajustar a mano.' : 'Re-cerrar la OT cuando el stock esté reservado para completar la entrega.'}`);
+        lineasStock.push(`[stock] ${pendientesPpto} u. de presupuesto sin cubrir (no hay stock reservado ni entregado — ¿mercadería aún no ingresada?).`);
       }
       if (!marcarDeducido && (seleccionesSinStock > 0 || pendientesPpto > 0)) {
         console.warn(`[cerrarAdmin] OT ${otNumber}: la deducción de stock procesó 0 unidades con stock en juego — stockDeducido queda apagado para permitir el retry (B5).`);
