@@ -9,6 +9,7 @@ import type {
   Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, Proveedor,
   TipoMovimiento, TipoOrigenDestino, MovimientoStock,
 } from '@ags/shared';
+import { normalizarSerie } from '@ags/shared';
 
 export const TIPO_MOV_OPTIONS: { value: TipoMovimiento; label: string }[] = [
   { value: 'ingreso', label: 'Ingreso' },
@@ -345,9 +346,12 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
           alert(`Artículo con n° de serie: ingresá exactamente ${form.cantidad} serie${form.cantidad !== 1 ? 's' : ''} (una por línea). Cargaste ${series.length}.`);
           return;
         }
-        if (new Set(series).size !== series.length) { alert('Hay números de serie repetidos en la carga'); return; }
-        const existentes = new Set(unidades.filter(u => u.activo && u.nroSerie).map(u => u.nroSerie as string));
-        const dup = series.find(s => existentes.has(s));
+        // Comparación normalizada (2026-09-01): misma regla en todos los caminos
+        // de alta de stock — "ABC 123" y "abc-123" son la misma serie.
+        const norm = series.map(normalizarSerie);
+        if (new Set(norm).size !== norm.length) { alert('Hay números de serie repetidos en la carga'); return; }
+        const existentes = new Set(unidades.filter(u => u.nroSerie).map(u => normalizarSerie(u.nroSerie)));
+        const dup = series.find((_, i) => existentes.has(norm[i]));
         if (dup) { alert(`El n° de serie "${dup}" ya existe para este artículo`); return; }
       }
       if (requiereLote && !form.lote.trim()) { alert('Artículo con n° de lote: ingresá el lote'); return; }

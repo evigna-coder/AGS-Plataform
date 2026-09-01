@@ -314,3 +314,13 @@ export function unidadCuentaComoDisponible(u: {
 }): boolean {
   return u.activo !== false && u.estado === 'disponible' && u.ubicacion?.tipo !== 'remito';
 }
+
+/**
+ * Forma canónica de un número de serie para COMPARAR (2026-09-01): sin espacios
+ * ni guiones y en mayúsculas. El valor que se guarda es siempre el que tipeó el
+ * usuario; esto existe solo para detectar que dos series son la misma escritas
+ * distinto ("ABC 123", "abc-123"). Devuelve '' si no hay serie.
+ */
+export function normalizarSerie(serie?: string | null): string {
+  return (serie ?? '').replace(/[\s-]+/g, '').toUpperCase();
+}

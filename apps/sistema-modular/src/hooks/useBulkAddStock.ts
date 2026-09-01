@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { articulosService, unidadesService, posicionesStockService, minikitsService, ingenierosService, proveedoresService, movimientosService } from '../services/firebaseService';
 import type { Articulo, CondicionUnidad, TipoUbicacionStock, TipoOrigenDestino, Proveedor, UnidadStock } from '@ags/shared';
+import { normalizarSerie } from '@ags/shared';
 import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 
 export interface BulkRow {
@@ -124,8 +125,10 @@ export function useBulkAddStock(
     if (requiereSerie) {
       const series = rows.map(r => r.nroSerie.trim());
       if (series.some(s => !s)) return 'Cada unidad necesita su nº de serie.';
-      const dup = series.find((s, i) => series.indexOf(s) !== i);
-      if (dup) return `Nº de serie repetido en la carga: "${dup}".`;
+      // Normalizada: misma regla en todos los caminos de alta de stock.
+      const norm = series.map(normalizarSerie);
+      const dupIdx = norm.findIndex((s, i) => norm.indexOf(s) !== i);
+      if (dupIdx >= 0) return `Nº de serie repetido en la carga: "${series[dupIdx]}".`;
     }
     if (!requiereSerie) {
       if (rows.some(r => (Number(r.cantidad) || 0) < 1)) return 'La cantidad debe ser al menos 1.';
@@ -144,8 +147,8 @@ export function useBulkAddStock(
       // Chequeo de series ya existentes para este artículo
       if (requiereSerie) {
         const existing = await unidadesService.getByArticulo(articulo.id);
-        const taken = new Set(existing.map(u => (u.nroSerie ?? '').trim()).filter(Boolean));
-        const clash = rows.map(r => r.nroSerie.trim()).find(s => taken.has(s));
+        const taken = new Set(existing.map(u => normalizarSerie(u.nroSerie)).filter(Boolean));
+        const clash = rows.map(r => r.nroSerie.trim()).find(s => taken.has(normalizarSerie(s)));
         if (clash) { setError(`Ya existe una unidad con nº de serie "${clash}".`); setSaving(false); return; }
       }
       const refLabel = refOptions.find(o => o.id === ubicacionRefId)?.label ?? ubicacionRefNombre.trim();

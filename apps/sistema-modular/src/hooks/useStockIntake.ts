@@ -10,7 +10,7 @@ import type {
   Articulo, CondicionUnidad, Proveedor, PosicionStock, Minikit, Ingeniero,
   TipoOrigenDestino, UnidadStock, MovimientoStock, PresentacionUsada, Patron,
 } from '@ags/shared';
-import { cantidadEnUnidadBase, unidadesPatronDesdeCompra } from '@ags/shared';
+import { cantidadEnUnidadBase, unidadesPatronDesdeCompra, normalizarSerie } from '@ags/shared';
 import { patronesService } from '../services/patronesService';
 
 export interface UbicOption {
@@ -39,6 +39,13 @@ interface Draft {
   ubicacion: { tipo: TipoOrigenDestino; id: string; nombre: string } | null;
   series: string[];
   serieInput: string;
+  /**
+   * Series YA existentes de este artículo, normalizadas (2026-09-01). El paso de
+   * serie solo miraba la carga en curso, así que se podía ingresar una unidad
+   * con el nº de serie de otra que ya estaba en el sistema. Se carga junto con
+   * las unidades del artículo, en `startArticulo`.
+   */
+  seriesEnUso: Set<string>;
   lote: string;
   /**
    * Patrón asociado al artículo (2026-08-18). Si viene, este renglón NO da de
@@ -207,7 +214,7 @@ export function useStockIntake(
     setError('');
     setDraft({
       articulo, step: 'cantidad', cantidad: cantidadInicial, presentacion: null, condicion: 'nuevo',
-      ubicacion: null, series: [], serieInput: '', lote: '',
+      ubicacion: null, series: [], serieInput: '', seriesEnUso: new Set(), lote: '',
       patron: null, vencimiento: '',
     });
     const [unidades, movs, patron] = await Promise.all([
@@ -215,10 +222,18 @@ export function useStockIntake(
       movimientosService.getAll({ articuloId: articulo.id }).catch(() => [] as MovimientoStock[]),
       patronesService.getByArticuloId(articulo.id).catch(() => null),
     ]);
+    // Las series ya usadas salen de las MISMAS unidades que alimentan las
+    // ubicaciones sugeridas — sin consulta extra. Alcanza a las unidades ACTIVAS
+    // del artículo (`getByArticulo` filtra las de baja): una pieza dada de baja
+    // salió del inventario y su serie puede volver a usarse. Mismo criterio que
+    // useBulkAddStock.
+    const seriesEnUso = new Set(
+      unidades.map(u => normalizarSerie(u.nroSerie)).filter(Boolean),
+    );
     // Sin patrón el flujo es el de siempre. Con patrón, el lote es obligatorio
     // aunque el artículo no lo exija: un lote de patrón sin número no se puede
     // rastrear ni vincular a su certificado.
-    if (patron) setDraft(prev => (prev ? { ...prev, patron } : prev));
+    setDraft(prev => (prev ? { ...prev, seriesEnUso, ...(patron ? { patron } : {}) } : prev));
     setDraftUbic(buildUbicOptions(unidades, movs));
   };
 
@@ -263,7 +278,12 @@ export function useStockIntake(
     if (d.step === 'serie') {
       const s = d.serieInput.trim();
       if (!s) { setError('Ingresá el nº de serie'); return; }
-      if (d.series.includes(s)) { setError(`Serie repetida: ${s}`); return; }
+      const sNorm = normalizarSerie(s);
+      if (d.series.some(x => normalizarSerie(x) === sNorm)) { setError(`Serie repetida: ${s}`); return; }
+      if (d.seriesEnUso.has(sNorm)) {
+        setError(`Ya existe una unidad de ${d.articulo.codigo} con el nº de serie ${s}.`);
+        return;
+      }
       const series = [...d.series, s];
       setError('');
       if (series.length >= d.cantidad) {
