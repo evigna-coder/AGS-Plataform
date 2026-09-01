@@ -1,6 +1,7 @@
 import type { TicketArea, TicketPrioridad, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { DateInput } from '../ui/DateInput';
 
 export type EstadoFilterValue = '' | 'nuevo' | 'en_proceso' | 'finalizado';
 
@@ -109,13 +110,11 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <input type="date" value={filters.fechaDesde} onChange={e => set({ fechaDesde: e.target.value })}
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            title="Desde" />
+          {/* DateInput y no <input type="date"> controlado contra la URL: el eco
+              asíncrono de setSearchParams pisaba el año a medio tipear (2026-09-01). */}
+          <DateInput size="sm" value={filters.fechaDesde} onChange={iso => set({ fechaDesde: iso })} ariaLabel="Desde" />
           <span className="text-[10px] text-slate-300">—</span>
-          <input type="date" value={filters.fechaHasta} onChange={e => set({ fechaHasta: e.target.value })}
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            title="Hasta" />
+          <DateInput size="sm" value={filters.fechaHasta} onChange={iso => set({ fechaHasta: iso })} ariaLabel="Hasta" />
         </div>
         {hasAdvanced && (
           <button onClick={() => onFiltersChange(INITIAL_FILTERS)}

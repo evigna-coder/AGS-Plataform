@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { CONTROL_FACTURAS_EXPORT_COLUMNS, buildControlFacturasFiltros } from '../../utils/exports/exportControlFacturas';
 import { CargarFacturaModal } from '../../components/control-facturas/CargarFacturaModal';
@@ -158,13 +159,11 @@ export const ControlFacturasList = () => {
           </div>
           <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <span className="font-mono uppercase tracking-wide text-slate-400">Desde</span>
-            <input type="date" value={filters.desde} onChange={e => setFilter('desde', e.target.value)}
-              className="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <DateInput size="sm" value={filters.desde} onChange={iso => setFilter('desde', iso)} ariaLabel="Desde" />
           </label>
           <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <span className="font-mono uppercase tracking-wide text-slate-400">Hasta</span>
-            <input type="date" value={filters.hasta} onChange={e => setFilter('hasta', e.target.value)}
-              className="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <DateInput size="sm" value={filters.hasta} onChange={iso => setFilter('hasta', iso)} ariaLabel="Hasta" />
           </label>
           {hasAdvanced && <Button size="sm" variant="ghost" onClick={resetFilters}>Limpiar</Button>}
         </div>

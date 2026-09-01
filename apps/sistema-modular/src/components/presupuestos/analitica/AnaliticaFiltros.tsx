@@ -3,6 +3,7 @@ import type { Cliente, UsuarioAGS } from '@ags/shared';
 import { TIPO_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Button } from '../../ui/Button';
 import { SearchableSelect } from '../../ui/SearchableSelect';
+import { DateInput } from '../../ui/DateInput';
 
 export interface AnaliticaUrlFilters {
   fechaDesde: string;
@@ -22,9 +23,6 @@ interface Props {
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const inputCls =
-  'text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500';
 
 /** Rango de fechas con presets + cliente/tipo/responsable. Todo persiste en la URL. */
 export const AnaliticaFiltros: React.FC<Props> = ({ filters, onChange, onReset, clientes, usuarios }) => {
@@ -72,10 +70,8 @@ export const AnaliticaFiltros: React.FC<Props> = ({ filters, onChange, onReset, 
           </button>
         ))}
       </div>
-      <input type="date" value={filters.fechaDesde} onChange={e => onChange('fechaDesde', e.target.value)}
-        className={inputCls} title="Desde" />
-      <input type="date" value={filters.fechaHasta} onChange={e => onChange('fechaHasta', e.target.value)}
-        className={inputCls} title="Hasta" />
+      <DateInput size="sm" value={filters.fechaDesde} onChange={iso => onChange('fechaDesde', iso)} ariaLabel="Desde" />
+      <DateInput size="sm" value={filters.fechaHasta} onChange={iso => onChange('fechaHasta', iso)} ariaLabel="Hasta" />
       <div className="min-w-[130px]">
         <SearchableSelect size="sm" value={filters.cliente} onChange={v => onChange('cliente', v)}
           options={clienteOptions}

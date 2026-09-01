@@ -14,6 +14,7 @@ import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLOR
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
@@ -190,20 +191,8 @@ export const FacturacionList = () => {
               className="w-3.5 h-3.5 accent-teal-600" />
             Ver cerradas{cerradasOcultas > 0 ? ` (${cerradasOcultas})` : ''}
           </label>
-          <input
-            type="date"
-            value={filters.fechaDesde}
-            onChange={e => setFilter('fechaDesde', e.target.value)}
-            title="Desde"
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-          <input
-            type="date"
-            value={filters.fechaHasta}
-            onChange={e => setFilter('fechaHasta', e.target.value)}
-            title="Hasta"
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
+          <DateInput size="sm" value={filters.fechaDesde} onChange={iso => setFilter('fechaDesde', iso)} ariaLabel="Desde" />
+          <DateInput size="sm" value={filters.fechaHasta} onChange={iso => setFilter('fechaHasta', iso)} ariaLabel="Hasta" />
           {hasActiveFilter && (
             <Button size="sm" variant="ghost" onClick={() => resetFilters()}>Limpiar</Button>
           )}

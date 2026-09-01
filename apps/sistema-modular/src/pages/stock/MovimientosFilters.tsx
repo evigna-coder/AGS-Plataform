@@ -1,5 +1,6 @@
 import type { TipoMovimiento } from '@ags/shared';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { DateInput } from '../../components/ui/DateInput';
 // Labels compartidos con el export Excel/PDF (misma fuente = mismos textos).
 import { TIPO_MOVIMIENTO_LABELS as TIPO_LABELS } from '../../utils/exports/exportMovimientos';
 
@@ -65,11 +66,11 @@ export function MovimientosFilters({
       </div>
       <label className="flex items-center gap-1.5">
         <span className={labelCls}>Desde</span>
-        <input type="date" value={fechaDesde} onChange={e => onFechaDesdeChange(e.target.value)} className={inputCls} />
+        <DateInput size="sm" value={fechaDesde} onChange={onFechaDesdeChange} ariaLabel="Desde" />
       </label>
       <label className="flex items-center gap-1.5">
         <span className={labelCls}>Hasta</span>
-        <input type="date" value={fechaHasta} onChange={e => onFechaHastaChange(e.target.value)} className={inputCls} />
+        <DateInput size="sm" value={fechaHasta} onChange={onFechaHastaChange} ariaLabel="Hasta" />
       </label>
     </div>
   );

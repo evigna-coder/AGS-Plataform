@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { DateInput } from '../../components/ui/DateInput';
 
 const ACTION_TABS: { value: '' | AuditAction; label: string }[] = [
   { value: '', label: 'Todas' },
@@ -371,20 +372,8 @@ export default function AuditoriaPage() {
               placeholder="Entidad"
             />
           </div>
-          <input
-            type="date"
-            value={filters.desde}
-            onChange={e => setFilter('desde', e.target.value)}
-            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700"
-            title="Desde"
-          />
-          <input
-            type="date"
-            value={filters.hasta}
-            onChange={e => setFilter('hasta', e.target.value)}
-            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700"
-            title="Hasta"
-          />
+          <DateInput size="sm" value={filters.desde} onChange={iso => setFilter('desde', iso)} ariaLabel="Desde" />
+          <DateInput size="sm" value={filters.hasta} onChange={iso => setFilter('hasta', iso)} ariaLabel="Hasta" />
           {hasFilters && <Button size="sm" variant="ghost" onClick={() => reset()}>Limpiar</Button>}
         </div>
       </PageHeader>
