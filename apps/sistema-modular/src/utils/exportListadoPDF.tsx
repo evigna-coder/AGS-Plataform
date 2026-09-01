@@ -2,7 +2,7 @@ import { Document, Page, View, Text, Image, StyleSheet, pdf } from '@react-pdf/r
 import { LOGO_SRC } from '../components/presupuestos/pdf/logos';
 // side-effect: registra Inter para @react-pdf/renderer
 import '../components/presupuestos/pdf/pdfFonts';
-import type { ExportColumn } from './exportToExcel';
+import type { ExportColumn, GrupoExport } from './exportToExcel';
 
 /**
  * Generador GENÉRICO de PDF tabular para listados (2026-08-12).
@@ -21,6 +21,12 @@ export interface ExportListadoPDFOptions<T> {
   data: T[];
   filename: string; // sin .pdf
   orientacion?: 'portrait' | 'landscape';
+  /**
+   * Si viene, el PDF sale agrupado en dos niveles con subtotales en vez de
+   * plano (2026-09-01, "resumen catalogado" de loaners). `data` se sigue usando
+   * para el conteo del encabezado.
+   */
+  grupos?: GrupoExport<T>[];
 }
 
 const COLORS = {
@@ -45,6 +51,24 @@ const S = StyleSheet.create({
   tr: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight },
   trAlt: { backgroundColor: COLORS.rowAlt },
   td: { fontSize: 7, color: COLORS.text, paddingVertical: 2.5, paddingHorizontal: 3 },
+  // Resumen agrupado: nivel 1 (categoría) con regla propia, nivel 2 (tipo) sangrado.
+  grupoRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    marginTop: 9, borderBottomWidth: 0.8, borderBottomColor: COLORS.primary, paddingBottom: 2,
+  },
+  grupoTitulo: { fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.5 },
+  grupoTotal: { fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary },
+  subgrupoRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    marginTop: 5, marginBottom: 1,
+  },
+  subgrupoTitulo: { fontSize: 7.5, fontWeight: 'bold', color: COLORS.text },
+  subgrupoTotal: { fontSize: 7.5, color: COLORS.textMuted },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'flex-end',
+    marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.primary, paddingTop: 4,
+  },
+  totalTexto: { fontSize: 9, fontWeight: 'bold', color: COLORS.primary },
   footer: {
     position: 'absolute', bottom: 16, left: 34, right: 34,
     flexDirection: 'row', justifyContent: 'space-between',
@@ -66,7 +90,7 @@ export async function exportListadoPDF<T>(opts: ExportListadoPDFOptions<T>): Pro
 }
 
 function buildDocument<T>(opts: ExportListadoPDFOptions<T>) {
-  const { titulo, subtitulo, filtrosAplicados = [], columnas, data } = opts;
+  const { titulo, subtitulo, filtrosAplicados = [], columnas, data, grupos } = opts;
   // Landscape automático para tablas anchas (> ~6 columnas), salvo override.
   const orientacion = opts.orientacion ?? (columnas.length > 6 ? 'landscape' : 'portrait');
   // Ancho relativo de cada columna a partir del width (en caracteres) de Excel.
@@ -95,28 +119,75 @@ function buildDocument<T>(opts: ExportListadoPDFOptions<T>) {
           <Text style={S.metaLinea}>Filtros: {filtrosAplicados.join('  ·  ')}</Text>
         ) : null}
 
-        {/* Header de tabla: texto azul + línea azul fina, sin fondos */}
-        <View style={S.thRow}>
-          {columnas.map((c, i) => (
-            <Text key={i} style={[S.th, { width: widthPct(c), textAlign: c.align || 'left' }]}>
-              {c.header.toUpperCase()}
-            </Text>
-          ))}
-        </View>
-
-        {/* Filas alternadas suaves */}
-        {data.map((row, i) => (
-          <View key={i} style={i % 2 === 1 ? [S.tr, S.trAlt] : S.tr} wrap={false}>
-            {columnas.map((c, j) => {
-              const v = c.get(row);
-              return (
-                <Text key={j} style={[S.td, { width: widthPct(c), textAlign: c.align || 'left' }]}>
-                  {v === null || v === undefined || v === '' ? '—' : String(v)}
+        {grupos ? (
+          <>
+            {grupos.map((g, gi) => (
+              <View key={gi}>
+                <View style={S.grupoRow} wrap={false}>
+                  <Text style={S.grupoTitulo}>{g.titulo.toUpperCase()}</Text>
+                  <Text style={S.grupoTotal}>{g.total}</Text>
+                </View>
+                {g.subgrupos.map((sg, si) => (
+                  <View key={si}>
+                    <View style={S.subgrupoRow} wrap={false}>
+                      <Text style={S.subgrupoTitulo}>{sg.titulo}</Text>
+                      <Text style={S.subgrupoTotal}>{sg.total}</Text>
+                    </View>
+                    <View style={S.thRow}>
+                      {columnas.map((c, i) => (
+                        <Text key={i} style={[S.th, { width: widthPct(c), textAlign: c.align || 'left' }]}>
+                          {c.header.toUpperCase()}
+                        </Text>
+                      ))}
+                    </View>
+                    {sg.rows.map((row, i) => (
+                      <View key={i} style={i % 2 === 1 ? [S.tr, S.trAlt] : S.tr} wrap={false}>
+                        {columnas.map((c, j) => {
+                          const v = c.get(row);
+                          return (
+                            <Text key={j} style={[S.td, { width: widthPct(c), textAlign: c.align || 'left' }]}>
+                              {v === null || v === undefined || v === '' ? '—' : String(v)}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            ))}
+            <View style={S.totalRow} wrap={false}>
+              <Text style={S.totalTexto}>
+                TOTAL GENERAL: {grupos.reduce((acc, g) => acc + g.total, 0)}
+              </Text>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Header de tabla: texto azul + línea azul fina, sin fondos */}
+            <View style={S.thRow}>
+              {columnas.map((c, i) => (
+                <Text key={i} style={[S.th, { width: widthPct(c), textAlign: c.align || 'left' }]}>
+                  {c.header.toUpperCase()}
                 </Text>
-              );
-            })}
-          </View>
-        ))}
+              ))}
+            </View>
+
+            {/* Filas alternadas suaves */}
+            {data.map((row, i) => (
+              <View key={i} style={i % 2 === 1 ? [S.tr, S.trAlt] : S.tr} wrap={false}>
+                {columnas.map((c, j) => {
+                  const v = c.get(row);
+                  return (
+                    <Text key={j} style={[S.td, { width: widthPct(c), textAlign: c.align || 'left' }]}>
+                      {v === null || v === undefined || v === '' ? '—' : String(v)}
+                    </Text>
+                  );
+                })}
+              </View>
+            ))}
+          </>
+        )}
 
         <View style={S.footer} fixed>
           <Text style={S.footerText}>AGS Analítica S.A. — {titulo}</Text>

@@ -5,6 +5,12 @@ import { Button } from './Button';
 export interface MenuButtonItem {
   label: string;
   onClick: () => void;
+  /** Tilde a la izquierda: convierte el menú en uno de selección múltiple. */
+  checked?: boolean;
+  /** No cerrar al elegir — necesario para marcar varias opciones seguidas. */
+  keepOpen?: boolean;
+  /** Línea divisoria por encima del item. */
+  separador?: boolean;
 }
 
 interface Props {
@@ -69,9 +75,14 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title }) =
             <button
               key={item.label}
               type="button"
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 hover:text-teal-700"
+              onClick={() => { if (!item.keepOpen) setOpen(false); item.onClick(); }}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 hover:text-teal-700 ${
+                item.separador ? 'border-t border-slate-100 mt-1 pt-2' : ''
+              } ${item.checked ? 'text-teal-700 font-medium' : 'text-slate-600'}`}
             >
+              {item.checked !== undefined && (
+                <span className="inline-block w-3 mr-1.5 font-mono">{item.checked ? '✓' : ''}</span>
+              )}
               {item.label}
             </button>
           ))}

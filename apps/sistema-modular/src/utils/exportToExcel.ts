@@ -7,21 +7,53 @@ export interface ExportColumn<T> {
   align?: 'left' | 'center' | 'right';
 }
 
+/**
+ * Agrupación de dos niveles para el "resumen catalogado" (2026-09-01):
+ * categoría → subcategoría → filas, cada nivel con su total. Compartida por el
+ * Excel y el PDF para que ambos salgan del mismo armado.
+ */
+export interface SubgrupoExport<T> {
+  titulo: string;
+  total: number;
+  rows: T[];
+}
+export interface GrupoExport<T> {
+  titulo: string;
+  total: number;
+  subgrupos: SubgrupoExport<T>[];
+}
+
 export interface ExportToExcelOptions<T> {
   data: T[];
   columns: ExportColumn<T>[];
   sheetName: string;
   filename: string;  // sin extension .xlsx
   freezeHeader?: boolean;  // default true
+  /** Si viene, la hoja sale agrupada con subtítulos y totales en vez de plana. */
+  grupos?: GrupoExport<T>[];
 }
 
 export function exportToExcel<T>(opts: ExportToExcelOptions<T>): void {
-  const { data, columns, sheetName, filename, freezeHeader = true } = opts;
+  const { data, columns, sheetName, filename, freezeHeader = true, grupos } = opts;
 
   const headers = columns.map(c => c.header);
   const aoa: (string | number | null)[][] = [headers];
-  for (const row of data) {
-    aoa.push(columns.map(c => c.get(row)));
+  const blank = () => headers.map(() => null);
+  if (grupos) {
+    for (const g of grupos) {
+      aoa.push(blank());
+      aoa.push([`${g.titulo.toUpperCase()} — ${g.total}`, ...headers.slice(1).map(() => null)]);
+      for (const sg of g.subgrupos) {
+        aoa.push([`    ${sg.titulo} (${sg.total})`, ...headers.slice(1).map(() => null)]);
+        for (const row of sg.rows) aoa.push(columns.map(c => c.get(row)));
+      }
+    }
+    aoa.push(blank());
+    aoa.push([`TOTAL GENERAL — ${grupos.reduce((a, g) => a + g.total, 0)}`, ...headers.slice(1).map(() => null)]);
+  } else {
+    for (const row of data) {
+      aoa.push(columns.map(c => c.get(row)));
+    }
   }
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);

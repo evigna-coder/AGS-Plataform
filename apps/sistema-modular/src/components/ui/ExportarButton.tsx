@@ -1,4 +1,4 @@
-import { MenuButton } from './MenuButton';
+import { MenuButton, type MenuButtonItem } from './MenuButton';
 import { exportToExcel, type ExportColumn } from '../../utils/exportToExcel';
 import { exportListadoPDF } from '../../utils/exportListadoPDF';
 
@@ -20,6 +20,12 @@ export interface ExportarButtonProps<T> {
   filtrosAplicados?: string[];
   subtitulo?: string;
   orientacion?: 'portrait' | 'landscape';
+  /**
+   * Variantes de export propias de la lista, agregadas debajo de Excel y PDF
+   * (2026-09-01: "Resumen por categoría" en loaners). El primero se separa con
+   * una línea para que no se confunda con los dos exports estándar.
+   */
+  itemsExtra?: MenuButtonItem[];
 }
 
 /** yyyymmdd en hora local (no UTC — un export a la noche no debe saltar de día). */
@@ -29,7 +35,7 @@ function hoySlug(): string {
 }
 
 export function ExportarButton<T>({
-  columnas, data, titulo, filename, filtrosAplicados, subtitulo, orientacion,
+  columnas, data, titulo, filename, filtrosAplicados, subtitulo, orientacion, itemsExtra = [],
 }: ExportarButtonProps<T>) {
   const fname = `${filename}-${hoySlug()}`;
   return (
@@ -59,6 +65,7 @@ export function ExportarButton<T>({
             });
           },
         },
+        ...itemsExtra.map((it, i) => (i === 0 ? { ...it, separador: true } : it)),
       ]}
     />
   );
