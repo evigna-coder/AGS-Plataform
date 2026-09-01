@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner, CondicionUnidad } from '@ags/shared';
+import { normalizarSerie } from '@ags/shared';
 import type { MockVentaLoanerState } from './__tests__/fixtures/ventaLoaner';
 import {
   buildRegistrarVenta,
@@ -106,6 +107,20 @@ export const loanersService = {
       }
     });
     return `LNR-${String(maxNum + 1).padStart(4, '0')}`;
+  },
+
+  /**
+   * Loaner ACTIVO que ya usa ese número de serie, o null (2026-09-01). El número
+   * de serie identifica una máquina física: dos loaners no pueden compartirlo.
+   * `excludeId` es el propio loaner al editar. Compara sin distinguir mayúsculas
+   * ni espacios sobrantes — "ABC 123" y "abc123" son la misma serie tipeada
+   * distinto, y bloquear recién en el segundo caso no sirve de nada.
+   */
+  async findBySerie(serie: string, excludeId?: string): Promise<Loaner | null> {
+    const buscado = normalizarSerie(serie);
+    if (!buscado) return null;
+    const todos = await this.getAll({ activoOnly: true });
+    return todos.find(l => l.id !== excludeId && normalizarSerie(l.serie) === buscado) ?? null;
   },
 
   async getAll(filters?: {

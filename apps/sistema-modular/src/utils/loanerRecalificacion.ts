@@ -83,13 +83,26 @@ async function resolverResponsable(): Promise<{ id: string; nombre: string } | n
  * coordinación. Best-effort por paso: si el cliente AGS no se resuelve se
  * saltea la OT (el ticket avisa que falta el cliente); si la OT falla, el
  * ticket igual se crea. Nunca lanza.
+ *
+ * ARRANCA RECLAMANDO EL PRÉSTAMO (2026-09-01, caso LNR-0014 → OTs 30241 y
+ * 30242 con un segundo de diferencia). El guard vivía solo en el sweep, así que
+ * la devolución creaba la OT sin reclamar y anotaba su número recién al final:
+ * en esa ventana —dos segundos— la suscripción empujaba el loaner ya
+ * 'en_recalificacion' a una lista abierta en otra solapa, cuyo sweep lo veía
+ * "sin OT", lo reclamaba y arrancaba una segunda OT completa. Reclamando acá,
+ * el que llega segundo se va sin crear nada, venga del camino que venga.
  */
 export async function iniciarRecalificacion(
   loaner: Loaner,
   prestamo: PrestamoLoaner,
-): Promise<{ otNumber: string | null; ticketId: string | null }> {
+): Promise<{ otNumber: string | null; ticketId: string | null; yaEnCurso?: boolean }> {
   let otNumber: string | null = null;
   let ticketId: string | null = null;
+
+  if (!await reclamarPrestamoParaRecalificacion(loaner.id, prestamo.id)) {
+    console.log(`[loanerRecalificacion] ${loaner.codigo}: la recalificación ya está en curso (o creada) — no se duplica.`);
+    return { otNumber: null, ticketId: null, yaEnCurso: true };
+  }
 
   // 1. Cliente interno AGS Analítica (existe como cliente real en producción).
   const clienteAGS = await resolverClienteAGS();
@@ -250,6 +263,10 @@ export async function iniciarRecalificacion(
     console.error('[loanerRecalificacion] creación de ticket falló (la devolución sigue):', err);
   }
 
+  // Sin OT el claim se libera para que un sweep futuro reintente; con OT ya
+  // quedó pisado por el número real en setOtRecalificacionEnPrestamo.
+  if (!otNumber) await revertirClaimRecalificacion(loaner.id, prestamo.id);
+
   return { otNumber, ticketId };
 }
 
@@ -369,12 +386,13 @@ async function revertirClaimRecalificacion(loanerId: string, prestamoId: string)
  * Sweep de creación: completa las OTs de recalificación que faltan. Para cada
  * loaner 'en_recalificacion' cuyo último préstamo devuelto requiere
  * recalificación y NO tiene OT anotada (devolución registrada desde el portal),
- * crea la OT interna + ticket vía `iniciarRecalificacion` con guard
- * anti-duplicado transaccional (ver `reclamarPrestamoParaRecalificacion`).
- * `iniciarRecalificacion` anota el número real al final (pisa el 'PENDIENTE');
- * acá se re-anota idempotente por si aquel write best-effort falló, y si la OT
- * no se pudo crear el claim se revierte a null para reintento en el próximo
- * sweep. Best-effort por loaner; nunca lanza. Devuelve cuántas OTs creó.
+ * crea la OT interna + ticket vía `iniciarRecalificacion`.
+ *
+ * El guard anti-duplicado NO vive acá desde 2026-09-01: lo hace
+ * `iniciarRecalificacion`, que reclama el préstamo antes de crear nada. Así
+ * queda un solo lugar que decide quién crea, y el sweep no puede pisarse con la
+ * devolución (que llama a `iniciarRecalificacion` directo). Best-effort por
+ * loaner; nunca lanza. Devuelve cuántas OTs creó.
  */
 export async function procesarRecalificacionesPendientes(loaners: Loaner[]): Promise<number> {
   let creadas = 0;
@@ -383,22 +401,13 @@ export async function procesarRecalificacionesPendientes(loaners: Loaner[]): Pro
     const prestamo = prestamoPendienteDeRecalificacion(loaner);
     if (!prestamo) continue;
     try {
-      const gano = await reclamarPrestamoParaRecalificacion(loaner.id, prestamo.id);
-      if (!gano) continue; // otra sesión lo está creando (o ya lo creó)
-
       const { otNumber } = await iniciarRecalificacion(loaner, prestamo);
       if (otNumber) {
-        // iniciarRecalificacion ya pisa el 'PENDIENTE' con el número real
-        // (setOtRecalificacionEnPrestamo), pero ese write es best-effort:
-        // repetirlo acá es idempotente y evita que quede el claim colgado.
+        // El número real ya lo anota iniciarRecalificacion, pero ese write es
+        // best-effort: repetirlo es idempotente y evita dejar el claim colgado.
         await loanersService.setOtRecalificacionEnPrestamo(loaner.id, prestamo.id, otNumber)
           .catch(err => console.warn('[loanerRecalificacion] re-anotar OT tras sweep falló:', err));
         creadas++;
-      } else {
-        // La OT no se pudo crear (p. ej. falta el cliente AGS) → liberar el
-        // claim para que un sweep futuro reintente. El ticket de aviso puede
-        // haberse creado igual (iniciarRecalificacion es best-effort por paso).
-        await revertirClaimRecalificacion(loaner.id, prestamo.id);
       }
     } catch (err) {
       console.warn(`[loanerRecalificacion] procesar pendiente del loaner ${loaner.codigo} falló:`, err);

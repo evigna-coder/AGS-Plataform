@@ -4,25 +4,33 @@ import { loanersService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
-import type { Loaner, EstadoLoaner } from '@ags/shared';
+import type { Loaner } from '@ags/shared';
 import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
+import { matchesSearch } from '../../utils/searchTerms';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { ExportarButton } from '../../components/ui/ExportarButton';
+import { LoanersFiltersBar, parseEstados } from '../../components/loaners/LoanersFiltersBar';
+import { buildLoanerResumenItems } from '../../components/loaners/loanerResumenExport';
 import { LOANERS_EXPORT_COLUMNS, buildLoanerExportRows } from '../../utils/exports/exportLoaners';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 import { diasDesde, semaforoPrestamoCls, semaforoProveedorCls } from '../../utils/loanerSemaforo';
 
 const FILTER_SCHEMA = {
-  estado: { type: 'string' as const, default: '' },
+  search: { type: 'string' as const, default: '' },
+  /** CSV de estados (2026-09-01): antes era uno solo y no se podía exportar
+   *  "en base + en recalificación" de una. Vacío = todos. */
+  estados: { type: 'string' as const, default: '' },
+  /** Excluye los INCOMPLETO. Con estados='en_base' es el atajo "Disponibles". */
+  soloCompletos: { type: 'boolean' as const, default: false },
   showInactivos: { type: 'boolean' as const, default: false },
 };
 
@@ -44,6 +52,8 @@ export function LoanersList() {
   const unsubRef = useRef<(() => void) | null>(null);
 
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  // Buscador unificado (2026-09-01): texto local + push a la URL con debounce.
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
   const [sortField, setSortField] = useState('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -86,9 +96,25 @@ export function LoanersList() {
 
   const filtered = useMemo(() => {
     let result = loaners;
-    if (filters.estado) result = result.filter(l => l.estado === filters.estado);
+    const estadosSel = parseEstados(filters.estados);
+    if (estadosSel.length > 0) result = result.filter(l => estadosSel.includes(l.estado));
+    if (filters.soloCompletos) result = result.filter(l => !loanerEstaIncompleto(l));
+    // Buscador unificado: código, descripción, categoría, tipo/modelo de módulo,
+    // serie, estado, cliente del préstamo activo y proveedor de la derivación.
+    if (filters.search.trim()) {
+      result = result.filter(l => {
+        const prestamo = l.prestamos.find(p => p.estado === 'activo');
+        return matchesSearch(filters.search,
+          l.codigo, l.descripcion, l.categoriaEquipo, l.categoriaModuloNombre,
+          l.moduloCodigo, l.moduloDescripcion, l.serie,
+          ESTADO_LOANER_LABELS[l.estado],
+          prestamo?.clienteNombre,
+          l.enProveedor?.proveedorNombre, l.enProveedor?.remitoNumero,
+        );
+      });
+    }
     return sortByField(result, sortField, sortDir);
-  }, [loaners, filters.estado, sortField, sortDir]);
+  }, [loaners, filters.estados, filters.soloCompletos, filters.search, sortField, sortDir]);
 
   const handleDelete = async (id: string) => {
     if (!await confirm('Eliminar este loaner?')) return;
@@ -103,7 +129,9 @@ export function LoanersList() {
   // Export Excel/PDF del array filtrado que muestra la tabla.
   const exportRows = useMemo(() => buildLoanerExportRows(filtered, sufijoEstab), [filtered, sufijoEstab]);
   const filtrosExport = filtrosAplicadosDesc({
-    Estado: filters.estado ? (ESTADO_LOANER_LABELS[filters.estado as EstadoLoaner] ?? filters.estado) : '',
+    Búsqueda: filters.search,
+    Estado: parseEstados(filters.estados).map(e => ESTADO_LOANER_LABELS[e]).join(', '),
+    'Solo completos': filters.soloCompletos,
     'Incluye inactivos': filters.showInactivos,
   });
 
@@ -121,32 +149,22 @@ export function LoanersList() {
               titulo="Loaners"
               filename="loaners"
               filtrosAplicados={filtrosExport}
+              itemsExtra={buildLoanerResumenItems({ rows: exportRows, filtrosAplicados: filtrosExport })}
             />
             <Button size="sm" variant="outline" onClick={() => setShowDerivacion(true)}>Derivar a proveedor</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
           </div>
         }
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="min-w-[150px]">
-            <SearchableSelect value={filters.estado}
-              onChange={(v) => setFilter('estado', v)}
-              options={[{ value: '', label: 'Todos' }, ...(Object.keys(ESTADO_LOANER_LABELS) as EstadoLoaner[]).map(e => ({ value: e, label: ESTADO_LOANER_LABELS[e] }))]}
-              placeholder="Estado" />
-          </div>
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.showInactivos}
-              onChange={e => setFilter('showInactivos', e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            Mostrar inactivos
-          </label>
-          <Button size="sm" variant="ghost" onClick={resetFilters}>
-            Limpiar
-          </Button>
-        </div>
+        <LoanersFiltersBar
+          busq={busq}
+          onBusqChange={setBusq}
+          estados={filters.estados}
+          soloCompletos={filters.soloCompletos}
+          showInactivos={filters.showInactivos}
+          setFilter={setFilter as (key: string, value: string | boolean) => void}
+          onReset={resetFilters}
+        />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">

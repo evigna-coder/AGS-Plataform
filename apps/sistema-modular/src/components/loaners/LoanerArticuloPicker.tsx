@@ -44,11 +44,14 @@ export function LoanerArticuloPicker({ open, value, onChange, onError }: Props) 
   };
 
   // Memoizado: evita recrear el array de opciones en cada render (identidad estable para el SearchableSelect).
+  // El código VA EN LA ETIQUETA (2026-09-01): con la descripción sola, buscar
+  // "G1329" devolvía varios inyectores indistinguibles entre sí —el código solo
+  // alimentaba el filtro, no se veía— y tampoco quedaba visible el elegido.
+  // Mismo formato que los demás buscadores de artículos del sistema.
   const articuloOptions = useMemo(
     () => articulos.map(a => ({
       value: a.id,
-      label: a.descripcion ?? a.codigo ?? a.id,
-      linkedCode: a.codigo,
+      label: [a.codigo, a.descripcion].filter(Boolean).join(' — ') || a.id,
     })),
     [articulos],
   );

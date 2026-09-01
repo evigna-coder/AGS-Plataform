@@ -42,10 +42,19 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
 
   const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
 
-  // Al elegir un modelo, auto-llenar la descripción si está vacía (no destructivo).
+  /**
+   * La descripción SALE DEL CATÁLOGO cuando hay un modelo vinculado
+   * (2026-09-01). Antes se escribía a mano —el modelo solo la sugería si el
+   * campo estaba vacío— y dos loaners del mismo módulo terminaban con textos
+   * distintos, que es lo que rompe el resumen por tipo. Queda manual solo
+   * cuando el loaner no se vincula a ningún modelo.
+   */
+  const descripcionCatalogo = modulo.moduloDescripcion?.trim() ?? '';
+  const descripcionFinal = descripcionCatalogo || descripcion;
+
   const handleModuloChange = (sel: ModuloSelection) => {
     setModulo(sel);
-    if (sel.moduloDescripcion && !descripcion) setDescripcion(sel.moduloDescripcion);
+    if (errors.descripcion) setErrors(prev => ({ ...prev, descripcion: '' }));
   };
 
   const resetForm = () => {
@@ -57,7 +66,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!descripcion.trim()) e.descripcion = 'Requerido';
+    if (!descripcionFinal.trim()) e.descripcion = 'Vinculá un modelo del catálogo o escribí una descripción';
     if (!condicion.trim()) e.condicion = 'Requerido';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -67,8 +76,19 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
     if (!validate()) return;
     setSaving(true);
     try {
+      // El nº de serie identifica una máquina física: no puede repetirse entre
+      // loaners activos (2026-09-01). Se chequea acá y no en validate() porque
+      // requiere ir a la base.
+      if (serie.trim()) {
+        const enUso = await loanersService.findBySerie(serie).catch(() => null);
+        if (enUso) {
+          setErrors({ serie: `El nº de serie ya está en el loaner ${enUso.codigo} (${enUso.descripcion}).` });
+          setSaving(false);
+          return;
+        }
+      }
       const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
-        descripcion: descripcion.trim(),
+        descripcion: descripcionFinal.trim(),
         articuloId: articulo?.id ?? null,
         articuloCodigo: articulo?.codigo ?? null,
         articuloDescripcion: articulo?.descripcion ?? null,
@@ -107,7 +127,18 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
           <h3 className="text-xs font-semibold text-slate-700 mb-3">Identificacion del equipo</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-              <Input inputSize="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} error={errors.descripcion} placeholder="Ej: Bomba cuaternaria 1260 Infinity II" />
+              <Input
+                inputSize="sm"
+                label="Descripcion *"
+                value={descripcionFinal}
+                onChange={e => setDescripcion(e.target.value)}
+                disabled={!!descripcionCatalogo}
+                description={descripcionCatalogo
+                  ? 'Se toma del catálogo de módulos. Para cambiarla, editá el modelo en Categorías de módulo.'
+                  : 'Se completa sola al vincular un modelo del catálogo.'}
+                error={errors.descripcion}
+                placeholder="Ej: Bomba cuaternaria 1260 Infinity II"
+              />
             </div>
             <LoanerCategoriaModuloPicker
               size="sm"
@@ -123,7 +154,9 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
               onError={msg => setErrors(prev => ({ ...prev, articulo: msg }))}
             />
             {errors.articulo && <p className="text-[11px] text-red-600">{errors.articulo}</p>}
-            <Input inputSize="sm" label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
+            <Input inputSize="sm" label="Numero de serie" value={serie}
+              onChange={e => { setSerie(e.target.value); if (errors.serie) setErrors(prev => ({ ...prev, serie: '' })); }}
+              error={errors.serie} placeholder="S/N" />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria de equipo</label>
               <SearchableSelect size="sm" value={categoriaEquipo} onChange={setCategoriaEquipo} options={catOptions} placeholder="Seleccionar" />

@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fichasService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
+import { matchesSearch } from '../../utils/searchTerms';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -84,6 +86,7 @@ export function FichasList() {
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('fichas-list-v3');
 
   const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
     estado: { type: 'string' as const, default: '' },
     cliente: { type: 'string' as const, default: '' },
     showEntregadas: { type: 'boolean' as const, default: false },
@@ -91,6 +94,8 @@ export function FichasList() {
     sortDir: { type: 'string' as const, default: 'desc' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  // Buscador unificado (2026-09-01): texto local + push a la URL con debounce.
+  const [busq, setBusq] = useDebouncedUrlText(filters.search, v => setFilter('search', v));
 
   const [fichas, setFichas] = useState<FichaPropiedad[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -134,6 +139,8 @@ export function FichasList() {
     return () => { unsubFichasRef.current?.(); };
   }, [filters.showEntregadas]);
 
+  const clienteNombreById = useMemo(() => new Map(clientes.map(c => [c.id, c.razonSocial])), [clientes]);
+
   const filtered = useMemo(() => {
     let result = fichas.filter(f => {
       // El filtro de estado matchea contra el estado VISIBLE (2026-08-12): con
@@ -143,13 +150,28 @@ export function FichasList() {
       if (filters.cliente && f.clienteId !== filters.cliente) return false;
       return true;
     });
+    // Buscador unificado: cliente, estado visible, proveedor derivado, OT de
+    // referencia y TODOS los items (código/descripción/serie/problema).
+    if (filters.search.trim()) {
+      result = result.filter(f => matchesSearch(filters.search,
+        clienteNombreById.get(f.clienteId),
+        ESTADO_FICHA_LABELS[estadoVisibleDeFicha(f)],
+        proveedorDerivadoLabel(f),
+        f.otReferencia,
+        summarizeItems(f, catalogoModelos),
+        ...(f.items ?? []).flatMap(i => [
+          i.articuloCodigo, i.articuloDescripcion, i.descripcionLibre,
+          i.serie, i.descripcionProblema, i.subId,
+        ]),
+      ));
+    }
     const accessor = SORT_ACCESSORS[filters.sortField];
     if (accessor) {
       const dir = filters.sortDir === 'asc' ? 1 : -1;
       return [...result].sort((a, b) => accessor(a).localeCompare(accessor(b)) * dir);
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
-  }, [fichas, filters.estado, filters.cliente, filters.sortField, filters.sortDir]);
+  }, [fichas, filters.estado, filters.cliente, filters.search, filters.sortField, filters.sortDir, clienteNombreById, catalogoModelos]);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => [{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
@@ -180,6 +202,7 @@ export function FichasList() {
               titulo="Fichas Propiedad del Cliente"
               filename="fichas"
               filtrosAplicados={filtrosAplicadosDesc({
+                Búsqueda: filters.search,
                 Cliente: clientes.find(c => c.id === filters.cliente)?.razonSocial,
                 Estado: filters.estado ? (ESTADO_FICHA_LABELS[filters.estado as EstadoFicha] ?? filters.estado) : '',
                 'Incluye entregadas': filters.showEntregadas,
@@ -191,6 +214,12 @@ export function FichasList() {
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
+          <input
+            value={busq}
+            onChange={e => setBusq(e.target.value)}
+            placeholder="Buscar por equipo, serie, cliente, proveedor, OT…"
+            className="w-80 text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
           <div className="min-w-[160px]">
             <SearchableSelect value={filters.cliente} onChange={(v) => setFilter('cliente', v)}
               options={clienteOptions}

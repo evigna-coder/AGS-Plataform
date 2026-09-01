@@ -115,9 +115,12 @@ export function LoanerDetail() {
     }
     // Ciclo de recalificación: OT interna + ticket. Best-effort — nunca rompe la devolución.
     if (data.requiereRecalificacion) {
-      const { otNumber, ticketId } = await iniciarRecalificacion(loaner, prestamoActivo);
+      const { otNumber, ticketId, yaEnCurso } = await iniciarRecalificacion(loaner, prestamoActivo);
       if (otNumber) {
         alert(`Devolución registrada. Se creó la OT de recalificación ${otNumber}${ticketId ? ' y el ticket de coordinación' : ''}. El loaner queda "En recalificación" hasta el cierre técnico.`);
+      } else if (yaEnCurso) {
+        // Otra pantalla/sesión ya la está creando: avisar sin alarmar y sin duplicar.
+        alert('Devolución registrada. La OT de recalificación ya estaba en curso — revisá el detalle del loaner en unos segundos.');
       } else {
         alert('Devolución registrada, pero la OT de recalificación no se pudo crear automáticamente. Revisá el ticket generado o creala a mano.');
       }

@@ -53,15 +53,18 @@ export function LoanerEditor() {
     });
   }, [id, navigate]);
 
-  // Al elegir un modelo, auto-llenar la descripción si está vacía (no destructivo).
+  /** La descripción sale del catálogo cuando hay modelo vinculado — ver CreateLoanerModal. */
+  const descripcionCatalogo = modulo.moduloDescripcion?.trim() ?? '';
+  const descripcionFinal = descripcionCatalogo || descripcion;
+
   const handleModuloChange = (sel: ModuloSelection) => {
     setModulo(sel);
-    if (sel.moduloDescripcion && !descripcion) setDescripcion(sel.moduloDescripcion);
+    if (errors.descripcion) setErrors(prev => ({ ...prev, descripcion: '' }));
   };
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!descripcion.trim()) e.descripcion = 'Requerido';
+    if (!descripcionFinal.trim()) e.descripcion = 'Vinculá un modelo del catálogo o escribí una descripción';
     if (!condicion.trim()) e.condicion = 'Requerido';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -71,8 +74,18 @@ export function LoanerEditor() {
     if (!validate()) return;
     setSaving(true);
     try {
+      // Nº de serie único entre loaners activos (2026-09-01). Al editar, el
+      // propio loaner no cuenta.
+      if (serie.trim()) {
+        const enUso = await loanersService.findBySerie(serie, isEdit ? id : undefined).catch(() => null);
+        if (enUso) {
+          setErrors({ serie: `El nº de serie ya está en el loaner ${enUso.codigo} (${enUso.descripcion}).` });
+          setSaving(false);
+          return;
+        }
+      }
       const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
-        descripcion: descripcion.trim(),
+        descripcion: descripcionFinal.trim(),
         articuloId: articulo.id,
         articuloCodigo: articulo.codigo,
         articuloDescripcion: articulo.descripcion,
@@ -128,14 +141,26 @@ export function LoanerEditor() {
           <Card title="Identificacion del equipo">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <Input label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} error={errors.descripcion} placeholder="Ej: Bomba cuaternaria 1260 Infinity II" />
+                <Input
+                  label="Descripcion *"
+                  value={descripcionFinal}
+                  onChange={e => setDescripcion(e.target.value)}
+                  disabled={!!descripcionCatalogo}
+                  description={descripcionCatalogo
+                    ? 'Se toma del catálogo de módulos. Para cambiarla, editá el modelo en Categorías de módulo.'
+                    : 'Se completa sola al vincular un modelo del catálogo.'}
+                  error={errors.descripcion}
+                  placeholder="Ej: Bomba cuaternaria 1260 Infinity II"
+                />
               </div>
               <LoanerCategoriaModuloPicker
                 categoriaModuloId={modulo.categoriaModuloId || ''}
                 moduloCodigo={modulo.moduloCodigo || ''}
                 onChange={handleModuloChange}
               />
-              <Input label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
+              <Input label="Numero de serie" value={serie}
+                onChange={e => { setSerie(e.target.value); if (errors.serie) setErrors(prev => ({ ...prev, serie: '' })); }}
+                error={errors.serie} placeholder="S/N" />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Categoria de equipo</label>
                 <SearchableSelect value={categoriaEquipo} onChange={setCategoriaEquipo} options={catOptions} placeholder="Seleccionar" />
