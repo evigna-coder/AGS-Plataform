@@ -59,6 +59,8 @@ export function useIngresarStock() {
         monedaBase: monedaEmbarque,
         fleteDeclarado: imp.fleteDeclarado ?? 0,
         seguroDeclarado: imp.seguroDeclarado ?? 0,
+        monedaFlete: imp.monedaFleteDeclarado ?? null,
+        monedaSeguro: imp.monedaSeguroDeclarado ?? null,
         tipoCambio: imp.tipoCambio ?? null,
         paseEurUsd: imp.paseEurUsd ?? null,
         // Sin esto un embarque courier se costeaba como régimen general al

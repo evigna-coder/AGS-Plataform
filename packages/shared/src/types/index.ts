@@ -5564,10 +5564,18 @@ export interface Importacion {
   paseEurUsd?: number | null;
   /** Factor de importación del embarque (costoComputable / FOB total), persistido al guardar/ingresar. */
   factorEmbarque?: number | null;
-  /** Flete declarado en la guía (moneda de la OC) — integra el valor en aduana (CIF). */
+  /** Flete declarado en la guía — integra el valor en aduana (CIF). */
   fleteDeclarado?: number | null;
-  /** Seguro declarado (moneda de la OC) — integra el valor en aduana. Suele ser % del CPT. */
+  /** Seguro declarado — integra el valor en aduana. Suele ser % del CPT. */
   seguroDeclarado?: number | null;
+  /**
+   * Moneda del flete/seguro declarados (2026-09-01). Vienen en la guía y NO
+   * siempre coinciden con la de la mercadería: en los despachos por DHL el
+   * flete se declara en dólares y el FOB en euros. Sin valor, el costeo asume
+   * la moneda del embarque (comportamiento anterior).
+   */
+  monedaFleteDeclarado?: 'ARS' | 'USD' | 'EUR' | null;
+  monedaSeguroDeclarado?: 'ARS' | 'USD' | 'EUR' | null;
   costoTotalARS?: number | null;
   // Documentos
   documentos: DocumentoImportacion[];

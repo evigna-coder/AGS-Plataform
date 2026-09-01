@@ -30,6 +30,8 @@ export function ImportacionItemsPanel({ imp, articulosById }: Props) {
     monedaBase: monedaEmbarque,
     fleteDeclarado: imp.fleteDeclarado ?? 0,
     seguroDeclarado: imp.seguroDeclarado ?? 0,
+    monedaFlete: imp.monedaFleteDeclarado ?? null,
+    monedaSeguro: imp.monedaSeguroDeclarado ?? null,
     tipoCambio: imp.tipoCambio,
     paseEurUsd: imp.paseEurUsd,
     esCourier: imp.esCourier,

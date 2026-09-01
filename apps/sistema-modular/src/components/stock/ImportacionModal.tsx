@@ -37,10 +37,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     monedaBase: h.monedaOC,
     fleteDeclarado: h.form.fleteDeclarado ? Number(h.form.fleteDeclarado) : 0,
     seguroDeclarado: h.form.seguroDeclarado ? Number(h.form.seguroDeclarado) : 0,
+    monedaFlete: h.form.monedaFleteDeclarado || null,
+    monedaSeguro: h.form.monedaSeguroDeclarado || null,
     tipoCambio: h.form.tipoCambio ? Number(h.form.tipoCambio) : null,
     paseEurUsd: h.form.paseEurUsd ? Number(h.form.paseEurUsd) : null,
     esCourier: h.form.esCourier,
-  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier]);
+  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado,
+    h.form.monedaFleteDeclarado, h.form.monedaSeguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier]);
 
   const handleSave = async () => {
     const id = await h.save(costeo.costoTotalARS, costeo.factorEmbarque);
@@ -106,14 +109,35 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   const aplicarVep = () => { if (vepSugerido != null) h.set('vepMonto', vepSugerido.toFixed(2)); };
   const aplicarGiro = () => { if (giroSugerido > 0) { h.set('giroMonto', giroSugerido.toFixed(2)); h.set('giroMoneda', h.monedaOC); } };
 
-  // Autocompletar una vez (al abrir, con los datos listos) si están vacíos. Se puede recalcular con ↻.
+  /**
+   * El VEP es un ESTIMADO mientras no tenga número de VEP ni esté pagado: ahí
+   * todavía es "lo que va a haber que pagar", y debe seguir al costeo.
+   * Con número cargado o pagado pasa a ser una cifra REAL de AFIP y no se pisa.
+   */
+  const vepEsEstimado = !h.form.vepNumero.trim() && !h.form.vepPagado;
+  /** El VEP real quedó viejo respecto de los tributos recalculados. */
+  const vepDesactualizado = !vepEsEstimado && vepSugerido != null && vepSugerido > 0
+    && vepMontoN > 0 && Math.abs(vepMontoN - vepSugerido) > 0.5;
+
+  // El VEP estimado SIGUE al costeo (2026-09-01): antes se autocompletaba una
+  // sola vez y, al recalcular los tributos —cambio de gastos, de tipo de cambio
+  // o del régimen courier—, el monto guardado quedaba viejo sin ningún aviso.
+  // La comparación previa al set evita el ciclo con la dependencia del form.
+  useEffect(() => {
+    if (h.loading || !vepEsEstimado) return;
+    if (vepSugerido == null || vepSugerido <= 0) return;
+    const nuevo = vepSugerido.toFixed(2);
+    if (h.form.vepMonto !== nuevo) h.set('vepMonto', nuevo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [h.loading, vepEsEstimado, vepSugerido, h.form.vepMonto]);
+
+  // El giro se autocompleta una sola vez si está vacío; se recalcula con ↻.
   const autoFilledRef = useRef(false);
   useEffect(() => { autoFilledRef.current = false; }, [impId, open]);
   useEffect(() => {
     if (h.loading || autoFilledRef.current) return;
     if (costeo.totalGravamenes <= 0 && valorFactura <= 0) return;
     autoFilledRef.current = true;
-    if (!h.form.vepMonto && vepSugerido != null && vepSugerido > 0) h.set('vepMonto', vepSugerido.toFixed(2));
     if (!h.form.giroMonto && giroSugerido > 0) { h.set('giroMonto', giroSugerido.toFixed(2)); h.set('giroMoneda', h.monedaOC); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [h.loading, costeo.totalGravamenes, valorFactura]);
@@ -441,8 +465,37 @@ No se van a poder ingresar mas unidades por este embarque.`,
                 <label className={lbl}>FOB (USD)</label>
                 <div className="text-xs font-mono text-slate-600 px-2 py-1.5 bg-slate-50 rounded-md">{costeo.fobTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
               </div>
-              <Input inputSize="sm" label={`Flete declarado (${h.monedaOC})`} type="number" value={h.form.fleteDeclarado} onFocus={selectAll} onChange={e => h.set('fleteDeclarado', e.target.value)} placeholder="0.00" />
-              <Input inputSize="sm" label={`Seguro declarado (${h.monedaOC})`} type="number" value={h.form.seguroDeclarado} onFocus={selectAll} onChange={e => h.set('seguroDeclarado', e.target.value)} placeholder="0.00" />
+              {/* Flete y seguro con su PROPIA moneda (2026-09-01): en los
+                  despachos por courier el flete viene en dólares y la
+                  mercadería en euros. Vacío = la moneda del embarque. */}
+              <div>
+                <label className={lbl}>Flete declarado</label>
+                <div className="flex gap-1">
+                  <input type="number" className={ctrl} value={h.form.fleteDeclarado} onFocus={selectAll}
+                    onChange={e => h.set('fleteDeclarado', e.target.value)} placeholder="0.00" />
+                  <select className={`${ctrl} w-24`} value={h.form.monedaFleteDeclarado}
+                    onChange={e => h.set('monedaFleteDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
+                    <option value="">{h.monedaOC}</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="ARS">ARS</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={lbl}>Seguro declarado</label>
+                <div className="flex gap-1">
+                  <input type="number" className={ctrl} value={h.form.seguroDeclarado} onFocus={selectAll}
+                    onChange={e => h.set('seguroDeclarado', e.target.value)} placeholder="0.00" />
+                  <select className={`${ctrl} w-24`} value={h.form.monedaSeguroDeclarado}
+                    onChange={e => h.set('monedaSeguroDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
+                    <option value="">{h.monedaOC}</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="ARS">ARS</option>
+                  </select>
+                </div>
+              </div>
               <div>
                 <label className={lbl}>CIF (USD)</label>
                 <div className="text-xs font-mono font-semibold text-teal-700 px-2 py-1.5 bg-teal-50 rounded-md">{costeo.cifTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
@@ -473,8 +526,16 @@ No se van a poder ingresar mas unidades por este embarque.`,
                   )}
                 </div>
                 <input type="number" className={ctrl} value={h.form.vepMonto} onFocus={selectAll} onChange={e => h.set('vepMonto', e.target.value)} placeholder="0.00" />
-                {vepSugerido != null && vepSugerido > 0
-                  ? <p className="text-[10px] text-slate-400 mt-0.5">Tributos: {h.form.vepMoneda} {fmtN(vepSugerido)}{vepEquiv ? ` · ≈ ${vepEquiv}` : ''}</p>
+                {vepDesactualizado ? (
+                  <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-1 mt-0.5">
+                    Los tributos recalculados dan <span className="font-mono font-semibold">{h.form.vepMoneda} {fmtN(vepSugerido!)}</span>.
+                    El monto cargado no se toca porque el VEP ya está emitido; si corresponde, aplicalo con «↻ tributos».
+                  </p>
+                ) : vepSugerido != null && vepSugerido > 0
+                  ? <p className="text-[10px] text-slate-400 mt-0.5">
+                      Tributos: {h.form.vepMoneda} {fmtN(vepSugerido)}{vepEquiv ? ` · ≈ ${vepEquiv}` : ''}
+                      {vepEsEstimado && <span className="text-teal-600"> · se actualiza solo hasta cargar el N° de VEP</span>}
+                    </p>
                   : vepEquiv && <p className="text-[10px] text-slate-400 mt-0.5">≈ {vepEquiv}</p>}
               </div>
               <div>

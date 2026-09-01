@@ -1,5 +1,6 @@
 import { collection, getDocs, getDocsFromServer, doc, getDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion, EstadoImportacion, EstadoOC } from '@ags/shared';
+import { derivarEstadoImportacion } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
@@ -520,14 +521,50 @@ export const importacionesService = {
     for (const f of dateFields) {
       if ((data as any)[f]) payload[f] = tsDesdeFecha((data as any)[f]);
     }
+
+    /**
+     * El estado se deriva ACÁ y no en cada pantalla (2026-09-01).
+     *
+     * La derivación vivía solo en el guardado del modal, así que cargar la
+     * fecha de embarque desde la sección Embarque y la guía desde la sección
+     * Aduana —los dos caminos naturales de la página de detalle— dejaba la
+     * importación en "Preparación" para siempre, y con ella la OC en "Enviada".
+     * Puesta en el servicio, la regla vale para todos los caminos.
+     *
+     * Un `estado` explícito del caller (cancelar, transición manual) manda.
+     * `derivarEstadoImportacion` es forward-only: nunca retrocede.
+     */
+    let estadoParaOC = data.estado as EstadoImportacion | undefined;
+    let ocIdParaSync = data.ordenCompraId ?? null;
+    if (!estadoParaOC) {
+      const actual = await this.getById(id).catch(() => null);
+      if (actual) {
+        ocIdParaSync = ocIdParaSync ?? actual.ordenCompraId ?? null;
+        // El patch pisa al documento campo por campo: `k in data` distingue
+        // "lo están borrando" (null explícito) de "no lo tocaron".
+        const v = (k: keyof Importacion) => (k in data ? (data as any)[k] : (actual as any)[k]);
+        const derivado = derivarEstadoImportacion({
+          fechaEmbarque: v('fechaEmbarque'),
+          numeroGuia: v('numeroGuia'),
+          despachoNumero: v('despachoNumero'),
+          fechaRecepcion: v('fechaRecepcion'),
+          stockIngresado: v('stockIngresado'),
+        }, actual.estado);
+        if (derivado !== actual.estado) {
+          payload.estado = derivado;
+          estadoParaOC = derivado;
+        }
+      }
+    }
+
     const batch = createBatch();
     batch.update(docRef('importaciones', id), payload);
     batchAudit(batch, { action: 'update', collection: 'importaciones', documentId: id, after: payload });
     await batch.commit();
     // Si cambió el estado, la OC lo replica (embarcado→embarcada, recibido→recibida).
-    if (data.estado) {
-      const ocId = data.ordenCompraId ?? (await this.getById(id))?.ordenCompraId;
-      await syncOCConImportacion(ocId, data.estado as EstadoImportacion);
+    if (estadoParaOC) {
+      const ocId = ocIdParaSync ?? (await this.getById(id))?.ordenCompraId;
+      await syncOCConImportacion(ocId, estadoParaOC);
     }
   },
 

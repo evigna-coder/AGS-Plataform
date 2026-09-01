@@ -75,6 +75,8 @@ export interface CosteoImportacion {
   ganancias: number;
   iibb: number;
   totalGravamenes: number;
+  /** Arancel SIM: monto fijo por despacho, no proporcional al valor. */
+  arancelSim: number;
   gastosReales: number;       // gastos cargados (flete/seguro locales, agente, despachante, etc.)
   costoTotal: number;         // erogación total (CIF + gravámenes + gastos reales) — lo que se paga
   costoTotalARS: number | null;
@@ -88,6 +90,14 @@ export interface CosteoImportacion {
 const DEFAULTS = { derechoImportacion: 0, estadistica: 3, iva: 21, ivaAdicional: 0, ganancias: 0, ingresosBrutos: 0 };
 const pct = (v: number | null | undefined, def: number): number => (v ?? def) / 100;
 
+/**
+ * Arancel SIM: cargo FIJO por despacho oficializado, en dólares (2026-09-01).
+ * No es proporcional al valor ni integra la base imponible — se suma al final.
+ * Verificado en los despachos 26001IC04780007 y 26001IC04780509: USD 10 en los
+ * dos, con FOB de 12.000 y 6.800 euros respectivamente.
+ */
+export const ARANCEL_SIM_USD = 10;
+
 export function computeCosteoImportacion(input: {
   items: ItemImportacion[];
   articulosById: Map<string, Articulo>;
@@ -95,6 +105,14 @@ export function computeCosteoImportacion(input: {
   monedaBase: string;
   fleteDeclarado: number;
   seguroDeclarado: number;
+  /**
+   * Moneda del flete/seguro declarados (2026-09-01). Antes se asumían en la
+   * moneda del EMBARQUE, pero vienen por separado en la guía: en los despachos
+   * de DHL el flete está en dólares y la mercadería en euros, así que 60 USD se
+   * convertían como 60 EUR. Sin dato, se mantiene el supuesto anterior.
+   */
+  monedaFlete?: string | null;
+  monedaSeguro?: string | null;
   tipoCambio: number | null | undefined;
   paseEurUsd?: number | null;
   /** Régimen courier (puerta a puerta): sin percepciones. Ver `esCourier` abajo. */
@@ -118,9 +136,9 @@ export function computeCosteoImportacion(input: {
     return monto;
   };
 
-  // Flete/seguro declarados están en la moneda del embarque → a USD.
-  const fleteDeclarado = toUsd(input.fleteDeclarado || 0, monedaEmbarque);
-  const seguroDeclarado = toUsd(input.seguroDeclarado || 0, monedaEmbarque);
+  // Flete/seguro declarados: cada uno en SU moneda (default, la del embarque).
+  const fleteDeclarado = toUsd(input.fleteDeclarado || 0, input.monedaFlete || monedaEmbarque);
+  const seguroDeclarado = toUsd(input.seguroDeclarado || 0, input.monedaSeguro || monedaEmbarque);
   const adicionalCif = fleteDeclarado + seguroDeclarado;
 
   // 1) FOB por ítem (precio×cantidad en moneda del embarque → USD).
@@ -155,7 +173,10 @@ export function computeCosteoImportacion(input: {
     // Costo computable (para stock): no recuperables + IIBB + 3% financiero sobre lo recuperable.
     const costoFinanciero = (iva + ivaAdicional + ganancias) * finPct;
     const gastosRealesItem = peso * gastosReales;
-    const costoComputable = cif + derechos + estadistica + iibb + gastosRealesItem + costoFinanciero;
+    // El arancel SIM es fijo del despacho: se prorratea por valor, como los
+    // gastos, para que el factor de cada artículo lo absorba.
+    const arancelSimItem = peso * ARANCEL_SIM_USD;
+    const costoComputable = cif + derechos + estadistica + iibb + gastosRealesItem + arancelSimItem + costoFinanciero;
     const factor = fob > 0 ? costoComputable / fob : 0;
 
     return {
@@ -178,7 +199,10 @@ export function computeCosteoImportacion(input: {
   const ivaAdicional = sum(l => l.ivaAdicional);
   const ganancias = sum(l => l.ganancias);
   const iibb = sum(l => l.iibb);
-  const totalGravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb;
+  // El arancel SIM es fijo por despacho: se suma a los gravámenes (es parte de
+  // lo que se paga a la aduana) pero NO integra ninguna base imponible.
+  const arancelSim = ARANCEL_SIM_USD;
+  const totalGravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb + arancelSim;
 
   const cifTotal = fobTotal + adicionalCif;
   const costoTotal = cifTotal + totalGravamenes + gastosReales;
@@ -192,7 +216,7 @@ export function computeCosteoImportacion(input: {
     esCourier,
     moneda: 'USD', monedaEmbarque, paseEurUsd: pase, tipoCambio: tc,
     fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
-    derechos, estadistica, iva, ivaAdicional, ganancias, iibb,
+    derechos, estadistica, iva, ivaAdicional, ganancias, iibb, arancelSim,
     totalGravamenes, gastosReales, costoTotal, costoTotalARS,
     costoFinanciero, costoComputable, factorEmbarque, lineas,
   };

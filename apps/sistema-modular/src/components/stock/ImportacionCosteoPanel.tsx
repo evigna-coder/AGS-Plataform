@@ -22,6 +22,7 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
       ['Ganancias', costeo.ganancias] as [string, number],
       ['Ingresos brutos', costeo.iibb] as [string, number],
     ]),
+    ['Arancel SIM (fijo por despacho)', costeo.arancelSim],
     ['Gastos reales (flete/seguro local, agente, despachante…)', costeo.gastosReales],
   ];
 
