@@ -636,6 +636,16 @@ export function useAppLogic(
         }
       }).catch(err => {
         console.error('Error auto-cargando reporte:', err);
+        // Avisar SIEMPRE (2026-09-02). Este es el camino por el que entra el
+        // portal ("Mis Pendientes" abre con ?reportId=XXX) y moría en consola:
+        // el técnico veía el formulario vacío, lo llenaba de nuevo y creía que
+        // estaba trabajando normal. Si la carga falló, tiene que enterarse
+        // ANTES de escribir nada.
+        modal.showAlert({
+          title: 'No se pudo cargar la OT',
+          message: 'Revisá la conexión y volvé a abrirla. No cargues el reporte hasta que abra bien: los datos podrían no guardarse.',
+          type: 'error',
+        });
       });
     }
   }, [reportIdFromUrl, loadOT]);

@@ -405,6 +405,16 @@ export const useOTManagement = (
       }
     } catch (error) {
       logger.error("❌ Error al cargar OT:", error);
+      // 🔓 Re-habilitar el autosave SIEMPRE (2026-09-02, caso 30002.01).
+      //
+      // Arriba se apaga (`hasInitialized.current = false`) para que el autosave
+      // no pise el formulario mientras llegan los datos. Si la lectura fallaba
+      // —una caída de señal alcanza— quedaba apagado para el RESTO DE LA
+      // SESIÓN: el técnico seguía cargando el reporte y no se guardaba nada,
+      // sin ningún aviso. Al reabrir la OT no estaba nada de lo que escribió.
+      // Las otras dos salidas de esta función ya lo restauraban; solo faltaba
+      // acá, que es justamente el camino del error.
+      hasInitialized.current = true;
       // El alert será manejado por el componente que llama a loadOT
       throw error;
     }
