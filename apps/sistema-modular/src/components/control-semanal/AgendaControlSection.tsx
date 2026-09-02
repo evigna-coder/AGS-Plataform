@@ -3,6 +3,7 @@ import { ESTADO_AGENDA_LABELS } from '@ags/shared';
 import type { AgendaControlEstado, AgendaControlRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { EmptyState } from '../ui/EmptyState';
+import { DiasTrabado } from './DiasTrabado';
 
 interface Props {
   rows: AgendaControlRow[];
@@ -67,12 +68,13 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
               <th className={thClass}>Ingeniero</th>
               <th className={thClass}>Agenda</th>
               <th className={thClass}>Estado</th>
+              <th className={thClass}>Trabada</th>
               <th className={thClass}>Motivo</th>
               <th className={thClass} />
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ entry, entries, ingenieros, ot, estado, motivos, establecimientoNombre }) => {
+            {rows.map(({ entry, entries, ingenieros, ot, estado, motivos, establecimientoNombre, diasTrabado, desdeQue }) => {
               const ui = ESTADO_UI[estado];
               const grisada = estado === 'ot_no_encontrada';
               return (
@@ -114,6 +116,9 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <StatusBadge label={ui.label} colorClass={ui.color} />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <DiasTrabado dias={diasTrabado} desdeQue={desdeQue} />
                   </td>
                   <td className="px-3 py-2 text-[10px] text-slate-500">
                     {motivos.length === 0

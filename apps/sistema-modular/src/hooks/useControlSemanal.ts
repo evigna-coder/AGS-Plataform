@@ -4,13 +4,19 @@ import { esOTCerradaTecnicamente, establecimientoPerteneceACliente, tipoOTEfecti
 import { tieneOCDelCliente } from '../utils/analitica/presupuestosMetrics';
 import { OT_ESTADO_ORDER } from '../utils/agendaOTSync';
 import {
+  OT_CERRADA_ADMIN, OT_TRABAJO_REALIZADO,
+  anclaAntiguedadOT, arrastraDeSemanaAnterior, classifyOT, diasDesdeISO, fechaEnEstado,
+  fechaReferenciaOT,
+} from '../utils/controlSemanalAntiguedad';
+import type { AgendaControlEstado } from '../utils/controlSemanalAntiguedad';
+import {
   agendaService, clientesService, condicionesPagoService, establecimientosService, facturacionService,
   ordenesTrabajoService, presupuestosService,
 } from '../services/firebaseService';
 
 // ── Tipos locales del control (no van a @ags/shared: solo los consume esta página) ──
 
-export type AgendaControlEstado = 'cerrada' | 'sin_cierre_admin' | 'sin_realizar' | 'ot_no_encontrada';
+export type { AgendaControlEstado } from '../utils/controlSemanalAntiguedad';
 
 export interface AgendaControlRow {
   /** Entrada representativa (la más temprana de la OT en la semana). */
@@ -25,6 +31,30 @@ export interface AgendaControlRow {
   estado: AgendaControlEstado;
   /** Diagnósticos de por qué quedó sin cerrar (pueden ser varios). */
   motivos: string[];
+  /**
+   * Hace cuántos días está trabada, y en qué evento arranca el reloj
+   * (2026-09-02, pedido dirección). Sin cierre técnico cuenta desde ASIGNADA;
+   * sin cierre administrativo, desde el CIERRE_TECNICO. `null` en las cerradas.
+   */
+  diasTrabado: number | null;
+  desdeQue: string | null;
+}
+
+/**
+ * OT de una semana ANTERIOR que sigue sin cerrarse (2026-09-02, pedido
+ * dirección). La sección 1 se arma solo con la agenda de la semana visible, así
+ * que una OT que quedó abierta hace tres semanas desaparecía de la foto. Van en
+ * su propia sección para no ensuciar el trabajo de la semana.
+ */
+export interface OTArrastreRow {
+  ot: WorkOrder;
+  /** Fecha de su agenda más temprana (la semana en que se tendría que haber hecho). */
+  fechaAgenda: string | null;
+  establecimientoNombre: string | null;
+  estado: AgendaControlEstado;
+  motivos: string[];
+  diasTrabado: number | null;
+  desdeQue: string | null;
 }
 
 export interface PresupuestoControlRow {
@@ -89,6 +119,15 @@ export interface PresupuestoControlRow {
    * tilde verde — "lo que tenía que hacerse se hizo" cierra la foto semanal.
    */
   facturadoEstaSemana: boolean;
+  /**
+   * Hace cuántos días hay trabajo hecho sin facturar (2026-09-02, pedido
+   * dirección): cuenta desde el cierre administrativo MÁS ANTIGUO de sus OTs
+   * —el momento en que nació el derecho a facturar—, no desde el envío del
+   * presupuesto. Con varias OTs cerradas gana la más vieja, que es la que
+   * mide la demora real. `null` si ninguna cerró todavía.
+   */
+  diasTrabado: number | null;
+  desdeQue: string | null;
 }
 
 /** Sección 3 (2026-08-05): cruce "pasado a facturar vs facturado" — lo confirma
@@ -99,24 +138,26 @@ export interface FacturacionControlRow {
   facturada: boolean;
   /** Facturada dentro de la semana visible (para el check de la semana). */
   facturadaEstaSemana: boolean;
+  /**
+   * Hace cuántos días el pedido está en facturación (2026-09-02, pedido
+   * dirección): cuenta desde que se pasó a facturar. `null` en las ya
+   * facturadas — ahí el reloj se detuvo.
+   */
+  diasTrabado: number | null;
+  desdeQue: string | null;
 }
 
-// Sección 1: la OT se considera "cerrada" desde el cierre técnico en adelante.
-/**
- * TRABAJO hecho: cierre técnico en adelante. Es el criterio de la sección de
- * presupuestos —un ppto cuya OT quedó en cierre técnico tiene que figurar
- * igual, justamente porque el cierre admin puede estar olvidado (UAT
- * 2026-07-20)—. NO sirve para decir si una visita está cerrada: para eso está
- * `OT_CERRADA_ADMIN`, que es lo único que cuenta como cerrada de verdad.
- */
-const OT_TRABAJO_REALIZADO = new Set<OTEstadoAdmin>(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-// Sección 2: para facturación cuenta el cierre ADMINISTRATIVO (mismo criterio que CierreFacturacionWizard).
-const OT_CERRADA_ADMIN = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 // Universo de presupuestos con trabajo en curso o realizado.
 // pendiente_oc (2026-08-04): aceptado de palabra, el cliente debe la OC — el
 // caso típico es el repuesto ya usado (trabajo hecho, falta OC para facturar):
 // TIENE que figurar en el control con su chip "Sin OC".
-const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
+// borrador + enviado (2026-09-02, pedido direccion): un ppto de insumos con el
+// trabajo YA HECHO pero sin aceptar todavia no figuraba en ningun lado. La
+// redefinicion del 2026-08-27 los habia dejado afuera y dejo muerta la marca
+// `sinAceptar` que se habia agregado el 2026-08-05 para exactamente este caso.
+const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>([
+  'borrador', 'enviado', 'pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion',
+]);
 // Pago anticipado: desde 2026-08-27 los anticipados NO figuran en la sección de
 // presupuestos (evaluación del user) — se facturan por su propio circuito, antes
 // del servicio, así que el control por cierre de OT no les aplica.
@@ -335,13 +376,17 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const entry = ordenadas[0];
       const ot = otByNumber.get(otNumber) ?? null;
       const ingenieros = [...new Set(ordenadas.map(e => e.ingenieroNombre).filter(Boolean))];
+      const clasificacion = classifyEntry(entry, ot);
+      const ancla = anclaAntiguedadOT(ot, clasificacion.estado);
       rows.push({
         entry, entries: ordenadas, ingenieros, ot,
         // La entrada de agenda trae el nombre denormalizado; si falta, se resuelve
         // por el id de la OT.
         establecimientoNombre: sufijoEstablecimiento(
           ot?.clienteId, ot?.establecimientoId, entry.establecimientoNombre),
-        ...classifyEntry(entry, ot),
+        ...clasificacion,
+        diasTrabado: diasDesdeISO(ancla.fecha),
+        desdeQue: ancla.que,
       });
     }
     return rows.sort((a, b) => (a.entry.fechaInicio || '').localeCompare(b.entry.fechaInicio || ''));
@@ -399,6 +444,52 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     setOts(prev => prev.map(o =>
       o.otNumber === otNumber ? { ...o, controlSemanalExcluidoSemanas: next } : o));
   }, [ots, weekStart]);
+
+  // ── Sección 1c: OTs que arrastran de semanas anteriores (2026-09-02) ──
+  /**
+   * La sección 1 se arma con la agenda de la SEMANA VISIBLE, así que una OT que
+   * quedó abierta hace tres semanas simplemente desaparecía de la foto: nadie la
+   * volvía a ver hasta que alguien se acordara. Acá vuelven, en su propia
+   * sección para no ensuciar el trabajo de la semana, ordenadas por antigüedad
+   * — la más trabada arriba, que es la que el director quiere ver primero.
+   *
+   * Entra la OT que YA tendría que estar cerrada: agendada antes de esta semana,
+   * o con trabajo hecho. Lo agendado a futuro no arrastra (todavía no vence).
+   */
+  const otsArrastre = useMemo<OTArrastreRow[]>(() => {
+    const enSemana = new Set(agendaRows.map(r => r.entry.otNumber));
+    const padresConHijas = new Set(
+      ots.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
+    const rows: OTArrastreRow[] = [];
+    for (const ot of ots) {
+      if (enSemana.has(ot.otNumber)) continue;                 // ya está en la sección 1
+      if (esEntregaOAlquilerOT(ot)) continue;                  // viven en la 1b, con su valor
+      // Padres con hijas: contenedores no-accionables (nunca reciben cierre).
+      if (!ot.otNumber.includes('.') && padresConHijas.has(ot.otNumber)) continue;
+      const fechaAgenda = fechaAgendaPorOt.get(ot.otNumber) ?? null;
+      if (!arrastraDeSemanaAnterior(ot, fechaAgenda, weekStart)) continue;
+      const clasificacion = classifyOT(ot);
+      const ancla = anclaAntiguedadOT(ot, clasificacion.estado);
+      rows.push({
+        ot,
+        fechaAgenda,
+        establecimientoNombre: sufijoEstablecimiento(ot.clienteId, ot.establecimientoId),
+        ...clasificacion,
+        diasTrabado: diasDesdeISO(ancla.fecha),
+        desdeQue: ancla.que,
+      });
+    }
+    // Más trabadas primero; las que no tienen ancla de fecha, al final.
+    return rows.sort((a, b) => (b.diasTrabado ?? -1) - (a.diasTrabado ?? -1));
+  }, [ots, agendaRows, fechaAgendaPorOt, weekStart, sufijoEstablecimiento]);
+
+  /** OTs de arrastre sacadas a mano de la semana visible, para reponerlas. */
+  const otsArrastreExcluidas = useMemo(
+    () => ots.filter(o => !esEntregaOAlquilerOT(o)
+      && o.estadoAdmin !== 'CANCELADA'
+      && !(o.estadoAdmin && OT_CERRADA_ADMIN.has(o.estadoAdmin))
+      && (o.controlSemanalExcluidoSemanas ?? []).includes(weekStart)),
+    [ots, weekStart]);
 
   const agendaKpis = useMemo(() => ({
     agendadas: agendaRows.length,
@@ -508,10 +599,21 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           return !!ot && esEntregaOT(ot) && !esOTCerradaTecnicamente(ot);
         })
         .sort();
-      const sinAceptar = false;
+      // Trabajo hecho y el ppto todavia sin aceptar (2026-09-02): vuelve a
+      // computarse ahora que borrador/enviado entran al universo.
+      const sinAceptar = p.estado === 'borrador' || p.estado === 'enviado';
       // "De la semana" = tiene OT agendada en la semana visible. Lo demás es
       // ARRASTRE: OT de una semana anterior que sigue sin facturarse (2026-08-27).
-      const deLaSemana = otsEnSemana.length > 0;
+      // Pertenencia a la semana (2026-09-02): la agenda manda, pero una OT que
+      // NUNCA se agendo —insumos, trabajos sin coordinar— no pertenecia a
+      // ninguna semana y caia siempre en el arrastre, incluso en la suya. Se
+      // cae a su fecha de referencia (cierre tecnico o asignacion).
+      const enSemanaPorReferencia = [...nums].some(n => {
+        if (otsEnSemana.includes(n)) return false;
+        const ref = fechaReferenciaOT(otByNumber.get(n) ?? null, fechaAgendaPorOt.get(n) ?? null);
+        return !!ref && ref >= weekStart && ref <= weekEnd;
+      });
+      const deLaSemana = otsEnSemana.length > 0 || enSemanaPorReferencia;
       const arrastre = !deLaSemana;
 
       // Avisado = la cobertura llegó al total. Un parcial sigue en el control
@@ -534,6 +636,19 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       // seguía figurando "Pendiente OC del cliente" (caso P3-005034-01).
       const sinOC = !tieneOCDelCliente(p);
       const listoParaAviso = !avisoEnviado && otsPendientes.length === 0 && p.estado === 'pendiente_facturacion';
+      // Antigüedad: desde el cierre administrativo MÁS ANTIGUO de sus OTs
+      // (2026-09-02). Es cuando nació el derecho a facturar; el envío del ppto
+      // no sirve como ancla porque puede ser muy anterior al trabajo.
+      const cierreMasViejo = [...nums]
+        .map(n => {
+          const o = otByNumber.get(n);
+          if (!o) return null;
+          // El historial de estados es la fuente: `fechaCierre` es del cierre
+          // TECNICO y no siempre esta, asi que queda de respaldo.
+          return fechaEnEstado(o, 'CIERRE_ADMINISTRATIVO') ?? o.fechaCierre ?? null;
+        })
+        .filter((f): f is string => !!f)
+        .sort()[0] ?? null;
 
       rows.push({
         presupuesto: p,
@@ -542,6 +657,8 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         avisoEnviado, avisoParcialPct, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
         sinOtAgendada, otsSinAgendar, agendadaOtraSemana, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
         arrastre, facturadoEstaSemana: false,
+        diasTrabado: diasDesdeISO(cierreMasViejo),
+        desdeQue: cierreMasViejo ? 'cierre de la OT' : null,
       });
     }
 
@@ -569,6 +686,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         listoParaAviso: false, pagoAnticipado: false, sinOtAgendada: false, otsSinAgendar: [],
         agendadaOtraSemana: null, otsEnSemana: [], entregasPendientes: [], sinAceptar: false,
         arrastre: false, facturadoEstaSemana: true,
+        diasTrabado: null, desdeQue: null,
       });
     }
     // Listos primero, después trabados, enviados al final; dentro de cada grupo por número.
@@ -600,9 +718,13 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
           solicitud: s,
           facturada,
           facturadaEstaSemana: facturada && enSemana(s.fechaFactura ?? s.updatedAt),
+          diasTrabado: facturada ? null : diasDesdeISO(s.createdAt),
+          desdeQue: facturada ? null : 'que se pasó a facturar',
         };
       })
       .filter(r => !r.facturada || r.facturadaEstaSemana)
+      // Sin facturar primero y, dentro de esas, la MÁS VIEJA arriba (2026-09-02):
+      // es la que el director quiere ver primero.
       .sort((a, b) => (a.facturada ? 1 : 0) - (b.facturada ? 1 : 0)
         || (a.solicitud.createdAt || '').localeCompare(b.solicitud.createdAt || ''));
   }, [solicitudes, weekStart, weekEnd]);
@@ -673,6 +795,8 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     tareasSinOT,
     agendaKpis,
     entregasPendientes,
+    otsArrastre,
+    otsArrastreExcluidas,
     establecimientoPorOT,
     entregasExcluidas,
     excluirEntregaDelControl,

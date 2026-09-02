@@ -45,7 +45,9 @@ export const PresupuestosControlSection: React.FC<Props> = ({
   rows, kpis, mostrarEnviados, onToggleEnviados, onOpenPresupuesto, onGenerarAviso, generandoId,
   onSaveComentario, onExcluir, excluidos, onVerExcluidos,
 }) => {
-  const [verArrastre, setVerArrastre] = useState(false);
+  // Abierto por defecto (2026-09-02): el pedido de direccion es VER lo trabado.
+  // Plegado, un presupuesto que arrastraba parecia no estar en el control.
+  const [verArrastre, setVerArrastre] = useState(true);
   const enviados = rows.filter(r => r.avisoEnviado);
   // Los FACTURADOS de la semana se ven siempre (2026-08-27): son la
   // confirmación de que lo que tenía que hacerse se hizo — no van detrás
@@ -98,9 +100,9 @@ export const PresupuestosControlSection: React.FC<Props> = ({
           <button onClick={() => setVerArrastre(v => !v)}
             className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wide text-slate-400 hover:text-slate-600">
             <span>{verArrastre ? '▾' : '▸'}</span>
-            Arrastre · trabajo hecho sin facturar ({arrastre.length})
+            Arrastre · vienen de semanas anteriores ({arrastre.length})
             <span className="normal-case font-sans text-slate-300">
-              — no son de esta semana; siguen apareciendo hasta que se facturen
+              — siguen apareciendo hasta que se facturen o se acepten
             </span>
           </button>
           {verArrastre && <div className="mt-2">{tabla(arrastre)}</div>}

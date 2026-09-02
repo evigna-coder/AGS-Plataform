@@ -4,6 +4,7 @@ import type { PresupuestoControlRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Button } from '../ui/Button';
 import { ComentarioInline } from './ComentarioInline';
+import { DiasTrabado } from './DiasTrabado';
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -110,6 +111,7 @@ export const PresupuestosControlTabla: React.FC<Props> = ({
           <th className={thClass}>Cliente</th>
           <th className={thClass}>Total</th>
           <th className={thClass}>Estado</th>
+          <th className={thClass}>Sin facturar</th>
           <th className={thClass}>Qué falta</th>
           <th className={`${thClass} w-56`}>Comentario (soporte)</th>
           <th className={`${thClass} text-right`}>Acción</th>
@@ -148,6 +150,9 @@ export const PresupuestosControlTabla: React.FC<Props> = ({
                     </span>
                   )}
                 </span>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap">
+                <DiasTrabado dias={row.diasTrabado} desdeQue={row.desdeQue} />
               </td>
               <td className="px-3 py-2"><QueFalta row={row} /></td>
               <td className="px-3 py-2">

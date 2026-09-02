@@ -12,6 +12,8 @@ import { Button } from '../../components/ui/Button';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { AgendaControlSection, TareasSinOTSection } from '../../components/control-semanal/AgendaControlSection';
 import { EntregasControlSection } from '../../components/control-semanal/EntregasControlSection';
+import { OTArrastreSection } from '../../components/control-semanal/OTArrastreSection';
+import { useControlExclusiones } from '../../hooks/useControlExclusiones';
 import { PresupuestosControlSection } from '../../components/control-semanal/PresupuestosControlSection';
 import { FacturacionControlSection } from '../../components/control-semanal/FacturacionControlSection';
 import { facturacionService } from '../../services/firebaseService';
@@ -48,6 +50,7 @@ export const ControlSemanal = () => {
     loading, error, refetch,
     agendaRows, agendaExcluidas, excluirDelControl, tareasSinOT, agendaKpis,
     entregasPendientes, entregasExcluidas, excluirEntregaDelControl, presupuestoIdByNumero, presupuestoPorNumero,
+    otsArrastre, otsArrastreExcluidas,
     establecimientoPorOT,
     presupuestoRows, presupuestosExcluidos, excluirPresupuestoDelControl, presupuestoKpis,
     facturacionRows, facturacionKpis,
@@ -90,64 +93,15 @@ export const ControlSemanal = () => {
     }
   };
 
-  /**
-   * Sacar una OT del control de esta semana (2026-08-19). No toca la agenda: la
-   * visita existió y sigue ahí. Solo deja de contar en el control, porque la OT
-   * se recoordinó y cierra en otra semana.
-   */
-  const quitarDelControl = async (otNumber: string) => {
-    if (!await confirm({
-      title: `Quitar ${otNumber} del control`,
-      message: 'Deja de contar en el control de esta semana. La agenda no se toca — la visita sigue estando.',
-      confirmLabel: 'Quitar',
-    })) return;
-    try { await excluirDelControl(otNumber, true); }
-    catch { alert('No se pudo quitar del control'); }
-  };
-
-  /** Ídem para las entregas, que no van a agenda y figuran en todas las semanas. */
-  const quitarEntregaDelControl = async (otNumber: string) => {
-    if (!await confirm({
-      title: `Quitar ${otNumber} del control`,
-      message: 'Deja de contar en el control de esta semana. Sigue figurando en las demás hasta que se entregue.',
-      confirmLabel: 'Quitar',
-    })) return;
-    try { await excluirEntregaDelControl(otNumber, true); }
-    catch { alert('No se pudo quitar del control'); }
-  };
-
-  const reponerEntregas = async () => {
-    const nums = entregasExcluidas.map(o => o.otNumber);
-    if (!await confirm(`¿Reponer ${nums.length} entrega(s) al control de esta semana?`)) return;
-    try { await Promise.all(nums.map(n => excluirEntregaDelControl(n, false))); }
-    catch { alert('No se pudieron reponer'); }
-  };
-
-  /** Ídem para presupuestos: se arrastran mientras tengan algo pendiente. */
-  const quitarPresupuestoDelControl = async (presupuestoId: string) => {
-    if (!await confirm({
-      title: 'Quitar del control',
-      message: 'Deja de contar en el control de esta semana. Sigue figurando en las demás mientras arrastre algo pendiente.',
-      confirmLabel: 'Quitar',
-    })) return;
-    try { await excluirPresupuestoDelControl(presupuestoId, true); }
-    catch { alert('No se pudo quitar del control'); }
-  };
-
-  const reponerPresupuestos = async () => {
-    const ids = presupuestosExcluidos.map(p => p.id);
-    if (!await confirm(`¿Reponer ${ids.length} presupuesto(s) al control de esta semana?`)) return;
-    try { await Promise.all(ids.map(id => excluirPresupuestoDelControl(id, false))); }
-    catch { alert('No se pudieron reponer'); }
-  };
-
-  /** Repone TODAS las quitadas de la semana visible. */
-  const reponerExcluidas = async () => {
-    const nums = [...new Set(agendaExcluidas.map(e => e.otNumber))];
-    if (!await confirm(`¿Reponer ${nums.length} OT(s) al control de esta semana?`)) return;
-    try { await Promise.all(nums.map(n => excluirDelControl(n, false))); }
-    catch { alert('No se pudieron reponer'); }
-  };
+  const {
+    quitarDelControl, reponerExcluidas,
+    quitarEntregaDelControl, reponerEntregas,
+    quitarArrastreDelControl, reponerArrastres,
+    quitarPresupuestoDelControl, reponerPresupuestos,
+  } = useControlExclusiones({
+    excluirDelControl, excluirEntregaDelControl, excluirPresupuestoDelControl,
+    agendaExcluidas, entregasExcluidas, otsArrastreExcluidas, presupuestosExcluidos,
+  });
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -210,6 +164,13 @@ export const ControlSemanal = () => {
               onExcluir={quitarDelControl}
               excluidas={agendaExcluidas.length}
               onVerExcluidas={reponerExcluidas}
+            />
+            <OTArrastreSection
+              rows={otsArrastre}
+              onOpenOT={(otNumber) => navigateInActiveTab(`/ordenes-trabajo/${otNumber}`)}
+              onExcluir={quitarArrastreDelControl}
+              excluidas={otsArrastreExcluidas.length}
+              onVerExcluidas={reponerArrastres}
             />
             <EntregasControlSection
               entregas={entregasPendientes}

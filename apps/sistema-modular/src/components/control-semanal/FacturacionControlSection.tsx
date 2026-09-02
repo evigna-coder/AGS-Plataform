@@ -3,6 +3,7 @@ import type { FacturacionControlRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { EmptyState } from '../ui/EmptyState';
 import { ComentarioInline } from './ComentarioInline';
+import { DiasTrabado } from './DiasTrabado';
 
 interface Props {
   rows: FacturacionControlRow[];
@@ -62,6 +63,7 @@ export const FacturacionControlSection: React.FC<Props> = ({ rows, kpis, onOpenS
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className={thClass}>Pasado el</th>
+                <th className={thClass}>En facturación</th>
                 <th className={thClass}>Presupuesto</th>
                 <th className={thClass}>Cliente</th>
                 <th className={thClass}>Monto</th>
@@ -72,11 +74,14 @@ export const FacturacionControlSection: React.FC<Props> = ({ rows, kpis, onOpenS
               </tr>
             </thead>
             <tbody>
-              {[...sinFacturar, ...facturadas].map(({ solicitud: s, facturada }) => {
+              {[...sinFacturar, ...facturadas].map(({ solicitud: s, facturada, diasTrabado, desdeQue }) => {
                 const sym = MONEDA_SIMBOLO[s.moneda as keyof typeof MONEDA_SIMBOLO] || '$';
                 return (
                   <tr key={s.id} className={`border-b border-slate-100 last:border-0 ${facturada ? 'bg-emerald-50/40' : ''}`}>
                     <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">{fmtFecha(s.createdAt)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <DiasTrabado dias={diasTrabado} desdeQue={desdeQue} />
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <button
                         onClick={() => onOpenSolicitud(s.id)}
