@@ -1894,7 +1894,7 @@ export interface CreateRemitoServicioInput {
 
 // ========== RESERVAS DE STOCK ==========
 
-/** Fila del aviso "se consumirá al cerrar" (reservas de pptos vinculados). */
+/** Fila del recuadro de reservas del cierre de OT. */
 export interface ReservaVisibleCierre {
   presupuestoNumero: string;
   articuloCodigo: string;
@@ -1903,6 +1903,8 @@ export interface ReservaVisibleCierre {
   ubicacionNombre: string;
   nroSerie: string | null;
   nroLote: string | null;
+  /** Unidades que agrupa la fila — las que libera el botón de la UI. */
+  unidadIds: string[];
 }
 
 export const reservasService = {
@@ -2806,18 +2808,52 @@ export const reservasService = {
             ubicacionNombre: (u.ubicacion?.referenciaNombre as string) ?? '',
             nroSerie: (u.nroSerie as string | null) ?? null,
             nroLote: (u.nroLote as string | null) ?? null,
+            unidadIds: [d.id],
           };
           // Serie identifica pieza única → fila propia. Sin serie, se agrupa.
           const clave = fila.nroSerie
             ? `s:${d.id}`
             : `${fila.presupuestoNumero}|${fila.articuloCodigo}|${fila.nroLote ?? ''}|${fila.ubicacionNombre}`;
           const previa = porClave.get(clave);
-          if (previa) previa.cantidad += fila.cantidad;
+          if (previa) { previa.cantidad += fila.cantidad; previa.unidadIds.push(d.id); }
           else porClave.set(clave, fila);
         }
       }
     }
     return [...porClave.values()];
+  },
+
+  /**
+   * Libera un grupo de unidades reservadas desde el cierre de la OT
+   * (2026-09-01). Al sacarse el consumo automático, el administrativo que ve en
+   * el cierre que una reserva no se usó es el que mejor puede soltarla, y en el
+   * momento en que se da cuenta. Best-effort por unidad: si una ya cambió de
+   * estado se saltea y se informa, sin frenar a las demás.
+   */
+  async liberarVarias(params: {
+    unidadIds: string[];
+    motivo: string;
+    solicitadoPorNombre: string;
+  }): Promise<{ liberadas: number; fallos: string[] }> {
+    let liberadas = 0;
+    const fallos: string[] = [];
+    for (const unidadId of params.unidadIds) {
+      try {
+        const snap = await getDoc(doc(db, 'unidades', unidadId));
+        if (!snap.exists()) { fallos.push(`${unidadId}: la unidad ya no existe`); continue; }
+        const unidad = { id: snap.id, ...snap.data() } as UnidadStock;
+        await this.liberar({
+          unidadId,
+          unidad,
+          motivo: params.motivo,
+          solicitadoPorNombre: params.solicitadoPorNombre,
+        });
+        liberadas += unidad.cantidad ?? 1;
+      } catch (err) {
+        fallos.push(`${unidadId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    return { liberadas, fallos };
   },
 
   /**

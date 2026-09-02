@@ -125,6 +125,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
           onUpdatePart={onUpdatePart}
           onRemovePart={onRemovePart}
           budgets={budgets}
+          otNumber={otNumber}
         />
 
         {/* Notas de cierre */}

@@ -10,6 +10,9 @@ import type { Articulo, CierreAdministrativo, Part } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
 import { useReservasCierre } from '../../hooks/useReservasCierre';
+import { reservasService } from '../../services/stockService';
+import { useConfirm } from '../ui/ConfirmDialog';
+import { useAuth } from '../../contexts/AuthContext';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const chk = 'w-3.5 h-3.5 accent-teal-600';
@@ -23,21 +26,53 @@ interface Props {
   onAddPart?: (prefill?: { codigo: string; descripcion: string }) => void;
   onUpdatePart?: (id: string, field: keyof Part, value: any) => void;
   onRemovePart?: (id: string) => void;
-  /** Números de presupuesto vinculados (las reservas se entregan solas al finalizar). */
+  /** Números de presupuesto vinculados — para mostrar y poder liberar sus reservas. */
   budgets?: string[];
+  /** Para el motivo del movimiento de liberación. */
+  otNumber?: string;
 }
 
 export const CierreMaterialesBlock: React.FC<Props> = ({
   articulos, cierreAdmin, disabled, onChange,
-  onAddPart, onUpdatePart, onRemovePart, budgets,
+  onAddPart, onUpdatePart, onRemovePart, budgets, otNumber,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [stockArticulos, setStockArticulos] = useState<Articulo[]>([]);
+  const [liberando, setLiberando] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const { usuario } = useAuth();
   const editable = !disabled && !!onAddPart;
   const tienePresupuestos = !!budgets && budgets.length > 0;
-  // Qué va a entregar el camino automático de reservas al finalizar (2026-08-31:
-  // el consumo tiene que verse ANTES de confirmar, no descubrirse en el kardex).
-  const reservas = useReservasCierre(budgets);
+  // Reservas de los pptos vinculados. Ya NO se consumen solas (2026-09-01): se
+  // muestran para que el administrativo decida — usarlas o soltarlas.
+  const { reservas, refrescar } = useReservasCierre(budgets);
+
+  const liberar = async (r: (typeof reservas)[number]) => {
+    const que = `${r.cantidad} × ${r.articuloCodigo || r.articuloDescripcion}`;
+    const ok = await confirm({
+      title: 'Liberar reserva',
+      message: `${que} vuelve a estar disponible en stock y deja de estar apartado para ${r.presupuestoNumero}.\n\nUsalo cuando el material no se haya usado en este trabajo.`,
+      confirmLabel: 'Liberar',
+    });
+    if (!ok) return;
+    setLiberando(r.unidadIds.join(','));
+    try {
+      const { liberadas, fallos } = await reservasService.liberarVarias({
+        unidadIds: r.unidadIds,
+        motivo: `Liberada al cerrar la OT ${otNumber ?? ''} — no se usó`.trim(),
+        solicitadoPorNombre: usuario?.displayName ?? usuario?.email ?? 'Admin',
+      });
+      if (fallos.length > 0) {
+        alert(`Se liberaron ${liberadas} u.\n\nNo se pudieron liberar:\n${fallos.join('\n')}`);
+      }
+      refrescar();
+    } catch (err) {
+      console.error('[CierreMaterialesBlock] liberar reserva:', err);
+      alert('No se pudo liberar la reserva.');
+    } finally {
+      setLiberando(null);
+    }
+  };
 
   useEffect(() => {
     if (showPicker && stockArticulos.length === 0) {
@@ -128,16 +163,29 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
           </p>
           <ul className="mt-1 space-y-0.5">
             {reservas.map((r, i) => (
-              <li key={i} className="text-[10px] text-slate-600 font-mono">
-                {r.cantidad} × {r.articuloCodigo || r.articuloDescripcion}
-                {r.nroSerie ? ` · S/N ${r.nroSerie}` : r.nroLote ? ` · Lote ${r.nroLote}` : ''}
-                {' — '}{r.ubicacionNombre || 'sin ubicación'} · {r.presupuestoNumero}
+              <li key={i} className="text-[10px] text-slate-600 font-mono flex items-center gap-2">
+                <span className="flex-1 min-w-0 truncate">
+                  {r.cantidad} × {r.articuloCodigo || r.articuloDescripcion}
+                  {r.nroSerie ? ` · S/N ${r.nroSerie}` : r.nroLote ? ` · Lote ${r.nroLote}` : ''}
+                  {' — '}{r.ubicacionNombre || 'sin ubicación'} · {r.presupuestoNumero}
+                </span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => void liberar(r)}
+                    disabled={liberando !== null}
+                    title="Devolver estas unidades al stock disponible"
+                    className="shrink-0 text-[10px] font-sans font-medium text-teal-600 hover:text-teal-800 hover:underline disabled:text-slate-300"
+                  >
+                    {liberando === r.unidadIds.join(',') ? 'liberando…' : 'liberar'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
           <p className="text-[10px] text-slate-500 mt-1">
             Si alguna se usó, agregala arriba como material y elegila en «Origen de materiales».
-            Las que no selecciones siguen reservadas.
+            Si no se usó, «liberar» la devuelve al stock disponible. Las que no toques siguen reservadas.
           </p>
         </div>
       )}
