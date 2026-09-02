@@ -18,6 +18,7 @@ import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
 import { ViewArticuloModal } from '../../components/stock/ViewArticuloModal';
+import { FotosUnidadModal } from '../../components/stock/FotosUnidadModal';
 import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import {
@@ -90,6 +91,9 @@ export const UnidadesList = () => {
   // El código del artículo abre el detalle en modal, no navega a la página
   // (2026-08-24): se consulta stock sin perder los filtros ni la fila abierta.
   const [verArticuloId, setVerArticuloId] = useState<string | null>(null);
+  // Galería de fotos de la mercadería (2026-09-02). Varias unidades cuando el
+  // renglón del desglose unifica tandas idénticas.
+  const [verFotosDe, setVerFotosDe] = useState<UnidadStock[] | null>(null);
   const [editarArticuloId, setEditarArticuloId] = useState<string | null>(null);
   const [liberandoId, setLiberandoId] = useState<string | null>(null);
   const { usuario } = useAuth();
@@ -288,7 +292,7 @@ export const UnidadesList = () => {
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} onVerFotos={setVerFotosDe} />
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
@@ -351,6 +355,11 @@ export const UnidadesList = () => {
                       )}
                     </td>
                     <td className="px-4 py-2 text-center whitespace-nowrap">
+                      {(u.fotos?.length ?? 0) > 0 && (
+                        <button onClick={e => { e.stopPropagation(); setVerFotosDe([u]); }}
+                          title={`Ver ${u.fotos!.length} foto(s) de la mercadería`}
+                          className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">📷 {u.fotos!.length}</button>
+                      )}
                       {u.estado === 'disponible' && (
                         <button onClick={e => { e.stopPropagation(); setMoverUnidad(u); }}
                           className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
@@ -387,6 +396,10 @@ export const UnidadesList = () => {
         subtitle="Transferencia de stock entre ubicaciones"
       />
       <BulkAddStockModal open={cargarStock} onClose={() => setCargarStock(false)} onCreated={() => setCargarStock(false)} />
+      {verFotosDe && (
+        <FotosUnidadModal units={verFotosDe} onClose={() => setVerFotosDe(null)} />
+      )}
+
       <ViewArticuloModal
         open={!!verArticuloId}
         articuloId={verArticuloId}

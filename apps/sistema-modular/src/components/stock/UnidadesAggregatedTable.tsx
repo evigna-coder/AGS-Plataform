@@ -32,9 +32,11 @@ interface Props {
   onLiberarGrupo?: (units: UnidadStock[]) => void;
   /** Abre el artículo en modal. Antes el código era un link a la página de detalle. */
   onArticulo?: (articuloId: string) => void;
+  /** Abre la galería de fotos de la mercadería (2026-09-02). */
+  onVerFotos?: (units: UnidadStock[]) => void;
 }
 
-export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo }: Props) => {
+export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo, onVerFotos }: Props) => {
   const [sortField, setSortField] = useState<string>('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -72,7 +74,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, o
           {sorted.map(row => {
             const isOpen = expanded.has(row.articuloId);
             return (
-              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} onArticulo={onArticulo} />
+              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} onArticulo={onArticulo} onVerFotos={onVerFotos} />
             );
           })}
         </tbody>
@@ -104,7 +106,7 @@ const PromedioCell = ({ units }: { units: UnidadStock[] }) => {
   );
 };
 
-const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void; onLiberarGrupo?: (units: UnidadStock[]) => void; onArticulo?: (articuloId: string) => void }) => (
+const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo, onVerFotos }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void; onLiberarGrupo?: (units: UnidadStock[]) => void; onArticulo?: (articuloId: string) => void; onVerFotos?: (units: UnidadStock[]) => void }) => (
   <>
     <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={onToggle}>
       <td className="px-2 text-center text-slate-400">
@@ -130,7 +132,7 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onL
       <tr className="bg-slate-50/60">
         <td />
         <td colSpan={7} className="px-3 py-2">
-          <UnidadesSubTable units={row.units} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} />
+          <UnidadesSubTable units={row.units} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} onVerFotos={onVerFotos} />
         </td>
       </tr>
     )}

@@ -18,6 +18,7 @@ const MORE_ITEMS: MoreItem[] = [
   { to: '/loaners', label: 'Loaners', engineerOnly: true },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
+  { to: '/mercaderia', label: 'Mercadería', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/pagos-vep', label: 'Pagos VEP', pagosOnly: true },
   { to: '/perfil', label: 'Perfil' },

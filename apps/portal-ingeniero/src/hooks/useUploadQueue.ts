@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { uploadQueueManager, type ManagerState } from '../services/uploadQueueManager';
-import type { PendingFotoFicha, PendingFotoLoaner } from '../services/uploadQueueDB';
+import type { PendingFotoFicha, PendingFotoLoaner, PendingFotoUnidad } from '../services/uploadQueueDB';
 
 /**
  * Suscripción al singleton uploadQueueManager.
@@ -23,6 +23,7 @@ export function useUploadQueue() {
     draining: state.draining,
     enqueue: uploadQueueManager.enqueueBlob.bind(uploadQueueManager),
     enqueueLoaner: uploadQueueManager.enqueueLoanerBlob.bind(uploadQueueManager),
+    enqueueUnidad: uploadQueueManager.enqueueUnidadBlob.bind(uploadQueueManager),
     retry: uploadQueueManager.retry.bind(uploadQueueManager),
     retryAll: uploadQueueManager.retryAll.bind(uploadQueueManager),
     clearAll: uploadQueueManager.clearAll.bind(uploadQueueManager),
@@ -49,5 +50,13 @@ export function usePendingForLoaner(loanerId: string): PendingFotoLoaner[] {
   const { pending } = useUploadQueue();
   return pending.filter(
     (p): p is PendingFotoLoaner => p.tipo === 'loaner' && p.loanerId === loanerId,
+  );
+}
+
+/** Atajo: pendientes de una unidad de stock especifica. */
+export function usePendingForUnidad(unidadId: string): PendingFotoUnidad[] {
+  const { pending } = useUploadQueue();
+  return pending.filter(
+    (p): p is PendingFotoUnidad => p.tipo === 'unidad' && p.unidadId === unidadId,
   );
 }

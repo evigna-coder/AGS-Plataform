@@ -1,5 +1,5 @@
 /**
- * IndexedDB queue for foto uploads del portal (fichas de recepción y loaners).
+ * IndexedDB queue for foto uploads del portal (fichas, loaners y unidades de stock).
  *
  * Why: planta/campo tienen señal inestable. Queremos que el ingeniero pueda
  * capturar fotos sin esperar la subida — el blob queda en local y se sube cuando
@@ -10,14 +10,15 @@
  * los binarios pasan por esta cola hasta que `uploadQueueManager` los drena a
  * Firebase Storage.
  *
- * Schema v2: cada item lleva un discriminador `tipo` ('ficha' | 'loaner') con
- * sus campos target propios. Los items v1 (solo fichas) migran a `tipo: 'ficha'`
- * en el upgrade callback sin perderse.
+ * Schema v3: cada item lleva un discriminador `tipo` ('ficha' | 'loaner' |
+ * 'unidad') con sus campos target propios. Los items v1 (solo fichas) migran a
+ * `tipo: 'ficha'` en el upgrade callback sin perderse; v2 -> v3 solo suma el
+ * indice `unidadId` (fotos de mercaderia, 2026-09-02).
  */
-import type { MomentoFotoFicha, FotoLoaner } from '@ags/shared';
+import type { MomentoFotoFicha, MomentoFotoUnidad, FotoLoaner } from '@ags/shared';
 
 const DB_NAME = 'ags-portal-uploads';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE = 'pendingFotos';
 
 export type PendingFotoStatus = 'queued' | 'uploading' | 'error';
@@ -63,7 +64,15 @@ export interface PendingFotoLoaner extends PendingFotoBase {
   prestamoId: string | null;
 }
 
-export type PendingFoto = PendingFotoFicha | PendingFotoLoaner;
+export interface PendingFotoUnidad extends PendingFotoBase {
+  tipo: 'unidad';
+  unidadId: string;       // FK al doc en Firestore (y parte del storage path)
+  /** Etiqueta para la UI: codigo del articulo + serie/lote. */
+  unidadEtiqueta: string;
+  momento: MomentoFotoUnidad;
+}
+
+export type PendingFoto = PendingFotoFicha | PendingFotoLoaner | PendingFotoUnidad;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -87,6 +96,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!store.indexNames.contains('loanerId')) {
         // Los items de ficha no tienen `loanerId` — el índice simplemente los omite.
         store.createIndex('loanerId', 'loanerId', { unique: false });
+      }
+      if (!store.indexNames.contains('unidadId')) {
+        store.createIndex('unidadId', 'unidadId', { unique: false });
       }
 
       // v1 → v2: todos los items existentes eran de fichas (no había otro flujo).
@@ -141,6 +153,12 @@ export const uploadQueueDB = {
     const store = await tx('readonly');
     const idx = store.index('loanerId');
     return asPromise(idx.getAll(loanerId) as IDBRequest<PendingFotoLoaner[]>);
+  },
+
+  async getByUnidad(unidadId: string): Promise<PendingFotoUnidad[]> {
+    const store = await tx('readonly');
+    const idx = store.index('unidadId');
+    return asPromise(idx.getAll(unidadId) as IDBRequest<PendingFotoUnidad[]>);
   },
 
   async getQueued(): Promise<PendingFoto[]> {

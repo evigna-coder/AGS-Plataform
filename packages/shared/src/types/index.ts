@@ -3931,6 +3931,32 @@ export interface SalidaAProveedor {
   ubicacionOrigen: UbicacionStock;
 }
 
+/**
+ * Momento en que se fotografio la mercaderia. La recepcion documenta como
+ * llego (equipos de venta, columnas certificadas, cualquier cosa fragil o
+ * cara); la entrega, como salio hacia el cliente.
+ */
+export type MomentoFotoUnidad = 'recepcion' | 'entrega';
+
+/**
+ * Foto de una unidad fisica de stock (2026-09-02). Cuelgan de la UNIDAD y no
+ * del evento que las origino, porque la pregunta que tienen que contestar es
+ * "mostrame la foto de la columna que le vendimos a Synthon": desde el cliente
+ * se llega al remito, del remito a la unidad por `RemitoItem.unidadId`, y de
+ * la unidad a estas fotos. Colgadas de la recepcion, esa cadena se corta.
+ */
+export interface FotoUnidad {
+  id: string;
+  url: string;
+  storagePath: string;
+  nombre?: string | null;
+  descripcion?: string | null;
+  momento: MomentoFotoUnidad;
+  /** ISO de la captura (no de la subida: la cola puede drenar mucho despues). */
+  fecha: string;
+  subidoPor?: string | null;
+}
+
 export interface UnidadStock {
   id: string;
   /** FK → articulos */
@@ -4009,6 +4035,12 @@ export interface UnidadStock {
    * que vuelva; `retornarDeProveedor` la devuelve a `ubicacionOrigen` y lo limpia.
    */
   enProveedor?: SalidaAProveedor | null;
+  /**
+   * Fotos de la mercaderia (2026-09-02): recepcion y entrega. Se capturan desde
+   * el celular en el portal (admin_soporte) y se ven desde el sistema. Dejan
+   * constancia del estado en que llego y salio; nada las exige ni las valida.
+   */
+  fotos?: FotoUnidad[];
   activo: boolean;
   createdAt: string;
   updatedAt: string;

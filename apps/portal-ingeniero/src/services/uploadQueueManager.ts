@@ -7,7 +7,8 @@
  * - Backoff exponencial en errores (5s → 10s → 30s → 60s, capped).
  * - Emite snapshots a los suscriptores (UI usa useUploadQueue).
  * - Drena por tipo: 'ficha' → fotoStorageService + fichasPropiedadService;
- *   'loaner' → loanersPortalService.agregarFoto (upload + append en un lugar).
+ *   'loaner' → loanersPortalService.agregarFoto; 'unidad' →
+ *   unidadesFotosService.agregarFoto (upload + append en un lugar).
  */
 import {
   uploadQueueDB,
@@ -15,13 +16,15 @@ import {
   type PendingFoto,
   type PendingFotoFicha,
   type PendingFotoLoaner,
+  type PendingFotoUnidad,
 } from './uploadQueueDB';
 import { fotoStorageService } from './fotoStorageService';
 import { fichasPropiedadService } from './fichasPropiedadService';
 import { loanersPortalService } from './loanersPortalService';
+import { unidadesFotosService } from './unidadesFotosService';
 import { getCurrentUser } from './currentUser';
 import { comprimirFotoParaSubida } from '../utils/comprimirFoto';
-import type { FotoFicha, FotoLoaner, MomentoFotoFicha } from '@ags/shared';
+import type { FotoFicha, FotoLoaner, MomentoFotoFicha, MomentoFotoUnidad } from '@ags/shared';
 
 type Listener = (state: ManagerState) => void;
 
@@ -38,7 +41,9 @@ function backoffFor(intentos: number): number {
 
 /** Etiqueta corta para logs/UI: a qué doc pertenece la foto pendiente. */
 export function pendingFotoTargetLabel(p: PendingFoto): string {
-  return p.tipo === 'loaner' ? p.loanerCodigo : p.fichaNumero;
+  if (p.tipo === 'loaner') return p.loanerCodigo;
+  if (p.tipo === 'unidad') return p.unidadEtiqueta;
+  return p.fichaNumero;
 }
 
 class UploadQueueManager {
@@ -119,6 +124,24 @@ class UploadQueueManager {
       loanerCodigo: input.loanerCodigo,
       contexto: input.contexto,
       prestamoId: input.prestamoId,
+    };
+    await this.pushItem(item);
+  }
+
+  async enqueueUnidadBlob(input: {
+    unidadId: string;
+    unidadEtiqueta: string;
+    blob: Blob;
+    filename: string;
+    momento: MomentoFotoUnidad;
+  }): Promise<void> {
+    const blob = await comprimirFotoParaSubida(input.blob);
+    const item: PendingFotoUnidad = {
+      ...(await this.baseItem(blob, input.filename)),
+      tipo: 'unidad',
+      unidadId: input.unidadId,
+      unidadEtiqueta: input.unidadEtiqueta,
+      momento: input.momento,
     };
     await this.pushItem(item);
   }
@@ -225,6 +248,17 @@ class UploadQueueManager {
     // imposibles de subir con señal débil. Idempotente: una foto ya
     // comprimida pasa casi igual (solo se usa si achica).
     const blob = await comprimirFotoParaSubida(bruto);
+    if (next.tipo === 'unidad') {
+      // Toda la logica de unidades (path de Storage, shape FotoUnidad, append
+      // al array `fotos`) vive en el service — aca solo se invoca.
+      await unidadesFotosService.agregarFoto(next.unidadId, blob, {
+        nombre: next.filename,
+        momento: next.momento,
+        fecha: next.capturaAt,
+        subidoPor: next.subidoPor ?? null,
+      });
+      return;
+    }
     if (next.tipo === 'loaner') {
       // Toda la lógica loaner (path de Storage, shape FotoLoaner, append al
       // array `fotos`) vive en el service — acá solo se invoca.

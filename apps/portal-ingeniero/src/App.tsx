@@ -22,6 +22,8 @@ import QFDocumentosPage from './pages/QFDocumentosPage';
 import MinikitPage from './pages/MinikitPage';
 import RecepcionPage from './pages/RecepcionPage';
 import FichaFotosPage from './pages/FichaFotosPage';
+import MercaderiaPage from './pages/MercaderiaPage';
+import MercaderiaFotosPage from './pages/MercaderiaFotosPage';
 import PagosVEPPage from './pages/PagosVEPPage';
 import LoanersPage from './pages/LoanersPage';
 import LoanerDetallePage from './pages/LoanerDetallePage';
@@ -159,6 +161,9 @@ function PrivateApp() {
               {/* Aliases del path viejo — redirigen a la pantalla genérica */}
               <Route path="recepcion/egreso" element={<Navigate to="/recepcion/fotos" replace />} />
               <Route path="recepcion/egreso/:fichaId" element={<FichaFotosPage />} />
+              {/* Fotos de mercaderia por unidad de stock (2026-09-02) */}
+              <Route path="mercaderia" element={<MercaderiaPage />} />
+              <Route path="mercaderia/:unidadId" element={<MercaderiaFotosPage />} />
             </>
           )}
           {canPagos && <Route path="pagos-vep" element={<PagosVEPPage />} />}
