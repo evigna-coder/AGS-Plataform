@@ -35,6 +35,7 @@ import { Link } from 'react-router-dom';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { usePrompt } from '../../components/ui/PromptDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
@@ -50,6 +51,7 @@ const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendient
 
 export const PresupuestosList = () => {
   const confirm = useConfirm();
+  const promptText = usePrompt();
   const { hasRole, usuario } = useAuth();
   const canExport = hasRole('admin', 'admin_soporte');
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
@@ -118,8 +120,27 @@ export const PresupuestosList = () => {
   };
 
   const handleQuickEstado = async (p: Presupuesto, nuevoEstado: PresupuestoEstado) => {
-    if (!await confirm(`¿Cambiar ${p.numero} a "${ESTADO_PRESUPUESTO_LABELS[nuevoEstado]}"?`)) return;
     const updates: Partial<Presupuesto> = { estado: nuevoEstado };
+
+    // Anular PIDE MOTIVO (2026-09-01). Es la única transición irreversible desde
+    // acá —libera reservas, cancela requerimientos condicionales— y quedaba sin
+    // registro de por qué: el campo `motivoAnulacion` existía y la lista lo
+    // muestra como tooltip, pero por este camino nunca se llenaba.
+    if (nuevoEstado === 'anulado') {
+      const motivo = await promptText({
+        title: `Anular ${p.numero}`,
+        label: '¿Por qué se anula?',
+        placeholder: 'Ej: el repuesto finalmente no se usó / el cliente desistió',
+        required: true,
+        multiline: true,
+        confirmLabel: 'Anular presupuesto',
+      });
+      if (motivo === null) return;
+      updates.motivoAnulacion = motivo.trim();
+    } else if (!await confirm(`¿Cambiar ${p.numero} a "${ESTADO_PRESUPUESTO_LABELS[nuevoEstado]}"?`)) {
+      return;
+    }
+
     if (nuevoEstado === 'enviado' && !p.fechaEnvio) updates.fechaEnvio = hoyLocalISODate();
     await presupuestosService.update(p.id, updates).catch(() => alert('Error al cambiar estado'));
   };
