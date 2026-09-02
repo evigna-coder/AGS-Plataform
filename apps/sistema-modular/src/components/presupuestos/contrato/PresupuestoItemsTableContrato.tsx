@@ -39,8 +39,8 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   sistemasPlan = [], onChangeSistemasPlan,
 }) => {
   const [showAdd, setShowAdd] = useState(false);
-  // Cola de carga: sistema fijado desde los chips pendientes del alcance.
-  const [sistemaFijoId, setSistemaFijoId] = useState<string | null>(null);
+  // Cola de carga: equipos fijados desde los chips pendientes del alcance.
+  const [sistemasFijados, setSistemasFijados] = useState<string[]>([]);
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloMini[]>([]);
   const isMixta = moneda === 'MIXTA';
 
@@ -167,7 +167,7 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
           </Button>
           <Button size="sm" variant="outline" onClick={handleAddItemSuelto}>+ Ítem suelto</Button>
           <Button size="sm" variant="outline" onClick={handleAddBonificacion}>+ Bonificación</Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}>+ Agregar sistema</Button>
+          <Button size="sm" onClick={() => { setSistemasFijados([]); setShowAdd(true); }}>+ Agregar equipos</Button>
         </div>
       </div>
 
@@ -179,7 +179,7 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
           items={items}
           plan={sistemasPlan}
           onChangePlan={onChangeSistemasPlan}
-          onCargarSistema={(id) => { setSistemaFijoId(id); setShowAdd(true); }}
+          onCargarSistemas={(ids) => { setSistemasFijados(ids); setShowAdd(true); }}
         />
       )}
 
@@ -190,7 +190,7 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
       {grouped.length === 0 ? (
         <div className="border-2 border-dashed border-slate-200 rounded-lg py-12 text-center">
           <p className="text-sm text-slate-400 mb-3">Sin sistemas cargados al contrato.</p>
-          <Button size="sm" onClick={() => setShowAdd(true)}>Agregar primer sistema</Button>
+          <Button size="sm" onClick={() => { setSistemasFijados([]); setShowAdd(true); }}>Agregar primer equipo</Button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -239,12 +239,12 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
 
       <AgregarSistemaContratoModal
         open={showAdd}
-        onClose={() => { setShowAdd(false); setSistemaFijoId(null); }}
+        onClose={() => { setShowAdd(false); setSistemasFijados([]); }}
         sistemas={sistemas}
         loadModulos={loadModulos}
         existingItems={items}
         onConfirm={onAddItems}
-        sistemaFijoId={sistemaFijoId}
+        sistemasFijados={sistemasFijados}
         conceptosServicio={conceptosServicio}
         categoriasPresupuesto={categoriasPresupuesto}
         moneda={moneda}

@@ -41,6 +41,7 @@
     "test:estado-importacion": "tsx src/utils/__tests__/estadoImportacion.test.ts",
     "test:costeo-importacion": "tsx src/utils/__tests__/costeoImportacion.test.ts",
     "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
+    "test:contrato-servicios": "tsx src/components/presupuestos/contrato/__tests__/materializarServicios.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
-import { SearchableSelect } from '../../ui/SearchableSelect';
 import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
 import type { PresupuestoItem, Sistema, ModuloSistema, ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
 import { esUnidadDeServicio } from '@ags/shared';
-import { makeSubItem, nextGrupoNumber, nextSubForGrupo } from './contratoItemHelpers';
+import { materializarServiciosPorSistema, nextGrupoNumber } from './contratoItemHelpers';
+import { SistemasMultiPicker } from './SistemasMultiPicker';
+import { ServiciosPlantillaTable } from './ServiciosPlantillaTable';
 
 interface Props {
   open: boolean;
@@ -14,78 +15,84 @@ interface Props {
   loadModulos: (sistemaId: string) => Promise<ModuloSistema[]>;
   existingItems: PresupuestoItem[];
   onConfirm: (newItems: PresupuestoItem[]) => void;
-  /** Cola de carga (2026-08-04): sistema FIJO a cargar — el selector queda
-   *  bloqueado en ese sistema (viene de la cola de alcance del contrato). */
-  sistemaFijoId?: string | null;
-  /** Loop de servicios embebido (rediseño 2026-08-04): buscador + Enter. */
+  /** Cola de carga (2026-08-04): sistemas con los que abre la seleccion — vienen
+   *  de los chips pendientes del alcance. Se pueden agregar o sacar mas. */
+  sistemasFijados?: string[];
+  /** Loop de servicios embebido (rediseno 2026-08-04): buscador + Enter. */
   conceptosServicio?: ConceptoServicio[];
   categoriasPresupuesto?: CategoriaPresupuesto[];
   moneda?: MonedaPresupuesto;
 }
 
-const labelCls = 'block text-[11px] font-medium text-slate-500 mb-1';
-
 /**
- * Carga de UN sistema al contrato (rediseño 2026-08-04, pedido UAT): se eligió
- * el sistema (o vino fijo desde la cola), se generan la cabecera + módulos S/L
- * automáticamente, y los SERVICIOS se cargan en loop con el mismo buscador de
- * la carga de items (buscar → cantidad → Enter → vuelve al buscador). Sin
- * sector ni plantillas (se volaron a pedido del user).
+ * Carga de equipos al contrato (rediseno 2026-08-04; multi-equipo 2026-09-02):
+ * se eligen uno o VARIOS equipos, y los SERVICIOS se cargan UNA sola vez con el
+ * mismo buscador de la carga de items (buscar -> cantidad -> Enter -> vuelve al
+ * buscador). Al confirmar, esa lista se replica con sus precios a cada equipo,
+ * cada uno en su propio grupo. Sin sector ni plantillas (se volaron a pedido).
  */
 export const AgregarSistemaContratoModal: React.FC<Props> = ({
   open, onClose, sistemas, loadModulos, existingItems, onConfirm,
-  sistemaFijoId = null, conceptosServicio = [], categoriasPresupuesto = [], moneda,
+  sistemasFijados, conceptosServicio = [], categoriasPresupuesto = [], moneda,
 }) => {
-  const [sistemaId, setSistemaId] = useState('');
-  const [modulos, setModulos] = useState<ModuloSistema[]>([]);
+  const [sistemaIds, setSistemaIds] = useState<string[]>([]);
+  const [modulosPorSistema, setModulosPorSistema] = useState<Map<string, ModuloSistema[]>>(new Map());
   const [servicios, setServicios] = useState<PresupuestoItem[]>([]);
 
-  // Reset al cerrar; al abrir desde la cola, prefijar el sistema.
+  const fijadosKey = (sistemasFijados ?? []).join('|');
+
+  // Reset al cerrar; al abrir desde la cola, prefijar los sistemas pendientes.
   useEffect(() => {
     if (!open) {
-      setSistemaId(''); setModulos([]); setServicios([]);
-    } else if (sistemaFijoId) {
-      setSistemaId(sistemaFijoId);
+      setSistemaIds([]); setModulosPorSistema(new Map()); setServicios([]);
+    } else {
+      setSistemaIds(fijadosKey ? fijadosKey.split('|') : []);
     }
-  }, [open, sistemaFijoId]);
+  }, [open, fijadosKey]);
 
-  const selectedSistema = useMemo(() => sistemas.find(s => s.id === sistemaId) || null, [sistemas, sistemaId]);
-
-  // Cambio de sistema: módulos reales frescos y servicios cargados en cero.
+  // Modulos reales de cada equipo elegido: se muestran al seleccionar y anclan
+  // el S/N del header de la card del PDF al materializar.
   useEffect(() => {
-    setServicios([]);
-    if (!selectedSistema) { setModulos([]); return; }
+    const faltantes = sistemaIds.filter(id => !modulosPorSistema.has(id));
+    if (faltantes.length === 0) return;
     let cancelled = false;
-    loadModulos(selectedSistema.id)
-      .then(mods => { if (!cancelled) setModulos(mods); })
-      .catch(() => { if (!cancelled) setModulos([]); });
+    Promise.all(faltantes.map(id => loadModulos(id).catch(() => [] as ModuloSistema[])))
+      .then(listas => {
+        if (cancelled) return;
+        setModulosPorSistema(prev => {
+          const next = new Map(prev);
+          faltantes.forEach((id, i) => next.set(id, listas[i]));
+          return next;
+        });
+      });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sistemaId]);
+  }, [sistemaIds]);
 
   // Los sistemas YA cargados al contrato no se ofrecen (anti-duplicado).
-  const sistemaOptions = useMemo(() => {
-    const cargados = new Set(existingItems.map(i => i.sistemaId).filter(Boolean));
-    return sistemas
-      .filter(s => s.id === sistemaId || !cargados.has(s.id))
-      .map(s => ({
-        value: s.id,
-        label: `${s.nombre}${s.codigoInternoCliente ? ` — ${s.codigoInternoCliente}` : ''}`,
-      }));
-  }, [sistemas, existingItems, sistemaId]);
+  const yaCargados = useMemo(
+    () => new Set(existingItems.map(i => i.sistemaId).filter(Boolean) as string[]),
+    [existingItems],
+  );
 
-  const grupo = useMemo(() => nextGrupoNumber(existingItems), [existingItems]);
+  const seleccionados = useMemo(
+    () => sistemaIds.map(id => sistemas.find(s => s.id === id)).filter((s): s is Sistema => !!s),
+    [sistemaIds, sistemas],
+  );
+
+  const modulosDelUnico = seleccionados.length === 1
+    ? (modulosPorSistema.get(seleccionados[0].id) ?? [])
+    : [];
 
   /** Alta de un servicio desde la carga completa embebida (loop con Enter).
-   *  La configuración del equipo NO entra como items (2026-08-04: el bloque
-   *  "Módulos del sistema" del PDF ya la muestra) — solo van los servicios. */
+   *  Se guarda SIN datos de equipo: los estampa `materializarServiciosPorSistema`
+   *  al confirmar, una copia por equipo. La configuracion del equipo NO entra
+   *  como items (2026-08-04: el bloque "Modulos del sistema" del PDF ya la muestra). */
   const handleAddServicio = (p: Partial<PresupuestoItem>) => {
-    if (!selectedSistema) return;
     const cantidad = p.cantidad || 1;
     const precioUnitario = p.precioUnitario || 0;
     const descuento = p.descuento || 0;
     const base = cantidad * precioUnitario;
-    const sub = servicios.length === 0 ? 1 : nextSubForGrupo(servicios, grupo);
     setServicios(prev => [...prev, {
       id: crypto.randomUUID(),
       codigoProducto: p.codigoProducto ?? '',
@@ -102,21 +109,14 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
       disponibilidad: p.disponibilidad ?? null,
       etaDiasEstimados: p.etaDiasEstimados ?? null,
       subtotal: descuento ? base * (1 - descuento / 100) : base,
-      // El codigo de un servicio va tambien en `servicioCode` (2026-08-20): acá
+      // El codigo de un servicio va tambien en `servicioCode` (2026-08-20): aca
       // se tipea en `codigoProducto` —que es para N° de parte— y quedaba solo
-      // ahí. Sin este campo, el modulo de Entregas leía la linea como una parte
+      // ahi. Sin este campo, el modulo de Entregas leia la linea como una parte
       // fisica a entregar, y el PDF no podia resolver el anexo de consumibles.
       servicioCode: p.servicioCode
         ?? (esUnidadDeServicio(p.unidad || 'servicio') ? (p.codigoProducto?.trim() || null) : null),
-      grupo,
-      subItem: makeSubItem(grupo, sub),
-      sistemaId: selectedSistema.id,
-      sistemaCodigoInterno: selectedSistema.codigoInternoCliente ?? null,
-      sistemaNombre: selectedSistema.nombre,
-      sectorNombre: selectedSistema.sector?.trim() || null,
-      // Serie del módulo principal: ancla el S/N del header de la card del PDF
-      // (antes lo aportaba el item cabecera, que ya no se genera).
-      moduloSerie: modulos[0]?.serie ?? null,
+      grupo: 0,
+      subItem: '',
     }]);
   };
 
@@ -131,66 +131,78 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
   };
 
   const handleConfirm = () => {
-    if (!selectedSistema) { alert('Seleccione un sistema'); return; }
-    if (servicios.length === 0) { alert('Cargá al menos un servicio para este sistema'); return; }
-    onConfirm(servicios);
+    if (seleccionados.length === 0) { alert('Seleccione al menos un equipo'); return; }
+    if (servicios.length === 0) { alert('Carga al menos un servicio'); return; }
+    onConfirm(materializarServiciosPorSistema({
+      plantilla: servicios,
+      sistemas: seleccionados,
+      modulosPorSistema,
+      grupoBase: nextGrupoNumber(existingItems),
+    }));
     onClose();
   };
 
   if (!open) return null;
 
-  const totalServicios = servicios.reduce((s, i) => s + (i.subtotal || 0), 0);
+  const totalItems = servicios.length * seleccionados.length;
+  const varios = seleccionados.length > 1;
+  const resumen = varios
+    ? `${servicios.length} servicios × ${seleccionados.length} equipos = ${totalItems} items`
+    : `${servicios.length} servicio${servicios.length > 1 ? 's' : ''}`;
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="2xl" title="Cargar sistema al contrato"
-      subtitle="La cabecera y los módulos se generan solos — cargá los servicios en loop con el buscador."
+    <Modal open={open} onClose={onClose} maxWidth="2xl" title="Cargar equipos al contrato"
+      subtitle="Elegi uno o varios equipos y carga los servicios una sola vez — se replican con sus precios a cada equipo."
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleConfirm} disabled={!selectedSistema || servicios.length === 0}>
-          Agregar {servicios.length > 0 ? `(${servicios.length} servicio${servicios.length > 1 ? 's' : ''})` : ''}
+        <Button size="sm" onClick={handleConfirm} disabled={seleccionados.length === 0 || servicios.length === 0}>
+          Agregar {totalItems > 0 ? `(${resumen})` : ''}
         </Button>
       </>}>
       <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Sistema *</label>
-          <SearchableSelect value={sistemaId} onChange={setSistemaId}
-            options={sistemaOptions}
-            placeholder="Seleccionar..."
-            disabled={!!sistemaFijoId} />
-          {sistemaFijoId && (
-            <p className="text-[10px] text-teal-700 mt-0.5">Desde la cola del contrato — al confirmar se consume de la lista.</p>
-          )}
-        </div>
+        <SistemasMultiPicker
+          sistemas={sistemas}
+          seleccionados={sistemaIds}
+          yaCargados={yaCargados}
+          modulosPorSistema={modulosPorSistema}
+          onChange={setSistemaIds}
+        />
 
-        {selectedSistema && (
+        {seleccionados.length > 0 && (
           <>
-            {/* Configuración del equipo — SOLO informativa (2026-08-04): no entra
-                como items; el PDF ya la muestra en el bloque Módulos del sistema. */}
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
-                <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
-                  Equipo · {modulos.length > 0 ? `${modulos.length} módulos (va al PDF como detalle, no como items)` : 'sin módulos cargados'}
-                </span>
-              </div>
-              {modulos.length > 0 && (
-                <div className="max-h-40 overflow-y-auto">
-                  <table className="w-full text-xs">
-                    <tbody>
-                      {modulos.map(m => (
-                        <tr key={m.id} className="border-t border-slate-100 first:border-0">
-                          <td className="px-2 py-1 text-slate-500 font-mono text-[10px] w-32 truncate">{m.nombre || '—'}</td>
-                          <td className="px-2 py-1 text-slate-600 truncate">{m.descripcion || '—'}</td>
-                          <td className="px-2 py-1 text-slate-400 font-mono text-[10px] w-28 truncate">{m.serie || '—'}</td>
-                          <td className="px-2 py-1 text-slate-400 text-[10px] w-24 truncate">{m.marca || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Configuracion del equipo — SOLO informativa (2026-08-04): no entra
+                como items; el PDF ya la muestra en el bloque Modulos del sistema.
+                Con varios equipos elegidos se resume en los chips, para no tapar
+                la carga de servicios. */}
+            {seleccionados.length === 1 && (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
+                  <span className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
+                    Equipo · {modulosDelUnico.length > 0
+                      ? `${modulosDelUnico.length} modulos (va al PDF como detalle, no como items)`
+                      : 'sin modulos cargados'}
+                  </span>
                 </div>
-              )}
-            </div>
+                {modulosDelUnico.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {modulosDelUnico.map(m => (
+                          <tr key={m.id} className="border-t border-slate-100 first:border-0">
+                            <td className="px-2 py-1 text-slate-500 font-mono text-[10px] w-32 truncate">{m.nombre || '—'}</td>
+                            <td className="px-2 py-1 text-slate-600 truncate">{m.descripcion || '—'}</td>
+                            <td className="px-2 py-1 text-slate-400 font-mono text-[10px] w-28 truncate">{m.serie || '—'}</td>
+                            <td className="px-2 py-1 text-slate-400 text-[10px] w-24 truncate">{m.marca || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Loop de servicios: buscador → cantidad → Enter → vuelve al buscador */}
+            {/* Loop de servicios: buscador -> cantidad -> Enter -> vuelve al buscador */}
             <PresupuestoAddItemCompleto
               inline
               conceptosServicio={conceptosServicio}
@@ -199,45 +211,12 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
               onAdd={handleAddServicio}
             />
 
-            {/* Servicios cargados a este sistema */}
-            {servicios.length > 0 && (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="bg-teal-50/60 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-teal-700">
-                    Servicios · {servicios.length}
-                  </span>
-                  <span className="text-[10px] font-mono text-teal-700 font-semibold">
-                    Subtotal {totalServicios.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <table className="w-full text-xs">
-                  <tbody>
-                    {servicios.map(item => (
-                      <tr key={item.id} className="border-t border-slate-100 first:border-0">
-                        <td className="px-2 py-1 text-slate-400 font-mono text-[10px] w-10">{item.subItem}</td>
-                        <td className="px-2 py-1 text-slate-500 font-mono text-[10px] w-32 truncate">{item.codigoProducto}</td>
-                        <td className="px-2 py-1 text-slate-700">{item.descripcion}</td>
-                        <td className="px-2 py-1 w-16">
-                          <input type="number" min="0" value={item.cantidad}
-                            onChange={e => updateServicio(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
-                            className="w-14 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
-                        </td>
-                        <td className="px-2 py-1 w-24">
-                          <input type="number" min="0" step="any" value={item.precioUnitario || ''}
-                            onChange={e => updateServicio(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
-                            className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
-                        </td>
-                        <td className="px-2 py-1 w-8 text-center">
-                          <button onClick={() => setServicios(prev => prev.filter(s => s.id !== item.id))}
-                            className="text-red-400 hover:text-red-600 text-sm leading-none" title="Quitar">×</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <ServiciosPlantillaTable
+              servicios={servicios}
+              cantidadEquipos={seleccionados.length}
+              onUpdate={updateServicio}
+              onRemove={id => setServicios(prev => prev.filter(s => s.id !== id))}
+            />
           </>
         )}
       </div>

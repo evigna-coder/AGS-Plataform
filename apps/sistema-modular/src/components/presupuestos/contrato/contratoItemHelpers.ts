@@ -331,3 +331,41 @@ export function groupItemsForContrato(items: PresupuestoItem[]): SectorBucket[] 
   }
   return result;
 }
+
+/**
+ * Replica UNA lista de servicios sobre VARIOS sistemas (2026-09-02, pedido del
+ * user): en un contrato los equipos suelen compartir el mismo alcance de
+ * servicio (MP1, MP2, CO1...) con el mismo precio. Antes había que cargarlos
+ * equipo por equipo, retipeando todo.
+ *
+ * `plantilla` son los servicios cargados UNA vez (sin datos de sistema); acá se
+ * clonan por cada sistema seleccionado, cada uno en su propio grupo correlativo
+ * y con su serie de módulo principal (que ancla el S/N del header en el PDF).
+ */
+export function materializarServiciosPorSistema(input: {
+  plantilla: PresupuestoItem[];
+  sistemas: Sistema[];
+  modulosPorSistema: Map<string, ModuloSistema[]>;
+  grupoBase: number;
+}): PresupuestoItem[] {
+  const { plantilla, sistemas, modulosPorSistema, grupoBase } = input;
+  const out: PresupuestoItem[] = [];
+  sistemas.forEach((sistema, idx) => {
+    const grupo = grupoBase + idx;
+    const modulos = modulosPorSistema.get(sistema.id) ?? [];
+    plantilla.forEach((serv, i) => {
+      out.push({
+        ...serv,
+        id: crypto.randomUUID(),
+        grupo,
+        subItem: makeSubItem(grupo, i + 1),
+        sistemaId: sistema.id,
+        sistemaCodigoInterno: sistema.codigoInternoCliente ?? null,
+        sistemaNombre: sistema.nombre,
+        sectorNombre: sistema.sector?.trim() || null,
+        moduloSerie: modulos[0]?.serie ?? null,
+      });
+    });
+  });
+  return out;
+}

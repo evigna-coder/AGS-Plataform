@@ -9,17 +9,19 @@ interface Props {
   /** Alcance del contrato: ids de sistemas a cubrir (persistido en el presupuesto). */
   plan: string[];
   onChangePlan: (ids: string[]) => void;
-  /** Cargar el siguiente sistema: abre el modal de carga fijado a ese sistema. */
-  onCargarSistema: (sistemaId: string) => void;
+  /** Cargar equipos: abre el modal de carga con esos equipos ya elegidos.
+   *  Un solo id desde el chip; todos los pendientes desde "Cargar todos juntos". */
+  onCargarSistemas: (sistemaIds: string[]) => void;
 }
 
 /**
  * Cola de carga de sistemas del contrato (2026-08-04): primero se elige el
- * ALCANCE (todos los sistemas que cubre el contrato), después se cargan de a
- * UNO — cada sistema cargado se consume de la cola. Evita el error de la carga
- * libre: duplicar un equipo u olvidarse alguno.
+ * ALCANCE (todos los sistemas que cubre el contrato), después se cargan — de a
+ * uno, o varios juntos compartiendo la misma lista de servicios (2026-09-02).
+ * Cada equipo cargado se consume de la cola. Evita el error de la carga libre:
+ * duplicar un equipo u olvidarse alguno.
  */
-export function ContratoSistemasQueue({ sistemas, items, plan, onChangePlan, onCargarSistema }: Props) {
+export function ContratoSistemasQueue({ sistemas, items, plan, onChangePlan, onCargarSistemas }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
@@ -77,13 +79,13 @@ export function ContratoSistemasQueue({ sistemas, items, plan, onChangePlan, onC
 
       {plan.length === 0 ? (
         <p className="text-[11px] text-slate-400">
-          Elegí primero TODOS los sistemas que cubre el contrato — después se cargan de a uno y se van consumiendo de la lista.
+          Elegí primero TODOS los sistemas que cubre el contrato — después se cargan (de a uno o varios juntos) y se van consumiendo de la lista.
         </p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {pendientes.map(id => (
-            <button key={id} onClick={() => onCargarSistema(id)}
-              title="Cargar los servicios de este sistema"
+            <button key={id} onClick={() => onCargarSistemas([id])}
+              title="Cargar los servicios de este equipo"
               className="text-[11px] px-2 py-1 rounded-full border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium">
               {nombreDe(id)} →
             </button>
@@ -94,6 +96,13 @@ export function ContratoSistemasQueue({ sistemas, items, plan, onChangePlan, onC
               ✓ {nombreDe(id)}
             </span>
           ))}
+          {pendientes.length > 1 && (
+            <button onClick={() => onCargarSistemas(pendientes)}
+              title="Cargar los mismos servicios para todos los equipos que faltan, de una sola vez"
+              className="text-[11px] px-2 py-1 rounded-full border border-teal-300 bg-teal-600 text-white hover:bg-teal-700 font-medium">
+              Cargar los {pendientes.length} juntos
+            </button>
+          )}
           {pendientes.length === 0 && (
             <span className="text-[11px] text-teal-700 font-medium self-center">Todos los sistemas del alcance están cargados ✓</span>
           )}
