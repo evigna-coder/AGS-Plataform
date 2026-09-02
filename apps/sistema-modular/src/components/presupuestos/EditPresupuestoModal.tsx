@@ -134,10 +134,15 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     if (isMixta) {
       (form.items ?? []).forEach(i => { const m = i.moneda || 'USD'; map[m] = (map[m] || 0) + (i.subtotal || 0); });
     } else {
-      map[form.moneda] = totals.total;
+      // SIN impuestos (2026-09-02): las cuotas del contrato se calculan sobre el
+      // neto y el PDF las imprime como "monto + IVA". Acá se usaba `total`, que
+      // ya trae IVA/ganancias/IIBB sumados, asi que el PDF terminaba mostrando
+      // IVA sobre IVA. El alta (CreatePresupuestoModal) siempre uso el subtotal
+      // — esto lo alinea, y con la rama MIXTA de arriba, que suma subtotales.
+      map[form.moneda] = totals.subtotal;
     }
     return map;
-  }, [form.items, form.moneda, isMixta, totals.total]);
+  }, [form.items, form.moneda, isMixta, totals.subtotal]);
 
   const handleCuotasChange = (cuotas: PresupuestoCuota[]) => {
     setField('cuotas', cuotas);

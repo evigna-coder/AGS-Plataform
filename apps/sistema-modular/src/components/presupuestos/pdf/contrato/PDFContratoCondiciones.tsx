@@ -37,8 +37,9 @@ export function PDFContratoCuotas({ data }: { data: PresupuestoPDFData }) {
 export function PDFContratoCondicionesText({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
+  // notasTecnicas NO va aca (2026-09-02): se movio a la HOJA 1 — ver
+  // PDFContratoNotasTecnicas, que la renderiza debajo de la portada.
   const blocks = [
-    { key: 'notasTecnicas', title: 'Notas sobre este presupuesto', content: presupuesto.notasTecnicas },
     { key: 'condicionesComerciales', title: 'Condiciones comerciales', content: presupuesto.condicionesComerciales },
     { key: 'garantia', title: 'Garantía', content: presupuesto.garantia },
     { key: 'variacionTipoCambio', title: 'Variación del tipo de cambio', content: presupuesto.variacionTipoCambio },
@@ -101,6 +102,26 @@ export function PDFContratoAceptacion({ data }: { data: PresupuestoPDFData }) {
           {cliente.razonSocial}
         </Text>
       )}
+    </View>
+  );
+}
+
+/**
+ * Notas tecnicas del presupuesto, en la HOJA 1 (pedido 2026-09-02). Vivian con
+ * el resto de las condiciones en la ultima hoja; son lo que el cliente tiene
+ * que leer junto al alcance y el precio, no al final.
+ *
+ * Va como hermano de la portada dentro de la misma Page: si el texto es largo,
+ * react-pdf lo desborda a la hoja siguiente en vez de recortarlo.
+ */
+export function PDFContratoNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
+  const { presupuesto } = data;
+  const visible = (presupuesto.seccionesVisibles || {}).notasTecnicas !== false;
+  if (!visible || !presupuesto.notasTecnicas) return null;
+  return (
+    <View style={[cs.condicionBlock, { marginTop: 10 }]}>
+      <Text style={cs.condicionTitle}>Notas sobre este presupuesto</Text>
+      <PDFRichText html={presupuesto.notasTecnicas} fallbackStyle={cs.condicionText} />
     </View>
   );
 }

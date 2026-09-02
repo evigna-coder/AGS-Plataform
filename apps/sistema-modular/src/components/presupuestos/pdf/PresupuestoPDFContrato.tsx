@@ -3,7 +3,7 @@ import './pdfFonts';
 import { cs } from './contrato/pdfContratoStyles';
 import { PDFContratoCover } from './contrato/PDFContratoCover';
 import { PDFContratoDetail } from './contrato/PDFContratoDetail';
-import { PDFContratoCondicionesText, PDFContratoAceptacion } from './contrato/PDFContratoCondiciones';
+import { PDFContratoCondicionesText, PDFContratoAceptacion, PDFContratoNotasTecnicas } from './contrato/PDFContratoCondiciones';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 
 function PageHeaderStrip({ data }: { data: PresupuestoPDFData }) {
@@ -52,6 +52,9 @@ export function PresupuestoPDFContrato({ data }: { data: PresupuestoPDFData }) {
       {/* Hoja 1 — Portada */}
       <Page size="A4" style={cs.page}>
         <PDFContratoCover data={data} />
+        {/* Notas tecnicas en la HOJA 1 (2026-09-02): antes salian al final,
+            con las condiciones. */}
+        <PDFContratoNotasTecnicas data={data} />
         <Footer data={data} />
       </Page>
 
