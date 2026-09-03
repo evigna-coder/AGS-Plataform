@@ -75,12 +75,32 @@ export const AdjuntarOCModal: React.FC<Props> = ({
       // completo de aceptación (idempotente: no-op si ya estaba aceptado).
       const pres = await presupuestosService.getById(presupuestoId);
       if (pres && (pres.estado === 'borrador' || pres.estado === 'enviado' || pres.estado === 'pendiente_oc')) {
-        await presupuestosService.aceptarConRequerimientos(presupuestoId);
+        // La OC YA quedo guardada arriba. Si la aceptacion falla (sin
+        // responsable del area, clienteId nulo, etc.) hay que decirlo con la
+        // causa: antes todo caia en "Error al guardar", la OC quedaba adjunta
+        // igual y al reintentar "funcionaba" — parecia intermitente y era
+        // esto (2026-09-03).
+        try {
+          await presupuestosService.aceptarConRequerimientos(presupuestoId);
+        } catch (err) {
+          const causa = err instanceof Error ? err.message : String(err);
+          alert(`La orden de compra quedo adjunta, pero el presupuesto NO se pudo aceptar:
+
+${causa}
+
+Corregi eso y volve a aceptarlo desde el presupuesto.`);
+          onSaved?.();
+          onClose();
+          return;
+        }
       }
       onSaved?.();
       onClose();
-    } catch {
-      alert('Error al guardar');
+    } catch (err) {
+      const causa = err instanceof Error ? err.message : String(err);
+      alert(`No se pudo guardar la orden de compra:
+
+${causa}`);
     } finally {
       setSaving(false);
     }
