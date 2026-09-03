@@ -11,6 +11,7 @@ import {
   navigateNext,
 } from '../utils/agendaDateUtils';
 import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../utils/finDeSemana';
+import { debeRevertirOTAlBorrarEntrada } from '../utils/agendaRevertOT';
 
 export interface UseAgendaReturn {
   // Date navigation
@@ -360,6 +361,15 @@ export function useAgenda(): UseAgendaReturn {
     if (otNumber) {
       ordenesTrabajoService.getByOtNumber(otNumber).then(async ot => {
         if (!ot) return;
+        // Guards (2026-09-02, caso 30234.02): no se revierte una OT que ya paso
+        // de COORDINADA —lo que se hizo es historia, no programacion— ni una a
+        // la que le quedan otras entradas: mover no es desprogramar. Las
+        // entradas se leen de Firestore y no de `entries`, que solo trae la
+        // semana visible: un movimiento a otra semana no se veria.
+        const restantes = await agendaService.getByOtNumber(otNumber)
+          .then(es => es.filter(e => e.id !== id).length)
+          .catch(() => 0);
+        if (!debeRevertirOTAlBorrarEntrada(ot.estadoAdmin, restantes)) return;
         const REVERTIBLE: string[] = ['ASIGNADA', 'COORDINADA'];
         const shouldRevertEstado = REVERTIBLE.includes(ot.estadoAdmin || '');
         // La matriz solo retrocede DE A UN PASO: COORDINADA → CREADA directo
