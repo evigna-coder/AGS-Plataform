@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { Remito, TipoRemito, EstadoRemito } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { RemitoItemsInline } from './RemitoItemsInline';
+import { FotosMercaderiaSection } from '../stock/FotosMercaderiaSection';
 import { RemitoHistorialCard } from './RemitoHistorialCard';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
@@ -67,6 +68,14 @@ export function RemitoVerModal({ remito, onClose, clientePorFicha }: {
           </div>
         </div>
 
+        {/* Fotos de cómo salió la mercadería (2026-09-03) — el camino
+            "mostrame lo que le mandamos a tal cliente". */}
+        <FotosMercaderiaSection
+          titulo="Fotos de entrega"
+          fotos={remito.fotos}
+          cerradaAt={remito.fotosCerradasAt}
+          cerradaPor={remito.fotosCerradasPor}
+        />
         <RemitoHistorialCard remitoId={remito.id} />
 
         <div className="flex justify-end pt-1">

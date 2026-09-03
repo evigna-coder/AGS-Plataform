@@ -10,6 +10,7 @@ import { ImportacionVEPSection } from '../../components/stock/ImportacionVEPSect
 import { ImportacionGiroSection } from '../../components/stock/ImportacionGiroSection';
 import { ImportacionGastosSection } from '../../components/stock/ImportacionGastosSection';
 import { ImportacionDocumentosSection } from '../../components/stock/ImportacionDocumentosSection';
+import { FotosMercaderiaSection } from '../../components/stock/FotosMercaderiaSection';
 import { ImportacionItemsSection } from '../../components/stock/ImportacionItemsSection';
 import { ImportacionIngresarStockModal } from '../../components/stock/ImportacionIngresarStockModal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -184,6 +185,14 @@ No se van a poder ingresar más unidades por este embarque.`,
             <ImportacionGiroSection imp={imp} onUpdate={loadData} />
             <ImportacionGastosSection imp={imp} onUpdate={loadData} />
             <ImportacionDocumentosSection imp={imp} onUpdate={loadData} />
+            {/* Fotos de cómo llegó el embarque (2026-09-03). Se sacan desde el
+                celular en el portal; acá se consultan. */}
+            <FotosMercaderiaSection
+              titulo="Fotos de recepción"
+              fotos={imp.fotos}
+              cerradaAt={imp.fotosCerradasAt}
+              cerradaPor={imp.fotosCerradasPor}
+            />
           </div>
         </div>
       </div>

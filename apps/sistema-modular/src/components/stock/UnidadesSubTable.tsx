@@ -63,26 +63,9 @@ interface Props {
   onLiberar?: (u: UnidadStock) => void;
   /** Liberar TODAS las unidades de un grupo unificado (una sola confirmación). */
   onLiberarGrupo?: (units: UnidadStock[]) => void;
-  /** Abre la galería de fotos de la mercadería (2026-09-02). */
-  onVerFotos?: (units: UnidadStock[]) => void;
 }
 
-/** Fotos de todas las unidades del renglón — el botón solo aparece si hay. */
-const tieneFotos = (units: UnidadStock[]): boolean =>
-  units.some(u => (u.fotos?.length ?? 0) > 0);
-
-const FotosButton = ({ units, onVerFotos }: { units: UnidadStock[]; onVerFotos: (u: UnidadStock[]) => void }) => {
-  const total = units.reduce((n, u) => n + (u.fotos?.length ?? 0), 0);
-  return (
-    <button onClick={() => onVerFotos(units)}
-      title={`Ver ${total} foto(s) de la mercadería`}
-      className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">
-      📷 {total}
-    </button>
-  );
-};
-
-export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiberarGrupo, onVerFotos }: Props) => {
+export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiberarGrupo }: Props) => {
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const grupos = useMemo<Grupo[]>(() => {
     const map = new Map<string, Grupo>();
@@ -126,9 +109,6 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
         </td>
         <td className="px-2 py-1.5 text-right whitespace-nowrap"><CostoFactorCell u={u} /></td>
         <td className="px-2 py-1.5 text-center whitespace-nowrap">
-          {onVerFotos && tieneFotos(esGrupo ? opts.grupo!.units : [u]) && (
-            <FotosButton units={esGrupo ? opts.grupo!.units : [u]} onVerFotos={onVerFotos} />
-          )}
           {esGrupo ? (
             <>
               {onLiberarGrupo && u.estado === 'reservado' && (

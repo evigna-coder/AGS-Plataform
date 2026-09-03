@@ -163,7 +163,7 @@ function PrivateApp() {
               <Route path="recepcion/egreso/:fichaId" element={<FichaFotosPage />} />
               {/* Fotos de mercaderia por unidad de stock (2026-09-02) */}
               <Route path="mercaderia" element={<MercaderiaPage />} />
-              <Route path="mercaderia/:unidadId" element={<MercaderiaFotosPage />} />
+              <Route path="mercaderia/:destino/:docId" element={<MercaderiaFotosPage />} />
             </>
           )}
           {canPagos && <Route path="pagos-vep" element={<PagosVEPPage />} />}

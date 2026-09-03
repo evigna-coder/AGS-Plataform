@@ -3932,29 +3932,33 @@ export interface SalidaAProveedor {
 }
 
 /**
- * Momento en que se fotografio la mercaderia. La recepcion documenta como
- * llego (equipos de venta, columnas certificadas, cualquier cosa fragil o
- * cara); la entrega, como salio hacia el cliente.
+ * Foto de mercaderia (2026-09-03).
+ *
+ * Cuelga del DOCUMENTO que representa el momento, no del articulo: la
+ * recepcion es un evento del embarque (la importacion) y la entrega, del
+ * remito. Nacio colgando de cada unidad de stock y era inviable — en la compra
+ * de un equipo con 30 items, elegir el renglon foto por foto no lo hace nadie.
+ *
+ * La tanda queda ABIERTA y admite mas fotos hasta que alguien la cierra; se
+ * puede cerrar incompleta, que es lo que pasa en la practica.
  */
-export type MomentoFotoUnidad = 'recepcion' | 'entrega';
-
-/**
- * Foto de una unidad fisica de stock (2026-09-02). Cuelgan de la UNIDAD y no
- * del evento que las origino, porque la pregunta que tienen que contestar es
- * "mostrame la foto de la columna que le vendimos a Synthon": desde el cliente
- * se llega al remito, del remito a la unidad por `RemitoItem.unidadId`, y de
- * la unidad a estas fotos. Colgadas de la recepcion, esa cadena se corta.
- */
-export interface FotoUnidad {
+export interface FotoMercaderia {
   id: string;
   url: string;
   storagePath: string;
   nombre?: string | null;
   descripcion?: string | null;
-  momento: MomentoFotoUnidad;
   /** ISO de la captura (no de la subida: la cola puede drenar mucho despues). */
   fecha: string;
   subidoPor?: string | null;
+}
+
+/** Campos que agrega una tanda de fotos al documento que la contiene. */
+export interface TandaFotos {
+  fotos?: FotoMercaderia[];
+  /** ISO del cierre de la tanda. Ausente = sigue abierta, admite mas fotos. */
+  fotosCerradasAt?: string | null;
+  fotosCerradasPor?: string | null;
 }
 
 export interface UnidadStock {
@@ -4035,12 +4039,6 @@ export interface UnidadStock {
    * que vuelva; `retornarDeProveedor` la devuelve a `ubicacionOrigen` y lo limpia.
    */
   enProveedor?: SalidaAProveedor | null;
-  /**
-   * Fotos de la mercaderia (2026-09-02): recepcion y entrega. Se capturan desde
-   * el celular en el portal (admin_soporte) y se ven desde el sistema. Dejan
-   * constancia del estado en que llego y salio; nada las exige ni las valida.
-   */
-  fotos?: FotoUnidad[];
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -4502,7 +4500,7 @@ export function parcheReversaDeLinea(
   };
 }
 
-export interface Remito {
+export interface Remito extends TandaFotos {
   id: string;
   /** Número correlativo (REM-0001) */
   numero: string;
@@ -5523,7 +5521,7 @@ export interface ItemImportacion {
   requerimientoId?: string | null;               // ItemOC.requerimientoId para cierre automático
 }
 
-export interface Importacion {
+export interface Importacion extends TandaFotos {
   id: string;
   numero: string; // IMP-0001
   estado: EstadoImportacion;

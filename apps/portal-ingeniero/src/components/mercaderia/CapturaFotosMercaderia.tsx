@@ -1,0 +1,108 @@
+import { useRef } from 'react';
+import { FotoCard, FotoCardUploaded } from '../recepcion/FotoCard';
+import { useUploadQueue, usePendingForDestino } from '../../hooks/useUploadQueue';
+import type { FotoMercaderia } from '@ags/shared';
+import type { DestinoFotos } from '../../services/mercaderiaFotosService';
+
+interface Props {
+  destino: DestinoFotos;
+  destinoId: string;
+  /** Numero del documento — se muestra en la cola global. */
+  destinoEtiqueta: string;
+  fotosConfirmadas?: FotoMercaderia[];
+  titulo: string;
+  /** Tanda cerrada: se ven las fotos pero no se agregan mas. */
+  cerrada?: boolean;
+}
+
+/**
+ * Captura multiple con camara nativa. Las fotos se encolan en IndexedDB y la
+ * cola offline las sube cuando hay senal, asi que se puede salir de la pantalla
+ * con fotos pendientes — el deposito no tiene buena senal.
+ *
+ * Se elige el documento UNA vez y se disparan fotos seguidas: en un embarque de
+ * 30 items, volver a elegir por cada foto era inviable (2026-09-03).
+ */
+export function CapturaFotosMercaderia({
+  destino, destinoId, destinoEtiqueta, fotosConfirmadas = [], titulo, cerrada = false,
+}: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { enqueueMercaderia, retry, discard } = useUploadQueue();
+  const pending = usePendingForDestino(destinoId);
+
+  const total = fotosConfirmadas.length + pending.length;
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      await enqueueMercaderia({
+        destino,
+        destinoId,
+        destinoEtiqueta,
+        blob: file,
+        filename: file.name || `foto_${Date.now()}.jpg`,
+      });
+    }
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-slate-500 font-mono">{titulo}</p>
+        <p className="text-sm font-semibold text-slate-800 mt-0.5">
+          {total} foto{total === 1 ? '' : 's'}
+          {pending.length > 0 && (
+            <span className="ml-1.5 text-xs font-normal text-amber-700">
+              ({pending.length} en cola)
+            </span>
+          )}
+        </p>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        className="hidden"
+        onChange={e => void handleFiles(e.target.files)}
+      />
+
+      {!cerrada && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full bg-teal-700 hover:bg-teal-800 active:bg-teal-900 text-white rounded-xl py-4 font-semibold flex items-center justify-center gap-2 shadow-sm"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Tomar foto
+        </button>
+      )}
+
+      {total === 0 ? (
+        <p className="text-center text-sm text-slate-400 py-8">No hay fotos todavia</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {fotosConfirmadas.map(f => (
+            <FotoCardUploaded key={f.id} url={f.url} label={f.nombre ?? undefined} />
+          ))}
+          {pending.map(p => (
+            <FotoCard
+              key={p.id}
+              pending={p}
+              onRetry={() => void retry(p.id)}
+              onDiscard={() => void discard(p.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

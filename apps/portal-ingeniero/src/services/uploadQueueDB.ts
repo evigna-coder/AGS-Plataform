@@ -12,13 +12,15 @@
  *
  * Schema v3: cada item lleva un discriminador `tipo` ('ficha' | 'loaner' |
  * 'unidad') con sus campos target propios. Los items v1 (solo fichas) migran a
- * `tipo: 'ficha'` en el upgrade callback sin perderse; v2 -> v3 solo suma el
- * indice `unidadId` (fotos de mercaderia, 2026-09-02).
+ * `tipo: 'ficha'` en el upgrade callback sin perderse; v3 -> v4 cambia el
+ * indice `unidadId` por `destinoId`: las fotos de mercaderia pasaron a colgar
+ * del DOCUMENTO (importacion o remito) y no de cada unidad (2026-09-03).
  */
-import type { MomentoFotoFicha, MomentoFotoUnidad, FotoLoaner } from '@ags/shared';
+import type { MomentoFotoFicha, FotoLoaner } from '@ags/shared';
+import type { DestinoFotos } from './mercaderiaFotosService';
 
 const DB_NAME = 'ags-portal-uploads';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE = 'pendingFotos';
 
 export type PendingFotoStatus = 'queued' | 'uploading' | 'error';
@@ -64,15 +66,16 @@ export interface PendingFotoLoaner extends PendingFotoBase {
   prestamoId: string | null;
 }
 
-export interface PendingFotoUnidad extends PendingFotoBase {
-  tipo: 'unidad';
-  unidadId: string;       // FK al doc en Firestore (y parte del storage path)
-  /** Etiqueta para la UI: codigo del articulo + serie/lote. */
-  unidadEtiqueta: string;
-  momento: MomentoFotoUnidad;
+export interface PendingFotoMercaderia extends PendingFotoBase {
+  tipo: 'mercaderia';
+  /** Importacion (recepcion) o remito (entrega). */
+  destino: DestinoFotos;
+  destinoId: string;      // FK al doc en Firestore (y parte del storage path)
+  /** Numero del documento, para mostrarlo en la cola. */
+  destinoEtiqueta: string;
 }
 
-export type PendingFoto = PendingFotoFicha | PendingFotoLoaner | PendingFotoUnidad;
+export type PendingFoto = PendingFotoFicha | PendingFotoLoaner | PendingFotoMercaderia;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -97,8 +100,8 @@ function openDB(): Promise<IDBDatabase> {
         // Los items de ficha no tienen `loanerId` — el índice simplemente los omite.
         store.createIndex('loanerId', 'loanerId', { unique: false });
       }
-      if (!store.indexNames.contains('unidadId')) {
-        store.createIndex('unidadId', 'unidadId', { unique: false });
+      if (!store.indexNames.contains('destinoId')) {
+        store.createIndex('destinoId', 'destinoId', { unique: false });
       }
 
       // v1 → v2: todos los items existentes eran de fichas (no había otro flujo).
@@ -155,10 +158,10 @@ export const uploadQueueDB = {
     return asPromise(idx.getAll(loanerId) as IDBRequest<PendingFotoLoaner[]>);
   },
 
-  async getByUnidad(unidadId: string): Promise<PendingFotoUnidad[]> {
+  async getByDestino(destinoId: string): Promise<PendingFotoMercaderia[]> {
     const store = await tx('readonly');
-    const idx = store.index('unidadId');
-    return asPromise(idx.getAll(unidadId) as IDBRequest<PendingFotoUnidad[]>);
+    const idx = store.index('destinoId');
+    return asPromise(idx.getAll(destinoId) as IDBRequest<PendingFotoMercaderia[]>);
   },
 
   async getQueued(): Promise<PendingFoto[]> {
