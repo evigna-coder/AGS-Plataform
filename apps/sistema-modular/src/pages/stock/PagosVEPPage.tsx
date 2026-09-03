@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Importacion, PagoExterior } from '@ags/shared';
-import { buildEventos, totalPendiente, proximoPago, groupByMes, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
+import { buildEventos, totalPendiente, proximoPago, groupByMes, pagosPendientes, diasDeAtraso, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
 import { importacionesService } from '../../services/firebaseService';
 import { pagosExteriorService } from '../../services/pagosExteriorService';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -24,7 +24,7 @@ function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?
   );
 }
 
-function MesCard({ mes, onOpen }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => void }) {
+function MesCard({ mes, onOpen, hoy }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => void; hoy: string }) {
   return (
     <Card compact>
       <div className="flex items-center justify-between mb-2">
@@ -41,9 +41,19 @@ function MesCard({ mes, onOpen }: { mes: MesFlujo; onOpen: (e: EventoFlujo) => v
         <tbody className="divide-y divide-slate-50">
           {mes.eventos.map(e => {
             const d = new Date(e.fecha + 'T00:00:00');
+            const atraso = diasDeAtraso(e.fecha, hoy);
             return (
               <tr key={e.id} onClick={() => onOpen(e)} className="hover:bg-slate-50 cursor-pointer">
                 <td className="py-1.5 pr-2 w-16 whitespace-nowrap font-mono text-slate-500">{d.getDate()} {MESES[d.getMonth()]}</td>
+                <td className="py-1.5 pr-2 w-20 whitespace-nowrap">
+                  {/* Vencido y sin pagar: se queda en la lista y se marca. */}
+                  {atraso > 0 && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"
+                      title={`Debía pagarse hace ${atraso} día(s) y sigue sin confirmarse`}>
+                      +{atraso} d
+                    </span>
+                  )}
+                </td>
                 <td className="py-1.5 pr-2 w-16">
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLOR[e.tipo]}`}>{TIPO_LABEL[e.tipo]}</span>
                 </td>
@@ -84,10 +94,14 @@ export const PagosVEPPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const { meses, girosUSD, girosEUR, vepARS, prox, futurosCount } = useMemo(() => {
+  const { meses, girosUSD, girosEUR, vepARS, prox, futurosCount, vencidos, hoyStr } = useMemo(() => {
     const eventos = buildEventos(importaciones, pagosManuales);
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const futuros = eventos.filter(e => new Date(e.fecha + 'T00:00:00') >= hoy && !e.pagado);
+    // Un pago sale de la lista SOLO cuando se confirma que se pagó (2026-09-03).
+    // Antes se filtraba por fecha futura, así que un VEP que vencía sin pagarse
+    // desaparecía — justo el que hay que vigilar cuando el pago se demora.
+    const hoyStr = new Date().toLocaleDateString('en-CA');
+    const { vencidos, proximos } = pagosPendientes(eventos, hoyStr);
+    const futuros = [...vencidos, ...proximos];
     return {
       meses: groupByMes(futuros),
       girosUSD: totalPendiente(eventos, 'giro', 'USD'),
@@ -95,6 +109,8 @@ export const PagosVEPPage = () => {
       vepARS: totalPendiente(eventos, 'vep', 'ARS'),
       prox: proximoPago(eventos),
       futurosCount: futuros.length,
+      vencidos,
+      hoyStr,
     };
   }, [importaciones, pagosManuales]);
 
@@ -140,16 +156,19 @@ export const PagosVEPPage = () => {
                 accent="text-teal-700" />
               <Kpi label="Giros al exterior" value={`USD ${fmt(girosUSD)}`} sub={girosEUR > 0 ? `+ EUR ${fmt(girosEUR)}` : 'pendientes'} accent="text-teal-700" />
               <Kpi label="VEP pendientes" value={`ARS ${fmt(vepARS)}`} sub="a pagar a aduana" accent="text-amber-700" />
-              <Kpi label="Eventos próximos" value={String(futurosCount)} sub="VEP + giros + arribos" />
+              <Kpi label={vencidos.length > 0 ? 'Vencidos sin pagar' : 'Eventos pendientes'}
+                value={vencidos.length > 0 ? String(vencidos.length) : String(futurosCount)}
+                sub={vencidos.length > 0 ? `de ${futurosCount} pendientes` : 'VEP + giros + arribos'}
+                accent={vencidos.length > 0 ? 'text-red-700' : undefined} />
             </div>
 
             {meses.length === 0 ? (
               <Card compact>
-                <p className="text-center py-10 text-sm text-slate-400">Sin pagos ni arribos próximos</p>
+                <p className="text-center py-10 text-sm text-slate-400">Sin pagos ni arribos pendientes</p>
               </Card>
             ) : (
               <div className="space-y-4">
-                {meses.map(m => <MesCard key={m.mes} mes={m} onOpen={openEvento} />)}
+                {meses.map(m => <MesCard key={m.mes} mes={m} onOpen={openEvento} hoy={hoyStr} />)}
               </div>
             )}
           </>

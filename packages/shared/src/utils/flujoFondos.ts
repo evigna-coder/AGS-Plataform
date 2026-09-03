@@ -102,6 +102,35 @@ export function buildEventos(importaciones: Importacion[], pagosManuales: PagoEx
 }
 
 /** Suma de montos pendientes por moneda para un tipo, dentro de los próximos `dias`. */
+/**
+ * Pagos que siguen debiendo hacerse (2026-09-03).
+ *
+ * Antes las pantallas filtraban `fecha >= hoy && !pagado`, asi que un VEP cuya
+ * fecha vencia sin haberse pagado DESAPARECIA del flujo. Justo el caso que hay
+ * que vigilar: el pago se demora por una cuestion financiera y el compromiso
+ * sigue vivo. Un pago sale de la lista SOLO cuando se confirma que se pago.
+ *
+ * Los vencidos van primero, del mas viejo al mas nuevo — son los que urgen.
+ */
+export function pagosPendientes(eventos: EventoFlujo[], hoy: string): {
+  vencidos: EventoFlujo[];
+  proximos: EventoFlujo[];
+} {
+  const pendientes = eventos.filter(e => !e.pagado);
+  return {
+    vencidos: pendientes.filter(e => e.fecha < hoy),
+    proximos: pendientes.filter(e => e.fecha >= hoy),
+  };
+}
+
+/** Dias de atraso de un pago vencido. 0 si todavia no vencio. */
+export function diasDeAtraso(fecha: string, hoy: string): number {
+  const a = new Date(`${fecha}T00:00:00`).getTime();
+  const b = new Date(`${hoy}T00:00:00`).getTime();
+  if (isNaN(a) || isNaN(b) || b <= a) return 0;
+  return Math.floor((b - a) / 86_400_000);
+}
+
 export function totalPendiente(eventos: EventoFlujo[], tipo: EventoTipo, moneda: string, dias?: number): number {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const limite = dias != null ? new Date(hoy.getTime() + dias * 86400000) : null;

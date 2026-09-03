@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Importacion, PagoExterior } from '@ags/shared';
-import { buildEventos, totalPendiente, proximoPago, groupByMes, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
+import { buildEventos, totalPendiente, proximoPago, groupByMes, pagosPendientes, diasDeAtraso, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
 import { PageHeader } from '../components/ui/PageHeader';
 import { importacionesService, pagosExteriorService } from '../services/importacionesService';
 
@@ -17,10 +17,12 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string; 
   );
 }
 
-function EventoRow({ e }: { e: EventoFlujo }) {
+function EventoRow({ e, hoy }: { e: EventoFlujo; hoy: string }) {
   const d = new Date(e.fecha + 'T00:00:00');
+  const atraso = diasDeAtraso(e.fecha, hoy);
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+    <div className={`bg-white rounded-xl border px-4 py-3 flex items-center gap-3 ${
+      atraso > 0 ? 'border-red-200' : 'border-slate-200'}`}>
       <div className="w-11 shrink-0 text-center">
         <div className="text-base font-semibold text-slate-900 leading-none">{d.getDate()}</div>
         <div className="text-[10px] text-slate-400 uppercase">{MESES[d.getMonth()]}</div>
@@ -28,6 +30,12 @@ function EventoRow({ e }: { e: EventoFlujo }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLOR[e.tipo]}`}>{TIPO_LABEL[e.tipo]}</span>
+          {/* Vencido y sin pagar: se queda en la lista y se marca (2026-09-03). */}
+          {atraso > 0 && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+              vencido +{atraso} d
+            </span>
+          )}
           <span className="text-xs font-mono text-teal-700">OC {e.ocNumero}</span>
         </div>
         <div className="text-xs text-slate-500 truncate mt-0.5">{e.proveedor}</div>
@@ -41,7 +49,7 @@ function EventoRow({ e }: { e: EventoFlujo }) {
   );
 }
 
-function MesSection({ mes }: { mes: MesFlujo }) {
+function MesSection({ mes, hoy }: { mes: MesFlujo; hoy: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
@@ -55,7 +63,7 @@ function MesSection({ mes }: { mes: MesFlujo }) {
         </div>
       </div>
       <div className="space-y-2">
-        {mes.eventos.map(e => <EventoRow key={e.id} e={e} />)}
+        {mes.eventos.map(e => <EventoRow key={e.id} e={e} hoy={hoy} />)}
       </div>
     </div>
   );
@@ -74,16 +82,22 @@ export default function PagosVEPPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { meses, girosUSD, vepARS, prox, futurosCount } = useMemo(() => {
+  const { meses, girosUSD, vepARS, prox, futurosCount, vencidos, hoyStr } = useMemo(() => {
     const eventos = buildEventos(importaciones, pagosManuales);
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const futuros = eventos.filter(e => new Date(e.fecha + 'T00:00:00') >= hoy && !e.pagado);
+    // Un pago sale de la lista SOLO cuando se confirma que se pagó (2026-09-03).
+    // Antes se filtraba por fecha futura, así que un VEP que vencía sin pagarse
+    // desaparecía — justo el que hay que vigilar cuando el pago se demora.
+    const hoyStr = new Date().toLocaleDateString('en-CA');
+    const { vencidos, proximos } = pagosPendientes(eventos, hoyStr);
+    const futuros = [...vencidos, ...proximos];
     return {
       meses: groupByMes(futuros),
       girosUSD: totalPendiente(eventos, 'giro', 'USD'),
       vepARS: totalPendiente(eventos, 'vep', 'ARS'),
       prox: proximoPago(eventos),
       futurosCount: futuros.length,
+      vencidos,
+      hoyStr,
     };
   }, [importaciones, pagosManuales]);
 
@@ -115,7 +129,7 @@ export default function PagosVEPPage() {
               </div>
             ) : (
               <div className="space-y-5">
-                {meses.map(m => <MesSection key={m.mes} mes={m} />)}
+                {meses.map(m => <MesSection key={m.mes} mes={m} hoy={hoyStr} />)}
               </div>
             )}
           </>
