@@ -14,7 +14,7 @@ description: >
 
 # AGS Plataform — System Guide
 
-> **Last verified against codebase:** 2026-08-15 (commit `f5a865a`, release v1.61.0).
+> **Last verified against codebase:** 2026-09-03 (commit `ece0ba80`, release v1.85.0).
 > **Skill type:** domain knowledge (per `[ketzal88/claude-code-framework]`: *"domain knowledge that activates contextually"*).
 > **Scope:** stable architecture + module map + entity catalog. Volatile module status lives in `memory/`; canonical invariants live in `[.claude/rules/]`.
 
@@ -92,7 +92,8 @@ The codebase is a **pnpm monorepo** with three React 19 + TypeScript apps and on
 4. **Aceptación** (la aceptación por OC ya existe; no agregar botón — ver `memory/project_presupuestos_link_tracking.md`):
    - **Tipo `servicio`** → presupuesto aceptado puede disparar creación de OT(s).
    - **Tipo `ventas`** → crea **ticket en estado `en_coordinacion`**, *no* OT directa. La coordinadora arma 0, 1 o N OTs manualmente. (`memory/feedback_auto_ot_to_ticket.md`.)
-   - **Tipo `contrato`** → flujo cerrado end-to-end (2026-04-10): editor jerárquico Sector → Sistema → Servicios, plantillas en `tiposEquipoPlantillas`, PDF moderno teal con cuotas asimétricas MIXTA.
+   - **Tipo `contrato`** → flujo cerrado end-to-end (2026-04-10): editor jerárquico Sector → Sistema → Servicios (carga multi-equipo desde 2026-09-02), plantillas en `tiposEquipoPlantillas`, cuotas asimétricas MIXTA **sobre el neto**. El PDF usa **la misma cabecera y paleta que el estándar** (azul AGS; el teal es de la app, no del papel).
+   - **Las reservas de stock nacen en la aceptación** (`aceptarConRequerimientos`, auto-vínculo por código exacto). Editar un ppto ya aceptado no re-reserva.
 5. **OT scheduled** in `agenda` and assigned to ingeniero(s).
 6. **Engineer opens OT** → `portal-ingeniero` → tab a `reportes-ot` para completar el reporte técnico (protocolos, tablas, instrumentos firmados, fotos).
 7. **OT finalizada** (técnicamente) → multi-part PDF generado y stored in Storage; status técnico (`status`) → `FINALIZADO`.
@@ -227,7 +228,48 @@ que las condiciones de visibilidad apunten a columnas existentes.
 
 ---
 
-## Qué cambió desde la última verificación (2026-06-23 → 2026-08-15)
+## Qué cambió desde la última verificación (2026-08-15 → 2026-09-03)
+
+Tres semanas, de v1.61.0 a **v1.85.0**. Lo que cambia respuestas:
+
+- **Control semanal para dirección**: contadores de días por fila (OT sin
+  realizar desde la fecha AGENDADA, sin cierre admin desde el cierre técnico,
+  ppto sin facturar desde el cierre de su OT más vieja); sección **1c "OTs que
+  arrastran"** (solo hacia adelante); `borrador`/`enviado` entran al universo.
+  Lógica pura en `utils/controlSemanalAntiguedad.ts`. **`estadoHistorial` solo
+  registra avances, nunca retrocesos** — no reconstruir recorridos con él.
+- **Agenda ↔ OT — causa raíz de las divergencias**: borrar una entrada
+  revertía ingeniero/fecha SIEMPRE (guard en `utils/agendaRevertOT.ts`: no se
+  toca una OT pasada de COORDINADA ni una con otras entradas). La columna
+  "Asignada" del listado muestra `fechaServicioAprox`, no una fecha de
+  asignación; `fechaAsignacion` casi no se mantiene.
+- **Fotos de mercadería por DOCUMENTO** (`FotoMercaderia` + `TandaFotos`):
+  recepción cuelga de la importación, entrega del remito; tanda abierta/cerrada;
+  captura móvil en el portal (`/mercaderia`) solo admin/admin_soporte. El
+  esquema por unidad de v1.84.0 se eliminó.
+- **Remitos**: `remitosService.completar()` rechaza completar una derivación a
+  proveedor con unidades `enProveedor`; "Registrar retorno" también en la línea
+  del listado. Consumo parcial acumula `cantidadConsumida`; el resto queda en
+  campo hasta devolverse.
+- **Flujo de fondos**: un VEP/giro/arribo sale de la lista solo al confirmarse
+  el pago; los vencidos siguen con días de atraso.
+- **Cierre de OT**: ya NO consume solo las reservas de los pptos vinculados —
+  las lista y ofrece liberarlas. `entregarPorPresupuesto` eliminada.
+- **reportes-ot**: el autosave quedaba apagado tras un error de carga (catch
+  sin restaurar `hasInitialized`) — explicaba "no quedan registrados los datos".
+  Y la OT guarda el **nombre** del sistema como copia: no se refresca al
+  renombrar; tablas se eligen por igualdad exacta vs `modelos[]`. Decisión del
+  user: no auto-refrescar, corregir el dato.
+- **Stock**: ajuste y cantidad por origen del cierre aceptan decimales; no se
+  borra una posición con unidades; wizard de OC en loop.
+- **Loaners**: descripción desde el catálogo, series únicas, cancelar la
+  recalificación libera el módulo, el padre no se lista.
+- **Presupuestos**: motivo obligatorio al anular; adjuntar OC muestra la causa
+  real si la aceptación falla.
+
+---
+
+## Qué cambió en la verificación anterior (2026-06-23 → 2026-08-15)
 
 Ocho semanas, de v1.2x a **v1.61.0**. Lo que cambia respuestas:
 
@@ -308,12 +350,12 @@ App.tsx en reportes-ot **ya no es monolítico** (~600 líneas hoy, modularizado 
 Inventario completo. El plan de evolución original (5 fases, memory `project_stock_evolution.md`) ya no es roadmap activo — las páginas están implementadas.
 
 - **Articulos** — catálogo SKU (part numbers, categorías, aranceles, flags serie/lote, último costo importación denormalizado)
-- **Unidades** (`UnidadStock`) — instancias físicas: `cantidad` (1 para serializados; N para lotes), `condicion`, `estado` (incluye `entregado` = salió al cliente al cerrar OT), `ubicacion`, `costoUnitario`/`factorImportacion` (cuando se ingresó vía importación con costeo)
+- **Unidades** (`UnidadStock`) — instancias físicas: `cantidad` (1 para serializados; N para lotes — y decimales), `condicion`, `estado` (incluye `entregado` = salió al cliente al cerrar OT; `en_transito` + `enProveedor` = afuera con retorno pendiente), `ubicacion`, `costoUnitario`/`factorImportacion` (cuando se ingresó vía importación con costeo)
 - **Minikits** — sets agrupados; cada minikit tiene su config de artículos requeridos **inline** (colección `minikitTemplates` y tipos `MinikitTemplate*` eliminados, 1:1 — `memory/project_minikit_plantillas.md`)
-- **Remitos** — órdenes digitales de despacho (`salida_campo`, `devolucion`, etc.)
+- **Remitos** — órdenes digitales de despacho (`salida_campo`, `devolucion`, `derivacion_proveedor`…). Completar es solo estado: nunca reingresa; el retorno va por renglón. Fotos de entrega cuelgan acá.
 - **Movimientos** — log inmutable de movimientos
 - **Órdenes de Compra** (`nacional` / `importacion`) — modal-first (`OrdenCompraModal`), con PDF + datos del proveedor
-- **Importaciones** — comercio internacional con tracking aduana + **motor de costeo CIF/USD** y **factor de importación** que impacta el costo real al ingresar stock (v1.9.0); incluye Pagos VEP
+- **Importaciones** — comercio internacional con tracking aduana + **motor de costeo CIF/USD** y **factor de importación** que impacta el costo real al ingresar stock (v1.9.0); incluye Pagos VEP (un pago sale del flujo solo al confirmarse). Fotos de recepción cuelgan del embarque.
 - **Requerimientos** — solicitudes de compra (auto-abren modal de OC)
 
 ---

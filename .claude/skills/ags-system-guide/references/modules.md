@@ -51,6 +51,9 @@
 - `tipoServicio` determines which protocols apply
 - Parts (articulos) with optional stock linking
 - **Documentos adicionales**: el admin puede anexar PDF/JPG/PNG al PDF definitivo del reporte después de finalizar, desde el cierre (`documentosAdicionales[]`).
+- **`sistema` es una COPIA del nombre** (2026-09-03): la OT guarda el nombre del sistema al elegir el equipo y **no se refresca** si el sistema se renombra o recategoriza. reportes-ot elige tablas por igualdad exacta de ese texto vs `modelos[]`. Decisión del user: NO auto-refrescar — corregir el dato. Nunca corregir por nombre (hay ≥7 equipos "GC 6850"); filtrar por `sistemaId`.
+- **Buscador del listado**: matchea también el establecimiento y el código interno / serie del sistema resueltos del catálogo (las copias en la OT recién se estampan cuando el técnico completa el reporte).
+- **Nuevo ítem** (`NewItemOTModal`): la "Descripción del trabajo" va a `problemaFallaInicial` (fallback al del padre); `reporteTecnico` arranca vacío.
 
 ### Leads (= Tickets)
 **Route**: `/leads`, `/leads/:id` | **Pages**: LeadsListPage, LeadDetailPage | **Service**: `leadsService.ts`
@@ -76,9 +79,11 @@
 - **Categorías fiscales** (CategoriaPresupuesto): IVA, Ganancias, IIBB.
 - **Condiciones de pago**: catálogo CondicionesPago.
 - **Validez**: default 15 días.
-- **Flujo contrato**: editor jerárquico Sector → Sistema → Servicios con auto-completado desde catálogo `tiposEquipoPlantillas`. PDF moderno teal con plan de cuotas. Componentes: `apps/sistema-modular/src/components/presupuestos/contrato/` y `apps/sistema-modular/src/components/presupuestos/pdf/contrato/`.
+- **Flujo contrato**: editor jerárquico Sector → Sistema → Servicios (carga multi-equipo: los servicios se cargan una vez y se replican). PDF con **la misma cabecera y paleta que el estándar** (`PDFHeader` + `PDFClienteInfo`, `COLORS` azul AGS — el teal es identidad de la app, no del papel; 2026-09-03), portada con vigencia y plan de cuotas **sobre el neto** (el PDF imprime "+ IVA"). Componentes: `apps/sistema-modular/src/components/presupuestos/contrato/` y `apps/sistema-modular/src/components/presupuestos/pdf/contrato/`.
 - **Flujo ventas**: aceptación deja ticket en `en_coordinacion`. *No* dispara OT automática.
 - **Flujo servicio**: aceptación dispara creación de OT.
+- **Las reservas de stock nacen al ACEPTAR** (`aceptarConRequerimientos`, con auto-vínculo por código exacto desde 2026-08-28). Editar un ppto ya aceptado NO re-reserva; vincular un ítem al catálogo hace que Entregas *vea* stock, no lo aparta.
+- **Adjuntar OC** = aceptación (borrador/enviado/pendiente_oc). Si la aceptación falla, el modal muestra la causa real y avisa que la OC quedó adjunta igual (antes "Error al guardar" genérico → parecía intermitente).
 - **Aceptación por OC**: ya existe (no agregar botón). Propuesta de link+tracking pendiente de OK del director (`memory/project_presupuestos_link_tracking.md`).
 - **Cosecha Item→OT (Fase 6)**: diseñada (`.claude/plans/presupuestos-item-a-ot-design.md`), no implementada.
 - **OAuth email envío**: pendiente verificación productiva (Fase 7).
@@ -158,18 +163,18 @@ Las páginas del plan de evolución (5 fases, memory `project_stock_evolution.md
 | Subpage | Purpose |
 |---------|---------|
 | Articulos | SKU master catalog (flags serie/lote, último costo importación denormalizado) |
-| Unidades | Physical unit instances (`cantidad`, `costoUnitario`, `factorImportacion`) |
+| Unidades | Physical unit instances (`cantidad`, `costoUnitario`, `factorImportacion`). Ajuste acepta decimales (`parseDecimal`) + atajo "Sacar todo" |
 | Minikits | Grouped sets — config de artículos requeridos **inline** (sin colección de templates) |
-| Remitos | Órdenes digitales de despacho (salida_campo, devolucion, etc.) |
+| Remitos | Órdenes digitales de despacho (salida_campo, devolucion, derivacion_proveedor…). **Completar = solo cambio de estado**; en derivación a proveedor se rechaza mientras haya unidades `enProveedor` (`remitosService.completar`). Retorno por renglón con "Registrar retorno" (detalle y línea del listado). Consumo parcial: `cantidadConsumida` acumula, el resto queda en campo hasta devolverlo. Fotos de **entrega** cuelgan del remito (`TandaFotos`) |
 | Movimientos | Log inmutable |
 | Alertas | Stock level alerts |
 | Requerimientos | Purchase requisitions (auto-abren modal de OC) |
 | OC | Purchase orders (nacional / importacion) — modal-first `OrdenCompraModal`, PDF al proveedor |
-| Importaciones | International trade + customs tracking + motor de costeo CIF/USD + factor importación |
-| Pagos VEP | Pagos VEP del circuito de importación |
+| Importaciones | International trade + customs tracking + motor de costeo CIF/USD + factor importación. Fotos de **recepción** cuelgan del embarque (`TandaFotos`, tanda abierta/cerrada) |
+| Pagos VEP | Flujo de fondos (VEP, giros, arribos). **Un pago sale de la lista solo al confirmarse**; vencidos siguen con días de atraso (`pagosPendientes`/`diasDeAtraso` en shared) |
 | Ingenieros | Field engineers catalog |
 | Proveedores | Supplier management |
-| Posiciones | Stock locations (drawers, shelves) |
+| Posiciones | Stock locations (drawers, shelves). No se puede borrar una posición con unidades adentro |
 | Posiciones Arancelarias | Tariff positions |
 | Marcas | Brand/manufacturer catalog |
 | Asignación Rápida | Bulk assignment UI |
@@ -292,6 +297,8 @@ App.tsx hoy es **~600 líneas modularizadas** (no el monolito de 2800+ del pasad
 | ReportesPage | `/reportes` | OTs finalizadas |
 | ViaticosPage | `/viaticos` | Periodos y gastos de viáticos |
 | QFDocumentosPage | `/qf-documentos` | Solo `admin` y `admin_ing_soporte` |
+| MercaderiaPage | `/mercaderia` | Fotos de mercadería por documento (tabs Recepción=importación / Entrega=remito). Solo `admin`/`admin_soporte` |
+| MercaderiaFotosPage | `/mercaderia/:destino/:docId` | Captura con cola offline; tanda abierta/cerrada |
 | PerfilPage | `/perfil` | Perfil + sign out |
 | **EquipoPublicPage** | `/equipo/:agsId` | **Pública** — QR landing, sin auth. Punto de entrada para clientes que escanean el QR del equipo. |
 
