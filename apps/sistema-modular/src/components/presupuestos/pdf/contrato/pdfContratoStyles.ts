@@ -1,24 +1,33 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Editorial Teal palette for the new contrato PDF
+// Paleta del presupuesto ESTANDAR (2026-09-03).
+//
+// El PDF de contrato nacio con el Editorial Teal del sistema, pero el teal es
+// la identidad de la APP; el papel que ve el cliente usa el azul del logo AGS.
+// Puestos uno al lado del otro parecian de dos empresas distintas. Los tokens
+// conservan sus nombres: solo cambian los valores, apuntados a `COLORS` de
+// `../pdfStyles` — una sola paleta para los dos documentos.
 // ═══════════════════════════════════════════════════════════════════════════
+import { COLORS } from '../pdfStyles';
+
 export const T = {
-  primary: '#0D6E6E',      // teal-700
-  primaryDark: '#0A5454',
-  primaryLight: '#E8F3F3',
-  accent: '#0D6E6E',
-  text: '#1E293B',         // slate-800
-  textMuted: '#64748B',    // slate-500
-  textFaint: '#94A3B8',    // slate-400
-  border: '#E2E8F0',       // slate-200
-  borderStrong: '#CBD5E1', // slate-300
-  bgSubtle: '#F8FAFC',     // slate-50
-  bgCard: '#FFFFFF',
-  bgNote: '#FFFBEB',       // amber-50 for inline notes
-  noteAccent: '#D97706',   // amber-600
-  slCol: '#94A3B8',        // gray for S/L rows
-  bonifBg: '#FEF2F2',      // red-50
+  primary: COLORS.primary,          // azul AGS (color del logo)
+  primaryDark: COLORS.primaryDark,
+  primaryLight: COLORS.primaryTint, // azul-50 para fondos suaves
+  accent: COLORS.primary,
+  text: COLORS.text,                // slate-800
+  textMuted: COLORS.textMuted,      // slate-500
+  textFaint: '#94A3B8',             // slate-400
+  border: COLORS.borderLight,       // hairlines de tabla
+  borderStrong: COLORS.border,
+  bgSubtle: COLORS.rowAlt,          // fila alternada / fondos suaves
+  bgCard: COLORS.white,
+  // Semanticos: se mantienen: no son identidad, son significado.
+  bgNote: '#FFFBEB',                // amber-50 para notas inline
+  noteAccent: '#D97706',            // amber-600
+  slCol: '#94A3B8',                 // gris para renglones S/L
+  bonifBg: '#FEF2F2',               // red-50
 };
 
 export const cs = StyleSheet.create({
@@ -51,16 +60,19 @@ export const cs = StyleSheet.create({
   pageHeaderMetaValue: { fontSize: 8, color: T.text, fontWeight: 600 },
 
   // ── Cover page ──
-  coverWrap: { paddingTop: 20 },
+  // Portada bajada de tono (2026-09-03): el titulo a 26 y el logo a 120 hacian
+  // una tapa de folleto, no un presupuesto. Se acerca al peso tipografico del
+  // presupuesto estandar, donde el titulo no compite con el contenido.
+  coverWrap: { paddingTop: 12 },
   coverEyebrow: {
-    fontSize: 7, color: T.primary, textTransform: 'uppercase',
-    letterSpacing: 2, marginBottom: 4, fontWeight: 600,
+    fontSize: 6.5, color: T.primary, textTransform: 'uppercase',
+    letterSpacing: 1.5, marginBottom: 3, fontWeight: 600,
   },
   coverTitle: {
-    fontSize: 26, fontWeight: 'bold', color: T.text, marginBottom: 2, letterSpacing: -0.5,
+    fontSize: 16, fontWeight: 'bold', color: T.text, marginBottom: 2, letterSpacing: -0.2,
   },
-  coverSubtitle: { fontSize: 10, color: T.textMuted, marginBottom: 20 },
-  coverNumero: { fontSize: 14, fontWeight: 'bold', color: T.primary, marginBottom: 24 },
+  coverSubtitle: { fontSize: 8.5, color: T.textMuted, marginBottom: 12 },
+  coverNumero: { fontSize: 11, fontWeight: 'bold', color: T.primary, marginBottom: 16 },
   coverGrid: { flexDirection: 'row', gap: 16, marginBottom: 20 },
   coverBlock: { flex: 1 },
   coverBlockLabel: {
