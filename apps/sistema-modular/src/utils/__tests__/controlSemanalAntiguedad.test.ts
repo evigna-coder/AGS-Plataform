@@ -69,14 +69,33 @@ eq('el fallback NO aplica a otro estado', fechaEnEstado(legacy, 'ASIGNADA'), nul
 eq('sin cierre admin cuenta desde el cierre tecnico',
   anclaAntiguedadOT(conHistorial, 'sin_cierre_admin'),
   { fecha: '2026-08-20T10:00:00Z', que: 'cierre técnico' });
-eq('sin realizar cuenta desde asignada',
-  anclaAntiguedadOT(conHistorial, 'sin_realizar'),
-  { fecha: '2026-08-02T10:00:00Z', que: 'asignada' });
+const HOY = '2026-09-02';
+eq('sin realizar cuenta desde la FECHA AGENDADA',
+  anclaAntiguedadOT(conHistorial, 'sin_realizar', '2026-08-28', HOY),
+  { fecha: '2026-08-28', que: 'la fecha agendada' });
 eq('cerrada no tiene reloj',
-  anclaAntiguedadOT(conHistorial, 'cerrada'), { fecha: null, que: null });
-eq('sin historial cae a fechaAsignacion',
-  anclaAntiguedadOT(ot({ estadoAdmin: 'EN_CURSO', fechaAsignacion: '2026-08-11' }), 'sin_realizar'),
+  anclaAntiguedadOT(conHistorial, 'cerrada', '2026-08-28', HOY), { fecha: null, que: null });
+eq('sin agenda cae a asignada',
+  anclaAntiguedadOT(conHistorial, 'sin_realizar', null, HOY),
+  { fecha: '2026-08-02T10:00:00Z', que: 'asignada' });
+eq('sin historial ni agenda cae a fechaAsignacion',
+  anclaAntiguedadOT(ot({ estadoAdmin: 'EN_CURSO', fechaAsignacion: '2026-08-11' }), 'sin_realizar', null, HOY),
   { fecha: '2026-08-11', que: 'asignada' });
+
+// El caso que reporto el user: visita coordinada con un mes de anticipacion
+// mostraba "30 d" en rojo el dia ANTES de la visita. No esta trabada.
+eq('visita agendada a futuro no cuenta',
+  anclaAntiguedadOT(
+    ot({ estadoAdmin: 'ASIGNADA', fechaAsignacion: '2026-08-03' }), 'sin_realizar', '2026-09-04', HOY),
+  { fecha: null, que: null });
+eq('el dia de la visita todavia no acumula',
+  diasDesdeISO(anclaAntiguedadOT(ot({ estadoAdmin: 'ASIGNADA' }), 'sin_realizar', HOY, HOY).fecha,
+    new Date('2026-09-02T15:00:00Z').getTime()), 0);
+eq('al dia siguiente cuenta 1',
+  diasDesdeISO(anclaAntiguedadOT(ot({ estadoAdmin: 'ASIGNADA' }), 'sin_realizar', '2026-09-02', '2026-09-03').fecha,
+    new Date('2026-09-03T15:00:00Z').getTime()), 1);
+check('una OT sin agenda ni asignacion no inventa fecha',
+  anclaAntiguedadOT(ot({ estadoAdmin: 'CREADA' }), 'sin_realizar', null, HOY).fecha === null);
 
 // ── classifyOT ──
 eq('finalizada es cerrada', classifyOT(ot({ estadoAdmin: 'FINALIZADO' })).estado, 'cerrada');
@@ -107,7 +126,7 @@ check('nunca agendada y sin trabajo NO arrastra',
 check('trabajo hecho sin agenda SI arrastra (por su fecha de cierre tecnico)',
   arrastraDeSemanaAnterior(
     ot({ estadoAdmin: 'CIERRE_TECNICO', estadoAdminFecha: '2026-08-20T10:00:00Z' }), null, SEMANA));
-check('sin agenda y sin ninguna fecha NO arrastra (no se sabe de que semana es)',
+check('trabajo hecho pero sin fecha de cierre NO arrastra (no se sabe de que semana es)',
   !arrastraDeSemanaAnterior(ot({ estadoAdmin: 'CIERRE_TECNICO' }), null, SEMANA));
 
 // El bug que reporto el user: el arrastre iba tambien hacia ATRAS. Una OT de
@@ -123,11 +142,31 @@ check('pero SI aparece en una semana posterior a la suya',
 
 // ── fechaReferenciaOT ──
 eq('la agenda manda', fechaReferenciaOT(ot({ estadoAdmin: 'ASIGNADA' }), '2026-08-25'), '2026-08-25');
-eq('sin agenda cae al cierre tecnico',
+eq('sin agenda, el trabajo hecho ubica la semana',
   fechaReferenciaOT(conHistorial, null), '2026-08-20');
-eq('sin agenda ni cierre cae a la asignacion',
-  fechaReferenciaOT(ot({ estadoAdmin: 'ASIGNADA', fechaAsignacion: '2026-08-11' }), null), '2026-08-11');
+eq('sin agenda y sin trabajo hecho: ninguna semana',
+  fechaReferenciaOT(ot({ estadoAdmin: 'ASIGNADA', fechaAsignacion: '2026-08-11' }), null), null);
 eq('sin nada da null', fechaReferenciaOT(ot({ estadoAdmin: 'CREADA' }), null), null);
+
+// Caso real (29999.01 y cinco mas, 2026-09-02): la OT fue ASIGNADA y despues
+// volvio a CREADA. El historial solo guarda los avances, asi que conserva la
+// entrada vieja de ASIGNADA — no puede tomarse como que sigue asignada.
+const desasignada = ot({
+  estadoAdmin: 'CREADA',
+  estadoAdminFecha: '2026-08-19T18:25:01.560Z',
+  estadoHistorial: hist([['CREADA', '2026-08-07T19:00:00Z'], ['ASIGNADA', '2026-08-07T19:21:12.196Z']]),
+});
+eq('una OT que volvio a CREADA no tiene semana', fechaReferenciaOT(desasignada, null), null);
+check('y por lo tanto NO arrastra',
+  !arrastraDeSemanaAnterior(desasignada, null, SEMANA));
+check('pero si se la agenda, arrastra por la agenda',
+  arrastraDeSemanaAnterior(desasignada, '2026-08-25', SEMANA));
+
+// COORDINADA sin agenda tampoco: esta sin coordinar de verdad, no atrasada.
+check('COORDINADA sin entrada de agenda no arrastra',
+  !arrastraDeSemanaAnterior(
+    ot({ estadoAdmin: 'COORDINADA', estadoHistorial: hist([['ASIGNADA', '2026-08-13T13:35:51.304Z']]) }),
+    null, SEMANA));
 check('cerrada administrativamente no arrastra',
   !arrastraDeSemanaAnterior(ot({ estadoAdmin: 'CIERRE_ADMINISTRATIVO' }), '2026-08-25', SEMANA));
 check('finalizada no arrastra',
@@ -150,7 +189,7 @@ check('la OT olvidada arrastra', arrastraDeSemanaAnterior(olvidada, '2026-08-06'
 check('y NO se cuela en el control de una semana anterior a la suya',
   !arrastraDeSemanaAnterior(olvidada, '2026-08-06', '2026-07-27'));
 eq('y muestra los dias desde el cierre tecnico',
-  diasDesdeISO(anclaAntiguedadOT(olvidada, classifyOT(olvidada).estado).fecha, AHORA), 25);
+  diasDesdeISO(anclaAntiguedadOT(olvidada, classifyOT(olvidada).estado, '2026-08-06', HOY).fecha, AHORA), 25);
 
 console.log(fail === 0
   ? `✅ controlSemanalAntiguedad: ${ok}/${ok} OK`

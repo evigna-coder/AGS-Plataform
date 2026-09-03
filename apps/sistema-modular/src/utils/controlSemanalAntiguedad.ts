@@ -9,6 +9,7 @@
  * Run:   pnpm --filter @ags/sistema-modular test:control-antiguedad
  */
 import type { OTEstadoAdmin, WorkOrder } from '@ags/shared';
+import { hoyLocalISODate } from './formatFecha';
 
 export type AgendaControlEstado = 'cerrada' | 'sin_cierre_admin' | 'sin_realizar' | 'ot_no_encontrada';
 
@@ -60,22 +61,34 @@ export function diasDesdeISO(iso: string | null | undefined, ahora = Date.now())
 /**
  * En qué evento arranca el reloj de una OT según por qué está trabada
  * (definición del user, 2026-09-02):
- *   - sin cierre técnico  → desde que se ASIGNÓ
+ *   - sin realizar        → desde la FECHA AGENDADA del servicio
  *   - sin cierre admin    → desde el CIERRE TÉCNICO
+ *
+ * Una visita agendada para MÁS ADELANTE no está trabada: está esperando su
+ * turno. Devuelve `null` y la columna queda vacía. Empieza a contar al día
+ * siguiente de la fecha agendada.
+ *
+ * Al principio esto contaba desde la asignación y quedaba sin sentido: una OT
+ * coordinada con un mes de anticipación mostraba "30 d" en rojo el día antes
+ * de la visita. Eso no era demora, era el tiempo de coordinación.
  */
 export function anclaAntiguedadOT(
   ot: WorkOrder | null,
   estado: AgendaControlEstado,
+  fechaAgenda?: string | null,
+  /** yyyy-mm-dd — inyectable para los tests. */
+  hoy?: string,
 ): { fecha: string | null; que: string | null } {
   if (estado === 'sin_cierre_admin') {
     return { fecha: fechaEnEstado(ot, 'CIERRE_TECNICO'), que: 'cierre técnico' };
   }
   if (estado === 'sin_realizar') {
-    // `fechaAsignacion` cubre las OTs previas al historial de estados.
-    return {
-      fecha: fechaEnEstado(ot, 'ASIGNADA') ?? ot?.fechaAsignacion ?? null,
-      que: 'asignada',
-    };
+    // Sin agenda —la OT nunca se coordinó— se cae a la asignación, que es el
+    // único momento conocido en que la OT quedó en manos de alguien.
+    const ref = fechaAgenda ?? fechaEnEstado(ot, 'ASIGNADA') ?? ot?.fechaAsignacion ?? null;
+    if (!ref) return { fecha: null, que: null };
+    if (ref.slice(0, 10) > (hoy ?? hoyLocalISODate())) return { fecha: null, que: null };
+    return { fecha: ref, que: fechaAgenda ? 'la fecha agendada' : 'asignada' };
   }
   return { fecha: null, que: null };
 }
@@ -100,17 +113,23 @@ export function classifyOT(ot: WorkOrder): { estado: AgendaControlEstado; motivo
 /**
  * Fecha (yyyy-mm-dd) que ubica a la OT en una semana del control.
  *
- * La agenda manda. Cuando la OT nunca paso por agenda —entregas, trabajos que
- * se hicieron sin coordinar— se cae al momento en que quedo trabada: el cierre
- * tecnico, o la asignacion. Sin este fallback, una OT sin agenda no pertenece a
- * ninguna semana y termina siempre en el arrastre, incluso en la suya.
+ * La agenda manda: si la visita se coordino, esa es su semana. Sin agenda, lo
+ * unico que ubica a la OT es el TRABAJO YA HECHO (cierre tecnico en adelante):
+ * paso algo, en una fecha conocida, y falta cerrarlo.
+ *
+ * NO se usa la asignacion como respaldo (2026-09-02). El historial de estados
+ * solo registra los avances: una OT que fue ASIGNADA y despues volvio a CREADA
+ * —le sacaron el ingeniero— conserva la entrada vieja de ASIGNADA aunque hoy no
+ * este asignada ni agendada. Tomando esa fecha, seis OTs sin coordinar (29999.01,
+ * 30022.02, 30014.02, 28149.02, 30021.02, 29087.08) entraban al arrastre como si
+ * fueran visitas vencidas. Una OT sin agenda y sin trabajo hecho no pertenece a
+ * ninguna semana: esta abierta, no atrasada.
  */
 export function fechaReferenciaOT(ot: WorkOrder | null, fechaAgenda: string | null): string | null {
-  const cruda = fechaAgenda
-    ?? fechaEnEstado(ot, 'CIERRE_TECNICO')
-    ?? fechaEnEstado(ot, 'ASIGNADA')
-    ?? ot?.fechaAsignacion
-    ?? null;
+  if (fechaAgenda) return fechaAgenda.slice(0, 10);
+  const trabajoHecho = !!ot?.estadoAdmin && OT_TRABAJO_REALIZADO.has(ot.estadoAdmin);
+  if (!trabajoHecho) return null;
+  const cruda = fechaEnEstado(ot, 'CIERRE_TECNICO') ?? ot?.fechaCierre ?? null;
   return cruda ? cruda.slice(0, 10) : null;
 }
 

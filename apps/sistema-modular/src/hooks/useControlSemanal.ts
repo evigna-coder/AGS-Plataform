@@ -377,7 +377,8 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const ot = otByNumber.get(otNumber) ?? null;
       const ingenieros = [...new Set(ordenadas.map(e => e.ingenieroNombre).filter(Boolean))];
       const clasificacion = classifyEntry(entry, ot);
-      const ancla = anclaAntiguedadOT(ot, clasificacion.estado);
+      // La fecha agendada de la visita manda el reloj (2026-09-02).
+      const ancla = anclaAntiguedadOT(ot, clasificacion.estado, entry.fechaInicio);
       rows.push({
         entry, entries: ordenadas, ingenieros, ot,
         // La entrada de agenda trae el nombre denormalizado; si falta, se resuelve
@@ -469,7 +470,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
       const fechaAgenda = fechaAgendaPorOt.get(ot.otNumber) ?? null;
       if (!arrastraDeSemanaAnterior(ot, fechaAgenda, weekStart)) continue;
       const clasificacion = classifyOT(ot);
-      const ancla = anclaAntiguedadOT(ot, clasificacion.estado);
+      const ancla = anclaAntiguedadOT(ot, clasificacion.estado, fechaAgenda);
       rows.push({
         ot,
         fechaAgenda,
