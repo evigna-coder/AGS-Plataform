@@ -66,7 +66,10 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
         fechaServicioAprox: parentOt.fechaServicioAprox || '',
         horasTrabajadas: '',
         tiempoViaje: '',
-        reporteTecnico: form.descripcion || '',
+        // El informe técnico arranca vacío (2026-09-03): lo escribe el técnico.
+        // La descripción que se pide acá es el PEDIDO del ítem — iba al informe
+        // y el cuadro "Problema / falla inicial" quedaba con el del padre.
+        reporteTecnico: '',
         accionesTomar: '',
         articulos: [],
         emailPrincipal: parentOt.emailPrincipal || '',
@@ -75,7 +78,8 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
         signatureClient: null,
         aclaracionCliente: '',
         materialesParaServicio: '',
-        problemaFallaInicial: parentOt.problemaFallaInicial || '',
+        // Lo que se tipeó para ESTE ítem; si se dejó vacío, hereda el del padre.
+        problemaFallaInicial: form.descripcion.trim() || parentOt.problemaFallaInicial || '',
         updatedAt: new Date().toISOString(),
         clienteId: parentOt.clienteId || null,
         sistemaId: parentOt.sistemaId || null,
