@@ -109,15 +109,23 @@ export function buildOptions(stock: PartStockInfo): OrigenOption[] {
  * cubrir de la parte. Una unidad serializada aporta 1; un lote, un remito o una
  * posición aportan hasta su saldo. Mínimo 1 — elegir un origen siempre cuenta.
  */
-export function aporteDeOpcion(opt: OrigenOption, pendiente: number): number {
-  const cap = Math.max(1, pendiente);
+/** Cuanto puede aportar un origen como maximo (lo que tiene). */
+export function disponibleDeOpcion(opt: OrigenOption): number {
   switch (opt.kind) {
-    case 'unidad': return Math.min(opt.unidad.cantidad ?? 1, cap);
-    case 'remito': return Math.min(opt.remito.cantidad, cap);
-    case 'asignacion': return Math.min(opt.asignacion.cantidad, cap);
-    case 'posicion': return Math.min(opt.pos.cantidad, cap);
-    case 'patron': return Math.min(opt.lote.cantidad ?? cap, cap);
+    case 'unidad': return opt.unidad.cantidad ?? 1;
+    case 'remito': return opt.remito.cantidad;
+    case 'asignacion': return opt.asignacion.cantidad;
+    case 'posicion': return opt.pos.cantidad;
+    case 'patron': return opt.lote.cantidad ?? Infinity;
   }
+}
+
+export function aporteDeOpcion(opt: OrigenOption, pendiente: number): number {
+  // Sin piso de 1 (2026-09-03): con `Math.max(1, pendiente)` un faltante de
+  // 0,5 se convertia en 1 y el cierre descontaba de mas. Si no falta nada,
+  // el origen aporta lo minimo que tenga sentido (su disponible, capado a 0).
+  const cap = Math.max(0, pendiente);
+  return Math.min(disponibleDeOpcion(opt), cap);
 }
 
 /** Campos de la StockSelection que define el origen elegido. */

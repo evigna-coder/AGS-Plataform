@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { movimientosService, unidadesService } from '../../services/stockService';
 import type { UnidadStock } from '@ags/shared';
+import { parseDecimal } from '../../utils/parseDecimal';
 
 interface Props { unidad: UnidadStock; onClose: () => void; onSuccess: () => void; }
 
@@ -12,7 +13,9 @@ const FIELD = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus
 export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
   // Input como string para permitir tipear el signo "-" (Number('-') es NaN y reseteaba).
   const [deltaStr, setDeltaStr] = useState('');
-  const delta = Number(deltaStr) || 0;
+  // parseDecimal (2026-09-03): acepta coma y punto; Number('2,5') daba NaN → 0
+  // y el ajuste "no se podia hacer con decimales" sin ningun aviso.
+  const delta = parseDecimal(deltaStr) || 0;
   const [justificacion, setJustificacion] = useState('');
   const [justifError, setJustifError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -94,10 +97,27 @@ export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
         </div>
         <div>
           <label className={LBL}>Ajuste (+ ingreso / - salida)</label>
-          <input type="text" inputMode="numeric" value={deltaStr} placeholder="0"
+          {/* inputMode="decimal" + regex con separador (2026-09-03): "numeric"
+              en tablet no ofrece el punto, y el regex rechazaba cualquier
+              decimal — el ajuste quedaba forzado a enteros. */}
+          <input type="text" inputMode="decimal" value={deltaStr} placeholder="0"
             onFocus={e => e.currentTarget.select()}
-            onChange={e => { const v = e.target.value; if (/^-?\d*$/.test(v)) setDeltaStr(v); }}
+            onChange={e => { const v = e.target.value; if (/^-?\d*[.,]?\d*$/.test(v)) setDeltaStr(v); }}
             className={FIELD} />
+          <div className="flex gap-3 mt-1">
+            {/* Atajos al maximo (pedido 2026-09-03): "utilizar/ajustar el
+                maximo disponible" sin tener que copiar el numero a mano. */}
+            {cantidadActual > 0 && (
+              <button type="button" onClick={() => setDeltaStr(String(-cantidadActual))}
+                className="text-[11px] text-teal-700 hover:underline">
+                Sacar todo (−{cantidadActual})
+              </button>
+            )}
+            <button type="button" onClick={() => setDeltaStr('')}
+              className="text-[11px] text-slate-400 hover:underline">
+              Limpiar
+            </button>
+          </div>
           <p className="text-[11px] text-slate-500 mt-1">
             Cantidad actual: <span className="font-mono">{cantidadActual}</span>
             {delta !== 0 && (

@@ -26,9 +26,16 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
   const transition = async (estado: EstadoRemito, extra?: Partial<Remito>) => {
     if (!id || !remito) return;
     setActing(true);
-    try { await remitosService.update(id, { estado, ...extra }); }
-    catch (e) { console.error('Error updating remito:', e); alert('Error al actualizar remito'); }
-    finally { setActing(false); }
+    try {
+      // Completar pasa por el guard del servicio (2026-09-03): en una
+      // derivacion a proveedor con partes sin reingresar, cerrar el remito
+      // dejaba la unidad perdida en `en_transito` (caso 0001-00017404).
+      if (estado === 'completado') await remitosService.completar(id, extra);
+      else await remitosService.update(id, { estado, ...extra });
+    } catch (e) {
+      console.error('Error updating remito:', e);
+      alert(e instanceof Error ? e.message : 'Error al actualizar remito');
+    } finally { setActing(false); }
   };
 
   const confirmarRemito = async () => {

@@ -103,6 +103,22 @@ export const posicionesStockService = {
   },
 
   async delete(id: string): Promise<void> {
+    // Guard (2026-09-03): borrar una posicion con unidades adentro dejaba esas
+    // unidades apuntando a una ubicacion que ya no existe — "articulos en
+    // posiciones inexistentes" que despues hay que limpiar a mano. Se rechaza
+    // con la cantidad, para que el que borra sepa que mover primero.
+    const conUnidades = await getDocs(query(
+      collection(db, 'unidades'),
+      where('ubicacion.tipo', '==', 'posicion'),
+      where('ubicacion.referenciaId', '==', id),
+    ));
+    const activas = conUnidades.docs.filter(d => d.data().activo !== false);
+    if (activas.length > 0) {
+      const total = activas.reduce((n, d) => n + (d.data().cantidad ?? 1), 0);
+      throw new Error(
+        `La posicion tiene ${total} unidad(es) en ${activas.length} renglon(es). Movelas o ajustalas a cero antes de borrarla.`,
+      );
+    }
     const batch = createBatch();
     batch.delete(docRef('posicionesStock', id));
     batchAudit(batch, { action: 'delete', collection: 'posiciones_stock', documentId: id });
@@ -1079,6 +1095,41 @@ export const remitosService = {
     batch.update(docRef('remitos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'remitos', documentId: id, after: payload });
     await batch.commit();
+  },
+
+  /**
+   * Completar un remito (2026-09-03, caso 0001-00017404).
+   *
+   * "Completar" es un cambio de ESTADO: no descuenta ni reingresa nada. En una
+   * derivacion a proveedor eso era una trampa: la parte volvia, alguien apretaba
+   * Completar, el remito quedaba prolijo y la unidad seguia `en_transito` con
+   * `enProveedor` cargado — invisible en stock y sin reingresar jamas. El camino
+   * correcto es "Registrar retorno" por renglon (`registrarRetornoUnidad`), que
+   * la devuelve a su posicion de origen con su movimiento de ingreso y cierra
+   * el remito solo cuando volvio todo.
+   *
+   * Aca se rechaza completar mientras haya unidades todavia en el proveedor.
+   */
+  async completar(id: string, extra?: Partial<Remito>): Promise<void> {
+    const snap = await getDoc(docRef('remitos', id));
+    if (!snap.exists()) throw new Error('El remito no existe');
+    const remito = { id: snap.id, ...snap.data() } as Remito;
+    if (remito.tipo === 'derivacion_proveedor') {
+      const pendientes = (remito.items ?? []).filter(it => it.unidadId && !it.devuelto && !it.consumido);
+      const enProveedor: string[] = [];
+      for (const it of pendientes) {
+        const u = await getDoc(docRef('unidades', it.unidadId!));
+        if (u.exists() && u.data().enProveedor) {
+          enProveedor.push(`${it.articuloCodigo ?? it.unidadId}${it.serie ? ` S/N ${it.serie}` : ''}`);
+        }
+      }
+      if (enProveedor.length > 0) {
+        throw new Error(
+          `No se puede completar: ${enProveedor.length} parte(s) siguen en el proveedor y no reingresaron al stock:\n- ${enProveedor.join('\n- ')}\n\nUsá "Registrar retorno" en cada renglón: eso las devuelve a su posición y cierra el remito solo.`,
+        );
+      }
+    }
+    await this.update(id, { estado: 'completado', ...extra });
   },
 
   subscribeById(

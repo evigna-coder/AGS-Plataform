@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import type { Part, StockSelection } from '@ags/shared';
 import type { PartStockInfo } from '../../hooks/useCierreStockUnits';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { aporteDeOpcion, buildOptions, patchFromOption, selectionResumen, selectionValue } from './cierreStockOptions';
+import { aporteDeOpcion, disponibleDeOpcion, buildOptions, patchFromOption, selectionResumen, selectionValue } from './cierreStockOptions';
+import { parseDecimal } from '../../utils/parseDecimal';
 
 interface Props {
   part: Part;
@@ -33,6 +35,23 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
     partId: part.id, partCodigo: part.codigo, partDescripcion: part.descripcion, cantidad,
     origenTipo: 'posicion', origenId: '', origenNombre: '',
   });
+
+  // Texto crudo mientras se tipea (permite "0," sin que se pise a 0).
+  const [cantStr, setCantStr] = useState<Record<number, string>>({});
+
+  /** Tope de una fila: lo que tiene su origen. */
+  const maxDe = (index: number): number => {
+    const sel = selections[index];
+    const opt = sel ? options.find(o => o.value === selectionValue(sel)) : undefined;
+    return opt ? disponibleDeOpcion(opt) : Infinity;
+  };
+
+  const setCantidad = (index: number, cantidad: number) => {
+    const next = [...selections];
+    if (!next[index]) return;
+    next[index] = { ...next[index], cantidad };
+    onChange(next);
+  };
 
   /** Reemplaza (o borra, con value vacío) el origen de la fila `index`. */
   const setOrigen = (index: number, value: string) => {
@@ -111,10 +130,25 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
               size="sm"
             />
           </div>
-          {necesarias > 1 && i < selections.length && (
-            <span className="text-[10px] font-mono text-slate-400 w-6 text-right shrink-0">
-              ×{selections[i].cantidad ?? 1}
-            </span>
+          {i < selections.length && (
+            // Cantidad editable, con decimales (2026-09-03): antes era una
+            // etiqueta fija calculada al elegir el origen, asi que no se podia
+            // consumir 0,5 ni corregir cuanto se toma de cada origen.
+            <input
+              type="text" inputMode="decimal"
+              value={cantStr[i] ?? String(selections[i].cantidad ?? 1)}
+              title={`Maximo desde este origen: ${maxDe(i)}`}
+              onFocus={e => e.currentTarget.select()}
+              onChange={e => {
+                const v = e.target.value;
+                if (!/^\d*[.,]?\d*$/.test(v)) return;
+                setCantStr(prev => ({ ...prev, [i]: v }));
+                const n = parseDecimal(v);
+                if (n > 0) setCantidad(i, Math.min(n, maxDe(i)));
+              }}
+              onBlur={() => setCantStr(prev => { const c = { ...prev }; delete c[i]; return c; })}
+              className="w-14 text-[11px] font-mono text-right border border-slate-200 rounded px-1 py-0.5 shrink-0"
+            />
           )}
         </div>
       ))}

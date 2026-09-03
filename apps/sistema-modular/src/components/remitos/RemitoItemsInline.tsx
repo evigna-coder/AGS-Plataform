@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Remito, RemitoItem, UnidadStock } from '@ags/shared';
-import { unidadesService } from '../../services/stockService';
-import { FotosUnidadModal } from '../stock/FotosUnidadModal';
+import type { Remito, RemitoItem } from '@ags/shared';
 import { getRemitoItemCodigo, getRemitoItemDescripcion } from '../../utils/inventarioToRemitoItem';
 import { enriquecerItemsRemito } from '../../utils/enriquecerItemsRemito';
+import { RetornoProveedorButton } from './RetornoProveedorButton';
 
 /** Estado resuelto de un item para el desplegable de la lista (2026-08-04). */
 function estadoItem(it: RemitoItem): { label: string; cls: string } {
@@ -35,34 +34,12 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
    * resultados distintos.
    */
   const [items, setItems] = useState<RemitoItem[]>(remito.items ?? []);
-  /**
-   * Fotos de la mercaderia entregada (2026-09-02). Es el camino de "mostrame la
-   * foto de la columna que le vendimos a Synthon": del remito del cliente a la
-   * unidad por `unidadId`, y de la unidad a su galeria. Solo se guardan las
-   * unidades que TIENEN fotos — el resto no muestra boton.
-   */
-  const [fotosPorUnidad, setFotosPorUnidad] = useState<Map<string, UnidadStock>>(new Map());
-  const [verFotosDe, setVerFotosDe] = useState<UnidadStock[] | null>(null);
   useEffect(() => {
     let vivo = true;
     setItems(remito.items ?? []);
     enriquecerItemsRemito(remito.items ?? [])
       .then(e => { if (vivo) setItems(e); })
       .catch(() => { /* se muestra lo crudo */ });
-    return () => { vivo = false; };
-  }, [remito.items]);
-
-  useEffect(() => {
-    const ids = [...new Set((remito.items ?? []).map(i => i.unidadId).filter(Boolean) as string[])];
-    if (ids.length === 0) { setFotosPorUnidad(new Map()); return; }
-    let vivo = true;
-    Promise.all(ids.map(id => unidadesService.getById(id).catch(() => null)))
-      .then(us => {
-        if (!vivo) return;
-        const mapa = new Map<string, UnidadStock>();
-        for (const u of us) if (u && (u.fotos?.length ?? 0) > 0) mapa.set(u.id, u);
-        setFotosPorUnidad(mapa);
-      });
     return () => { vivo = false; };
   }, [remito.items]);
 
@@ -87,8 +64,6 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
     || '—';
 
   return (
-    <>
-    {verFotosDe && <FotosUnidadModal units={verFotosDe} onClose={() => setVerFotosDe(null)} />}
     <table className="w-full">
       <thead>
         <tr className="border-b border-slate-200">
@@ -113,15 +88,6 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
                   el LNR del loaner como código y la descripción vacía. */}
               <td className="px-3 py-1 text-[11px] font-mono text-slate-700">
                 {getRemitoItemCodigo(it) || 'S/C'}
-                {(() => {
-                  const u = it.unidadId ? fotosPorUnidad.get(it.unidadId) : undefined;
-                  if (!u) return null;
-                  return (
-                    <button type="button" onClick={() => setVerFotosDe([u])}
-                      title={`Ver ${u.fotos!.length} foto(s) de la mercaderia entregada`}
-                      className="ml-1.5 text-teal-600 hover:text-teal-800">📷</button>
-                  );
-                })()}
               </td>
               <td className="px-3 py-1 text-[11px] text-slate-600 truncate max-w-[300px]">
                 {getRemitoItemDescripcion(it) || '—'}
@@ -136,12 +102,20 @@ export function RemitoItemsInline({ remito, clientePorFicha }: {
               <td className="px-3 py-1 text-[11px] font-mono text-slate-500">{it.serie || '—'}</td>
               <td className="px-3 py-1">
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${e.cls}`}>{e.label}</span>
+                {/* Retorno desde la lista (2026-09-03, caso 0001-00017404): el
+                    boton vivia solo en el detalle, y desde la fila desplegada la
+                    unica salida era "Completar", que cierra el papel y deja la
+                    unidad perdida en transito. Modal-first: la accion va donde
+                    esta la linea. La lista esta suscripta, asi que la fila se
+                    refresca sola al registrar. */}
+                {remito.tipo === 'derivacion_proveedor' && it.unidadId && !it.devuelto && !it.consumido && (
+                  <span className="ml-2 inline-flex"><RetornoProveedorButton item={it} /></span>
+                )}
               </td>
             </tr>
           );
         })}
       </tbody>
     </table>
-    </>
   );
 }

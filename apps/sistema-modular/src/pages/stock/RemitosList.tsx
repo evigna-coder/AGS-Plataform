@@ -88,7 +88,13 @@ export const RemitosList = () => {
       'Si la mercadería se va a imputar a una OT, dejá el remito como está y descargala desde el cierre.\n\n' +
       '¿Completar igual?'
     )) return;
-    await handleEstado(r, 'completado', { fechaDevolucion: new Date().toISOString() });
+    // Pasa por el guard del servicio (2026-09-03): una derivacion a proveedor
+    // con partes sin reingresar no se puede completar — se arreglaba el
+    // remito y la unidad quedaba perdida (caso 0001-00017404).
+    setActingId(r.id);
+    try { await remitosService.completar(r.id, { fechaDevolucion: new Date().toISOString() }); }
+    catch (err) { alert(err instanceof Error ? err.message : 'Error al completar el remito'); }
+    finally { setActingId(null); }
   };
 
   /** Entregado en el proveedor: además del remito, estampa la fecha en las
