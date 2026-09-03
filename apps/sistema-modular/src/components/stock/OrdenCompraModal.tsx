@@ -318,7 +318,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
       )}
 
       {showWizard && (
-        <OCAddItemWizard onAdd={h.pushItem} onClose={() => setShowWizard(false)} />
+        <OCAddItemWizard onAdd={h.pushItem} onClose={() => setShowWizard(false)} items={h.items} />
       )}
 
       {oc && (

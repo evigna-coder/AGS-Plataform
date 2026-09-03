@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ItemOC } from '@ags/shared';
 import { MoneyInput } from '../ui/MoneyInput';
 
@@ -16,6 +17,21 @@ interface Props {
 
 /** Tabla editable de items de una OC. Con IVA por item cuando showIva (OC nacional). */
 export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAdd, onUpdate, onRemove }) => {
+  /**
+   * Seguir al último ítem cargado (2026-09-03, pedido del user). El wizard se
+   * queda abierto cargando renglones y la tabla queda detrás: sin esto, a
+   * partir del quinto o sexto ítem se cargaba a ciegas — no se veía si el
+   * renglón entró ni con qué cantidad.
+   */
+  const ultimaFilaRef = useRef<HTMLTableRowElement | null>(null);
+  const cantidadPrevia = useRef(items.length);
+  useEffect(() => {
+    if (items.length > cantidadPrevia.current) {
+      ultimaFilaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    cantidadPrevia.current = items.length;
+  }, [items.length]);
+
   const sym = MONEDA_SYM[moneda] || '$';
   const fmt = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
   const subtotal = items.reduce((s, i) => s + i.cantidad * (i.precioUnitario || 0), 0);
@@ -52,7 +68,7 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map((item, idx) => (
-                <tr key={item.id}>
+                <tr key={item.id} ref={idx === items.length - 1 ? ultimaFilaRef : undefined}>
                   <td className="px-2 py-1 text-xs text-slate-400">{idx + 1}</td>
                   {/* Se compra por el N° de parte del envase; el stock entra al
                       artículo base, que se muestra abajo (2026-08-13). */}

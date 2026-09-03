@@ -6,10 +6,14 @@ import { articulosService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
 import { articuloMatchesSearch, baseDePresentacion } from '../../utils/articuloSearch';
+import { OCWizardCargados } from './OCWizardCargados';
+import { OCWizardResultados } from './OCWizardResultados';
 
 interface Props {
   onAdd: (item: Partial<ItemOC>) => void;
   onClose: () => void;
+  /** Items ya cargados a la OC — se muestran acá porque el wizard tapa la tabla. */
+  items?: ItemOC[];
 }
 
 type Step = 'articulo' | 'cantidad' | 'valor';
@@ -19,7 +23,7 @@ const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 upperca
 const ctrl = 'w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700';
 
 /** Mini-wizard secuencial para agregar un item a la OC: artículo → cantidad → valor (Enter avanza). */
-export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
+export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose, items = [] }) => {
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [step, setStep] = useState<Step>('articulo');
   const [search, setSearch] = useState('');
@@ -31,6 +35,10 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
   const [cantidad, setCantidad] = useState(1);
   const [precio, setPrecio] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  /** Items agregados sin cerrar el wizard — el loop de carga (2026-09-03). */
+  const [agregados, setAgregados] = useState(0);
+  /** Cambia en cada vuelta para re-enfocar el buscador aunque el paso no cambie. */
+  const [ronda, setRonda] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -38,7 +46,10 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
   useEffect(() => {
     const t = setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select?.(); }, 30);
     return () => clearTimeout(t);
-  }, [step]);
+    // `ronda` entra en las deps a proposito: al volver al paso 'articulo' desde
+    // si mismo, `step` no cambia y el efecto no correria — el buscador quedaba
+    // sin foco y habia que ir al mouse.
+  }, [step, ronda]);
 
   const term = search.trim();
   const filtered = term
@@ -64,6 +75,12 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
     setPresentaciones([]); setPresentacion(null);
     setStep('cantidad');
   };
+  /**
+    * Agrega el item y vuelve al buscador (2026-09-03, pedido del user): cargar
+    * una OC es cargar varios renglones seguidos, y cerrar el wizard en cada uno
+    * obligaba a volver al mouse. Mismo loop que la carga de items de
+    * presupuesto: buscar → cantidad → Enter → de nuevo al buscador.
+    */
   const finish = () => {
     if (!sel) return;
     onAdd({
@@ -73,7 +90,16 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
       // no cambia de significado.
       presentacion,
     });
-    onClose();
+    setAgregados(n => n + 1);
+    setSel(null);
+    setPresentaciones([]);
+    setPresentacion(null);
+    setCantidad(1);
+    setPrecio(null);
+    setSearch('');
+    setActiveIndex(0);
+    setStep('articulo');
+    setRonda(r => r + 1);
   };
 
   const stepNum = ['articulo', 'cantidad', 'valor'].indexOf(step) + 1;
@@ -86,7 +112,14 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
             <p className="text-[10px] font-mono text-teal-700 uppercase tracking-widest">{STEP_TITLE[step]}</p>
             {sel && <p className="text-xs text-slate-400 font-mono">{sel.articuloCodigo || sel.descripcion}</p>}
           </div>
-          <span className="text-[10px] text-slate-300 font-mono">paso {stepNum} de 3</span>
+          <span className="text-[10px] font-mono text-right">
+            {agregados > 0 && (
+              <span className="block text-teal-700 font-semibold">
+                {agregados} agregado{agregados === 1 ? '' : 's'}
+              </span>
+            )}
+            <span className="text-slate-300">paso {stepNum} de 3</span>
+          </span>
         </div>
 
         {step === 'articulo' && (
@@ -118,21 +151,11 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
                   onClose();
                 }
               }} />
-            <div className="border border-slate-200 rounded-md max-h-56 overflow-y-auto divide-y divide-slate-50">
-              {filtered.length === 0 && term && (
-                <button onClick={selectLibre} className="w-full text-left px-3 py-1.5 text-xs text-slate-500 hover:bg-teal-50">
-                  Usar "{search.trim()}" como descripcion libre
-                </button>
-              )}
-              {filtered.map((a, idx) => (
-                <button key={a.id} ref={el => { itemRefs.current[idx] = el; }}
-                  onClick={() => selectArticulo(a)} onMouseEnter={() => setActiveIndex(idx)}
-                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between gap-2 ${idx === activeIndex ? 'bg-teal-50' : 'hover:bg-teal-50'}`}>
-                  <span className="text-slate-700 truncate">{a.descripcion}</span>
-                  <span className="text-[10px] font-mono text-teal-700 shrink-0">{a.codigo}</span>
-                </button>
-              ))}
-            </div>
+            <OCWizardResultados
+              filtered={filtered} term={term} search={search} activeIndex={activeIndex}
+              itemRefs={itemRefs} onSelect={selectArticulo} onLibre={selectLibre}
+              onHover={setActiveIndex}
+            />
             {filtered.length > 0 && <p className="text-[10px] text-slate-300 mt-1">↑↓ para elegir · Enter para seleccionar</p>}
           </div>
         )}
@@ -211,8 +234,12 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
           </div>
         )}
 
+        {step === 'articulo' && <OCWizardCargados items={items} />}
+
         <div className="flex justify-between items-center mt-4">
-          <button onClick={onClose} className="text-[11px] text-slate-400 hover:text-slate-600">Cancelar (Esc)</button>
+          <button onClick={onClose} className="text-[11px] text-slate-400 hover:text-slate-600">
+            {agregados > 0 ? 'Listo (Esc)' : 'Cancelar (Esc)'}
+          </button>
           {step === 'cantidad' && <Button size="sm" onClick={() => setStep('valor')}>Siguiente (Enter ↵)</Button>}
           {step === 'valor' && <Button size="sm" onClick={finish}>Agregar (Enter ↵)</Button>}
         </div>
