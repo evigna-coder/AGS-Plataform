@@ -30,15 +30,22 @@ export function LoanerOTsSection({ otIds }: Props) {
     return () => { cancelled = true; };
   }, [otIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // El padre es solo el agrupador: no se trabaja, no se cierra y no tiene
+  // estado propio (2026-09-02, caso LNR-0014 — figuraba "Creada" al lado de su
+  // hija cancelada, como si quedara algo pendiente). Se oculta cuando alguna de
+  // sus hijas está en la lista; si vino solo, se muestra.
+  const visibles = otIds.filter(num =>
+    num.includes('.') || !otIds.some(o => o.startsWith(`${num}.`)));
+
   // Más recientes primero (número descendente, hijas después del padre).
-  const ordenadas = [...otIds].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  const ordenadas = [...visibles].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
 
   return (
     <div className="rounded-xl bg-white border border-slate-200 p-4">
       <span className="text-sm font-semibold text-slate-700">
-        Órdenes de trabajo {otIds.length > 0 && <span className="text-slate-400 font-normal">({otIds.length})</span>}
+        Órdenes de trabajo {visibles.length > 0 && <span className="text-slate-400 font-normal">({visibles.length})</span>}
       </span>
-      {otIds.length === 0 ? (
+      {visibles.length === 0 ? (
         <p className="text-xs text-slate-400 mt-2">Sin OTs vinculadas</p>
       ) : (
         <div className="mt-2 divide-y divide-slate-100">

@@ -302,13 +302,21 @@ export async function liberarLoanersRecalificados(loaners: Loaner[]): Promise<nu
     try {
       const base = otNum.split('.')[0];
       const hijas = await ordenesTrabajoService.getItemsByOtPadre(base);
+      // CANCELADA cuenta como resuelta (2026-09-02, caso LNR-0014): se creó una
+      // recalificación a un módulo que no la requería y se canceló la OT. El
+      // loaner quedaba 'en_recalificacion' PARA SIEMPRE — ni este sweep ni el
+      // gancho del cierre en otService la liberaban, porque los dos exigen
+      // cierre técnico y una OT cancelada nunca lo alcanza. Cancelar la
+      // recalificación es decir "no hacía falta": el módulo vuelve a base.
+      const resuelta = (o: WorkOrder) =>
+        esOTCerradaTecnicamente(o) || o.estadoAdmin === 'CANCELADA';
       let cerrada: boolean;
       if (hijas.length > 0) {
         // La(s) work unit(s) son las hijas; el padre es contenedor y nunca cierra.
-        cerrada = hijas.every(h => esOTCerradaTecnicamente(h));
+        cerrada = hijas.every(resuelta);
       } else {
         const ot = await ordenesTrabajoService.getByOtNumber(otNum);
-        cerrada = !!ot && esOTCerradaTecnicamente(ot);
+        cerrada = !!ot && resuelta(ot);
       }
       if (cerrada && await loanersService.liberarTrasRecalificacion(loaner.id)) {
         liberados++;
