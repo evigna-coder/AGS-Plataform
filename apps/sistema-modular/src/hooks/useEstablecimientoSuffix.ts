@@ -51,3 +51,23 @@ export function useEstablecimientoSuffix() {
     return nombre ? ` (${nombre})` : '';
   }, [estabs, nombreById, multiPorCliente]);
 }
+
+/**
+ * Mapa establecimientoId → nombre, SIN la regla de "solo si el cliente tiene
+ * varios" (2026-09-03).
+ *
+ * Para MOSTRAR, el sufijo solo aporta en clientes multi-planta. Para BUSCAR es
+ * al revés: el nombre de la planta tiene que encontrarse siempre. Caso YPF —
+ * las OTs viejas traen "YPF CILP SA" en la razón social y las nuevas el cliente
+ * normalizado ("YPF S.A.") con CILP en el establecimiento: buscar "CILP" solo
+ * encontraba las viejas, que además eran las finalizadas.
+ */
+export function useEstablecimientoNombreById(): Map<string, string> {
+  const [estabs, setEstabs] = useState<Establecimiento[]>([]);
+  useEffect(() => {
+    establecimientosService.getAll()
+      .then(setEstabs)
+      .catch(err => console.error('[useEstablecimientoNombreById] error:', err));
+  }, []);
+  return useMemo(() => new Map(estabs.map(e => [e.id, e.nombre])), [estabs]);
+}

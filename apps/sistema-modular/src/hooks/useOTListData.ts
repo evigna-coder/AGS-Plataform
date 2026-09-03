@@ -6,6 +6,7 @@ import { sortByField, type SortDir } from '../components/ui/SortableHeader';
 import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
 import { fechaLocalYMD } from '../utils/formatFecha';
 import { matchesSearch } from '../utils/searchTerms';
+import { useEstablecimientoNombreById } from './useEstablecimientoSuffix';
 
 /** WorkOrder + fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox,
  *  la que se setea al asignar en agenda — definición de Esteban, UAT 2026-07-17).
@@ -111,11 +112,29 @@ export function useOTListData(filters: OTListFilters) {
     return set;
   }, [ordenes]);
 
-  // Mapa sistemaId → nombre, para que el buscador unificado matchee por nombre de
-  // sistema aunque el WorkOrder solo tenga el sistemaId (no el string `sistema`).
-  const sistemaNombreById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of sistemas) m.set(s.id, s.nombre);
+  /**
+   * Mapa sistemaId → datos buscables del equipo.
+   *
+   * Los campos `codigoInternoCliente`, `sistema`, `modulo*` del WorkOrder son
+   * COPIAS desnormalizadas que se estampan cuando el técnico completa el
+   * reporte. Una OT recién asignada solo tiene el `sistemaId`, así que buscar
+   * por el código interno del cliente traía únicamente las finalizadas
+   * (2026-09-03: buscar "CILP" parado en Pendientes no devolvía nada).
+   * Resolviendo contra el catálogo, el equipo se encuentra desde que la OT
+   * existe, sin depender de que alguien la haya trabajado.
+   */
+  // El nombre de la planta entra a la búsqueda (2026-09-03) — ver el hook.
+  const establecimientoNombreById = useEstablecimientoNombreById();
+
+  const sistemaBuscableById = useMemo(() => {
+    const m = new Map<string, { nombre: string; codigo: string | null; serie: string | null }>();
+    for (const s of sistemas) {
+      m.set(s.id, {
+        nombre: s.nombre,
+        codigo: s.codigoInternoCliente ?? null,
+        serie: (s as { serie?: string | null }).serie ?? null,
+      });
+    }
     return m;
   }, [sistemas]);
 
@@ -163,12 +182,17 @@ export function useOTListData(filters: OTListFilters) {
       list = list.filter(ot => matchesSearch(q,
         ot.otNumber,
         ot.razonSocial,
+        ot.establecimientoId ? establecimientoNombreById.get(ot.establecimientoId) : null,
         ot.codigoInternoCliente,
         ot.moduloModelo,
         ot.moduloDescripcion,
         ot.moduloSerie,
         ot.sistema,
-        ot.sistemaId ? sistemaNombreById.get(ot.sistemaId) : null,
+        // Del catálogo, no de la copia en la OT: encuentra también las que
+        // todavía nadie trabajó.
+        ot.sistemaId ? sistemaBuscableById.get(ot.sistemaId)?.nombre : null,
+        ot.sistemaId ? sistemaBuscableById.get(ot.sistemaId)?.codigo : null,
+        ot.sistemaId ? sistemaBuscableById.get(ot.sistemaId)?.serie : null,
         ot.tipoServicio,
         ot.ingenieroAsignadoNombre,
       ));
@@ -203,7 +227,7 @@ export function useOTListData(filters: OTListFilters) {
     if (filters.soloGarantia) list = list.filter(ot => ot.esGarantia);
     return list;
   }, [
-    ordenes, parentsWithChildren, sistemaNombreById,
+    ordenes, parentsWithChildren, sistemaBuscableById, establecimientoNombreById,
     filters.tipoServicio, filters.ingenieroId,
     filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
     filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
