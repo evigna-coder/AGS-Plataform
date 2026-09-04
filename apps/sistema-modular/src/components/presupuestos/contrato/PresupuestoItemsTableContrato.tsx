@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '../../ui/Button';
-import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto, ConceptoServicio, CategoriaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto, ConceptoServicio, CategoriaPresupuesto, MonedaCuota } from '@ags/shared';
+import { monedasMixtaDe, totalesPorMonedaDeItems } from '@ags/shared';
 import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
 import { ContratoSistemasQueue } from './ContratoSistemasQueue';
@@ -12,6 +13,8 @@ import type { ArticuloMini } from './ArticuloInlineAutocomplete';
 interface Props {
   items: PresupuestoItem[];
   moneda: MonedaPresupuesto;
+  /** Contrato mixto (2026-09-04): monedas involucradas, en orden de columnas. */
+  monedasMixta?: MonedaCuota[];
   sistemas: Sistema[];
   loadModulos: (sistemaId: string) => Promise<ModuloSistema[]>;
   onAddItems: (items: PresupuestoItem[]) => void;
@@ -33,7 +36,7 @@ interface Props {
  * editing and per-sistema subtotals.
  */
 export const PresupuestoItemsTableContrato: React.FC<Props> = ({
-  items, moneda, sistemas, loadModulos,
+  items, moneda, monedasMixta, sistemas, loadModulos,
   onAddItems, onUpdateItem, onRemoveItem, onRemoveSistema,
   conceptosServicio = [], categoriasPresupuesto = [],
   sistemasPlan = [], onChangeSistemasPlan,
@@ -43,6 +46,7 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   const [sistemasFijados, setSistemasFijados] = useState<string[]>([]);
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloMini[]>([]);
   const isMixta = moneda === 'MIXTA';
+  const monedas = monedasMixtaDe({ moneda, monedasMixta });
 
   // Load stock articles catalog once for inline N° de parte autocomplete
   useEffect(() => {
@@ -71,16 +75,8 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
 
   const grouped = useMemo(() => groupItemsForContrato(items), [items]);
 
-  // Global totals by currency
-  const totalsByCurrency = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const item of items) {
-      if (item.esSinCargo) continue;
-      const cur = item.moneda || 'USD';
-      m[cur] = (m[cur] || 0) + (item.subtotal || 0);
-    }
-    return m;
-  }, [items]);
+  // Totales por moneda: incluye la porción en cada moneda de los ítems mixtos.
+  const totalsByCurrency = useMemo(() => totalesPorMonedaDeItems(items, moneda), [items, moneda]);
 
   const handleAddBonificacion = () => {
     const grupo = nextGrupoNumber(items);
@@ -208,6 +204,8 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
                   key={`${sectorBucket.sectorNombre}-${sistemaBucket.grupo}`}
                   bucket={sistemaBucket}
                   isMixta={isMixta}
+                  monedas={monedas}
+                  monedaBase={moneda}
                   articulosCatalog={articulosCatalog}
                   onUpdateItem={onUpdateItem}
                   onPickArticulo={handlePickArticulo}
@@ -248,6 +246,7 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
         conceptosServicio={conceptosServicio}
         categoriasPresupuesto={categoriasPresupuesto}
         moneda={moneda}
+        monedasMixta={monedas}
       />
     </div>
   );

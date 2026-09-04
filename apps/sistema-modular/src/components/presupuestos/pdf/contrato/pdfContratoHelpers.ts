@@ -1,4 +1,5 @@
 import type { Presupuesto, PresupuestoCuota, PresupuestoItem } from '@ags/shared';
+import { totalesPorMonedaDeItems } from '@ags/shared';
 
 export function fmtNum(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return '—';
@@ -93,14 +94,8 @@ export function totalsByCurrency(
   items: PresupuestoItem[],
   monedaBase?: string,
 ): Record<string, number> {
-  const fallback = monedaBase && monedaBase !== 'MIXTA' ? monedaBase : 'USD';
-  const m: Record<string, number> = {};
-  for (const it of items) {
-    if (it.esSinCargo) continue;
-    const cur = it.moneda || fallback;
-    m[cur] = (m[cur] || 0) + (it.subtotal || 0);
-  }
-  return m;
+  // Contrato mixto (2026-09-04): cada ítem aporta su porción en cada moneda.
+  return totalesPorMonedaDeItems(items, monedaBase);
 }
 
 // ── Plan de cuotas (UAT contrato 2026-08-04) ──

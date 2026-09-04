@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { PresupuestoItem } from '@ags/shared';
+import type { PresupuestoItem, MonedaCuota } from '@ags/shared';
+import { totalesPorMonedaDeItems } from '@ags/shared';
 import { ContratoItemRow } from './ContratoItemRow';
 import type { SistemaBucket } from './contratoItemHelpers';
 import type { ArticuloMini } from './ArticuloInlineAutocomplete';
@@ -7,6 +8,9 @@ import type { ArticuloMini } from './ArticuloInlineAutocomplete';
 interface Props {
   bucket: SistemaBucket;
   isMixta: boolean;
+  /** Monedas del contrato en orden de columnas (una sola si no es mixto). */
+  monedas: MonedaCuota[];
+  monedaBase: string;
   articulosCatalog: ArticuloMini[];
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onPickArticulo: (itemId: string, art: ArticuloMini) => void;
@@ -20,21 +24,13 @@ interface Props {
  * header (sistema info), items table, and per-sistema subtotal.
  */
 export const ContratoSistemaGroup: React.FC<Props> = ({
-  bucket, isMixta, articulosCatalog,
+  bucket, isMixta, monedas, monedaBase, articulosCatalog,
   onUpdateItem, onPickArticulo, onRemoveItem, onRemoveSistema, onAddItem,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   // Per-currency subtotal for this sistema
-  const subtotalsByCurrency = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const item of bucket.items) {
-      if (item.esSinCargo) continue;
-      const cur = item.moneda || 'USD';
-      m[cur] = (m[cur] || 0) + (item.subtotal || 0);
-    }
-    return m;
-  }, [bucket.items]);
+  const subtotalsByCurrency = useMemo(() => totalesPorMonedaDeItems(bucket.items, monedaBase), [bucket.items, monedaBase]);
 
   const priceableCount = bucket.items.filter(i => !i.esSinCargo).length;
   const slCount = bucket.items.filter(i => i.esSinCargo).length;
@@ -114,9 +110,13 @@ export const ContratoSistemaGroup: React.FC<Props> = ({
                 <th className="px-2 py-1 text-left text-[9px] font-mono uppercase tracking-wider text-slate-400 w-32">Código / Servicio</th>
                 <th className="px-2 py-1 text-left text-[9px] font-mono uppercase tracking-wider text-slate-400">Descripción</th>
                 <th className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-14">Cant.</th>
-                {isMixta && <th className="px-2 py-1 text-left text-[9px] font-mono uppercase tracking-wider text-slate-400 w-14">Mon.</th>}
-                <th className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-24">Precio</th>
-                <th className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-24">Subtotal</th>
+                {/* Mixto (2026-09-04): un precio por moneda en la misma línea. */}
+                {isMixta
+                  ? monedas.map(m => (
+                    <th key={m} className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-24">Precio {m}</th>
+                  ))
+                  : <th className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-24">Precio</th>}
+                <th className="px-2 py-1 text-right text-[9px] font-mono uppercase tracking-wider text-slate-400 w-28">Subtotal</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -126,6 +126,8 @@ export const ContratoSistemaGroup: React.FC<Props> = ({
                   key={item.id}
                   item={item}
                   isMixta={isMixta}
+                  monedas={monedas}
+                  monedaBase={monedaBase}
                   articulosCatalog={articulosCatalog}
                   onUpdate={(field, value) => onUpdateItem(item.id, field, value)}
                   onPickArticulo={art => onPickArticulo(item.id, art)}

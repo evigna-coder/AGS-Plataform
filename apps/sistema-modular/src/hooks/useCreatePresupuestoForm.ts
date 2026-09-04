@@ -4,7 +4,7 @@ import { establecimientosService, contactosEstablecimientoService } from '../ser
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, PlantillaTextoPresupuesto } from '@ags/shared';
-import { establecimientoUnicoId, computePresupuestoItemSubtotal, categoriaFromTipoPresupuesto } from '@ags/shared';
+import { establecimientoUnicoId, computePresupuestoItemSubtotal, categoriaFromTipoPresupuesto, monedasDeItems } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
@@ -16,6 +16,8 @@ export interface PresupuestoFormState {
   /** Solo relevante con tipo 'partes': define P2 (servicio) vs P3 (venta) en el número. */
   destinoPartes: 'servicio' | 'venta';
   moneda: MonedaPresupuesto;
+  /** Contrato MIXTO (2026-09-04): monedas involucradas, en orden de columnas. */
+  monedasMixta: MonedaCuota[];
   origenTipo: OrigenPresupuesto | '';
   origenId: string;
   origenRef: string;
@@ -35,7 +37,7 @@ export interface PresupuestoFormState {
 
 export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   clienteId: '', establecimientoId: '', sistemaId: '', contactoId: '',
-  tipo: 'servicio', destinoPartes: 'servicio', moneda: 'USD',
+  tipo: 'servicio', destinoPartes: 'servicio', moneda: 'USD', monedasMixta: ['ARS', 'USD'],
   origenTipo: '', origenId: '', origenRef: '',
   validezDias: 15, condicionPagoId: '', tipoCambio: '',
   notasTecnicas: '', notasAdministrativas: '', garantia: '',
@@ -301,12 +303,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       if (form.moneda !== 'MIXTA') {
         monedasActivas = [form.moneda as MonedaCuota];
       } else {
-        const set = new Set<MonedaCuota>();
-        for (const item of items) {
-          const m = item.moneda as MonedaCuota | null | undefined;
-          if (m) set.add(m);
-        }
-        monedasActivas = set.size > 0 ? Array.from(set) : ['USD'];
+        const set = monedasDeItems(items, form.moneda);
+        monedasActivas = set.length > 0 ? set : ['USD'];
       }
 
       const emptyCuotas = findEmptyCuotas(esquemaFacturacion);
@@ -368,6 +366,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         aceptacionPresupuesto: form.aceptacionPresupuesto || undefined,
         notasComplementarias: form.notasComplementarias || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
+        // Contrato mixto (2026-09-04): qué monedas entran y en qué orden.
+        ...(form.tipo === 'contrato' && form.moneda === 'MIXTA' ? { monedasMixta: form.monedasMixta } : {}),
         // Cola de carga del contrato: alcance elegido al crear (2026-08-04).
         ...(form.tipo === 'contrato' && sistemasPlan.length > 0 ? { contratoSistemasPlan: sistemasPlan } : {}),
         // Phase 12: include esquema for non-contrato types when populated

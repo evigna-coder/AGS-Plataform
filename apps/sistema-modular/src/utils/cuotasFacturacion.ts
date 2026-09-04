@@ -147,6 +147,13 @@ export function computeTotalsByCurrency(
 ): Partial<Record<MonedaCuota, number>> {
   const totals: Partial<Record<MonedaCuota, number>> = {};
   for (const item of items) {
+    // Contrato mixto (2026-09-04): una porción por moneda en la misma línea.
+    const porciones = Object.entries(item.montosPorMoneda ?? {})
+      .filter(([, p]) => typeof p === 'number' && p !== 0) as [MonedaCuota, number][];
+    if (porciones.length > 0) {
+      for (const [k, precio] of porciones) totals[k] = (totals[k] ?? 0) + precio * (item.cantidad ?? 0);
+      continue;
+    }
     const m = (item.moneda ?? defaultMoneda) as MonedaPresupuesto;
     if (m === 'MIXTA') continue; // pathological — items always have concrete moneda
     const k = m as MonedaCuota;

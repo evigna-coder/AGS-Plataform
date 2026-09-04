@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
-import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente } from '@ags/shared';
+import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente, monedasDeItems } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 import { renumerarGrupos } from '../components/presupuestos/contrato/contratoItemHelpers';
 import { hoyLocalISODate } from '../utils/formatFecha';
@@ -20,6 +20,8 @@ export interface PresupuestoFormState {
   estado: Presupuesto['estado'];
   tipo: TipoPresupuesto;
   moneda: MonedaPresupuesto;
+  /** Contrato MIXTO (2026-09-04): monedas involucradas, en orden de columnas. */
+  monedasMixta: MonedaCuota[];
   origenTipo: string | null;
   origenId: string | null;
   origenRef: string | null;
@@ -88,7 +90,7 @@ export interface PresupuestoTotals {
 }
 
 const INITIAL_FORM: PresupuestoFormState = {
-  numero: '', estado: 'borrador', tipo: 'servicio', moneda: 'USD',
+  numero: '', estado: 'borrador', tipo: 'servicio', moneda: 'USD', monedasMixta: ['ARS', 'USD'],
   origenTipo: null, origenId: null, origenRef: null,
   clienteId: '', establecimientoId: null, sistemaId: null, contactoId: null,
   items: [], tipoCambio: undefined, condicionPagoId: undefined,
@@ -119,6 +121,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
   return {
     numero: p.numero, estado: p.estado,
     tipo: p.tipo || 'servicio', moneda: p.moneda || 'USD',
+    monedasMixta: p.monedasMixta?.length ? p.monedasMixta : ['ARS', 'USD'],
     origenTipo: p.origenTipo || null, origenId: p.origenId || null, origenRef: p.origenRef || null,
     clienteId: p.clienteId, establecimientoId: p.establecimientoId || null,
     sistemaId: p.sistemaId || null, contactoId: p.contactoId || null,
@@ -309,12 +312,8 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         if (form.moneda !== 'MIXTA') {
           monedasActivas = [form.moneda as MonedaCuota];
         } else {
-          const set = new Set<MonedaCuota>();
-          for (const item of form.items) {
-            const m = item.moneda as MonedaCuota | null | undefined;
-            if (m) set.add(m);
-          }
-          monedasActivas = set.size > 0 ? Array.from(set) : ['USD'];
+          const set = monedasDeItems(form.items, form.moneda);
+          monedasActivas = set.length > 0 ? set : ['USD'];
         }
 
         const errors = validateEsquemaSum(form.esquemaFacturacion, monedasActivas);
@@ -340,6 +339,8 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
 
       await presupuestosService.update(presupuestoId, {
         estado: form.estado, tipo: form.tipo, moneda: form.moneda, items: itemsWithGrupos,
+        // Contrato mixto (2026-09-04): monedas involucradas y su orden.
+        monedasMixta: form.tipo === 'contrato' && form.moneda === 'MIXTA' ? form.monedasMixta : null,
         // FALTABA (2026-08-11): estaba en el form pero no en el payload — el
         // establecimiento del presupuesto era inmutable de facto.
         establecimientoId: form.establecimientoId,

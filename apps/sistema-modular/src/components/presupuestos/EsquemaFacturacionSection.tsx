@@ -13,6 +13,7 @@
  * This component does NOT write to Firestore — all changes flow via onChange().
  */
 import React, { useState, useMemo } from 'react';
+import { monedasDeItems } from '@ags/shared';
 import type { PresupuestoCuotaFacturacion, MonedaCuota, MonedaPresupuesto, PresupuestoItem } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { EsquemaCuotaRow } from './EsquemaCuotaRow';
@@ -42,14 +43,10 @@ function newCuotaId(): string {
 /** Derive active monedas from ppto moneda and items (for MIXTA). */
 function deriveMonedasActivas(moneda: MonedaPresupuesto, items: PresupuestoItem[]): MonedaCuota[] {
   if (moneda !== 'MIXTA') return [moneda as MonedaCuota];
-  const set = new Set<MonedaCuota>();
-  for (const item of items) {
-    // item.moneda is 'USD'|'ARS'|'EUR'|null — MIXTA never stored at item level
-    const m = item.moneda as MonedaCuota | null | undefined;
-    if (m) set.add(m);
-  }
-  if (set.size === 0) return ['USD']; // fallback for empty MIXTA ppto
-  return Array.from(set);
+  // Incluye la porción en cada moneda de los ítems mixtos (2026-09-04).
+  const set = monedasDeItems(items, moneda);
+  if (set.length === 0) return ['USD']; // fallback for empty MIXTA ppto
+  return set;
 }
 
 export const EsquemaFacturacionSection: React.FC<Props> = ({

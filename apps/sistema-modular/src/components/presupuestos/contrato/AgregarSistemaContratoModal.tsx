@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import { PresupuestoAddItemCompleto } from '../PresupuestoAddItemCompleto';
-import type { PresupuestoItem, Sistema, ModuloSistema, ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, Sistema, ModuloSistema, ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto, MonedaCuota } from '@ags/shared';
+import { espejoMonedaPrincipal } from '@ags/shared';
 import { esUnidadDeServicio } from '@ags/shared';
 import { materializarServiciosPorSistema, nextGrupoNumber } from './contratoItemHelpers';
 import { SistemasMultiPicker } from './SistemasMultiPicker';
@@ -22,6 +23,8 @@ interface Props {
   conceptosServicio?: ConceptoServicio[];
   categoriasPresupuesto?: CategoriaPresupuesto[];
   moneda?: MonedaPresupuesto;
+  /** Contrato mixto (2026-09-04): monedas involucradas, en orden de columnas. */
+  monedasMixta?: MonedaCuota[];
 }
 
 /**
@@ -33,7 +36,7 @@ interface Props {
  */
 export const AgregarSistemaContratoModal: React.FC<Props> = ({
   open, onClose, sistemas, loadModulos, existingItems, onConfirm,
-  sistemasFijados, conceptosServicio = [], categoriasPresupuesto = [], moneda,
+  sistemasFijados, conceptosServicio = [], categoriasPresupuesto = [], moneda, monedasMixta,
 }) => {
   const [sistemaIds, setSistemaIds] = useState<string[]>([]);
   const [modulosPorSistema, setModulosPorSistema] = useState<Map<string, ModuloSistema[]>>(new Map());
@@ -120,13 +123,31 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
     }]);
   };
 
+  const esMixta = moneda === 'MIXTA';
+  const monedas: MonedaCuota[] = esMixta ? (monedasMixta?.length ? monedasMixta : ['ARS', 'USD']) : [];
   const updateServicio = (itemId: string, field: 'precioUnitario' | 'cantidad', value: number) => {
     setServicios(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const updated = { ...item, [field]: value };
+      if (esMixta && updated.montosPorMoneda) {
+        // Mixto: los campos de un valor espejan la moneda principal.
+        return { ...updated, ...espejoMonedaPrincipal(updated, monedas) };
+      }
       const base = (updated.cantidad || 0) * (updated.precioUnitario || 0);
       updated.subtotal = updated.descuento ? base * (1 - updated.descuento / 100) : base;
       return updated;
+    }));
+  };
+  /** Mixto (2026-09-04): precio de la porción en UNA moneda; el resto se conserva. */
+  const updatePrecioMoneda = (itemId: string, m: MonedaCuota, value: number) => {
+    setServicios(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      const montos: Partial<Record<MonedaCuota, number>> = { ...(item.montosPorMoneda ?? {}) };
+      // Primer toque: lo cargado con un solo precio pasa a ser la porción de su moneda.
+      if (!item.montosPorMoneda && item.precioUnitario) montos[(item.moneda || monedas[0]) as MonedaCuota] = item.precioUnitario;
+      montos[m] = value;
+      const updated = { ...item, montosPorMoneda: montos };
+      return { ...updated, ...espejoMonedaPrincipal(updated, monedas) };
     }));
   };
 
@@ -214,7 +235,10 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
             <ServiciosPlantillaTable
               servicios={servicios}
               cantidadEquipos={seleccionados.length}
+              monedas={monedas}
+              monedaBase={moneda ?? 'USD'}
               onUpdate={updateServicio}
+              onUpdatePrecioMoneda={updatePrecioMoneda}
               onRemove={id => setServicios(prev => prev.filter(s => s.id !== id))}
             />
           </>

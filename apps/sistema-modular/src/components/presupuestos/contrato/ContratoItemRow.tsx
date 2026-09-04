@@ -1,10 +1,14 @@
 import React from 'react';
-import type { PresupuestoItem } from '@ags/shared';
+import type { PresupuestoItem, MonedaCuota } from '@ags/shared';
+import { montosDeItem, espejoMonedaPrincipal } from '@ags/shared';
 import { ArticuloInlineAutocomplete, type ArticuloMini } from './ArticuloInlineAutocomplete';
 
 interface Props {
   item: PresupuestoItem;
   isMixta: boolean;
+  /** Monedas del contrato en orden de columnas (una sola si no es mixto). */
+  monedas: MonedaCuota[];
+  monedaBase: string;
   articulosCatalog: ArticuloMini[];
   onUpdate: (field: keyof PresupuestoItem, value: any) => void;
   /** Batch update used when picking an article (sets code, description and stockArticuloId in a single call) */
@@ -24,7 +28,7 @@ const inputRight = input + ' text-right';
  *  - Bonificaciones (styled in red tint)
  */
 export const ContratoItemRow: React.FC<Props> = ({
-  item, isMixta, articulosCatalog, onUpdate, onPickArticulo, onRemove,
+  item, isMixta, monedas, monedaBase, articulosCatalog, onUpdate, onPickArticulo, onRemove,
 }) => {
   const isSL = item.esSinCargo === true;
   const isBonif = item.esBonificacion === true;
@@ -33,12 +37,41 @@ export const ContratoItemRow: React.FC<Props> = ({
   const handleNum = (field: keyof PresupuestoItem) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value) || 0;
     onUpdate(field, v);
+    if (field === 'cantidad' && isMixta && item.montosPorMoneda) {
+      // La cantidad cambia todas las porciones: se re-espeja la principal.
+      const esp = espejoMonedaPrincipal({ ...item, cantidad: v }, monedas);
+      onUpdate('precioUnitario', esp.precioUnitario);
+      onUpdate('subtotal', esp.subtotal);
+      return;
+    }
     if (field === 'cantidad' || field === 'precioUnitario') {
       const cant = field === 'cantidad' ? v : (item.cantidad || 0);
       const precio = field === 'precioUnitario' ? v : (item.precioUnitario || 0);
       onUpdate('subtotal', cant * precio);
     }
   };
+
+  /**
+   * Contrato mixto (2026-09-04): precio por moneda en la MISMA línea. Un ítem
+   * viejo con `moneda` + `precioUnitario` se lee como su porción en esa
+   * moneda y, al primer toque, queda migrado a `montosPorMoneda`.
+   */
+  const precioEn = (m: MonedaCuota): number => {
+    if (item.montosPorMoneda) return item.montosPorMoneda[m] ?? 0;
+    const propia = (item.moneda || monedaBase) as string;
+    return propia === m ? (item.precioUnitario || 0) : 0;
+  };
+  const handlePrecioMoneda = (m: MonedaCuota) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value) || 0;
+    const montos: Partial<Record<MonedaCuota, number>> = {};
+    for (const mm of monedas) montos[mm] = mm === m ? v : precioEn(mm);
+    onUpdate('montosPorMoneda', montos);
+    const esp = espejoMonedaPrincipal({ ...item, montosPorMoneda: montos }, monedas);
+    onUpdate('moneda', esp.moneda);
+    onUpdate('precioUnitario', esp.precioUnitario);
+    onUpdate('subtotal', esp.subtotal);
+  };
+  const subtotales = montosDeItem(item, monedaBase);
 
   const toggleParte = () => {
     if (isParte) {
@@ -116,34 +149,36 @@ export const ContratoItemRow: React.FC<Props> = ({
         )}
       </td>
 
-      {/* Moneda (solo MIXTA) */}
-      {isMixta && (
-        <td className="px-2 py-1 w-14 align-top">
-          {!isSL && (
-            <select className={input} value={item.moneda || 'USD'}
-              onChange={e => onUpdate('moneda', e.target.value)}>
-              <option value="USD">USD</option>
-              <option value="ARS">ARS</option>
-              <option value="EUR">EUR</option>
-            </select>
+      {/* Precio: uno por moneda en un contrato mixto (2026-09-04), o el único. */}
+      {isMixta ? monedas.map(m => (
+        <td key={m} className="px-2 py-1 w-24 align-top">
+          {isSL ? (
+            <span className="text-[10px] text-slate-400">—</span>
+          ) : (
+            <input type="number" min="0" step="any" className={inputRight}
+              value={precioEn(m) || ''} onChange={handlePrecioMoneda(m)}
+              placeholder={`0.00 ${m}`} title={`Porción en ${m}`} />
+          )}
+        </td>
+      )) : (
+        <td className="px-2 py-1 w-24 align-top">
+          {isSL ? (
+            <span className="text-[10px] text-slate-400">—</span>
+          ) : (
+            <input type="number" min="0" step="any" className={inputRight}
+              value={item.precioUnitario || ''} onChange={handleNum('precioUnitario')}
+              placeholder="0.00" />
           )}
         </td>
       )}
 
-      {/* Precio unitario */}
-      <td className="px-2 py-1 w-24 align-top">
-        {isSL ? (
-          <span className="text-[10px] text-slate-400">—</span>
-        ) : (
-          <input type="number" min="0" step="any" className={inputRight}
-            value={item.precioUnitario || ''} onChange={handleNum('precioUnitario')}
-            placeholder="0.00" />
-        )}
-      </td>
-
-      {/* Subtotal */}
-      <td className="px-2 py-1 text-right text-[11px] font-semibold text-slate-700 whitespace-nowrap w-24 align-top">
-        {isSL ? '—' : (item.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+      {/* Subtotal: en mixto, una línea por moneda con monto */}
+      <td className="px-2 py-1 text-right text-[11px] font-semibold text-slate-700 whitespace-nowrap w-28 align-top">
+        {isSL ? '—' : isMixta
+          ? (subtotales.length === 0 ? '—' : subtotales.map(st => (
+            <div key={st.moneda}><span className="text-[9px] font-mono text-slate-400 mr-1">{st.moneda}</span>{st.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+          )))
+          : (item.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
       </td>
 
       {/* Delete */}

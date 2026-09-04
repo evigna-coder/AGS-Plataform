@@ -1,6 +1,7 @@
 import React from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Presupuesto, TipoPresupuesto, MonedaPresupuesto, ContactoCliente, ContactoEstablecimiento, CondicionPago, UsuarioAGS } from '@ags/shared';
+import { MonedasMixtaPicker } from './MonedasMixtaPicker';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/usePresupuestoEdit';
 
@@ -55,6 +56,10 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
         <div>
           <label className={lbl}>Moneda</label>
           <SearchableSelect value={form.moneda} onChange={(v) => setField('moneda', v as MonedaPresupuesto)} options={monedaOptions} size="sm" />
+          {/* Contrato mixto (2026-09-04): qué monedas entran, en orden de columnas. */}
+          {form.tipo === 'contrato' && form.moneda === 'MIXTA' && (
+            <MonedasMixtaPicker value={form.monedasMixta} onChange={v => setField('monedasMixta', v)} />
+          )}
         </div>
         <div>
           <label className={lbl}>Validez (días)</label>

@@ -13,7 +13,7 @@
  * `numberToWords` se importa del subpath `@ags/shared/utils` (NO del barrel
  * `@ags/shared`, que re-exporta services→firebase y contamina el bundle Node).
  */
-import { numberToWords } from '@ags/shared/utils';
+import { numberToWords, montosDeItem, totalesPorMonedaDeItems } from '@ags/shared/utils';
 import { LOGO_SRC, ISO_LOGO_SRC } from './logos';
 import type {
   Presupuesto, Cliente, Establecimiento, ContactoEstablecimiento,
@@ -54,11 +54,11 @@ export function calcularImpuestos(
   let iibb = 0;
   const porMoneda: Record<string, number> = {};
 
-  for (const item of items) {
+  // Un ítem mixto aporta base en cada una de sus monedas (2026-09-04).
+  const porciones = items.flatMap(item => montosDeItem(item, monedaBase).map(mm => ({ item, base: mm.subtotal, m: mm.moneda as string })));
+  for (const { item, base, m } of porciones) {
     const cat = item.categoriaPresupuestoId ? catMap.get(item.categoriaPresupuestoId) : null;
     if (!cat) continue;
-    const base = item.subtotal || 0;
-    const m = item.moneda || monedaBase;
     let delItem = 0;
 
     if (cat.incluyeIva && cat.porcentajeIva) {
@@ -101,11 +101,10 @@ export function buildPresupuestoPDFData(params: GeneratePDFParams, extras: Build
 
   // Netos por moneda — SIEMPRE sumando los subtotales de los ítems, nunca
   // `presupuesto.total` (que el editor guarda como subtotal+impuestos).
-  const totalsByCurrency: Record<string, number> = {};
-  for (const i of presupuesto.items) {
-    const m = isMixta ? (i.moneda || 'USD') : presupuesto.moneda;
-    totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0);
-  }
+  const totalsByCurrency: Record<string, number> = isMixta
+    ? totalesPorMonedaDeItems(presupuesto.items, presupuesto.moneda)
+    : { [presupuesto.moneda]: presupuesto.items.reduce((s, i) => s + (i.subtotal || 0), 0) };
+  if (!isMixta && totalsByCurrency[presupuesto.moneda] === 0 && presupuesto.items.length === 0) delete totalsByCurrency[presupuesto.moneda];
   if (Object.keys(totalsByCurrency).length === 0 && !isMixta) {
     totalsByCurrency[presupuesto.moneda] = presupuesto.total || 0;
   }

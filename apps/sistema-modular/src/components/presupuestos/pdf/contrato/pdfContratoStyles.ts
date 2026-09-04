@@ -257,9 +257,16 @@ export const cs = StyleSheet.create({
 export const COLS_SINGLE = {
   num: '6%', codigo: '16%', desc: '42%', cant: '8%', precio: '14%', subtotal: '14%',
 };
-export const COLS_MIXTA = {
-  num: '6%', codigo: '14%', desc: '36%', cant: '7%', mon: '7%', precio: '14%', subtotal: '16%',
-};
+/**
+ * Mixto (2026-09-04): una columna de importe POR MONEDA — "ARS" y "USD" lado
+ * a lado en la misma línea — en vez de la columna "Mon." + precio + subtotal.
+ * La descripción cede ancho según cuántas monedas haya.
+ */
+export function colsMixta(nMonedas: number): { num: string; codigo: string; desc: string; cant: string; moneda: string } {
+  const monedaW = 15;
+  const descW = 100 - 6 - 14 - 8 - monedaW * Math.max(1, nMonedas);
+  return { num: '6%', codigo: '14%', desc: `${descW}%`, cant: '8%', moneda: `${monedaW}%` };
+}
 /** Sin precios por línea (2026-08-04): la descripción absorbe las columnas de
  *  precio/subtotal — el precio va solo en el total por equipo y el del contrato. */
 export const COLS_SIN_PRECIOS = {

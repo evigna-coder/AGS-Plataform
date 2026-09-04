@@ -1,11 +1,14 @@
 import { View, Text } from '@react-pdf/renderer';
-import { cs, COLS_SINGLE, COLS_MIXTA, COLS_SIN_PRECIOS } from './pdfContratoStyles';
+import { cs, COLS_SINGLE, COLS_SIN_PRECIOS, colsMixta } from './pdfContratoStyles';
 import { groupItems, totalsByCurrency, fmtNum, type SistemaGroup } from './pdfContratoHelpers';
-import type { PresupuestoItem, ModuloSistema } from '@ags/shared';
+import type { PresupuestoItem, ModuloSistema, MonedaCuota } from '@ags/shared';
+import { montosDeItem, monedasMixtaDe } from '@ags/shared';
 import type { PresupuestoPDFData } from '../PresupuestoPDFEstandar';
 
-function ItemRow({ item, isMixta, sinPrecios, monedaFallback }: { item: PresupuestoItem; isMixta: boolean; sinPrecios: boolean; monedaFallback: string }) {
-  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
+function ItemRow({ item, isMixta, monedas, sinPrecios, monedaFallback }: { item: PresupuestoItem; isMixta: boolean; monedas: MonedaCuota[]; sinPrecios: boolean; monedaFallback: string }) {
+  const CM = colsMixta(monedas.length);
+  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? CM : COLS_SINGLE;
+  const porciones = montosDeItem(item, monedaFallback);
   const isSL = item.esSinCargo === true;
   const isBonif = item.esBonificacion === true;
   const rowStyle = [cs.itemRow, isSL && cs.itemRowSL, isBonif && cs.itemRowBonif].filter(Boolean);
@@ -29,13 +32,24 @@ function ItemRow({ item, isMixta, sinPrecios, monedaFallback }: { item: Presupue
           {isSL ? 'S/L' : (item.cantidad || 0)}
         </Text>
         {/* Sin precios por línea (2026-08-04): el precio va solo en los totales */}
-        {!sinPrecios && (
+        {!sinPrecios && (isMixta ? (
+          // Mixto (2026-09-04): el importe de la línea en cada moneda, lado a
+          // lado. Si la cantidad no es 1, abajo va el unitario chiquito.
+          monedas.map(m => {
+            const p = porciones.find(x => x.moneda === m);
+            return (
+              <View key={m} style={{ width: CM.moneda }}>
+                <Text style={[...cellStyle, cs.itemCellRight, { fontWeight: 600 }] as any}>
+                  {isSL || !p ? '—' : fmtNum(p.subtotal)}
+                </Text>
+                {p && !isSL && (item.cantidad || 0) !== 1 && (
+                  <Text style={[cs.itemCellMono, cs.itemCellRight] as any}>{item.cantidad} × {fmtNum(p.precioUnitario)}</Text>
+                )}
+              </View>
+            );
+          })
+        ) : (
           <>
-            {isMixta && (
-              <Text style={[...cellStyle, cs.itemCellCenter, { width: COLS_MIXTA.mon }] as any}>
-                {isSL ? '—' : (item.moneda || monedaFallback)}
-              </Text>
-            )}
             <Text style={[...cellStyle, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).precio }] as any}>
               {isSL ? '—' : fmtNum(item.precioUnitario)}
             </Text>
@@ -49,7 +63,7 @@ function ItemRow({ item, isMixta, sinPrecios, monedaFallback }: { item: Presupue
               {isSL ? '—' : fmtNum(item.subtotal)}
             </Text>
           </>
-        )}
+        ))}
       </View>
       {item.itemNotasAdicionales && (
         <View style={cs.itemNoteRow}>
@@ -60,8 +74,9 @@ function ItemRow({ item, isMixta, sinPrecios, monedaFallback }: { item: Presupue
   );
 }
 
-function SistemaCard({ group, isMixta, modulos, sinPrecios, monedaBase }: { group: SistemaGroup; isMixta: boolean; modulos?: ModuloSistema[]; sinPrecios: boolean; monedaBase: string }) {
-  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? COLS_MIXTA : COLS_SINGLE;
+function SistemaCard({ group, isMixta, monedas, modulos, sinPrecios, monedaBase }: { group: SistemaGroup; isMixta: boolean; monedas: MonedaCuota[]; modulos?: ModuloSistema[]; sinPrecios: boolean; monedaBase: string }) {
+  const CM = colsMixta(monedas.length);
+  const COLS = sinPrecios ? COLS_SIN_PRECIOS : isMixta ? CM : COLS_SINGLE;
   const subtotals = totalsByCurrency(group.items, monedaBase);
 
   // Un equipo NO puede quedar partido entre hojas (pedido 2026-07-31): si la
@@ -122,20 +137,21 @@ function SistemaCard({ group, isMixta, modulos, sinPrecios, monedaBase }: { grou
           <Text style={[cs.itemTableHeadCell, { width: COLS.codigo }]}>Código</Text>
           <Text style={[cs.itemTableHeadCell, { width: COLS.desc }]}>Descripción</Text>
           <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS.cant }]}>Cant.</Text>
-          {!sinPrecios && (
+          {!sinPrecios && (isMixta ? (
+            monedas.map(m => (
+              <Text key={m} style={[cs.itemTableHeadCell, cs.itemCellRight, { width: CM.moneda }]}>{m}</Text>
+            ))
+          ) : (
             <>
-              {isMixta && (
-                <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS_MIXTA.mon }]}>Mon.</Text>
-              )}
               <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).precio }]}>Precio</Text>
               <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: (COLS as typeof COLS_SINGLE).subtotal }]}>Subtotal</Text>
             </>
-          )}
+          ))}
         </View>
       </View>
 
       {group.items.map(item => (
-        <ItemRow key={item.id} item={item} isMixta={isMixta} sinPrecios={sinPrecios} monedaFallback={monedaBase} />
+        <ItemRow key={item.id} item={item} isMixta={isMixta} monedas={monedas} sinPrecios={sinPrecios} monedaFallback={monedaBase} />
       ))}
 
       {Object.keys(subtotals).length > 0 && (
@@ -155,6 +171,7 @@ function SistemaCard({ group, isMixta, modulos, sinPrecios, monedaBase }: { grou
 export function PDFContratoDetail({ data }: { data: PresupuestoPDFData }) {
   const grouped = groupItems(data.presupuesto.items);
   const isMixta = data.presupuesto.moneda === 'MIXTA';
+  const monedas = monedasMixtaDe(data.presupuesto);
   // Sin precios por línea (2026-08-04): los servicios se listan sin Precio/Subtotal;
   // el número aparece solo en el total por equipo y en la portada.
   const sinPrecios = data.presupuesto.ocultarPreciosItems === true;
@@ -183,6 +200,7 @@ export function PDFContratoDetail({ data }: { data: PresupuestoPDFData }) {
               key={`${sectorGroup.sectorNombre}-${sistema.grupo}`}
               group={sistema}
               isMixta={isMixta}
+              monedas={monedas}
               modulos={sistema.sistemaId ? data.modulosBySistema?.[sistema.sistemaId] : undefined}
               sinPrecios={sinPrecios}
               monedaBase={data.presupuesto.moneda}

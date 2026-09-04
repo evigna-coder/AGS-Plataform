@@ -15,6 +15,7 @@ import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
 import { FactorHistoryButton } from './FactorHistoryButton';
 import { NotasPrecioButton } from './NotasPrecioButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
+import { totalesPorMonedaDeItems } from '@ags/shared';
 import { SubItemsRow } from './equipos/SubItemsRow';
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
@@ -132,7 +133,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const totalsByCurrency = useMemo(() => {
     const map: Record<string, number> = {};
     if (isMixta) {
-      (form.items ?? []).forEach(i => { const m = i.moneda || 'USD'; map[m] = (map[m] || 0) + (i.subtotal || 0); });
+      // Incluye la porción en cada moneda de los ítems mixtos (2026-09-04).
+      Object.assign(map, totalesPorMonedaDeItems(form.items ?? [], form.moneda));
     } else {
       // SIN impuestos (2026-09-02): las cuotas del contrato se calculan sobre el
       // neto y el PDF las imprime como "monto + IVA". Acá se usaba `total`, que
@@ -375,6 +377,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           <PresupuestoItemsTableContrato
             items={form.items}
             moneda={form.moneda}
+            monedasMixta={form.monedasMixta}
             sistemas={clienteSistemas}
             loadModulos={loadModulosBySistema}
             onAddItems={addItems}

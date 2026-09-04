@@ -6,6 +6,7 @@ import type { OrigenPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { CreatePresupuestoItems } from './CreatePresupuestoItems';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
+import { totalesPorMonedaDeItems } from '@ags/shared';
 import { modulosService } from '../../services/equiposService';
 import { SubItemsRow } from './equipos/SubItemsRow';
 import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
@@ -107,6 +108,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           <PresupuestoItemsTableContrato
             items={h.items}
             moneda={h.form.moneda}
+            monedasMixta={h.form.monedasMixta}
             sistemas={h.sistemasFiltrados}
             loadModulos={(sistemaId) => modulosService.getBySistema(sistemaId)}
             onAddItems={h.addItems}
@@ -138,7 +140,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
             cuotas={h.cuotas}
             onChange={h.setCuotas}
             totalsByCurrency={h.form.moneda === 'MIXTA'
-              ? h.items.reduce((acc, i) => { const m = i.moneda || 'USD'; acc[m] = (acc[m] || 0) + (i.subtotal || 0); return acc; }, {} as Record<string, number>)
+              ? totalesPorMonedaDeItems(h.items, h.form.moneda)
               : { [h.form.moneda]: totalItems }
             }
             moneda={h.form.moneda}

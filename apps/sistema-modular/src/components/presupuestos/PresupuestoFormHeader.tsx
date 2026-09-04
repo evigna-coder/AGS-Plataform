@@ -1,6 +1,7 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { BnaTipoCambioHint } from './BnaTipoCambioHint';
-import type { TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, CondicionPago } from '@ags/shared';
+import type { TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, CondicionPago, MonedaCuota } from '@ags/shared';
+import { MonedasMixtaPicker } from './MonedasMixtaPicker';
 import { TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
 
@@ -47,6 +48,11 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
         <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs" value={form.moneda} onChange={e => setForm(prev => ({ ...prev, moneda: e.target.value as MonedaPresupuesto }))}>
           {MONEDAS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
+        {/* Contrato mixto (2026-09-04): qué monedas entran. Cada ítem lleva una
+            porción en cada una, en la misma línea. */}
+        {form.tipo === 'contrato' && form.moneda === 'MIXTA' && (
+          <MonedasMixtaPicker value={form.monedasMixta} onChange={(v: MonedaCuota[]) => setForm(prev => ({ ...prev, monedasMixta: v }))} />
+        )}
       </div>
       <div>
         <label className={lbl}>Origen</label>

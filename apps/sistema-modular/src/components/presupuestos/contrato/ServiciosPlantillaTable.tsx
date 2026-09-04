@@ -1,24 +1,39 @@
-import type { PresupuestoItem } from '@ags/shared';
+import type { PresupuestoItem, MonedaCuota } from '@ags/shared';
+import { totalesPorMonedaDeItems } from '@ags/shared';
 
 interface Props {
   servicios: PresupuestoItem[];
   /** Cuántos equipos van a recibir esta misma lista. */
   cantidadEquipos: number;
+  /** Contrato mixto (2026-09-04): monedas en orden de columnas. Vacío = una sola moneda. */
+  monedas: MonedaCuota[];
+  monedaBase: string;
   onUpdate: (itemId: string, field: 'precioUnitario' | 'cantidad', value: number) => void;
+  onUpdatePrecioMoneda: (itemId: string, moneda: MonedaCuota, value: number) => void;
   onRemove: (itemId: string) => void;
 }
+
+const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
 
 /**
  * Servicios cargados para la tanda: se tipean UNA vez y se replican a cada
  * equipo seleccionado (2026-09-02). El subtotal mostrado ya contempla la
  * replicación, para que no sorprenda el total del contrato al confirmar.
+ *
+ * En un contrato MIXTO (2026-09-04) cada servicio lleva un precio por moneda
+ * en la misma línea; el subtotal se informa por moneda.
  */
-export function ServiciosPlantillaTable({ servicios, cantidadEquipos, onUpdate, onRemove }: Props) {
+export function ServiciosPlantillaTable({ servicios, cantidadEquipos, monedas, monedaBase, onUpdate, onUpdatePrecioMoneda, onRemove }: Props) {
   if (servicios.length === 0) return null;
-
-  const porEquipo = servicios.reduce((s, i) => s + (i.subtotal || 0), 0);
-  const total = porEquipo * Math.max(cantidadEquipos, 1);
+  const mixto = monedas.length > 0;
   const replica = cantidadEquipos > 1;
+  const n = Math.max(cantidadEquipos, 1);
+  const porEquipo = totalesPorMonedaDeItems(servicios, monedaBase);
+  const resumen = Object.entries(porEquipo).map(([m, t]) => `${mixto || m !== monedaBase ? `${m} ` : ''}${fmt(t * n)}`).join(' · ') || fmt(0);
+  const cEquipo = Object.entries(porEquipo).map(([m, t]) => `${mixto ? `${m} ` : ''}${fmt(t)}`).join(' · ');
+
+  const precioEn = (item: PresupuestoItem, m: MonedaCuota) =>
+    item.montosPorMoneda ? (item.montosPorMoneda[m] ?? 0) : ((item.moneda || monedas[0]) === m ? (item.precioUnitario || 0) : 0);
 
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -27,15 +42,21 @@ export function ServiciosPlantillaTable({ servicios, cantidadEquipos, onUpdate, 
           Servicios · {servicios.length}{replica ? ` × ${cantidadEquipos} equipos` : ''}
         </span>
         <span className="text-[10px] font-mono text-teal-700 font-semibold">
-          {replica && (
-            <span className="font-normal text-teal-600 mr-2">
-              {porEquipo.toLocaleString('es-AR', { minimumFractionDigits: 2 })} c/equipo
-            </span>
-          )}
-          Subtotal {total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+          {replica && <span className="font-normal text-teal-600 mr-2">{cEquipo} c/equipo</span>}
+          Subtotal {resumen}
         </span>
       </div>
       <table className="w-full text-xs">
+        {mixto && (
+          <thead>
+            <tr className="text-[9px] font-mono uppercase tracking-wider text-slate-400">
+              <th colSpan={3} />
+              <th className="px-2 py-1 text-right">Cant.</th>
+              {monedas.map(m => <th key={m} className="px-2 py-1 text-right">Precio {m}</th>)}
+              <th />
+            </tr>
+          </thead>
+        )}
         <tbody>
           {servicios.map((item, i) => (
             <tr key={item.id} className="border-t border-slate-100 first:border-0">
@@ -47,12 +68,21 @@ export function ServiciosPlantillaTable({ servicios, cantidadEquipos, onUpdate, 
                   onChange={e => onUpdate(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
                   className="w-14 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
               </td>
-              <td className="px-2 py-1 w-24">
-                <input type="number" min="0" step="any" value={item.precioUnitario || ''}
-                  onChange={e => onUpdate(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                  className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
-              </td>
+              {mixto ? monedas.map(m => (
+                <td key={m} className="px-2 py-1 w-24">
+                  <input type="number" min="0" step="any" value={precioEn(item, m) || ''}
+                    onChange={e => onUpdatePrecioMoneda(item.id, m, parseFloat(e.target.value) || 0)}
+                    placeholder={`0.00 ${m}`} title={`Porción en ${m}`}
+                    className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
+                </td>
+              )) : (
+                <td className="px-2 py-1 w-24">
+                  <input type="number" min="0" step="any" value={item.precioUnitario || ''}
+                    onChange={e => onUpdate(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="w-20 border border-slate-200 rounded px-1 py-0.5 text-xs text-right" />
+                </td>
+              )}
               <td className="px-2 py-1 w-8 text-center">
                 <button onClick={() => onRemove(item.id)}
                   className="text-red-400 hover:text-red-600 text-sm leading-none" title="Quitar">×</button>
