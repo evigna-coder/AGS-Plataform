@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { asignacionesService } from '../../services/firebaseService';
 import type { ItemAsignacion } from '@ags/shared';
 
@@ -32,8 +32,7 @@ export function InventarioIngenieroInline({ ingenieroId }: { ingenieroId: string
     return <p className="text-[10px] text-slate-400 italic px-1 py-1.5">No tiene materiales asignados.</p>;
   }
 
-  const codigo = (i: ItemAsignacion) =>
-    i.articuloCodigo || i.minikitCodigo || i.loanerCodigo || i.vehiculoPatente || '';
+  const codigo = (i: ItemAsignacion) => codigoItemAsignacion(i);
   const etiqueta = (i: ItemAsignacion) =>
     descripcionItemAsignacion(i, i.tipo);
   const restante = (i: ItemAsignacion) => i.cantidad - i.cantidadDevuelta - i.cantidadConsumida;

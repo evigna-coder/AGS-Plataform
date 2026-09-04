@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const InventarioItemRow = ({ item, serie, saving, selected, onToggleSelect, onDevolver, onConsumir, onReasignarCliente, onTransferir }: Props) => {
-  const codigo = item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
+  const codigo = codigoItemAsignacion(item);
   const desc = descripcionItemAsignacion(item);
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
   const canAct = remaining > 0;

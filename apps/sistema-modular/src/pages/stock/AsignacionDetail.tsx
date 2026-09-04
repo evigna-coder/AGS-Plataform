@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import {
   cargarSeriesDeItems, serieDeItemAsignacion, type SeriesPorUnidad,
 } from '../../utils/asignacionSeries';
@@ -167,7 +167,7 @@ const ItemRow = ({ item, serie, onDevolver, onConsumir, saving }: {
   onConsumir?: (item: ItemAsignacion) => void;
   saving: boolean;
 }) => {
-  const codigo = item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
+  const codigo = codigoItemAsignacion(item);
   const desc = descripcionItemAsignacion(item);
   const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
   const canAct = item.estado === 'asignado' && remaining > 0;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { seriesDesdeUnidades, serieDeItemAsignacion } from '../../utils/asignacionSeries';
 import { InventarioItemRow } from '../../pages/stock/InventarioItemRow';
 import { Modal } from '../ui/Modal';
@@ -177,7 +177,7 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
 // ── Helpers ──
 
 function getItemCodigo(item: InventarioItem): string {
-  return item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
+  return codigoItemAsignacion(item);
 }
 function getItemDesc(item: InventarioItem): string {
   return descripcionItemAsignacion(item);

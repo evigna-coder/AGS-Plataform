@@ -2,8 +2,8 @@ import type { ItemAsignacion } from '@ags/shared';
 
 /** Campos que puede traer un item asignado, según el tipo de entidad. */
 type ItemLike = Partial<Pick<ItemAsignacion,
-  | 'articuloDescripcion' | 'instrumentoNombre' | 'instrumentoDetalle' | 'dispositivoDescripcion'
-  | 'minikitCodigo' | 'loanerCodigo' | 'vehiculoPatente'
+  | 'articuloCodigo' | 'articuloDescripcion' | 'instrumentoNombre' | 'instrumentoDetalle' | 'dispositivoDescripcion'
+  | 'dispositivoSerie' | 'minikitCodigo' | 'loanerCodigo' | 'vehiculoPatente'
   | 'patronDescripcion' | 'patronCodigo' | 'patronLote'
   | 'columnaDescripcion' | 'columnaCodigo' | 'columnaSerie' | 'tipo'
 >>;
@@ -40,4 +40,26 @@ export function descripcionItemAsignacion(item: ItemLike, fallback = ''): string
     || item.loanerCodigo
     || item.vehiculoPatente
     || fallback;
+}
+
+/**
+ * Código visible de un item asignado (2026-09-04).
+ *
+ * Estaba repetido en siete pantallas y ninguna incluía a los INSTRUMENTOS: el
+ * inventario mostraba "Fluke 52 II Thermometer" sin el FLU-05 que lo
+ * identifica en el taller. `instrumentoNombre` ES el código interno (TER-07,
+ * FLU-03); la marca/modelo va en `instrumentoDetalle` y sale por
+ * `descripcionItemAsignacion`. Mismo criterio para patrones, columnas y la
+ * serie del dispositivo.
+ */
+export function codigoItemAsignacion(item: ItemLike): string {
+  return item.articuloCodigo
+    || item.minikitCodigo
+    || item.loanerCodigo
+    || item.vehiculoPatente
+    || item.instrumentoNombre
+    || item.patronCodigo
+    || item.columnaCodigo
+    || item.dispositivoSerie
+    || '';
 }

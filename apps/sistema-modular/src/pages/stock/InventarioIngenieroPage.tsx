@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { codigoItemAsignacion, descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -214,7 +215,7 @@ export const InventarioIngenieroPage = () => {
       {/* Action Modal */}
       <Modal open={!!actionModal} onClose={() => { setActionModal(null); setActionValue(''); }}
         title={actionModal?.action === 'cliente' ? 'Reasignar cliente' : 'Transferir a IST'}
-        subtitle={actionModal ? `${actionModal.item.articuloCodigo ?? actionModal.item.minikitCodigo ?? ''} — ${actionModal.item.articuloDescripcion ?? actionModal.item.instrumentoNombre ?? ''}` : ''}
+        subtitle={actionModal ? `${codigoItemAsignacion(actionModal.item)} — ${descripcionItemAsignacion(actionModal.item)}` : ''}
         maxWidth="sm"
         footer={
           <div className="flex justify-end gap-2">

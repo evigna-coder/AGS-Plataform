@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { descripcionItemAsignacion } from '../../utils/itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -314,7 +314,7 @@ function itemKey(item: InventarioItem): string {
 }
 
 function getItemCodigo(item: InventarioItem): string {
-  return item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
+  return codigoItemAsignacion(item);
 }
 
 function getItemDesc(item: InventarioItem): string {
