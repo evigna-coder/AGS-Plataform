@@ -76,7 +76,9 @@ async function conMarcaInterior(data: NuevaEntrada): Promise<NuevaEntrada> {
 
 export function useAgenda(): UseAgendaReturn {
   const [anchor, setAnchor] = useState<Date>(() => getMonday(new Date()));
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('2weeks');
+  // 'mes' por defecto (2026-09-03, pedido de coordinación): Planificación muestra
+  // el mes en curso completo, con las semanas ya pasadas. Ver getVisibleRange.
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('mes');
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [notas, setNotas] = useState<AgendaNota[]>([]);

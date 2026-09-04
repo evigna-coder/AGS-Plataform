@@ -38,6 +38,8 @@ interface AgendaWeekBlockProps {
 const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> = {
   week: { eng: '140px', cell: '24px', row: '26px' },
   '2weeks': { eng: '120px', cell: '14px', row: '22px' },
+  // 'mes' = mes en curso de Planificacion (2026-09-03): misma densidad que 4 semanas.
+  mes: { eng: '120px', cell: '14px', row: '22px' },
   month: { eng: '80px', cell: '16px', row: '16px' },
   '2months': { eng: '60px', cell: '3px', row: '10px' },
   year: { eng: '50px', cell: '2px', row: '6px' },
@@ -51,8 +53,9 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
   const columns = useMemo(() => buildWeekdayColumns(weekDays), [weekDays]);
   const sizes = ZOOM_SIZES[zoom];
   const rowHeight = rowHeightPx ? `${rowHeightPx}px` : sizes.row;
-  const showText = zoom === 'week' || zoom === '2weeks';
-  const compact = zoom !== 'week' && zoom !== '2weeks';
+  // 'mes' (2026-09-03) es la vista de Planificacion: misma lectura que las 4 semanas.
+  const showText = zoom === 'week' || zoom === '2weeks' || zoom === 'mes';
+  const compact = !showText;
 
   const gridTemplate = compact
     ? `${sizes.eng} repeat(${columns.length}, ${sizes.cell})`

@@ -56,6 +56,12 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
     // + bordes, medidos sobre el layout actual.
     if (zoom === 'week') return clamp(Math.floor((availH - 74) / nIng), 16, 26);
     if (zoom === '2weeks') return clamp(Math.floor((availH - 128) / (nIng * 2)), 12, 22);
+    if (zoom === 'mes') {
+      // Mes calendario (2026-09-03): 5 o 6 semanas apiladas. Mismo overhead por
+      // semana que el bloque de 4; si no entra, la grilla scrollea.
+      const n = Math.max(1, weeks.length);
+      return clamp(Math.floor((availH - 32 * n) / (nIng * n)), 10, 22);
+    }
     if (zoom === 'month') {
       const rows = Math.max(1, groupWeeksByMonth(weeks).length);
       return clamp(Math.floor((availH - 16 - rows * 36) / (nIng * rows)), 8, 16);
@@ -116,7 +122,8 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
       onCellClick, onEntryClick, onWeekClick, onCellContextMenu, onCellDoubleClick, feriados, onToggleFeriado, notas, diasAgs, rowHeightPx]);
 
   // ── Views 1 & 2 (1S, 2S): vertical stack ──
-  if (zoom === 'week' || zoom === '2weeks') {
+  // 'mes' (2026-09-03): mes calendario apilado semana a semana, como las 4 semanas.
+  if (zoom === 'week' || zoom === '2weeks' || zoom === 'mes') {
     return (
       <div ref={setGridEl} className="h-full overflow-y-auto p-2 flex flex-col gap-2">
         {weeks.map(w => wb(w))}

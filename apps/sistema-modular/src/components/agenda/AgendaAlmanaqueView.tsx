@@ -2,6 +2,7 @@ import { type FC, useMemo } from 'react';
 import type { AgendaEntry, Ingeniero } from '@ags/shared';
 import { addDays } from 'date-fns';
 import { formatDateKey, groupDaysByWeek, formatWeekRange, getMonday } from '../../utils/agendaDateUtils';
+import { FlechasLaterales } from './AgendaFlechasLaterales';
 import { AgendaAlmanaqueCard } from './AgendaAlmanaqueCard';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
@@ -10,6 +11,9 @@ const COL_INGENIERO = '110px';
 const GRID_COLS = `${COL_INGENIERO} repeat(5, minmax(140px, 1fr))`;
 
 interface Props {
+  /** Flechas laterales para moverse de período (2026-09-03). Discretas: aparecen al pasar el mouse. */
+  onPrev?: () => void;
+  onNext?: () => void;
   /** Días del rango navegado — el mismo que pinta la grilla de planificación. */
   visibleDays: Date[];
   entries: AgendaEntry[];
@@ -53,7 +57,7 @@ function indexarPorIngenieroYDia(entries: AgendaEntry[]): Map<string, Map<string
  * Se pinta sobre las mismas entradas que ya trae `useAgenda`: comparte rango con
  * la grilla y no dispara ninguna lectura nueva.
  */
-export const AgendaAlmanaqueView: FC<Props> = ({ visibleDays, entries, ingenieros, ingenieroId }) => {
+export const AgendaAlmanaqueView: FC<Props> = ({ visibleDays, entries, ingenieros, ingenieroId, onPrev, onNext }) => {
   const filtradas = useMemo(
     () => (ingenieroId ? entries.filter(e => e.ingenieroId === ingenieroId) : entries),
     [entries, ingenieroId],
@@ -81,15 +85,20 @@ export const AgendaAlmanaqueView: FC<Props> = ({ visibleDays, entries, ingeniero
     }))
     .filter(({ dias }) => filas.some(ing => dias.some(({ dk }) => idx.get(ing.id)?.has(dk))));
 
+  const flechas = <FlechasLaterales onPrev={onPrev} onNext={onNext} />;
+
   if (semanasConDatos.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="group relative h-full flex items-center justify-center">
+        {flechas}
         <p className="text-sm text-slate-400">No hay nada agendado en este rango.</p>
       </div>
     );
   }
 
   return (
+    <div className="group relative h-full">
+    {flechas}
     <div className="h-full overflow-y-auto px-4 py-3 space-y-5">
       {semanasConDatos.map(({ weekStart, dias }) => {
         const esSemanaActual = formatDateKey(weekStart) === lunesDeHoy;
@@ -144,6 +153,7 @@ export const AgendaAlmanaqueView: FC<Props> = ({ visibleDays, entries, ingeniero
           </div>
         );
       })}
+    </div>
     </div>
   );
 };

@@ -6440,7 +6440,9 @@ export interface AgendaNota {
   updatedByName?: string | null;
 }
 
-export type ZoomLevel = 'week' | '2weeks' | 'month' | '2months' | 'year';
+/** `'mes'` (2026-09-03) = mes calendario real, para el almanaque de coordinación.
+ *  `'month'` NO es un mes: la grilla lo usa como "año con drill-down por semana". */
+export type ZoomLevel = 'week' | '2weeks' | 'mes' | 'month' | '2months' | 'year';
 
 // =============================================
 // --- Previsiones de agenda (recurrencia anual regulatoria) ---

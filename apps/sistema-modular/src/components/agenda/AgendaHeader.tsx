@@ -18,6 +18,8 @@ interface AgendaHeaderProps {
   /** Vista activa + filtro por ingeniero (2026-08-14). */
   vista: AgendaVista;
   onVistaChange: (v: AgendaVista) => void;
+  /** Alcance del almanaque: 4 semanas o el mes calendario (2026-09-03). */
+  onZoomChange?: (z: ZoomLevel) => void;
   ingenieros: Ingeniero[];
   ingenieroId: string;
   onIngenieroChange: (id: string) => void;
@@ -70,6 +72,7 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
   onSearch,
   onPickDate,
   vista,
+  onZoomChange,
   onVistaChange,
   ingenieros,
   ingenieroId,
@@ -163,6 +166,25 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
           <option value="">Todos los ingenieros</option>
           {ingenieros.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
         </select>
+      )}
+
+      {/* Alcance del almanaque (2026-09-03): 4 semanas desde la actual, o el
+          mes en curso. Planificacion va siempre en el mes. */}
+      {vista === 'almanaque' && onZoomChange && (
+        <div className="shrink-0 flex items-center rounded-md border border-slate-200 overflow-hidden">
+          {([['2weeks', 'Semanas'], ['mes', 'Mes']] as const).map(([z, label]) => (
+            <button
+              key={z}
+              onClick={() => onZoomChange(z)}
+              className={`px-2 py-1 text-[11px] font-medium transition-colors ${
+                zoomLevel === z ? 'bg-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+              }`}
+              title={z === 'mes' ? 'Mes calendario completo, incluidos los servicios ya realizados' : 'Las próximas 4 semanas'}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Vista: planificar vs leer */}

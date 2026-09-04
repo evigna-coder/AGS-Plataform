@@ -1,20 +1,4 @@
-import {
-  startOfWeek,
-  endOfWeek,
-  addWeeks,
-  subWeeks,
-  addDays,
-  startOfMonth,
-  endOfMonth,
-  format,
-  eachDayOfInterval,
-  isToday,
-  isWeekend,
-  isSameDay,
-  parseISO,
-  getDay,
-  getISOWeek,
-} from 'date-fns';
+import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, startOfMonth, endOfMonth, format, eachDayOfInterval, isToday, isWeekend, isSameDay, parseISO, getDay, getISOWeek, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ZoomLevel, AgendaEntry } from '@ags/shared';
 
@@ -63,6 +47,26 @@ export function formatWeekRange(weekStart: Date): string {
 }
 
 /** Visible date range based on zoom level. */
+/** Día que define el MES de una semana: su jueves (ISO 8601). */
+function mesDeReferencia(anchor: Date): Date {
+  return addDays(getMonday(anchor), 3);
+}
+
+/**
+ * Lunes de la primera y de la ultima semana ISO de un mes: las semanas cuyo
+ * jueves cae adentro. 31 ago-6 sep es la primera de septiembre; 28 sep-4 oct
+ * ya es octubre. Octubre 2026 tiene 5 (S40-S44), septiembre 4.
+ */
+function semanasDelMes(mes: Date): [Date, Date] {
+  const ini = startOfMonth(mes);
+  const fin = endOfMonth(mes);
+  let primera = getMonday(ini);
+  if (addDays(primera, 3) < ini) primera = addWeeks(primera, 1);
+  let ultima = getMonday(fin);
+  if (addDays(ultima, 3) > fin) ultima = subWeeks(ultima, 1);
+  return [primera, ultima];
+}
+
 export function getVisibleRange(anchor: Date, zoom: ZoomLevel): [Date, Date] {
   const monday = getMonday(anchor);
   switch (zoom) {
@@ -71,6 +75,14 @@ export function getVisibleRange(anchor: Date, zoom: ZoomLevel): [Date, Date] {
     case '2weeks':
       // Show 4 weeks to fill screen
       return [monday, endOfWeek(addWeeks(monday, 3), { weekStartsOn: 1 })];
+    case 'mes': {
+      // El mes en curso, semana por semana, incluidas las ya pasadas
+      // (2026-09-03, pedido de coordinación). Una semana pertenece al mes de
+      // su JUEVES (ISO 8601): 31 ago–6 sep es la primera de septiembre, y
+      // 28 sep–4 oct ya es octubre. Nada de otro mes se cuela.
+      const [primera, ultima] = semanasDelMes(mesDeReferencia(anchor));
+      return [primera, endOfWeek(ultima, { weekStartsOn: 1 })];
+    }
     case 'month': {
       // Show full year
       const y = anchor.getFullYear();
@@ -281,6 +293,9 @@ export function navigatePrev(anchor: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
     case 'week': return subWeeks(anchor, 1);
     case '2weeks': return subWeeks(anchor, 4);
+    // Primer lunes ISO del mes destino: con startOfMonth (p.ej. domingo 1/2)
+    // el ancla caia en la ultima semana del mes anterior y no avanzaba nunca.
+    case 'mes': return semanasDelMes(subMonths(mesDeReferencia(anchor), 1))[0];
     case 'month': return new Date(anchor.getFullYear() - 1, 0, 1);
     case '2months': return startOfMonth(subWeeks(anchor, 12));
     case 'year': return new Date(anchor.getFullYear() - 1, 0, 1);
@@ -292,6 +307,7 @@ export function navigateNext(anchor: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
     case 'week': return addWeeks(anchor, 1);
     case '2weeks': return addWeeks(anchor, 4);
+    case 'mes': return semanasDelMes(addMonths(mesDeReferencia(anchor), 1))[0];
     case 'month': return new Date(anchor.getFullYear() + 1, 0, 1);
     case '2months': return startOfMonth(addWeeks(anchor, 13));
     case 'year': return new Date(anchor.getFullYear() + 1, 0, 1);
@@ -358,6 +374,10 @@ export function isCellInRange(
 /** Format range label for display. */
 export function formatRangeLabel(anchor: Date, zoom: ZoomLevel): string {
   if (zoom === 'year' || zoom === 'month') return `${anchor.getFullYear()}`;
+  if (zoom === 'mes') {
+    const l = format(mesDeReferencia(anchor), 'MMMM yyyy', { locale: es });
+    return l.charAt(0).toUpperCase() + l.slice(1);
+  }
   const [rangeStart, rangeEnd] = getVisibleRange(anchor, zoom);
   if (zoom === 'week') return formatWeekRange(anchor);
   return `${format(rangeStart, 'd MMM', { locale: es })} - ${format(rangeEnd, 'd MMM yyyy', { locale: es })}`;
