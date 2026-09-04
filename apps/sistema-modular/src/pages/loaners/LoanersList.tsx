@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -103,12 +103,14 @@ export function LoanersList() {
     // serie, estado, cliente del préstamo activo y proveedor de la derivación.
     if (filters.search.trim()) {
       result = result.filter(l => {
-        const prestamo = l.prestamos.find(p => p.estado === 'activo');
+        const prestamo = prestamoModuloActivo(l);
+        const partes = prestamosDeParteActivos(l);
         return matchesSearch(filters.search,
           l.codigo, l.descripcion, l.categoriaEquipo, l.categoriaModuloNombre,
           l.moduloCodigo, l.moduloDescripcion, l.serie,
           ESTADO_LOANER_LABELS[l.estado],
           prestamo?.clienteNombre,
+          ...partes.map(p => `${p.clienteNombre} ${p.parte?.descripcion ?? ''}`),
           l.enProveedor?.proveedorNombre, l.enProveedor?.remitoNumero,
         );
       });
@@ -122,7 +124,7 @@ export function LoanersList() {
     setLoaners(prev => prev.filter(l => l.id !== id));
   };
 
-  const getPrestamoActivo = (l: Loaner) => l.prestamos.find(p => p.estado === 'activo');
+  const getPrestamoActivo = (l: Loaner) => prestamoModuloActivo(l);
 
   const isInitialLoad = loading && loaners.length === 0;
 
@@ -237,10 +239,16 @@ export function LoanersList() {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(l => {
                   const prestamo = getPrestamoActivo(l);
+                  // Parte prestada (2026-09-04): el módulo está en base pero una
+                  // parte suya está en un cliente. Se muestra y cuenta días como
+                  // un préstamo, sin cambiar el estado.
+                  const partes = prestamosDeParteActivos(l);
+                  const parteAfuera = partes[0];
                   // Semáforo de días SIEMPRE visible (2026-08-27, mismo espíritu
                   // que tickets): préstamo ≤14 verde / 15-25 naranja / >25 rojo;
                   // proveedor ≤10 verde / 11-20 naranja / >20 rojo.
-                  const diasFuera = prestamo ? diasDesde(prestamo.fechaSalida) : null;
+                  const diasFuera = prestamo ? diasDesde(prestamo.fechaSalida)
+                    : parteAfuera ? diasDesde(parteAfuera.fechaSalida) : null;
                   const diasProveedor = l.enProveedor ? diasDesde(l.enProveedor.fechaEnvio) : null;
 
                   return (
@@ -258,7 +266,7 @@ export function LoanersList() {
                           {ESTADO_LOANER_LABELS[l.estado]}
                         </span>
                         {diasFuera != null && (
-                          <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(diasFuera)}`} title={`${diasFuera} día(s) en cliente`}>
+                          <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(diasFuera)}`} title={`${diasFuera} día(s) ${prestamo ? 'en cliente' : 'con la parte en cliente'}`}>
                             {diasFuera}d
                           </span>
                         )}
@@ -277,12 +285,18 @@ export function LoanersList() {
                         )}
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(7)}`}
-                        title={l.enProveedor ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · Remito ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ` — parte: ${l.enProveedor.parteDescripcion ?? ''}` : ''}` : undefined}>
+                        title={l.enProveedor
+                          ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · Remito ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ` — parte: ${l.enProveedor.parteDescripcion ?? ''}` : ''}`
+                          : !prestamo && partes.length > 0
+                            ? partes.map(p => `${p.parte?.descripcion ?? 'Parte'} en ${p.clienteNombre}${p.remitoSalidaNumero ? ` · Remito ${p.remitoSalidaNumero}` : ''}`).join('\n')
+                            : undefined}>
                         {/* En proveedor (2026-08-12): muestra QUIÉN lo tiene y el remito;
                             si viajó solo una parte, el módulo sigue en base y se aclara. */}
                         {l.enProveedor
                           ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ' (parte)' : ''}`
-                          : prestamo ? `${prestamo.clienteNombre}${sufijoEstab(prestamo.clienteId, prestamo.establecimientoId)}` : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
+                          : prestamo ? `${prestamo.clienteNombre}${sufijoEstab(prestamo.clienteId, prestamo.establecimientoId)}`
+                          : parteAfuera ? `AGS Base · parte en ${parteAfuera.clienteNombre}${partes.length > 1 ? ` (+${partes.length - 1})` : ''}`
+                          : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">

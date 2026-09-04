@@ -45,6 +45,10 @@
     "test:control-antiguedad": "tsx src/utils/__tests__/controlSemanalAntiguedad.test.ts",
     "test:agenda-revert-ot": "tsx src/utils/__tests__/agendaRevertOT.test.ts",
     "test:agenda-undo": "tsx src/utils/__tests__/agendaUndo.test.ts",
+    "test:permisos-modulos": "tsx src/utils/__tests__/permisosModulos.test.ts",
+    "test:certificacion-lote": "tsx src/utils/__tests__/certificacionLote.test.ts",
+    "test:entregas-por-oc": "tsx src/utils/__tests__/entregasPorOC.test.ts",
+    "test:montos-mixta": "tsx src/utils/__tests__/montosMixta.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"

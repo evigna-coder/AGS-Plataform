@@ -324,3 +324,88 @@ export function unidadCuentaComoDisponible(u: {
 export function normalizarSerie(serie?: string | null): string {
   return (serie ?? '').replace(/[\s-]+/g, '').toUpperCase();
 }
+
+// --- Montos por moneda de un ítem (contrato MIXTO, 2026-09-04) ---
+
+export type MonedaConcreta = 'USD' | 'ARS' | 'EUR';
+
+export interface MontoItemMoneda {
+  moneda: MonedaConcreta;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+type ItemConMontos = {
+  cantidad?: number | null;
+  precioUnitario?: number | null;
+  subtotal?: number | null;
+  descuento?: number | null;
+  moneda?: string | null;
+  montosPorMoneda?: Partial<Record<string, number>> | null;
+  esSinCargo?: boolean | null;
+};
+
+/** Monedas que declara un contrato mixto; default pesos y dólares, en ese orden. */
+export function monedasMixtaDe(p: { moneda?: string | null; monedasMixta?: MonedaConcreta[] | null }): MonedaConcreta[] {
+  if (p.moneda !== 'MIXTA') return p.moneda ? [p.moneda as MonedaConcreta] : ['USD'];
+  return p.monedasMixta?.length ? p.monedasMixta : ['ARS', 'USD'];
+}
+
+/**
+ * Lo que un ítem cobra, moneda por moneda. ÚNICA fuente para sumar por
+ * moneda (editor, PDF, cuotas, analítica): antes cada pantalla repetía
+ * `item.moneda || 'USD'` y ninguna sabía de la porción en la otra moneda.
+ *
+ * - `montosPorMoneda` (contrato mixto): una entrada por moneda con precio,
+ *   subtotal = cantidad × precio (menos descuento).
+ * - Sin él: la moneda del ítem o la del presupuesto; el subtotal guardado.
+ * - S/L: nada.
+ */
+export function montosDeItem(item: ItemConMontos, monedaBase?: string | null): MontoItemMoneda[] {
+  if (item.esSinCargo) return [];
+  const cantidad = item.cantidad ?? 0;
+  const factorDesc = item.descuento ? 1 - item.descuento / 100 : 1;
+  const entradas = Object.entries(item.montosPorMoneda ?? {})
+    .filter(([, precio]) => typeof precio === 'number' && precio !== 0) as [MonedaConcreta, number][];
+  if (entradas.length > 0) {
+    return entradas.map(([moneda, precioUnitario]) => ({
+      moneda, precioUnitario, subtotal: cantidad * precioUnitario * factorDesc,
+    }));
+  }
+  const moneda = (item.moneda || (monedaBase && monedaBase !== 'MIXTA' ? monedaBase : 'USD')) as MonedaConcreta;
+  const precioUnitario = item.precioUnitario ?? 0;
+  const subtotal = item.subtotal ?? cantidad * precioUnitario * factorDesc;
+  return [{ moneda, precioUnitario, subtotal }];
+}
+
+/** Suma de subtotales por moneda de una lista de ítems. */
+export function totalesPorMonedaDeItems(items: ItemConMontos[], monedaBase?: string | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const it of items) {
+    for (const m of montosDeItem(it, monedaBase)) out[m.moneda] = (out[m.moneda] ?? 0) + m.subtotal;
+  }
+  return out;
+}
+
+/** Monedas que aparecen en los ítems (para cuotas/esquema de un MIXTA). */
+export function monedasDeItems(items: ItemConMontos[], monedaBase?: string | null): MonedaConcreta[] {
+  const set = new Set<MonedaConcreta>();
+  for (const it of items) for (const m of montosDeItem(it, monedaBase)) set.add(m.moneda);
+  return [...set];
+}
+
+/**
+ * Campos de un solo valor (`moneda`, `precioUnitario`, `subtotal`) que espejan
+ * la moneda PRINCIPAL de un ítem con `montosPorMoneda`: la primera del orden
+ * del contrato que tenga precio. Así todo lo que lee un solo número (entregas,
+ * facturación por ítem, listados) sigue viendo algo coherente.
+ */
+export function espejoMonedaPrincipal(
+  item: ItemConMontos,
+  orden: MonedaConcreta[],
+): { moneda: MonedaConcreta; precioUnitario: number; subtotal: number } {
+  const montos = montosDeItem(item, orden[0]);
+  const principal = orden.map(m => montos.find(x => x.moneda === m)).find(Boolean) ?? montos[0];
+  if (!principal) return { moneda: orden[0] ?? 'USD', precioUnitario: 0, subtotal: 0 };
+  return { moneda: principal.moneda, precioUnitario: principal.precioUnitario, subtotal: principal.subtotal };
+}

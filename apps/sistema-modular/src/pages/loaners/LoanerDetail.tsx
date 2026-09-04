@@ -17,7 +17,8 @@ import type { IngresoStockExtraccion } from '../../components/loaners/LoanerExtr
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
 import { LoanerRetornoProveedorButton } from '../../components/loaners/LoanerRetornoProveedorButton';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
-import { iniciarRecalificacion, liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
+import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
+import { useLoanerPrestamos } from '../../hooks/useLoanerPrestamos';
 import type { Loaner, VentaLoaner } from '@ags/shared';
 import { loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -57,7 +58,12 @@ export function LoanerDetail() {
     return () => unsub();
   }, [id, navigate]);
 
-  const prestamoActivo = loaner?.prestamos.find(p => p.estado === 'activo');
+  // Préstamo del MÓDULO entero; las partes prestadas se manejan por fila del
+  // historial (2026-09-04) y no mueven el estado del loaner.
+  const {
+    prestamoActivo, retornoParte, setRetornoParte,
+    registrarPrestamo, registrarDevolucion, registrarRetornoParte,
+  } = useLoanerPrestamos(loaner);
 
   // Sweep de recalificación en dos fases (mismo orden que LoanersList): si
   // este loaner quedó 'en_recalificacion' sin OT (devolución desde el portal),
@@ -76,57 +82,6 @@ export function LoanerDetail() {
         console.warn('[LoanerDetail] sweep de recalificación falló:', err));
     })();
   }, [loaner]);
-
-  const handlePrestamo = async (data: {
-    clienteId: string; clienteNombre: string;
-    establecimientoId: string | null; establecimientoNombre: string | null;
-    otNumber: string | null; fechaRetornoPrevista: string | null;
-    remitoSalidaId: string | null; remitoSalidaNumero: string | null;
-    fotos: File[];
-  }) => {
-    if (!loaner) return;
-    const { fotos, ...prestamo } = data;
-    const prestamoId = await loanersService.registrarPrestamo(loaner.id, {
-      ...prestamo,
-      fechaSalida: new Date().toISOString(),
-      estado: 'activo',
-    });
-    // Fotos de salida (best-effort — el préstamo ya quedó registrado)
-    for (const file of fotos) {
-      await loanersService.agregarFoto(loaner.id, file, {
-        nombre: file.name, contexto: 'prestamo', prestamoId,
-      }).catch(err => console.warn('[LoanerDetail] foto de salida falló:', err));
-    }
-    // subscription auto-refreshes
-  };
-
-  const handleDevolucion = async (data: {
-    fechaRetornoReal: string; condicionRetorno: string;
-    requiereRecalificacion: boolean; fotos: File[];
-  }) => {
-    if (!loaner || !prestamoActivo) return;
-    const { fotos, ...devolucion } = data;
-    await loanersService.registrarDevolucion(loaner.id, prestamoActivo.id, devolucion);
-    // Fotos del retorno (best-effort — la devolución ya quedó registrada)
-    for (const file of fotos) {
-      await loanersService.agregarFoto(loaner.id, file, {
-        nombre: file.name, contexto: 'devolucion', prestamoId: prestamoActivo.id,
-      }).catch(err => console.warn('[LoanerDetail] foto de retorno falló:', err));
-    }
-    // Ciclo de recalificación: OT interna + ticket. Best-effort — nunca rompe la devolución.
-    if (data.requiereRecalificacion) {
-      const { otNumber, ticketId, yaEnCurso } = await iniciarRecalificacion(loaner, prestamoActivo);
-      if (otNumber) {
-        alert(`Devolución registrada. Se creó la OT de recalificación ${otNumber}${ticketId ? ' y el ticket de coordinación' : ''}. El loaner queda "En recalificación" hasta el cierre técnico.`);
-      } else if (yaEnCurso) {
-        // Otra pantalla/sesión ya la está creando: avisar sin alarmar y sin duplicar.
-        alert('Devolución registrada. La OT de recalificación ya estaba en curso — revisá el detalle del loaner en unos segundos.');
-      } else {
-        alert('Devolución registrada, pero la OT de recalificación no se pudo crear automáticamente. Revisá el ticket generado o creala a mano.');
-      }
-    }
-    // subscription auto-refreshes
-  };
 
   const handleExtraccion = async (
     data: {
@@ -253,7 +208,7 @@ export function LoanerDetail() {
             <LoanerFotosSection loaner={loaner} />
           </div>
           <div className="flex-1 space-y-4">
-            <LoanerPrestamosSection prestamos={loaner.prestamos} />
+            <LoanerPrestamosSection prestamos={loaner.prestamos} onRetornoParte={setRetornoParte} />
             <LoanerDerivacionesSection derivaciones={loaner.derivaciones ?? []} />
             <LoanerOTsSection otIds={loaner.otIds ?? []} />
             <LoanerExtraccionesSection extracciones={loaner.extracciones} onReponer={handleReponer} />
@@ -263,13 +218,18 @@ export function LoanerDetail() {
       </div>
 
       {/* Modals */}
-      <LoanerPrestamoModal open={prestamoOpen} onClose={() => setPrestamoOpen(false)} loaner={loaner} onConfirm={handlePrestamo} />
+      <LoanerPrestamoModal open={prestamoOpen} onClose={() => setPrestamoOpen(false)} loaner={loaner} onConfirm={registrarPrestamo} />
       {prestamoActivo && (
         <LoanerVincularModal open={vincularOpen} onClose={() => setVincularOpen(false)}
           loaner={loaner} prestamo={prestamoActivo} onLinked={() => { /* subscription refresh */ }} />
       )}
       {prestamoActivo && (
-        <LoanerDevolucionModal open={devolucionOpen} onClose={() => setDevolucionOpen(false)} clienteNombre={prestamoActivo.clienteNombre} onConfirm={handleDevolucion} />
+        <LoanerDevolucionModal open={devolucionOpen} onClose={() => setDevolucionOpen(false)} clienteNombre={prestamoActivo.clienteNombre} onConfirm={registrarDevolucion} />
+      )}
+      {retornoParte && (
+        <LoanerDevolucionModal open onClose={() => setRetornoParte(null)}
+          clienteNombre={retornoParte.clienteNombre} parteDescripcion={retornoParte.parte?.descripcion ?? 'Parte'}
+          onConfirm={registrarRetornoParte} />
       )}
       <LoanerExtraccionModal open={extraccionOpen} onClose={() => setExtraccionOpen(false)} onConfirm={handleExtraccion} />
       {derivacionOpen && (

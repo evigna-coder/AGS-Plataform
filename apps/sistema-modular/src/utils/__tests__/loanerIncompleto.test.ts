@@ -5,8 +5,9 @@
  */
 import {
   extraccionesQueFaltanReponer, loanerEstaIncompleto, loanerPartesFaltantes,
+  prestamoModuloActivo, prestamosDeParteActivos, partesPrestadasQueFaltan,
 } from '@ags/shared';
-import type { ExtraccionLoaner } from '@ags/shared';
+import type { ExtraccionLoaner, PrestamoLoaner } from '@ags/shared';
 
 let fallos = 0;
 const check = (nombre: string, cond: boolean, detalle = '') => {
@@ -56,5 +57,28 @@ check('resumen lista las pendientes',
   `dio "${loanerPartesFaltantes(varias)}"`);
 check('resumen vacío si está completo', loanerPartesFaltantes({ extracciones: [] }) === '');
 
-if (fallos === 0) console.log('✅ loanerIncompleto: 10 checks OK');
+// ── Préstamo por PARTES (2026-09-04) ──────────────────────────────────────
+const prestamo = (over: Partial<PrestamoLoaner>): PrestamoLoaner => ({
+  id: crypto.randomUUID(), clienteId: 'c1', clienteNombre: 'ACME',
+  fechaSalida: '2026-09-01T10:00:00.000Z', estado: 'activo', ...over,
+});
+const modulo = prestamo({});
+const parteInop = prestamo({ alcance: 'parte', parte: { descripcion: 'Detector FID', dejaInoperativo: true } });
+const parteSuelta = prestamo({ alcance: 'parte', parte: { descripcion: 'Cable', dejaInoperativo: false }, clienteNombre: 'Beta' });
+const parteVuelta = prestamo({ alcance: 'parte', parte: { descripcion: 'Loop', dejaInoperativo: true }, estado: 'devuelto' });
+
+// Legacy sin `alcance` = módulo.
+check('legacy es modulo', prestamoModuloActivo({ prestamos: [modulo] })?.id === modulo.id);
+check('una parte NO es prestamo del modulo', prestamoModuloActivo({ prestamos: [parteInop] }) === undefined);
+check('partes activas', prestamosDeParteActivos({ prestamos: [modulo, parteInop, parteSuelta, parteVuelta] }).length === 2);
+check('solo las que dejan inoperativo faltan', partesPrestadasQueFaltan({ prestamos: [parteInop, parteSuelta] }).length === 1);
+check('parte inoperativa afuera = incompleto', loanerEstaIncompleto({ prestamos: [parteInop] }));
+check('parte que no hace al funcionamiento no marca', !loanerEstaIncompleto({ prestamos: [parteSuelta] }));
+check('parte devuelta no marca', !loanerEstaIncompleto({ prestamos: [parteVuelta] }));
+check('resumen suma extracciones y partes',
+  loanerPartesFaltantes({ extracciones: [ext({ dejaInoperativo: true, descripcion: 'Inyector' })], prestamos: [parteInop] })
+    === 'Inyector · Detector FID (prestado a ACME)',
+  `dio "${loanerPartesFaltantes({ extracciones: [ext({ dejaInoperativo: true, descripcion: 'Inyector' })], prestamos: [parteInop] })}"`);
+
+if (fallos === 0) console.log('✅ loanerIncompleto: 18 checks OK');
 else { console.error(`❌ ${fallos} fallos`); process.exit(1); }

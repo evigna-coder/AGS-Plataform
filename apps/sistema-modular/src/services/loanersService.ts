@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner, CondicionUnidad } from '@ags/shared';
-import { normalizarSerie } from '@ags/shared';
+import { normalizarSerie, esPrestamoDeParte } from '@ags/shared';
 import type { MockVentaLoanerState } from './__tests__/fixtures/ventaLoaner';
 import {
   buildRegistrarVenta,
@@ -290,8 +290,11 @@ export const loanersService = {
     const loaner = await this.getById(id);
     if (!loaner) throw new Error('Loaner no encontrado');
     const newPrestamo: PrestamoLoaner = { ...prestamo, id: crypto.randomUUID() };
+    // Una PARTE prestada no mueve el módulo (2026-09-04): el loaner sigue en
+    // base y, si la parte lo deja inoperativo, figura INCOMPLETO por derivación
+    // (`loanerEstaIncompleto`). Solo el módulo entero pasa a `en_cliente`.
     await this.update(id, {
-      estado: 'en_cliente',
+      ...(esPrestamoDeParte(newPrestamo) ? {} : { estado: 'en_cliente' as const }),
       prestamos: [...loaner.prestamos, newPrestamo],
     });
     return newPrestamo.id;
@@ -342,16 +345,23 @@ export const loanersService = {
     const loaner = await this.getById(loanerId);
     if (!loaner) throw new Error('Loaner no encontrado');
     const { requiereRecalificacion, ...rest } = data;
-    const recalifica = requiereRecalificacion ?? true;
+    const prestamoPrevio = loaner.prestamos.find(p => p.id === prestamoId);
+    if (!prestamoPrevio) throw new Error('Préstamo no encontrado');
+    // Vuelve una PARTE (2026-09-04): el módulo nunca se fue, así que no cambia
+    // de estado, no se recalifica y su condición general queda como estaba.
+    const esParte = esPrestamoDeParte(prestamoPrevio);
+    const recalifica = esParte ? false : (requiereRecalificacion ?? true);
     const prestamos = loaner.prestamos.map(p =>
       p.id === prestamoId
         ? { ...p, ...rest, requiereRecalificacion: recalifica, estado: 'devuelto' as const }
         : p
     );
     await this.update(loanerId, {
-      estado: recalifica ? 'en_recalificacion' : 'en_base',
       prestamos,
-      condicion: data.condicionRetorno,
+      ...(esParte ? {} : {
+        estado: recalifica ? 'en_recalificacion' as const : 'en_base' as const,
+        condicion: data.condicionRetorno,
+      }),
     });
 
     // El remito de salida se cierra con el retorno. Hasta ahora nadie lo tocaba:

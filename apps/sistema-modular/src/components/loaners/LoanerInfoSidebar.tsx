@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, prestamoModuloActivo, prestamosDeParteActivos } from '@ags/shared';
 
 interface Props {
   loaner: Loaner;
@@ -26,7 +26,8 @@ export function LoanerInfoSidebar({ loaner }: Props) {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
   };
 
-  const prestamoActivo = loaner.prestamos.find(p => p.estado === 'activo');
+  const prestamoActivo = prestamoModuloActivo(loaner);
+  const partesPrestadas = prestamosDeParteActivos(loaner);
 
   return (
     <div className="space-y-3">
@@ -74,6 +75,21 @@ export function LoanerInfoSidebar({ loaner }: Props) {
           </dl>
         </Card>
       )}
+
+      {/* Partes prestadas (2026-09-04): el módulo está en base, pero una parte
+          suya está en un cliente. Una tarjeta por parte. */}
+      {partesPrestadas.map(p => (
+        <Card key={p.id} title="Parte prestada" compact>
+          <dl className="space-y-1.5">
+            <LV label="Parte" value={`${p.parte?.descripcion ?? 'Parte'}${p.parte?.serie ? ` · S/N ${p.parte.serie}` : ''}`} />
+            <LV label="Cliente" value={p.clienteNombre} link={`/clientes/${p.clienteId}`} navState={fromState} />
+            <LV label="Establecimiento" value={p.establecimientoNombre} />
+            <LV label="Desde" value={formatDate(p.fechaSalida)} />
+            {p.fechaRetornoPrevista && <LV label="Retorno previsto" value={formatDate(p.fechaRetornoPrevista)} />}
+            {p.remitoSalidaId && <LV label="Remito" value={p.remitoSalidaNumero || 'Ver remito'} link={`/stock/remitos/${p.remitoSalidaId}`} navState={fromState} />}
+          </dl>
+        </Card>
+      ))}
 
       {/* Venta */}
       {loaner.venta && (

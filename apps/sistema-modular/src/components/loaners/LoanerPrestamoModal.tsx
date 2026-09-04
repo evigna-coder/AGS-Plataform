@@ -4,30 +4,34 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService, establecimientosService, remitosService, ordenesTrabajoService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Loaner, WorkOrder } from '@ags/shared';
+import type { Cliente, Establecimiento, Loaner, ParteLoanerPrestada, WorkOrder } from '@ags/shared';
 import { establecimientoUnicoId, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
-import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 import { NUMERO_REGEX } from '../../hooks/useGenerarRemito';
-
-// El préstamo lo transporta AGS — constante compartida de la impresión de remitos.
 import { TRANSPORTISTA_AGS } from '../../utils/remitoImprimir';
+import { crearEImprimirRemitoSalidaLoaner } from '../../utils/loanerRemitoSalida';
+import { LoanerPrestamoParteFields } from './LoanerPrestamoParteFields';
+
+export interface PrestamoLoanerDatos {
+  clienteId: string;
+  clienteNombre: string;
+  establecimientoId: string | null;
+  establecimientoNombre: string | null;
+  otNumber: string | null;
+  fechaRetornoPrevista: string | null;
+  remitoSalidaId: string | null;
+  remitoSalidaNumero: string | null;
+  /** Módulo entero o una parte (2026-09-04). */
+  alcance: 'modulo' | 'parte';
+  parte: ParteLoanerPrestada | null;
+  /** Fotos del estado de salida (opcionales) — se suben con contexto 'prestamo'. */
+  fotos: File[];
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
   loaner: Loaner;
-  onConfirm: (data: {
-    clienteId: string;
-    clienteNombre: string;
-    establecimientoId: string | null;
-    establecimientoNombre: string | null;
-    otNumber: string | null;
-    fechaRetornoPrevista: string | null;
-    remitoSalidaId: string | null;
-    remitoSalidaNumero: string | null;
-    /** Fotos del estado de salida (opcionales) — se suben con contexto 'prestamo'. */
-    fotos: File[];
-  }) => Promise<void>;
+  onConfirm: (data: PrestamoLoanerDatos) => Promise<void>;
 }
 
 /** Fecha local (no UTC) a `YYYY-MM-DD` para el input date. */
@@ -38,6 +42,8 @@ function toDateInput(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+const PARTE_VACIA: ParteLoanerPrestada = { descripcion: '', codigoArticulo: null, articuloId: null, serie: null, dejaInoperativo: true };
+
 export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
@@ -46,13 +52,13 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   const [establecimientoId, setEstablecimientoId] = useState('');
   const [otNumber, setOtNumber] = useState('');
   const [fechaRetorno, setFechaRetorno] = useState('');
+  const [alcance, setAlcance] = useState<'modulo' | 'parte'>('modulo');
+  const [parte, setParte] = useState<ParteLoanerPrestada>(PARTE_VACIA);
   const [generarRemito, setGenerarRemito] = useState(true);
   /**
-   * N° del talonario preimpreso (2026-08-23).
-   *
-   * El préstamo era el ÚNICO flujo que no lo pedía: generaba un `REM-00xx`
-   * interno para un papel que se lleva el cliente. Fichas, derivación a
-   * calibración y remito de servicio ya lo piden con este mismo formato.
+   * N° del talonario preimpreso (2026-08-23). El préstamo era el ÚNICO flujo
+   * que no lo pedía: generaba un `REM-00xx` interno para un papel que se lleva
+   * el cliente.
    */
   const [numeroRemito, setNumeroRemito] = useState('');
   const numeroValido = NUMERO_REGEX.test(numeroRemito.trim());
@@ -67,8 +73,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     const d = new Date();
     d.setDate(d.getDate() + 20);
     setFechaRetorno(toDateInput(d));
-    // Prefill con el próximo número del talonario preimpreso (2026-08-26):
-    // era el ÚNICO modal de remitos que lo pedía a mano desde cero.
+    // Prefill con el próximo número del talonario preimpreso (2026-08-26).
     remitosService.getProximoNumeroPreimpreso()
       .then(n => setNumeroRemito(prev => prev || n))
       .catch(() => {});
@@ -102,68 +107,32 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     [ots],
   );
 
+  const esParte = alcance === 'parte';
+  const parteValida = !esParte || parte.descripcion.trim().length > 0;
+  const puedeConfirmar = !!clienteId && parteValida && !saving && (!generarRemito || numeroValido);
+
   const handleConfirm = async () => {
-    if (!clienteId) return;
+    if (!puedeConfirmar) return;
     setSaving(true);
     try {
-      let remitoId: string | null = null;
-      // Se completa con el número real del remito creado: quedaba fijo en null y
-      // el préstamo guardaba `remitoSalidaNumero` vacío (2026-08-09).
-      let remitoNumero: string | null = null;
-
+      const parteFinal: ParteLoanerPrestada | null = esParte
+        ? { ...parte, descripcion: parte.descripcion.trim(), dejaInoperativo: parte.dejaInoperativo !== false }
+        : null;
+      let remitoSalidaId: string | null = null;
+      let remitoSalidaNumero: string | null = null;
       if (generarRemito) {
-        // El item del loaner es DOCUMENTAL (sin unidadId, con tipoEntidad):
-        // el remito no mueve stock, pero el papel detalla qué salió.
-        remitoId = await remitosService.create({
-          numero: numeroRemito.trim(),
-          tipo: 'loaner_salida',
-          estado: 'borrador',
-          ingenieroId: '',
-          ingenieroNombre: 'AGS Taller',
+        const r = await crearEImprimirRemitoSalidaLoaner({
+          loaner,
+          numero: numeroRemito,
           clienteId,
           clienteNombre: selectedCliente?.razonSocial || '',
           establecimientoId: establecimientoId || null,
           establecimientoNombre: selectedEstab?.nombre || null,
-          otNumbers: otNumber ? [otNumber] : [],
-          loanerId: loaner.id,
-          loanerCodigo: loaner.codigo,
-          // El artículo del catálogo viaja al ítem (2026-08-23): la columna
-          // Código del papel lo lee de acá. Sin esto salía vacía, porque el
-          // loaner no tenía artículo vinculado hasta el momento de venderlo.
-          items: [{
-            id: crypto.randomUUID(),
-            cantidad: 1,
-            tipoItem: 'sale_y_vuelve',
-            devuelto: false,
-            tipoEntidad: 'loaner',
-            loanerId: loaner.id,
-            loanerCodigo: loaner.codigo,
-            loanerDescripcion: loaner.descripcion,
-            articuloId: loaner.articuloId ?? undefined,
-            articuloCodigo: loaner.articuloCodigo ?? undefined,
-            articuloDescripcion: loaner.articuloDescripcion ?? undefined,
-            serie: loaner.serie ?? null,
-          }],
-          // En un préstamo el transporte lo hace AGS, siempre: no hay nada que
-          // elegir. Quedaba vacío y el bloque "Transportista" del papel salía en
-          // blanco (2026-08-23).
-          transportistaNombre: TRANSPORTISTA_AGS.razonSocial,
-          transportista: TRANSPORTISTA_AGS,
-          observaciones: `Loaner ${loaner.codigo}${otNumber ? ` · OT ${otNumber}` : ''}`,
+          otNumber: otNumber || null,
+          parte: parteFinal,
         });
-
-        // Imprimir por el MISMO camino que el resto de los remitos (2026-08-06:
-        // imprimía RemitoOverlayPDF pelado, sin la calibración contra el papel
-        // preimpreso — salía todo corrido). imprimirRemitoStock aplica los
-        // offsets calibrados, resuelve el domicilio de entrega por
-        // establecimiento, imprime el triplicado en silencio (fallback abrir
-        // PDF) y marca el remito como impreso. Best-effort: no bloquea el préstamo.
-        const remitoCreado = await remitosService.getById(remitoId);
-        if (remitoCreado) {
-          remitoNumero = remitoCreado.numero;
-          await imprimirRemitoStock(remitoCreado)
-            .catch(err => console.warn('[LoanerPrestamoModal] impresión de remito falló:', err));
-        }
+        remitoSalidaId = r.remitoId;
+        remitoSalidaNumero = r.remitoNumero;
       }
 
       await onConfirm({
@@ -173,8 +142,10 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
         establecimientoNombre: selectedEstab?.nombre || null,
         otNumber: otNumber || null,
         fechaRetornoPrevista: fechaRetorno ? new Date(fechaRetorno).toISOString() : null,
-        remitoSalidaId: remitoId,
-        remitoSalidaNumero: remitoNumero,
+        remitoSalidaId,
+        remitoSalidaNumero,
+        alcance,
+        parte: parteFinal,
         fotos,
       });
 
@@ -190,6 +161,8 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     setEstablecimientoId('');
     setOtNumber('');
     setFechaRetorno('');
+    setAlcance('modulo');
+    setParte(PARTE_VACIA);
     setGenerarRemito(true);
     setFotos([]);
     if (fileRef.current) fileRef.current.value = '';
@@ -199,9 +172,8 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
     <Modal open={open} onClose={onClose} title="Registrar prestamo" maxWidth="md" footer={
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleConfirm}
-          disabled={!clienteId || saving || (generarRemito && !numeroValido)}>
-          {saving ? 'Registrando...' : 'Confirmar prestamo'}
+        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!puedeConfirmar}>
+          {saving ? 'Registrando...' : esParte ? 'Confirmar prestamo de la parte' : 'Confirmar prestamo'}
         </Button>
       </div>
     }>
@@ -217,6 +189,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
             </p>
           </div>
         )}
+        <LoanerPrestamoParteFields alcance={alcance} onAlcanceChange={setAlcance} parte={parte} onParteChange={setParte} />
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Cliente *</label>
           <SearchableSelect value={clienteId} onChange={v => { setClienteId(v); setEstablecimientoId(''); setOtNumber(''); }} options={clienteOptions} placeholder="Seleccionar cliente" size="sm" />
@@ -247,8 +220,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
               description="El del papel que vas a usar. Es el número que ve el cliente."
             />
             {/* El transporte de un préstamo lo hace AGS: no hay nada que elegir,
-                pero tiene que verse — antes el bloque del papel salía vacío y no
-                se entendía por qué (2026-08-23). */}
+                pero tiene que verse (2026-08-23). */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Transportista</label>
               <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">

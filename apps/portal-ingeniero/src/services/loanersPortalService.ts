@@ -49,7 +49,9 @@ function parseLoaner(id: string, data: Record<string, unknown>): Loaner {
 
 /** Préstamo activo del loaner (el que el portal fotografía / devuelve). */
 export function prestamoActivo(l: Loaner): PrestamoLoaner | undefined {
-  return (l.prestamos ?? []).find(p => p.estado === 'activo');
+  // Solo el MÓDULO entero (2026-09-04): una parte prestada no manda el loaner
+  // al portal — el módulo sigue en base y su retorno se registra en el sistema.
+  return (l.prestamos ?? []).find(p => p.estado === 'activo' && p.alcance !== 'parte');
 }
 
 /** Último préstamo devuelto (para mostrar contexto en 'en_recalificacion'). */

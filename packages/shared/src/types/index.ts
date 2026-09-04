@@ -1395,6 +1395,14 @@ export interface PresupuestoItem {
   esBonificacion?: boolean;
   /** Moneda del item — solo relevante cuando el presupuesto es MIXTA */
   moneda?: 'USD' | 'ARS' | 'EUR' | null;
+  /**
+   * Contrato MIXTO (2026-09-04): precio UNITARIO por moneda en la MISMA línea.
+   * El caso real es un servicio con una porción en pesos y otra en dólares;
+   * antes había que duplicar el ítem. Cuando está presente manda sobre
+   * `precioUnitario`/`moneda`, que quedan espejando la moneda principal para
+   * todo lo que lee un solo número. Ver `montosDeItem` en utils.
+   */
+  montosPorMoneda?: Partial<Record<'USD' | 'ARS' | 'EUR', number>> | null;
   /** Sector / área del cliente donde reside el sistema (ej: "QC", "Control de Calidad"). Usado como header de sección en presupuestos de contrato. */
   sectorNombre?: string | null;
   /** Nota inline adicional por ítem (ej: "LLEVA SELLO DE FASE REVERSA"). Se renderiza como observación en el PDF de contrato. */
@@ -1884,6 +1892,13 @@ export interface Presupuesto {
   /** Categoría P1–P5 derivada del tipo al crear (2026-07-29). Legados (PRE-) no la tienen. */
   categoria?: PresupuestoCategoria | null;
   moneda: MonedaPresupuesto;
+  /**
+   * Con `moneda === 'MIXTA'` en un contrato (2026-09-04): qué monedas entran,
+   * en el orden en que se muestran (columnas del editor y del PDF). Casi
+   * siempre ['ARS', 'USD']. La primera es la "principal" que espejan los
+   * campos de un solo valor del ítem.
+   */
+  monedasMixta?: MonedaCuota[] | null;
   clienteId: string; // CUIT o LEGACY-xxx
   establecimientoId?: string | null;
   sistemaId?: string | null;
@@ -4662,6 +4677,8 @@ export interface ItemCertificacion {
   descripcionServicio?: string | null;
   /** Fecha del servicio, como referencia para el cliente. */
   fechaServicio?: string | null;
+  /** Qué documento del cliente la certificó (2026-09-04). */
+  recibidaId?: string | null;
 }
 
 /** Un importe certificado, en su moneda. */
@@ -4681,13 +4698,24 @@ export interface ImporteCertificado {
 export interface CertificacionRecibida {
   id: string;
   numero?: string | null;
-  /** Fecha del documento del cliente (ISO). */
-  fecha: string;
+  /** Fecha del documento del cliente (ISO). Opcional: hay papeles sin fecha (2026-09-04). */
+  fecha?: string | null;
+  /** Primer archivo — compat con lo guardado antes de admitir varios. */
   archivoUrl?: string | null;
   archivoPath?: string | null;
+  /** Todos los archivos del documento (2026-09-04): el cliente manda el papel en partes. */
+  archivos?: { url: string; path: string; nombre: string }[] | null;
   /** Puede haber montos en más de una moneda en el mismo documento. */
   importes: ImporteCertificado[];
   observaciones?: string | null;
+  /**
+   * OTs que este documento certificó (2026-09-04). Con varios documentos por
+   * lote —uno por planta— cada uno cubre una parte; sin esto la solicitud de
+   * facturación no sabía qué OTs respaldaba cada importe.
+   */
+  otNumbers?: string[] | null;
+  /** Solicitudes de facturación generadas por ESTE documento. */
+  solicitudesIds?: string[] | null;
 }
 
 /** Ciclo del pedido: se puede armar ANTES de tener el papel del cliente. */
@@ -4795,6 +4823,32 @@ export function itemsDeCertificacion(cert: Pick<Certificacion, 'items' | 'otNumb
 /** Una certificación se cierra cuando ninguna OT quedó pendiente. */
 export function certificacionResuelta(cert: Pick<Certificacion, 'items' | 'otNumbers'>): boolean {
   return itemsDeCertificacion(cert).every(i => i.estado !== 'pendiente');
+}
+
+/**
+ * Documentos del lote que tienen importe y todavía no se pasaron a
+ * facturación (2026-09-04). Un lote con dos plantas recibe dos papeles en
+ * momentos distintos: cada uno se factura cuando llega, no al final.
+ *
+ * Lotes anteriores llevaban la marca a nivel lote (`solicitudesIds`): si el
+ * lote ya se facturó y el documento no dice nada, se lo toma por facturado.
+ */
+export function recibidasSinFacturar(
+  cert: Pick<Certificacion, 'recibidas' | 'archivoUrl' | 'archivoPath' | 'numero' | 'fecha' | 'solicitudesIds'>,
+): CertificacionRecibida[] {
+  const loteFacturado = !!cert.solicitudesIds?.length;
+  return recibidasDeCertificacion(cert).filter(r =>
+    (r.importes ?? []).some(i => Number.isFinite(i.monto) && i.monto !== 0)
+    && !(r.solicitudesIds?.length)
+    && !(loteFacturado && r.solicitudesIds === undefined));
+}
+
+/** El lote todavía tiene algo que hacer: OTs sin resolver o papeles sin facturar. */
+export function certificacionAbierta(
+  cert: Pick<Certificacion, 'items' | 'otNumbers' | 'estado' | 'recibidas' | 'archivoUrl' | 'archivoPath' | 'numero' | 'fecha' | 'solicitudesIds'>,
+): boolean {
+  if (cert.estado !== 'cerrada' && !certificacionResuelta(cert)) return true;
+  return recibidasSinFacturar(cert).length > 0;
 }
 
 // =============================================
@@ -5138,6 +5192,46 @@ export interface PrestamoLoaner {
   requiereRecalificacion?: boolean | null;
   /** Número de la OT (padre) de recalificación auto-creada al devolver. */
   otRecalificacionNumber?: string | null;
+  /**
+   * Qué se prestó (2026-09-04). Hasta acá todo préstamo era del módulo entero:
+   * no había forma de prestar una parte (un inyector, un detector) y que el
+   * módulo siguiera figurando en base. Default 'modulo' (compat con los
+   * préstamos anteriores, que no tienen el campo).
+   *
+   * Con 'parte' el loaner NO cambia de estado — igual que `enProveedor.alcance`
+   * — y si la parte lo deja inoperativo, figura INCOMPLETO hasta que vuelva.
+   */
+  alcance?: 'modulo' | 'parte';
+  /** Datos de la parte prestada — solo cuando `alcance === 'parte'`. */
+  parte?: ParteLoanerPrestada | null;
+}
+
+export interface ParteLoanerPrestada {
+  descripcion: string;
+  /** N° de parte: del catálogo de stock (`articuloId`) o cargado a mano. */
+  codigoArticulo?: string | null;
+  articuloId?: string | null;
+  serie?: string | null;
+  /** La salida deja el módulo inoperativo hasta que la parte vuelva. */
+  dejaInoperativo?: boolean;
+}
+
+export function esPrestamoDeParte(p: Pick<PrestamoLoaner, 'alcance'>): boolean {
+  return p.alcance === 'parte';
+}
+
+/** Préstamo activo del MÓDULO entero (el que manda el estado `en_cliente`). */
+export function prestamoModuloActivo(
+  loaner: { prestamos?: PrestamoLoaner[] | null },
+): PrestamoLoaner | undefined {
+  return (loaner.prestamos ?? []).find(p => p.estado === 'activo' && !esPrestamoDeParte(p));
+}
+
+/** Partes del loaner que hoy están prestadas (el módulo sigue en base). */
+export function prestamosDeParteActivos(
+  loaner: { prestamos?: PrestamoLoaner[] | null },
+): PrestamoLoaner[] {
+  return (loaner.prestamos ?? []).filter(p => p.estado === 'activo' && esPrestamoDeParte(p));
 }
 
 /** Foto adjunta a un loaner (salida de préstamo, retorno o general). */
@@ -5192,20 +5286,29 @@ export function extraccionesQueFaltanReponer(
   return (loaner.extracciones ?? []).filter(e => e.dejaInoperativo === true && !e.fechaReposicion);
 }
 
-/** `true` si al loaner le falta al menos una pieza para estar operativo. */
-export function loanerEstaIncompleto(
-  loaner: { extracciones?: ExtraccionLoaner[] | null },
-): boolean {
-  return extraccionesQueFaltanReponer(loaner).length > 0;
+/**
+ * Partes prestadas a un cliente que dejan el módulo inoperativo hasta que
+ * vuelvan (2026-09-04). Misma idea que las extracciones: la parte no está.
+ */
+export function partesPrestadasQueFaltan(
+  loaner: { prestamos?: PrestamoLoaner[] | null },
+): PrestamoLoaner[] {
+  return prestamosDeParteActivos(loaner).filter(p => p.parte?.dejaInoperativo === true);
 }
 
-/** Resumen legible de lo que le falta: "Inyector · Loop de 100 µL". */
-export function loanerPartesFaltantes(
-  loaner: { extracciones?: ExtraccionLoaner[] | null },
-): string {
-  return extraccionesQueFaltanReponer(loaner)
-    .map(e => e.descripcion)
-    .join(' · ');
+type LoanerConPiezas = { extracciones?: ExtraccionLoaner[] | null; prestamos?: PrestamoLoaner[] | null };
+
+/** `true` si al loaner le falta al menos una pieza para estar operativo. */
+export function loanerEstaIncompleto(loaner: LoanerConPiezas): boolean {
+  return extraccionesQueFaltanReponer(loaner).length > 0 || partesPrestadasQueFaltan(loaner).length > 0;
+}
+
+/** Resumen legible de lo que le falta: "Inyector · Loop de 100 µL · Detector (prestado a ACME)". */
+export function loanerPartesFaltantes(loaner: LoanerConPiezas): string {
+  return [
+    ...extraccionesQueFaltanReponer(loaner).map(e => e.descripcion),
+    ...partesPrestadasQueFaltan(loaner).map(p => `${p.parte?.descripcion ?? 'Parte'} (prestado a ${p.clienteNombre})`),
+  ].join(' · ');
 }
 
 export interface VentaLoaner {
@@ -5655,6 +5758,8 @@ export interface PagoExterior {
   monto: number;
   moneda: 'USD' | 'EUR' | 'ARS';
   pagado?: boolean | null;
+  /** Fecha en que se efectivizó el pago (registro de la confirmación, 2026-09-04). */
+  fechaPagado?: string | null;
   notas?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -5946,70 +6051,108 @@ export interface Vehiculo {
 /** Identificadores de app para control de acceso */
 export type AppId = 'sistema-modular' | 'portal-ingeniero' | 'reportes-ot';
 
-/** Identificadores de módulo (agrupan rutas relacionadas) */
-export type ModuloId =
-  | 'dashboard'
-  | 'clientes'
-  | 'establecimientos'
-  | 'equipos'
-  | 'ordenes-trabajo'
-  | 'leads'
-  | 'presupuestos'
-  | 'stock-operacion'
-  | 'stock-compras'
-  | 'stock-catalogos'
-  | 'fichas'
-  | 'loaners'
-  | 'instrumentos'
-  | 'patrones'
-  | 'table-catalog'
-  | 'ingreso-empresas'
-  | 'dispositivos'
-  | 'vehiculos'
-  | 'agenda'
-  | 'pendientes'
-  | 'control-semanal'
-  | 'facturacion'
-  | 'contratos'
-  | 'calificacion-proveedores'
-  | 'pagos'
-  | 'control-facturas'
-  | 'usuarios'
-  | 'admin';
+/**
+ * Identificadores de módulo: UNO POR ENTRADA DEL SIDEBAR (2026-09-04).
+ *
+ * Antes Stock se gateaba por tres módulos gruesos (operación / compras /
+ * catálogos) y Facturación, Instrumentos y Usuarios arrastraban sub-pantallas
+ * sin permiso propio: el panel de permisos no mostraba lo que el usuario veía
+ * en el sidebar y no había forma de dar "solo Remitos". Ahora cada pantalla
+ * del sidebar es un permiso. Los overrides guardados con los ids viejos se
+ * expanden al leerlos (`expandLegacyModulos`).
+ *
+ * `ALL_MODULOS` es la fuente del tipo: agregar un módulo = agregarlo acá, a
+ * `MODULO_LABELS` (el compilador obliga) y a `RUTA_MODULO`.
+ */
+export const ALL_MODULOS = [
+  'dashboard',
+  // Comercial
+  'clientes', 'establecimientos', 'ingreso-empresas', 'leads', 'presupuestos', 'contratos',
+  'facturacion', 'pendientes-documentacion', 'cuotas-por-facturar',
+  // Operaciones
+  'ordenes-trabajo', 'equipos', 'agenda', 'control-semanal', 'pendientes',
+  // Stock · Operación
+  'stock-unidades', 'stock-minikits', 'stock-minikits-faltantes', 'stock-asignaciones',
+  'stock-asignaciones-historial', 'stock-remitos', 'stock-movimientos', 'stock-consumos', 'stock-alertas',
+  // Stock · Compras
+  'stock-requerimientos', 'stock-planificacion', 'stock-ordenes-compra', 'stock-importaciones', 'pagos', 'entregas',
+  // Stock · Activos
+  'instrumentos', 'patrones', 'columnas', 'dispositivos', 'vehiculos', 'fichas', 'loaners',
+  // Stock · Catálogos
+  'stock-articulos', 'stock-proveedores', 'calificacion-proveedores', 'stock-posiciones',
+  'stock-posiciones-arancelarias', 'stock-marcas',
+  // Personas / documentos / administración
+  'ingenieros', 'qf-documentos', 'control-facturas',
+  // Admin
+  'usuarios', 'table-catalog', 'admin',
+] as const;
 
-/** Permisos por defecto de cada rol — apps y módulos accesibles */
+export type ModuloId = typeof ALL_MODULOS[number];
+
+/**
+ * Ids viejos → pantallas que cubrían. Sirve para (a) escribir los defaults de
+ * rol en términos de módulos gruesos, legibles, y (b) expandir los overrides
+ * guardados antes del cambio para que nadie pierda acceso.
+ */
+const MODULOS_GRUESOS: Record<string, ModuloId[]> = {
+  'stock-operacion': ['stock-unidades', 'stock-minikits', 'stock-minikits-faltantes', 'stock-asignaciones',
+    'stock-asignaciones-historial', 'stock-remitos', 'stock-movimientos', 'stock-consumos', 'stock-alertas'],
+  'stock-compras': ['stock-requerimientos', 'stock-planificacion', 'stock-ordenes-compra', 'stock-importaciones', 'entregas'],
+  'stock-catalogos': ['stock-articulos', 'stock-proveedores', 'stock-posiciones', 'stock-posiciones-arancelarias', 'stock-marcas'],
+  // Módulos que SIGUEN existiendo pero antes arrastraban sub-pantallas.
+  'facturacion': ['facturacion', 'pendientes-documentacion', 'cuotas-por-facturar'],
+  'instrumentos': ['instrumentos', 'columnas'],
+  'usuarios': ['usuarios', 'ingenieros'],
+};
+
+/** Escribe una lista de módulos gruesos o finos como la lista fina equivalente. */
+function fino(modulos: readonly string[]): ModuloId[] {
+  const out = new Set<ModuloId>();
+  for (const m of modulos) {
+    const exp = MODULOS_GRUESOS[m];
+    if (exp) exp.forEach(x => out.add(x));
+    else out.add(m as ModuloId);
+  }
+  return [...out];
+}
+
+/**
+ * Permisos por defecto de cada rol — apps y módulos accesibles. Se escriben
+ * con los módulos gruesos y `fino()` los expande a una pantalla por entrada.
+ * `qf-documentos` no tenía gate (lo veía todo el mundo): va en todos los roles.
+ */
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'control-facturas', 'usuarios', 'admin'],
+    modulos: [...ALL_MODULOS],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
+    modulos: fino(['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'qf-documentos']),
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas'],
+    modulos: fino(['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas', 'ingenieros', 'qf-documentos']),
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas'],
+    modulos: fino(['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'control-semanal', 'contratos', 'control-facturas', 'qf-documentos']),
   },
   ventas: {
     apps: ['sistema-modular'],
-    modulos: ['clientes', 'establecimientos', 'leads', 'presupuestos', 'patrones'],
+    modulos: fino(['clientes', 'establecimientos', 'leads', 'presupuestos', 'patrones', 'qf-documentos']),
   },
   admin_contable: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas', 'control-semanal'],
+    modulos: fino(['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas', 'control-semanal', 'qf-documentos']),
   },
   administracion: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas'],
+    modulos: fino(['leads', 'presupuestos', 'stock-operacion', 'stock-compras', 'stock-catalogos', 'facturacion', 'calificacion-proveedores', 'control-facturas', 'ingenieros', 'qf-documentos']),
   },
 };
 
-/** Mapeo de ruta → módulo (para ProtectedRoute) */
+/** Mapeo de ruta → módulo (para ProtectedRoute). Gana el prefijo MÁS LARGO. */
 export const RUTA_MODULO: Record<string, ModuloId> = {
   '/dashboard': 'dashboard',
   '/clientes': 'clientes',
@@ -6020,30 +6163,33 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/tipos-servicio': 'ordenes-trabajo',
   '/leads': 'leads',
   '/presupuestos': 'presupuestos',
-  // Stock partido en sub-módulos (getModuloFromPath usa el prefijo más largo).
-  // NO existe '/stock' → un módulo: el landing lo resuelve StockHome según permisos.
-  '/stock/unidades': 'stock-operacion',
-  '/stock/minikits': 'stock-operacion',
-  '/stock/remitos': 'stock-operacion',
-  '/stock/movimientos': 'stock-operacion',
-  '/stock/consumos': 'stock-operacion',
-  '/stock/alertas': 'stock-operacion',
-  '/stock/asignaciones': 'stock-operacion',
-  '/stock/requerimientos': 'stock-compras',
-  '/stock/planificacion': 'stock-compras',
-  '/stock/ordenes-compra': 'stock-compras',
-  '/stock/importaciones': 'stock-compras',
-  '/entregas': 'stock-compras',
-  '/stock/articulos': 'stock-catalogos',
-  '/stock/proveedores': 'stock-catalogos',
-  '/stock/posiciones': 'stock-catalogos',
-  '/stock/posiciones-arancelarias': 'stock-catalogos',
-  '/stock/marcas': 'stock-catalogos',
-  // '/stock/ingenieros' NO se mapea a propósito: cae a su `allowedRoles` declarado
-  // (admin/admin_soporte/administracion), como venía. El nav ya lo gatea por 'usuarios'.
+  // Una pantalla del sidebar = un módulo (2026-09-04). NO existe '/stock' → un
+  // módulo: el landing lo resuelve StockHome según permisos.
+  '/stock/unidades': 'stock-unidades',
+  '/stock/minikits': 'stock-minikits',
+  '/stock/minikits/faltantes': 'stock-minikits-faltantes',
+  '/stock/asignaciones': 'stock-asignaciones',
+  '/stock/asignaciones/historial': 'stock-asignaciones-historial',
+  '/stock/remitos': 'stock-remitos',
+  '/stock/movimientos': 'stock-movimientos',
+  '/stock/consumos': 'stock-consumos',
+  '/stock/alertas': 'stock-alertas',
+  '/stock/requerimientos': 'stock-requerimientos',
+  '/stock/planificacion': 'stock-planificacion',
+  '/stock/ordenes-compra': 'stock-ordenes-compra',
+  '/stock/importaciones': 'stock-importaciones',
+  '/stock/pagos-vep': 'pagos',
+  '/entregas': 'entregas',
+  '/stock/articulos': 'stock-articulos',
+  '/stock/proveedores': 'stock-proveedores',
+  '/stock/posiciones': 'stock-posiciones',
+  '/stock/posiciones-arancelarias': 'stock-posiciones-arancelarias',
+  '/stock/marcas': 'stock-marcas',
+  '/stock/ingenieros': 'ingenieros',
   '/fichas': 'fichas',
   '/loaners': 'loaners',
   '/instrumentos': 'instrumentos',
+  '/columnas': 'columnas',
   '/patrones': 'patrones',
   '/table-catalog': 'table-catalog',
   '/ingreso-empresas': 'ingreso-empresas',
@@ -6053,8 +6199,11 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/pendientes': 'pendientes',
   '/control-semanal': 'control-semanal',
   '/facturacion': 'facturacion',
+  '/facturacion/pendientes-documentacion': 'pendientes-documentacion',
+  '/facturacion/cuotas-por-facturar': 'cuotas-por-facturar',
   '/contratos': 'contratos',
   '/calificacion-proveedores': 'calificacion-proveedores',
+  '/qf-documentos': 'qf-documentos',
   '/control-facturas': 'control-facturas',
   '/usuarios': 'usuarios',
   '/admin': 'admin',
@@ -6062,34 +6211,55 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
 
 /** Labels para UI */
 export const MODULO_LABELS: Record<ModuloId, string> = {
-  'control-semanal': 'Control semanal',
   'dashboard': 'Dashboard',
   'clientes': 'Clientes',
   'establecimientos': 'Establecimientos',
-  'equipos': 'Equipos',
-  'ordenes-trabajo': 'Ordenes de Trabajo',
+  'ingreso-empresas': 'Ingreso a Empresas',
   'leads': 'Tickets',
   'presupuestos': 'Presupuestos',
-  'stock-operacion': 'Stock · Operación',
-  'stock-compras': 'Stock · Compras',
-  'stock-catalogos': 'Stock · Catálogos',
-  'fichas': 'Fichas Propiedad',
-  'loaners': 'Loaners',
+  'contratos': 'Contratos',
+  'facturacion': 'Facturación',
+  'pendientes-documentacion': 'Pend. documentación',
+  'cuotas-por-facturar': 'Cuotas por facturar',
+  'ordenes-trabajo': 'Ordenes de Trabajo',
+  'equipos': 'Equipos',
+  'agenda': 'Agenda',
+  'control-semanal': 'Control semanal',
+  'pendientes': 'Pendientes',
+  'stock-unidades': 'Unidades',
+  'stock-minikits': 'Minikits',
+  'stock-minikits-faltantes': 'Faltantes en minikits',
+  'stock-asignaciones': 'Asignaciones',
+  'stock-asignaciones-historial': 'Historial asig.',
+  'stock-remitos': 'Remitos',
+  'stock-movimientos': 'Movimientos',
+  'stock-consumos': 'Consumos por equipo',
+  'stock-alertas': 'Alertas',
+  'stock-requerimientos': 'Requerimientos',
+  'stock-planificacion': 'Planificación',
+  'stock-ordenes-compra': 'Ordenes de Compra',
+  'stock-importaciones': 'Importaciones',
+  'pagos': 'Pagos VEP',
+  'entregas': 'Entregas',
   'instrumentos': 'Instrumentos',
   'patrones': 'Patrones',
-  'table-catalog': 'Biblioteca de Tablas',
-  'ingreso-empresas': 'Ingreso a Empresas',
+  'columnas': 'Columnas',
   'dispositivos': 'Dispositivos',
   'vehiculos': 'Vehículos',
-  'agenda': 'Agenda',
-  'pendientes': 'Pendientes',
-  'facturacion': 'Facturación',
-  'contratos': 'Contratos',
+  'fichas': 'Fichas Propiedad',
+  'loaners': 'Loaners',
+  'stock-articulos': 'Articulos',
+  'stock-proveedores': 'Proveedores',
   'calificacion-proveedores': 'Calif. Proveedores',
-  'pagos': 'Pagos VEP',
+  'stock-posiciones': 'Posiciones',
+  'stock-posiciones-arancelarias': 'Pos. Arancelarias',
+  'stock-marcas': 'Marcas',
+  'ingenieros': 'Ingenieros',
+  'qf-documentos': 'Documentos QF',
   'control-facturas': 'Control de facturas',
   'usuarios': 'Usuarios',
-  'admin': 'Administración',
+  'table-catalog': 'Biblioteca de Tablas',
+  'admin': 'Admin (herramientas)',
 };
 
 export const APP_LABELS: Record<AppId, string> = {
@@ -6099,20 +6269,20 @@ export const APP_LABELS: Record<AppId, string> = {
 };
 
 /**
- * Agrupación de módulos para el panel de permisos (espeja el sidebar). Cada ModuloId
- * aparece exactamente una vez. Si agregás un módulo nuevo, sumalo a un grupo — hay un
- * test/verificación de cobertura implícita: ALL_MODULOS debe quedar cubierto.
+ * Agrupación de módulos, espejo del sidebar (2026-09-04). El panel de
+ * permisos de sistema-modular arma su árbol desde la navegación real; esto
+ * queda como agrupación plana para quien no tenga la navegación a mano.
+ * Cada ModuloId aparece exactamente una vez.
  */
 export const MODULO_GROUPS: { label: string; modulos: ModuloId[] }[] = [
-  { label: 'General', modulos: ['dashboard'] },
-  { label: 'Comercial', modulos: ['clientes', 'establecimientos', 'ingreso-empresas', 'leads', 'presupuestos', 'contratos', 'facturacion'] },
-  // OJO: todo ModuloId nuevo tiene que entrar acá — el modal de permisos
-  // renderiza ESTOS grupos; un módulo fuera de ellos no se puede otorgar por
-  // override (caso control-semanal, 2026-08-26: existía, tenía ruta y rol
-  // defaults, pero era in-otorgable por usuario).
-  { label: 'Operaciones', modulos: ['ordenes-trabajo', 'equipos', 'agenda', 'pendientes', 'control-semanal'] },
-  { label: 'Stock', modulos: ['stock-operacion', 'stock-compras', 'stock-catalogos', 'pagos', 'calificacion-proveedores'] },
-  { label: 'Activos propios', modulos: ['instrumentos', 'patrones', 'dispositivos', 'vehiculos', 'fichas', 'loaners'] },
+  { label: 'General', modulos: ['dashboard', 'qf-documentos'] },
+  { label: 'Comercial', modulos: ['clientes', 'establecimientos', 'ingreso-empresas', 'leads', 'presupuestos', 'contratos', 'facturacion', 'pendientes-documentacion', 'cuotas-por-facturar'] },
+  { label: 'Operaciones', modulos: ['ordenes-trabajo', 'equipos', 'agenda', 'control-semanal', 'pendientes'] },
+  { label: 'Stock · Operación', modulos: MODULOS_GRUESOS['stock-operacion'] },
+  { label: 'Stock · Compras', modulos: [...MODULOS_GRUESOS['stock-compras'], 'pagos'] },
+  { label: 'Stock · Activos', modulos: ['instrumentos', 'patrones', 'columnas', 'dispositivos', 'vehiculos', 'fichas', 'loaners'] },
+  { label: 'Stock · Catálogos', modulos: [...MODULOS_GRUESOS['stock-catalogos'], 'calificacion-proveedores'] },
+  { label: 'Personas', modulos: ['ingenieros'] },
   { label: 'Administración', modulos: ['control-facturas', 'usuarios', 'table-catalog', 'admin'] },
 ];
 
@@ -6121,22 +6291,29 @@ export const MODULO_GROUPS: { label: string; modulos: ModuloId[] }[] = [
  * Si tiene overrides en `permisos`, usa esos. Si no, usa los defaults del rol.
  * Admin SIEMPRE tiene acceso total (no se puede restringir).
  */
-/**
- * Módulos legacy que se partieron en sub-módulos. Los overrides guardados de usuarios
- * viejos pueden tener el módulo viejo (ej. 'stock'); al leerlos se expanden a los nuevos
- * para que nadie pierda acceso tras el split (UAT 2026-07-23). Idempotente.
- */
-const LEGACY_MODULO_EXPANSION: Record<string, ModuloId[]> = {
-  stock: ['stock-operacion', 'stock-compras', 'stock-catalogos'],
-};
+/** Versión actual del override de permisos: una pantalla = un módulo. */
+export const PERMISOS_VERSION = 2;
 
-export function expandLegacyModulos(modulos: readonly string[]): ModuloId[] {
+/**
+ * Overrides guardados antes de partir los módulos por pantalla (sin
+ * `version`, o con los ids gruesos) se expanden al leerlos para que nadie
+ * pierda acceso. Idempotente. Un override versión 2 solo expande los ids que
+ * ya NO existen ('stock', 'stock-operacion'…): 'facturacion' sin sus
+ * sub-pantallas es una decisión del admin, no un dato viejo.
+ */
+export function expandLegacyModulos(modulos: readonly string[], version?: number | null): ModuloId[] {
+  const esViejo = (version ?? 1) < PERMISOS_VERSION;
+  const vigente = new Set<string>(ALL_MODULOS);
   const out = new Set<ModuloId>();
   for (const m of modulos) {
-    const expanded = LEGACY_MODULO_EXPANSION[m];
-    if (expanded) expanded.forEach(x => out.add(x));
-    else out.add(m as ModuloId);
+    const exp = m === 'stock'
+      ? [...MODULOS_GRUESOS['stock-operacion'], ...MODULOS_GRUESOS['stock-compras'], ...MODULOS_GRUESOS['stock-catalogos']]
+      : MODULOS_GRUESOS[m];
+    if (exp && (esViejo || !vigente.has(m))) exp.forEach(x => out.add(x));
+    else if (vigente.has(m)) out.add(m as ModuloId);
   }
+  // Documentos QF no tenía gate: un override viejo no podía negarlo.
+  if (esViejo) out.add('qf-documentos');
   return [...out];
 }
 
@@ -6149,7 +6326,7 @@ export function getUserPermissions(usuario: UsuarioAGS): { apps: AppId[]; modulo
 
   return {
     apps: usuario.permisos.apps ?? defaults.apps,
-    modulos: usuario.permisos.modulos ? expandLegacyModulos(usuario.permisos.modulos) : defaults.modulos,
+    modulos: usuario.permisos.modulos ? expandLegacyModulos(usuario.permisos.modulos, usuario.permisos.version) : defaults.modulos,
   };
 }
 
@@ -6167,13 +6344,16 @@ export function canAccessApp(usuario: UsuarioAGS, app: AppId): boolean {
 
 /** Dado un pathname, devuelve el módulo al que pertenece (o null) */
 export function getModuloFromPath(pathname: string): ModuloId | null {
-  // Busca el prefijo más largo que coincida
+  // El prefijo MÁS LARGO que coincida. Decía eso pero devolvía el primero en
+  // orden de declaración: '/stock/minikits/faltantes' caía en '/stock/minikits'
+  // (2026-09-04, al darle permiso propio a cada pantalla).
+  let mejor: { prefix: string; modulo: ModuloId } | null = null;
   for (const [prefix, modulo] of Object.entries(RUTA_MODULO)) {
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {
-      return modulo;
+      if (!mejor || prefix.length > mejor.prefix.length) mejor = { prefix, modulo };
     }
   }
-  return null;
+  return mejor?.modulo ?? null;
 }
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
@@ -6202,6 +6382,8 @@ export const USER_STATUS_COLORS: Record<UserStatus, string> = {
 export interface UserPermissionsOverride {
   apps?: AppId[];
   modulos?: ModuloId[];
+  /** Ausente = guardado antes de partir los módulos por pantalla (se expande al leer). */
+  version?: number | null;
   /** Áreas de ticket que este usuario puede ver (además de sus propios tickets) */
   ticketAreasVisibles?: TicketArea[];
 }
