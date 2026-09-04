@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { WorkOrder, RequisitoFacturacion } from '@ags/shared';
+import type { Certificacion, WorkOrder, RequisitoFacturacion } from '@ags/shared';
 import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
 import { ordenesTrabajoService, establecimientosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -68,6 +68,8 @@ export const PendientesDocumentacionPage = () => {
 
   /** OTs que ya están dentro de un pedido de certificación abierto. */
   const [enCertificacion, setEnCertificacion] = useState<Set<string>>(new Set());
+  /** Lotes pedidos y sin cerrar: a los que se les pueden sumar OTs (2026-09-04). */
+  const [lotesAbiertos, setLotesAbiertos] = useState<Certificacion[]>([]);
   /** id → nombre, para rotular los grupos (la OT solo guarda el id). */
   const [nombresEst, setNombresEst] = useState<Map<string, string>>(new Map());
 
@@ -80,6 +82,7 @@ export const PendientesDocumentacionPage = () => {
         establecimientosService.getAll().catch(() => []),
       ]);
       setRetenidas(ots);
+      setLotesAbiertos(certs);
       setNombresEst(new Map(ests.map(e => [e.id, e.nombre])));
       // Una OT ya pedida al cliente NO es un pendiente de armar: aparecía en las
       // dos listas y la de abajo la hacía parecer sin resolver (2026-08-19).
@@ -175,7 +178,7 @@ export const PendientesDocumentacionPage = () => {
                   {/* Dos caminos según cómo certifica la planta: pedir el lote
                       y esperar, o registrar el papel que ya llegó. */}
                   <Button size="sm" variant="outline" onClick={() => setLoteGrupo(g)} disabled={acting}>
-                    Solicitar por lote
+                    {lotesAbiertos.some(c => c.clienteId === g.clienteId) ? 'Solicitar / sumar a lote' : 'Solicitar por lote'}
                   </Button>
                   <Button size="sm" onClick={() => setCertGrupo(g)} disabled={acting}>Registrar certificación</Button>
                 </div>
@@ -217,6 +220,7 @@ export const PendientesDocumentacionPage = () => {
           clienteId={loteGrupo.clienteId}
           clienteNombre={loteGrupo.clienteNombre}
           ots={loteGrupo.ots}
+          lotesAbiertos={lotesAbiertos.filter(c => c.clienteId === loteGrupo.clienteId)}
         />
       )}
       {certGrupo && (

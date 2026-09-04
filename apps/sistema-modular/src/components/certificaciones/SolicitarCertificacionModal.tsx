@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Establecimiento, ItemCertificacion, WorkOrder } from '@ags/shared';
+import type { Certificacion, Establecimiento, ItemCertificacion, WorkOrder } from '@ags/shared';
+import { itemsDeCertificacion } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { establecimientosService } from '../../services/firebaseService';
@@ -15,6 +16,16 @@ interface Props {
   clienteNombre: string;
   /** OTs retenidas del cliente, candidatas a entrar en el lote. */
   ots: WorkOrder[];
+  /** Lotes del cliente pedidos y sin cerrar (2026-09-04): se puede sumar las
+   *  OTs a uno en vez de abrir otro — cerró una OT más y el resumen ya salió. */
+  lotesAbiertos?: Certificacion[];
+}
+
+const NUEVO = '__nuevo__';
+
+function etiquetaLote(c: Certificacion): string {
+  const n = itemsDeCertificacion(c).length;
+  return `${c.periodo ? `Período ${c.periodo}` : `Lote del ${(c.fecha || '').slice(0, 10)}`} · ${n} OT${n !== 1 ? 's' : ''}${c.numero ? ` · N° ${c.numero}` : ''}`;
 }
 
 const lbl = 'text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1 block';
@@ -32,7 +43,7 @@ const celda = 'w-full border border-slate-200 rounded px-1.5 py-1 text-[11px] di
  * La selección es LIBRE entre establecimientos: quien arma el resumen decide
  * qué entra, aunque venga de plantas distintas del mismo cliente.
  */
-export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteId, clienteNombre, ots }: Props) {
+export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteId, clienteNombre, ots, lotesAbiertos = [] }: Props) {
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   /** Líneas del resumen, ya redactadas para el cliente y editables. */
   const [lineas, setLineas] = useState<Record<string, ItemCertificacion>>({});
@@ -40,12 +51,18 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
   const [observaciones, setObservaciones] = useState('');
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [guardando, setGuardando] = useState(false);
+  /** A qué lote van: uno nuevo, o el id de uno abierto del cliente. */
+  const [destino, setDestino] = useState(NUEVO);
+  const loteDestino = destino === NUEVO ? null : lotesAbiertos.find(c => c.id === destino) ?? null;
 
   useEffect(() => {
     if (!open) return;
     setSeleccion(new Set(ots.map(o => o.otNumber)));
     setPeriodo(mesActual());
     setObservaciones('');
+    // Si el lote del mes ya salió, lo más probable es que estas OTs vayan ahí.
+    const delMes = lotesAbiertos.find(c => c.periodo === mesActual());
+    setDestino(delMes?.id ?? NUEVO);
     establecimientosService.getAll()
       .then(list => {
         setEstablecimientos(list);
@@ -64,7 +81,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
         setLineas(base);
       })
       .catch(() => setEstablecimientos([]));
-  }, [open, ots]);
+  }, [open, ots, lotesAbiertos]);
 
   const nombreEst = (id?: string | null) =>
     establecimientos.find(e => e.id === id)?.nombre ?? 'Sin establecimiento';
@@ -95,6 +112,12 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
     if (elegidas.length === 0 || guardando) return;
     setGuardando(true);
     try {
+      if (loteDestino) {
+        const { agregadas } = await certificacionesService.agregarItems(loteDestino.id, itemsElegidos);
+        alert(`Se sumaron ${agregadas.length} OT(s) al lote ${loteDestino.periodo ?? ''}. Volvé a mandar el resumen al cliente.`);
+        onCreated();
+        return;
+      }
       const estIds = [...new Set(elegidas.map(o => o.establecimientoId).filter(Boolean))] as string[];
       const contrato = elegidas.find(o => o.contratoId);
       await certificacionesService.solicitar({
@@ -115,7 +138,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
 
   return (
     <Modal open={open} onClose={onClose} maxWidth="xl"
-      title="Solicitar certificación por lote"
+      title={loteDestino ? 'Agregar OTs a un lote pedido' : 'Solicitar certificación por lote'}
       subtitle={clienteNombre}
       footer={<>
         {/* Exportar ANTES de armar: el resumen se manda por mail y lo más
@@ -131,11 +154,28 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
         <Button size="sm" onClick={() => void handleSubmit()} disabled={elegidas.length === 0 || guardando}>
-          {guardando ? 'Armando…' : `Armar pedido (${elegidas.length})`}
+          {guardando ? 'Guardando…' : loteDestino ? `Agregar al lote (${elegidas.length})` : `Armar pedido (${elegidas.length})`}
         </Button>
       </>}>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        {lotesAbiertos.length > 0 && (
+          <div>
+            <label className={lbl}>Destino</label>
+            <select value={destino} onChange={e => setDestino(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+              <option value={NUEVO}>Lote nuevo</option>
+              {lotesAbiertos.map(c => (
+                <option key={c.id} value={c.id}>Sumar a: {etiquetaLote(c)}</option>
+              ))}
+            </select>
+            {loteDestino && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Entran como pendientes junto a las {itemsDeCertificacion(loteDestino).length} que ya tiene. El resumen al cliente hay que reenviarlo.
+              </p>
+            )}
+          </div>
+        )}
+        {!loteDestino && <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Período</label>
             <input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)}
@@ -147,7 +187,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
               placeholder="Referencia para el cliente…"
               className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs" />
           </div>
-        </div>
+        </div>}
 
         <div>
           <div className="flex items-baseline justify-between mb-1.5">

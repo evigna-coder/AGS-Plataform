@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import type { Certificacion, EstadoOTCertificacion } from '@ags/shared';
 import {
   ESTADO_CERTIFICACION_LABELS, ESTADO_OT_CERTIFICACION_LABELS, itemsDeCertificacion,
-  recibidasDeCertificacion, totalesCertificados,
 } from '@ags/shared';
 import { AgregarRecibidaModal } from './AgregarRecibidaModal';
+import { CertificacionRecibidasBlock } from './CertificacionRecibidasBlock';
 import { abrirPdfCertificacion } from '../../utils/imprimirCertificacion';
 import { certificacionesService } from '../../services/certificacionesService';
 import { Card } from '../ui/Card';
@@ -100,7 +100,7 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
         uid: firebaseUser?.uid || '', name: usuario?.displayName,
       });
       await load();
-      alert(`Se generaron ${ids.length} solicitud(es) de facturación con el importe certificado.`);
+      alert(`Se generaron ${ids.length} solicitud(es) de facturación con el importe certificado. El lote sigue acá mientras queden OTs o certificaciones por resolver.`);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'No se pudo pasar a facturación');
     } finally { setActuando(false); }
@@ -148,56 +148,14 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
                   subtitulo="Servicios ejecutados pendientes de certificación"
                   orientacion="landscape"
                 />
-                <button onClick={() => setCargandoRecibida(cert)}
-                  className="text-[10px] font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded px-2 py-1 shrink-0">
-                  Cargar certificación
-                </button>
+                {pendientes > 0 && (
+                  <button onClick={() => setCargandoRecibida(cert)}
+                    className="text-[10px] font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded px-2 py-1 shrink-0">
+                    Cargar certificación
+                  </button>
+                )}
               </div>
-              {(() => {
-                const recibidas = recibidasDeCertificacion(cert);
-                const totales = totalesCertificados(recibidas);
-                if (recibidas.length === 0) return null;
-                return (
-                  <div className="px-3 py-2 bg-teal-50/40 border-b border-teal-100 space-y-1">
-                    {recibidas.map(r => (
-                      <div key={r.id} className="flex items-center gap-2 text-[11px]">
-                        <span className="font-mono font-semibold text-teal-800 shrink-0">
-                          {r.numero || 'S/N'}
-                        </span>
-                        <span className="text-slate-500 shrink-0">{(r.fecha || '').slice(0, 10)}</span>
-                        <span className="text-slate-700 flex-1 tabular-nums">
-                          {r.importes.map(i => `${i.moneda} ${i.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`).join('  ·  ') || '—'}
-                        </span>
-                        {r.archivoUrl && (
-                          <a href={r.archivoUrl} target="_blank" rel="noreferrer"
-                            className="text-teal-700 hover:underline shrink-0">Ver</a>
-                        )}
-                      </div>
-                    ))}
-                    {/* Lo que se factura es esto, no el presupuesto. */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-teal-100">
-                      <span className="text-[10px] font-mono uppercase tracking-wide text-teal-700 shrink-0">
-                        A facturar
-                      </span>
-                      <span className="text-xs font-semibold text-teal-900 tabular-nums">
-                        {totales.map(t => `${t.moneda} ${t.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`).join('   ·   ') || '—'}
-                      </span>
-                      <div className="ml-auto">
-                        {cert.solicitudesIds?.length ? (
-                          <span className="text-[10px] text-emerald-700 font-medium">
-                            ✓ Pasado a facturación
-                          </span>
-                        ) : (
-                          <button onClick={() => void pasarAFacturacion(cert)} disabled={actuando}
-                            className="text-[10px] font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded px-2 py-1 disabled:opacity-40">
-                            Pasar a facturación
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              <CertificacionRecibidasBlock cert={cert} actuando={actuando} onPasarAFacturacion={c => void pasarAFacturacion(c)} />
 
               <div className="divide-y divide-slate-100">
                 {items.map(item => (
@@ -242,7 +200,7 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
           loteId={cargandoRecibida.id}
           clienteNombre={cargandoRecibida.clienteNombre || ''}
           periodo={cargandoRecibida.periodo}
-          pendientes={itemsDeCertificacion(cargandoRecibida).filter(i => i.estado === 'pendiente').length}
+          pendientes={itemsDeCertificacion(cargandoRecibida).filter(i => i.estado === 'pendiente')}
         />
       )}
     </Card>

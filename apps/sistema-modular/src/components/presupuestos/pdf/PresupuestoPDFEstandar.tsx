@@ -224,17 +224,42 @@ export function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) 
   );
 }
 
+/**
+ * Lo mínimo que necesitan la cabecera y el bloque de cliente (2026-09-04).
+ * Otros documentos con membrete (certificación de servicios, contrato) usan
+ * la MISMA cabecera del presupuesto pasando esto en vez de todo el data:
+ * antes cada uno dibujaba la suya y parecían de empresas distintas.
+ */
+export type PDFCabeceraData = Pick<PresupuestoPDFData, 'cliente' | 'establecimiento' | 'contacto' | 'logoSrc' | 'isoLogoSrc'> & {
+  presupuesto: Pick<Presupuesto, 'numero' | 'createdAt' | 'responsableNombre' | 'items'>;
+};
+
+/** Qué documento es, para el bloque derecho de la cabecera. Default: presupuesto. */
+export interface PDFHeaderDoc {
+  titulo: string;
+  leyenda?: string | null;
+  /** Línea en negrita bajo el título ("N° P1-005120-02", "Período 2026-09"). */
+  numero?: string | null;
+  meta: [string, string][];
+}
+
 /** Header estilo Odoo: empresa a la izquierda, título + metadata key/value a la derecha (sin recuadro). */
-export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
+export function PDFHeader({ data, doc }: { data: PDFCabeceraData; doc?: PDFHeaderDoc }) {
   const { presupuesto } = data;
   // Reforma visual 2026-08-12 (pedido de dirección): header compacto, título
   // -20%, y la info bien repartida — lo FISCAL de AGS (CUIT/IIBB/IVA) va a la
   // izquierda con el resto de los datos de la empresa; a la derecha solo lo del
   // PRESUPUESTO (N°, fecha, quién presupuestó) + el sello TÜV discreto.
-  const metaRows: [string, string][] = [
-    ['Fecha', formatDate(presupuesto.createdAt)],
-    ['Preparó', presupuesto.responsableNombre || '-'],
-  ];
+  const documento: PDFHeaderDoc = doc ?? {
+    titulo: 'Presupuesto',
+    leyenda: 'Documento no válido como factura',
+    numero: `N° ${presupuesto.numero}`,
+    meta: [
+      ['Fecha', formatDate(presupuesto.createdAt)],
+      ['Preparó', presupuesto.responsableNombre || '-'],
+    ],
+  };
+  const metaRows = documento.meta;
   // Dos columnas con eje derecho cada una (pedido dirección 2026-08-12):
   // "Fecha:"/"Preparó:" terminan a la misma altura, y los valores también.
   // El ancho de la columna de valores se estima con el valor más largo para
@@ -279,9 +304,13 @@ export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
           piso, y el aire del medio queda deliberado — no un sello flotando. */}
       <View style={{ width: '44%', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>Presupuesto</Text>
-          <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 5 }}>Documento no válido como factura</Text>
-          <Text style={{ fontSize: 10.5, fontWeight: 'bold', color: COLORS.text }}>N° {presupuesto.numero}</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>{documento.titulo}</Text>
+          {documento.leyenda ? (
+            <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 5 }}>{documento.leyenda}</Text>
+          ) : <View style={{ marginBottom: 5 }} />}
+          {documento.numero ? (
+            <Text style={{ fontSize: 10.5, fontWeight: 'bold', color: COLORS.text }}>{documento.numero}</Text>
+          ) : null}
           <View style={{ width: 130, borderTopWidth: 0.5, borderTopColor: COLORS.primary, marginTop: 3, marginBottom: 5 }} />
           {metaRows.map(([k, v]) => (
             <View key={k} style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 2.5 }}>
@@ -297,7 +326,7 @@ export function PDFHeader({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
-export function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
+export function PDFClienteInfo({ data }: { data: PDFCabeceraData }) {
   const { cliente, establecimiento, contacto } = data;
   const nombre = cliente?.razonSocial || '-';
   const dir = establecimiento?.direccion || cliente?.direccion || '-';

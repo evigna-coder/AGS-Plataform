@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ImporteCertificado, MonedaPresupuesto } from '@ags/shared';
+import type { ImporteCertificado, ItemCertificacion, MonedaPresupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { certificacionesService } from '../../services/certificacionesService';
@@ -15,8 +15,8 @@ interface Props {
   loteId: string;
   clienteNombre: string;
   periodo?: string | null;
-  /** Cuántas OTs del lote siguen pendientes — se certifican todas de una. */
-  pendientes: number;
+  /** OTs del lote que siguen pendientes: el documento elige cuáles certifica (todas, por defecto). */
+  pendientes: ItemCertificacion[];
 }
 
 /**
@@ -31,17 +31,22 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [importes, setImportes] = useState<ImporteCertificado[]>([{ moneda: 'ARS', monto: 0 }]);
   const [observaciones, setObservaciones] = useState('');
-  const [archivo, setArchivo] = useState<File | null>(null);
-  /** Por defecto certifica todo el lote: el cliente manda UN papel por el conjunto. */
-  const [certificarTodas, setCertificarTodas] = useState(true);
+  const [archivos, setArchivos] = useState<File[]>([]);
+  /**
+   * Por defecto certifica todo lo pendiente: el cliente manda UN papel por el
+   * conjunto. Cuando manda uno por planta (2026-09-04), se destildan las de
+   * la otra planta y el lote queda abierto para el papel siguiente.
+   */
+  const [elegidas, setElegidas] = useState<Set<string>>(new Set());
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setNumero(''); setFecha(new Date().toISOString().slice(0, 10));
     setImportes([{ moneda: 'ARS', monto: 0 }]);
-    setObservaciones(''); setArchivo(null); setCertificarTodas(true);
-  }, [open]);
+    setObservaciones(''); setArchivos([]);
+    setElegidas(new Set(pendientes.map(p => p.otNumber)));
+  }, [open, pendientes]);
 
   const setImporte = (i: number, patch: Partial<ImporteCertificado>) =>
     setImportes(prev => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -55,11 +60,11 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
     try {
       await certificacionesService.agregarRecibida(loteId, {
         numero: numero.trim() || null,
-        fecha,
+        fecha: fecha || null,
         importes: conMonto,
         observaciones: observaciones.trim() || null,
-        archivo,
-        certificarPendientes: certificarTodas,
+        archivos,
+        otNumbers: [...elegidas],
       });
       onAgregada();
     } catch (e) {
@@ -79,13 +84,15 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
       </>}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
+          {/* Número y fecha OPCIONALES (2026-09-04): hay clientes que certifican
+              con un papel sin número ni fecha. Lo que manda son los importes. */}
           <div>
-            <label className={lbl}>N° de certificación</label>
+            <label className={lbl}>N° de certificación <span className="normal-case tracking-normal text-slate-400">(si tiene)</span></label>
             <input value={numero} onChange={e => setNumero(e.target.value)}
-              placeholder="El que puso el cliente" className={`${inp} font-mono`} />
+              placeholder="El que puso el cliente, o vacío" className={`${inp} font-mono`} />
           </div>
           <div>
-            <label className={lbl}>Fecha del documento</label>
+            <label className={lbl}>Fecha del documento <span className="normal-case tracking-normal text-slate-400">(si tiene)</span></label>
             <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className={inp} />
           </div>
         </div>
@@ -121,29 +128,53 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
           </p>
         </div>
 
-        {/* El caso normal: un documento por el conjunto de servicios. Resolver
-            OT por OT es la excepción, no la regla. */}
-        {pendientes > 0 && (
-          <label className="flex items-start gap-2 bg-teal-50/60 border border-teal-200 rounded-lg px-3 py-2 cursor-pointer">
-            <input type="checkbox" checked={certificarTodas}
-              onChange={e => setCertificarTodas(e.target.checked)}
-              className="w-3.5 h-3.5 accent-teal-600 mt-0.5 shrink-0" />
-            <span className="text-[11px] text-teal-900">
-              Certifica las {pendientes} OT{pendientes !== 1 ? 's' : ''} pendientes del lote
-              <span className="block text-[10px] text-teal-700/80 mt-0.5">
-                Se liberan todas a facturación. Si el cliente objetó alguna, destildá esto o
-                marcá la excepción después en la lista.
+        {/* El caso normal: un documento por el conjunto de servicios. Si el
+            cliente manda uno por planta, se eligen las de esa planta. */}
+        {pendientes.length > 0 && (
+          <div className="bg-teal-50/60 border border-teal-200 rounded-lg px-3 py-2">
+            <div className="flex items-baseline justify-between mb-1">
+              <span className="text-[11px] font-medium text-teal-900">
+                Este documento certifica {elegidas.size} de {pendientes.length} OT{pendientes.length !== 1 ? 's' : ''} pendientes
               </span>
-            </span>
-          </label>
+              <button type="button" className="text-[10px] text-teal-700 hover:underline"
+                onClick={() => setElegidas(elegidas.size === pendientes.length ? new Set() : new Set(pendientes.map(p => p.otNumber)))}>
+                {elegidas.size === pendientes.length ? 'Ninguna' : 'Todas'}
+              </button>
+            </div>
+            <div className="max-h-40 overflow-y-auto space-y-0.5">
+              {pendientes.map(p => (
+                <label key={p.otNumber} className="flex items-center gap-2 text-[11px] text-teal-900 cursor-pointer">
+                  <input type="checkbox" checked={elegidas.has(p.otNumber)}
+                    onChange={() => setElegidas(prev => { const n = new Set(prev); n.has(p.otNumber) ? n.delete(p.otNumber) : n.add(p.otNumber); return n; })}
+                    className="w-3.5 h-3.5 accent-teal-600 shrink-0" />
+                  <span className="font-mono font-semibold shrink-0">{p.otNumber}</span>
+                  <span className="text-teal-800/80 truncate">{[p.establecimientoNombre, p.equipo].filter(Boolean).join(' · ')}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[10px] text-teal-700/80 mt-1">
+              Las elegidas se liberan a facturación. Las que no, siguen esperando otro documento
+              o se objetan desde la lista.
+            </p>
+          </div>
         )}
 
         <div>
-          <label className={lbl}>Archivo de la certificación</label>
-          <input type="file" accept="application/pdf,image/*"
-            onChange={e => setArchivo(e.target.files?.[0] ?? null)}
+          <label className={lbl}>Archivos de la certificación <span className="normal-case tracking-normal text-slate-400">(uno o varios)</span></label>
+          <input type="file" accept="application/pdf,image/*" multiple
+            onChange={e => setArchivos(prev => [...prev, ...Array.from(e.target.files ?? [])])}
             className="text-[11px] text-slate-600 file:mr-2 file:px-2 file:py-1 file:text-[11px] file:rounded file:border file:border-slate-300 file:bg-white" />
-          {archivo && <p className="text-[10px] text-teal-700 mt-1">{archivo.name}</p>}
+          {archivos.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {archivos.map((a, i) => (
+                <li key={`${a.name}-${i}`} className="text-[10px] text-teal-700 flex items-center gap-2">
+                  <span className="truncate">{a.name}</span>
+                  <button type="button" onClick={() => setArchivos(prev => prev.filter((_, j) => j !== i))}
+                    className="text-red-400 hover:text-red-600">×</button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div>

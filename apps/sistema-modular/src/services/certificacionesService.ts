@@ -3,7 +3,7 @@ import { db, createBatch, batchAudit, deepCleanForFirestore, getCreateTrace } fr
 import { ordenesTrabajoService } from './otService';
 import { certificacionStorageService } from './certificacionStorageService';
 import type { Certificacion, CertificacionRecibida, EstadoOTCertificacion, ImporteCertificado, ItemCertificacion } from '@ags/shared';
-import { certificacionResuelta, itemsDeCertificacion, recibidasDeCertificacion, totalesCertificados } from '@ags/shared';
+import { certificacionAbierta, itemsDeCertificacion, recibidasDeCertificacion, recibidasSinFacturar } from '@ags/shared';
 import { facturacionService } from './facturacionService';
 
 export interface CreateCertificacionInput {
@@ -92,12 +92,17 @@ export const certificacionesService = {
     return snap.exists() ? mapDoc(snap) : null;
   },
 
-  /** Pedidos que todavía tienen alguna OT sin resolver. */
+  /**
+   * Pedidos con algo por hacer: OTs sin resolver o certificaciones sin pasar a
+   * facturación. Antes un lote desaparecía en cuanto se resolvía la última OT
+   * —y con eso se llevaba el botón "Pasar a facturación" y la posibilidad de
+   * cargar el segundo papel del cliente (2026-09-04).
+   */
   async getAbiertas(filters?: { contratoId?: string; clienteId?: string }): Promise<Certificacion[]> {
     const todas = await this.getAll(filters?.clienteId ? { clienteId: filters.clienteId } : undefined);
     return todas
       .filter(c => !filters?.contratoId || c.contratoId === filters.contratoId)
-      .filter(c => c.estado !== 'cerrada' && !certificacionResuelta(c));
+      .filter(certificacionAbierta);
   },
 
   /**
@@ -151,6 +156,40 @@ export const certificacionesService = {
   },
 
   /**
+   * Suma OTs a un lote YA pedido (2026-09-04).
+   *
+   * El lote mensual se arma y se manda, y después cierran más OTs del mismo
+   * período: antes la única salida era abrir un segundo lote para dos OTs,
+   * y el cliente recibía dos resúmenes del mismo mes. Las nuevas entran
+   * `pendiente`, como las demás, y se resuelven de a una cuando vuelve la
+   * certificación. Una OT que ya está en el lote no se duplica.
+   *
+   * Un lote cerrado no admite más OTs: eso es otro lote.
+   */
+  async agregarItems(loteId: string, nuevos: ItemCertificacion[]): Promise<{ agregadas: string[] }> {
+    const cert = await this.getById(loteId);
+    if (!cert) throw new Error('El lote no existe');
+    if (cert.estado === 'cerrada') throw new Error('El lote ya está cerrado — armá uno nuevo');
+    const actuales = itemsDeCertificacion(cert);
+    const yaEstan = new Set(actuales.map(i => i.otNumber));
+    const aSumar = nuevos
+      .filter(i => i.otNumber && !yaEstan.has(i.otNumber))
+      .map(i => ({ ...i, estado: 'pendiente' as const }));
+    if (aSumar.length === 0) throw new Error('Todas esas OTs ya están en el lote');
+    const items = [...actuales, ...aSumar];
+    const patch = deepCleanForFirestore({
+      items,
+      otNumbers: items.map(i => i.otNumber),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.update(doc(db, 'certificaciones', loteId), patch);
+    batchAudit(batch, { action: 'update', collection: 'certificaciones', documentId: loteId, after: patch });
+    await batch.commit();
+    return { agregadas: aSumar.map(i => i.otNumber) };
+  },
+
+  /**
    * Reescribe las lineas del resumen (2026-08-17). Solo el texto que ve el
    * cliente: no toca el estado de cada OT ni la OT en si.
    */
@@ -179,10 +218,12 @@ export const certificacionesService = {
     loteId: string,
     datos: {
       numero?: string | null;
-      fecha: string;
+      fecha?: string | null;
       importes: ImporteCertificado[];
       observaciones?: string | null;
       archivo?: File | null;
+      /** Varios archivos por documento (2026-09-04). */
+      archivos?: File[] | null;
       /**
        * Certifica de una todas las OTs que sigan pendientes (default true).
        *
@@ -192,6 +233,12 @@ export const certificacionesService = {
        * después, y este barrido no las pisa.
        */
       certificarPendientes?: boolean;
+      /**
+       * Qué OTs certifica ESTE documento (2026-09-04). Si viene, manda sobre
+       * `certificarPendientes`: el cliente puede devolver un papel por planta
+       * y el lote sigue abierto para el siguiente.
+       */
+      otNumbers?: string[];
     },
     actor?: { uid: string; name?: string },
   ): Promise<CertificacionRecibida> {
@@ -199,33 +246,36 @@ export const certificacionesService = {
     if (!lote) throw new Error('Lote de certificacion no encontrado');
 
     const id = crypto.randomUUID();
-    let archivoUrl: string | null = null;
-    let archivoPath: string | null = null;
-    if (datos.archivo) {
-      const up = await certificacionStorageService.upload(loteId, datos.archivo, datos.archivo.name);
-      archivoUrl = up.url;
-      archivoPath = up.storagePath;
+    const archivos: { url: string; path: string; nombre: string }[] = [];
+    for (const f of [...(datos.archivos ?? []), ...(datos.archivo ? [datos.archivo] : [])]) {
+      const up = await certificacionStorageService.upload(loteId, f, f.name);
+      archivos.push({ url: up.url, path: up.storagePath, nombre: f.name });
     }
+    const archivoUrl = archivos[0]?.url ?? null;
+    const archivoPath = archivos[0]?.path ?? null;
+    // Qué OTs certifica este papel: las elegidas, o todas las pendientes.
+    // Lo ya objetado o marcado no facturable se respeta.
+    const itemsPrevios = itemsDeCertificacion(lote);
+    const elegidas = datos.otNumbers ? new Set(datos.otNumbers) : null;
+    const certificarTodas = datos.certificarPendientes !== false;
+    const aLiberar = itemsPrevios.filter(i => i.estado === 'pendiente'
+      && (elegidas ? elegidas.has(i.otNumber) : certificarTodas));
+    const liberadas = new Set(aLiberar.map(i => i.otNumber));
     const nueva: CertificacionRecibida = {
       id,
       numero: datos.numero ?? null,
-      fecha: datos.fecha,
+      fecha: datos.fecha || null,
       archivoUrl, archivoPath,
+      archivos,
       importes: (datos.importes ?? []).filter(i => Number.isFinite(i.monto) && i.monto !== 0),
       observaciones: datos.observaciones ?? null,
+      otNumbers: [...liberadas],
+      solicitudesIds: [],
     };
     const recibidas = [...recibidasDeCertificacion(lote).filter(r => r.id !== 'legacy'), nueva];
-
-    // Barrido: lo pendiente pasa a certificado con esta certificacion. Lo ya
-    // objetado o marcado no facturable se respeta.
-    const certificarTodas = datos.certificarPendientes !== false;
-    const itemsPrevios = itemsDeCertificacion(lote);
-    const aLiberar = certificarTodas ? itemsPrevios.filter(i => i.estado === 'pendiente') : [];
-    const itemsFinales = certificarTodas
-      ? itemsPrevios.map(i => i.estado === 'pendiente'
-          ? { ...i, estado: 'certificada' as const, fechaResolucion: new Date().toISOString() }
-          : i)
-      : itemsPrevios;
+    const itemsFinales = itemsPrevios.map(i => liberadas.has(i.otNumber)
+      ? { ...i, estado: 'certificada' as const, fechaResolucion: new Date().toISOString(), recibidaId: id }
+      : i);
     const resuelto = itemsFinales.every(i => i.estado !== 'pendiente');
 
     const patch = deepCleanForFirestore({
@@ -262,86 +312,99 @@ export const certificacionesService = {
   /**
    * Genera la(s) solicitud(es) de facturacion del lote (2026-08-17).
    *
-   * SE FACTURA LO CERTIFICADO: el monto sale de `totalesCertificados`, no de
-   * los presupuestos. Si el cliente certifico menos de lo presupuestado, se
-   * factura lo que certifico.
+   * SE FACTURA LO CERTIFICADO: el monto sale de cada documento del cliente,
+   * no de los presupuestos. Si el cliente certifico menos de lo
+   * presupuestado, se factura lo que certifico.
    *
-   * Una solicitud POR MONEDA — un lote puede tener importes en pesos y en
-   * dolares, y son comprobantes distintos.
+   * Por DOCUMENTO sin facturar y por MONEDA (2026-09-04): un lote con dos
+   * plantas recibe dos papeles en momentos distintos, y cada uno se factura
+   * cuando llega. Antes era una sola pasada por lote, y el segundo papel no
+   * tenia como facturarse.
    *
-   * Si las OTs certificadas cuelgan de MAS DE UN presupuesto, corta y avisa en
-   * vez de repartir el importe con un criterio inventado: partir plata a ojo es
-   * peor que pedir que se arme un lote por presupuesto.
+   * Si las OTs de un documento cuelgan de MAS DE UN presupuesto, corta y avisa
+   * en vez de repartir el importe con un criterio inventado.
    */
   async generarSolicitudes(loteId: string, actor?: { uid: string; name?: string }): Promise<string[]> {
     const lote = await this.getById(loteId);
     if (!lote) throw new Error('Lote no encontrado');
-    if (lote.solicitudesIds?.length) {
-      throw new Error('Este lote ya se paso a facturacion');
-    }
-    const totales = totalesCertificados(recibidasDeCertificacion(lote));
-    if (totales.length === 0) {
-      throw new Error('El lote no tiene importes certificados: carga la certificacion con su importe');
+    const pendientes = recibidasSinFacturar(lote);
+    if (pendientes.length === 0) {
+      throw new Error(lote.solicitudesIds?.length
+        ? 'Todas las certificaciones de este lote ya se pasaron a facturacion'
+        : 'El lote no tiene importes certificados: carga la certificacion con su importe');
     }
     const certificadas = itemsDeCertificacion(lote).filter(i => i.estado === 'certificada');
     if (certificadas.length === 0) throw new Error('El lote no tiene ninguna OT certificada');
-
-    // Presupuesto de las OTs certificadas. Debe ser uno solo.
-    const presupuestos = new Set<string>();
-    for (const it of certificadas) {
-      const ot = await ordenesTrabajoService.getByOtNumber(it.otNumber);
-      for (const b of ot?.budgets ?? []) presupuestos.add(b);
-    }
-    if (presupuestos.size > 1) {
-      throw new Error(
-        `Las OTs certificadas pertenecen a ${presupuestos.size} presupuestos distintos `
-        + `(${[...presupuestos].join(', ')}). Arma un lote por presupuesto para no repartir el importe a ojo.`,
-      );
-    }
-    const numeroPpto = [...presupuestos][0] ?? '';
     const { presupuestosService } = await import('./presupuestosService');
-    const ppto = numeroPpto ? await presupuestosService.getByNumero(numeroPpto) : null;
 
-    const recibidas = recibidasDeCertificacion(lote);
-    const refCert = recibidas.map(r => r.numero).filter(Boolean).join(', ');
-    const ids: string[] = [];
-    for (const total of totales) {
-      const id = await facturacionService.create({
-        presupuestoId: ppto?.id ?? '',
-        presupuestoNumero: numeroPpto,
-        clienteId: lote.clienteId ?? '',
-        clienteNombre: lote.clienteNombre ?? '',
-        condicionPago: '',
-        items: [{
-          id: crypto.randomUUID(),
-          presupuestoItemId: '__certificacion__',
-          descripcion: `Servicios certificados${lote.periodo ? ` — periodo ${lote.periodo}` : ''}`
-            + `${refCert ? ` (cert. ${refCert})` : ''}`,
-          cantidad: 1,
-          cantidadTotal: 1,
-          precioUnitario: total.monto,
-          subtotal: total.monto,
-        }],
-        montoTotal: total.monto,
-        moneda: total.moneda,
-        estado: 'pendiente',
-        otNumbers: certificadas.map(i => i.otNumber),
-        observaciones: `Importe segun certificacion del cliente`
-          + `${refCert ? ` N° ${refCert}` : ''}. ${certificadas.length} OT(s).`,
-        solicitadoPor: actor?.uid ?? null,
-        solicitadoPorNombre: actor?.name ?? null,
-      } as any);
-      ids.push(id);
+    const idsNuevos: string[] = [];
+    const recibidasActualizadas = recibidasDeCertificacion(lote).map(r => ({ ...r }));
+    for (const rec of pendientes) {
+      // OTs que respalda este papel. Un documento viejo sin la lista cubre
+      // todo lo certificado del lote.
+      const otsDelPapel = rec.otNumbers?.length
+        ? certificadas.filter(i => rec.otNumbers!.includes(i.otNumber))
+        : certificadas;
+      // Presupuesto de esas OTs. Debe ser uno solo.
+      const presupuestos = new Set<string>();
+      for (const it of otsDelPapel) {
+        const ot = await ordenesTrabajoService.getByOtNumber(it.otNumber);
+        for (const b of ot?.budgets ?? []) presupuestos.add(b);
+      }
+      if (presupuestos.size > 1) {
+        throw new Error(
+          `Las OTs de la certificacion ${rec.numero ?? ''} pertenecen a ${presupuestos.size} presupuestos distintos `
+          + `(${[...presupuestos].join(', ')}). Arma un lote por presupuesto para no repartir el importe a ojo.`,
+        );
+      }
+      const numeroPpto = [...presupuestos][0] ?? '';
+      const ppto = numeroPpto ? await presupuestosService.getByNumero(numeroPpto) : null;
+      const refCert = rec.numero ?? '';
+      const ids: string[] = [];
+      for (const imp of rec.importes) {
+        if (!Number.isFinite(imp.monto) || imp.monto === 0) continue;
+        const id = await facturacionService.create({
+          presupuestoId: ppto?.id ?? '',
+          presupuestoNumero: numeroPpto,
+          clienteId: lote.clienteId ?? '',
+          clienteNombre: lote.clienteNombre ?? '',
+          condicionPago: '',
+          items: [{
+            id: crypto.randomUUID(),
+            presupuestoItemId: '__certificacion__',
+            descripcion: `Servicios certificados${lote.periodo ? ` — periodo ${lote.periodo}` : ''}`
+              + `${refCert ? ` (cert. ${refCert})` : ''}`,
+            cantidad: 1,
+            cantidadTotal: 1,
+            precioUnitario: imp.monto,
+            subtotal: imp.monto,
+          }],
+          montoTotal: imp.monto,
+          moneda: imp.moneda,
+          estado: 'pendiente',
+          otNumbers: otsDelPapel.map(i => i.otNumber),
+          observaciones: `Importe segun certificacion del cliente`
+            + `${refCert ? ` N° ${refCert}` : ''}. ${otsDelPapel.length} OT(s).`,
+          solicitadoPor: actor?.uid ?? null,
+          solicitadoPorNombre: actor?.name ?? null,
+        } as any);
+        ids.push(id);
+      }
+      const idx = recibidasActualizadas.findIndex(r => r.id === rec.id);
+      if (idx >= 0) recibidasActualizadas[idx] = { ...recibidasActualizadas[idx], solicitudesIds: ids };
+      idsNuevos.push(...ids);
     }
 
-    await this.getById(loteId).then(async () => {
-      const patch = deepCleanForFirestore({ solicitudesIds: ids, updatedAt: Timestamp.now() });
-      const batch = createBatch();
-      batch.update(doc(db, 'certificaciones', loteId), patch);
-      batchAudit(batch, { action: 'update', collection: 'certificaciones', documentId: loteId, after: patch });
-      await batch.commit();
+    const patch = deepCleanForFirestore({
+      recibidas: recibidasActualizadas.filter(r => r.id !== 'legacy'),
+      solicitudesIds: [...(lote.solicitudesIds ?? []), ...idsNuevos],
+      updatedAt: Timestamp.now(),
     });
-    return ids;
+    const batch = createBatch();
+    batch.update(doc(db, 'certificaciones', loteId), patch);
+    batchAudit(batch, { action: 'update', collection: 'certificaciones', documentId: loteId, after: patch });
+    await batch.commit();
+    return idsNuevos;
   },
 
   /**

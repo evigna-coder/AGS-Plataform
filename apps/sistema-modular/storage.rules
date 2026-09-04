@@ -58,6 +58,13 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // Certificaciones recibidas del cliente (certificacionStorageService:
+    // `certificaciones/{loteId}/…`). Nunca estuvo en el whitelist: toda subida
+    // daba storage/unauthorized (2026-09-04).
+    match /certificaciones/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // Adjuntos de presupuestos (órdenes de compra, autorizaciones, etc.)
     match /presupuestos/{allPaths=**} {
       allow read, write: if request.auth != null;
