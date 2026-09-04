@@ -1,5 +1,5 @@
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
-import { descripcionItemAsignacion } from '../itemAsignacionLabel';
+import { descripcionItemAsignacion, codigoItemAsignacion } from '../itemAsignacionLabel';
 import { type ExportColumn } from '../exportToExcel';
 import { filtrosAplicadosDesc } from './filtros';
 
@@ -9,7 +9,7 @@ import { filtrosAplicadosDesc } from './filtros';
  * que la lista en pantalla.
  */
 export const INVENTARIO_INGENIERO_EXPORT_COLUMNS: ExportColumn<InventarioItem>[] = [
-  { header: 'Código',      width: 14, get: i => i.articuloCodigo || i.minikitCodigo || i.loanerCodigo || i.vehiculoPatente || '' },
+  { header: 'Código',      width: 14, get: i => codigoItemAsignacion(i) },
   { header: 'Descripción', width: 38, get: i => descripcionItemAsignacion(i) },
   { header: 'Tipo',        width: 12, get: i => i.tipo },
   { header: 'Permanente',  width: 10, get: i => (i.permanente ? 'Sí' : '') },
