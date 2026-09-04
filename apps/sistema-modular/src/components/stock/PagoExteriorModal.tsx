@@ -23,6 +23,13 @@ const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-w
  */
 export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pago = null }) => {
   const [saving, setSaving] = useState(false);
+  /**
+   * Confirmación del pago (2026-09-04): el botón registra CUÁNDO se pagó y saca
+   * el pago del flujo de pendientes, igual que en la importación. Antes solo
+   * había un checkbox "Ya pagado" sin fecha.
+   */
+  const [confirmando, setConfirmando] = useState(false);
+  const [fechaPagado, setFechaPagado] = useState(new Date().toISOString().slice(0, 10));
   const [form, setForm] = useState({
     tipo: 'giro' as 'giro' | 'vep',
     fecha: new Date().toISOString().slice(0, 10),
@@ -36,6 +43,8 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
 
   useEffect(() => {
     if (!open) return;
+    setConfirmando(false);
+    setFechaPagado(new Date().toISOString().slice(0, 10));
     setForm(pago ? {
       tipo: pago.tipo, fecha: pago.fecha.slice(0, 10),
       proveedorNombre: pago.proveedorNombre ?? '',
@@ -78,6 +87,23 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
     }
   };
 
+  const etiquetaPago = form.tipo === 'giro' ? 'giro' : 'VEP';
+
+  const handleConfirmarPago = async () => {
+    if (!pago || !fechaPagado) return;
+    setSaving(true);
+    try {
+      await pagosExteriorService.update(pago.id, { pagado: true, fechaPagado });
+      onSaved();
+      onClose();
+    } catch (err) {
+      console.error('[PagoExteriorModal] confirmar pago falló:', err);
+      alert('Error al confirmar el pago');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!pago || !confirm('¿Eliminar este pago del flujo?')) return;
     setSaving(true);
@@ -98,6 +124,11 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
       subtitle="Carga manual — para OCs que todavía no están en el sistema"
       footer={<>
         {pago && <Button variant="danger" size="sm" onClick={handleDelete} disabled={saving}>Eliminar</Button>}
+        {pago && !pago.pagado && !confirmando && (
+          <Button variant="secondary" size="sm" onClick={() => setConfirmando(true)} disabled={saving}>
+            Confirmar {etiquetaPago}
+          </Button>
+        )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
         <Button size="sm" onClick={handleSave} disabled={saving || !canSave}>
@@ -141,12 +172,33 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
           onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
           placeholder="Opcional" />
 
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.pagado}
-            onChange={e => setForm(f => ({ ...f, pagado: e.target.checked }))}
-            className="w-3.5 h-3.5 accent-teal-600" />
-          <span className="text-xs text-slate-700">Ya pagado <span className="text-slate-400">(sale del flujo de pendientes)</span></span>
-        </label>
+        {pago?.pagado ? (
+          <p className="text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-md px-2.5 py-1.5">
+            {etiquetaPago === 'giro' ? 'Giro' : 'VEP'} confirmado
+            {pago.fechaPagado ? ` el ${new Date(pago.fechaPagado + 'T00:00:00').toLocaleDateString('es-AR')}` : ''}.
+          </p>
+        ) : confirmando ? (
+          <div className="border-l-2 border-teal-300 pl-3 space-y-2">
+            <Input inputSize="sm" label={`Fecha en que se pagó el ${etiquetaPago} *`} type="date" value={fechaPagado}
+              onChange={e => setFechaPagado(e.target.value)} />
+            <p className="text-[11px] text-slate-400">
+              Debía pagarse el {new Date(form.fecha + 'T00:00:00').toLocaleDateString('es-AR')}. Al confirmar sale del flujo de pendientes.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleConfirmarPago} disabled={saving || !fechaPagado}>
+                {saving ? 'Confirmando...' : `Confirmar ${etiquetaPago} pagado`}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmando(false)} disabled={saving}>Volver</Button>
+            </div>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.pagado}
+              onChange={e => setForm(f => ({ ...f, pagado: e.target.checked }))}
+              className="w-3.5 h-3.5 accent-teal-600" />
+            <span className="text-xs text-slate-700">Ya pagado <span className="text-slate-400">(sale del flujo de pendientes; sin fecha de pago)</span></span>
+          </label>
+        )}
       </div>
     </Modal>
   );
