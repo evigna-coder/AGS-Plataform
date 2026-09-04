@@ -9,6 +9,8 @@ import { EntregasFilters } from './EntregasFilters';
 import { DireccionesEntregaModal } from '../../components/entregas/DireccionesEntregaModal';
 import { EntregaRowComponent } from './EntregaRow';
 import { EntregaOCGroupRow } from './EntregaOCGroupRow';
+import { EntregasPorOCTable } from './EntregasPorOCTable';
+import { claveGrupoOC, agruparEntregasPorOC } from '../../utils/entregasPorOC';
 import type { EntregaRow } from '../../utils/entregasResolver';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { ENTREGAS_EXPORT_COLUMNS, buildEntregasFiltrosExport } from '../../utils/exports/exportEntregas';
@@ -27,6 +29,8 @@ const FILTER_SCHEMA = {
   search:    { type: 'string' as const, default: '' },
   sortField: { type: 'string' as const, default: 'diasRestantes' },
   sortDir:   { type: 'string' as const, default: 'asc' },
+  /** Vista resumida por OC del cliente (2026-09-04). */
+  vista:     { type: 'string' as const, default: 'articulos' },
 };
 
 const thClass = 'text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3';
@@ -61,12 +65,24 @@ export const EntregasList: React.FC = () => {
     return set;
   }, [rows]);
 
+  // Por OC (2026-09-04): la OC sigue pendiente hasta el último artículo, así
+  // que bajo "Pendientes" sus ítems ya entregados quedan visibles dentro del
+  // grupo mientras a la OC le falte algo.
+  const porOC = filters.vista === 'oc';
+  const ocsClienteConPendientes = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach(r => { if (r.semaforo !== 'entregado') set.add(claveGrupoOC(r)); });
+    return set;
+  }, [rows]);
+
   const filtered = useMemo((): EntregaRow[] => {
     const term = filters.search.trim().toLowerCase();
     return rows.filter(r => {
       if (filters.clienteId && r.clienteId !== filters.clienteId) return false;
       if (filters.semaforo === '__pendientes__') {
-        const enGrupoConPendientes = r.ocId != null && r.ocEstado === 'recibida' && ocsConPendientes.has(r.ocId);
+        const enGrupoConPendientes = porOC
+          ? ocsClienteConPendientes.has(claveGrupoOC(r))
+          : r.ocId != null && r.ocEstado === 'recibida' && ocsConPendientes.has(r.ocId);
         if (r.semaforo === 'entregado' && !enGrupoConPendientes) return false;
       } else if (filters.semaforo && r.semaforo !== filters.semaforo) return false;
       if (filters.estadoImp && r.importacionEstado !== filters.estadoImp) return false;
@@ -74,17 +90,23 @@ export const EntregasList: React.FC = () => {
         const hay = [
           r.codigoProducto ?? '', r.descripcion, r.presupuestoNumero,
           r.otNumeroVinculada ?? '', r.ocNumero ?? '',
-          r.importacionNumero ?? '', r.clienteNombre,
+          r.importacionNumero ?? '', r.clienteNombre, r.ocCliente?.numero ?? '',
         ].join(' ').toLowerCase();
         if (!hay.includes(term)) return false;
       }
       return true;
     });
-  }, [rows, ocsConPendientes, filters.clienteId, filters.semaforo, filters.estadoImp, filters.search]);
+  }, [rows, ocsConPendientes, ocsClienteConPendientes, porOC, filters.clienteId, filters.semaforo, filters.estadoImp, filters.search]);
 
   const sorted = useMemo(
     () => sortByField(filtered, filters.sortField, filters.sortDir as SortDir),
     [filtered, filters.sortField, filters.sortDir],
+  );
+
+  // En la vista por OC el contador del header cuenta órdenes, no artículos.
+  const cantidadVisible = useMemo(
+    () => porOC ? agruparEntregasPorOC(sorted).length : sorted.length,
+    [porOC, sorted],
   );
 
   const handleSort = (f: string) => {
@@ -133,7 +155,7 @@ export const EntregasList: React.FC = () => {
       <PageHeader
         title="Entregas"
         subtitle="Visor de cumplimiento de entregas comprometidas"
-        count={sorted.length}
+        count={cantidadVisible}
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => abrirDirecciones()}>
@@ -151,6 +173,8 @@ export const EntregasList: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto flex-1 mt-4">
           {loading ? (
             <div className="text-center py-12 text-xs text-slate-400">Cargando...</div>
+          ) : porOC ? (
+            <EntregasPorOCTable rows={sorted} />
           ) : sorted.length === 0 ? (
             <div className="text-center py-12 text-xs text-slate-400">No hay items para mostrar</div>
           ) : (

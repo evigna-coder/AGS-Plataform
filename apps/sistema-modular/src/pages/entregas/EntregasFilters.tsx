@@ -10,6 +10,8 @@ interface Filters {
   semaforo: string;
   estadoImp: string;
   search: string;
+  /** 'articulos' (una fila por ítem) o 'oc' (una por orden de compra del cliente, 2026-09-04). */
+  vista: string;
 }
 
 interface Props {
@@ -31,6 +33,15 @@ export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOp
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden shrink-0">
+        {([['articulos', 'Por artículo'], ['oc', 'Por orden de compra']] as const).map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setFilter('vista', v)}
+            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              filters.vista === v ? 'bg-teal-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
       <input
         type="text"
         value={search}
