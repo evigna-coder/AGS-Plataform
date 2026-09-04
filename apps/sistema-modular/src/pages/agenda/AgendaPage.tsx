@@ -1,5 +1,5 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import type { AgendaEntry, WorkOrder, EstadoAgenda, OTEstadoAdmin } from '@ags/shared';
+import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { esAgendaInterior, ESTADO_AGENDA_INTERIOR } from '@ags/shared';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
@@ -8,6 +8,7 @@ import { establecimientosService } from '../../services/firebaseService';
 import { estadoAgendaInicialPorUbicacion } from '../../utils/distanciaInterior';
 import { colorDeTituloFijo } from '../../utils/agendaCellColor';
 import { useAgenda } from '../../hooks/useAgenda';
+import { useAgendaUndo } from '../../hooks/useAgendaUndo';
 import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
 import { useUrlFilters } from '@ags/shared';
@@ -15,6 +16,8 @@ import { AgendaHeader, type AgendaVista } from '../../components/agenda/AgendaHe
 import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaAlmanaqueView } from '../../components/agenda/AgendaAlmanaqueView';
+import { FlechasLaterales } from '../../components/agenda/AgendaFlechasLaterales';
+import { AgendaUndoAviso } from '../../components/agenda/AgendaUndoAviso';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { AgendaBuscador } from '../../components/agenda/AgendaBuscador';
 import { AgendaReservaModal, type ReservaServicioDatos } from '../../components/agenda/AgendaReservaModal';
@@ -24,7 +27,7 @@ import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../../utils/finDeS
 import { otrasEntradasDeOTs, etiquetaEntrada } from '../../utils/agendaDuplicados';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import {
-  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
+  addWeekdays, resolveEquipoAgsId, propagarEstadoAgendaAOT,
   type ClipboardData,
 } from '../../utils/agendaOTSync';
 
@@ -63,13 +66,20 @@ const ColorRef: FC<{ titulo: string }> = ({ titulo }) => {
 
 export const AgendaPage: FC = () => {
   const {
-    anchor, zoomLevel, visibleDays,
+    anchor, zoomLevel, visibleDays, setZoomLevel,
     goToPrev, goToNext, goToToday, goToDate,
     ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
-    createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
+    createEntry: createEntryRaw, updateEntry: updateEntryRaw, deleteEntry: deleteEntryRaw,
+    upsertNota, deleteNota, toggleFeriado,
     primerFeriadoEnRango,
     diasAgs, toggleDiaAgs, primerDiaAgsEnRango,
   } = useAgenda();
+  // Ctrl+Z (2026-09-04): las tres escrituras pasan por el deshacer. Todo lo
+  // que sigue usa las versiones envueltas; el nombre no cambia para no tocar
+  // los ~25 llamadores.
+  const { createEntry, updateEntry, deleteEntry, avisoDeshacer } = useAgendaUndo({
+    entries, createEntry: createEntryRaw, updateEntry: updateEntryRaw, deleteEntry: deleteEntryRaw,
+  });
 
   // Vista + filtro de ingeniero en la URL (2026-08-14). Van por `useUrlFilters`
   // y no por useState —regla del proyecto— para que la pestaña sobreviva a un
@@ -904,30 +914,10 @@ export const AgendaPage: FC = () => {
         allEntries: selectedCell.allEntries.map(e => ({ ...e, estadoAgenda: estado })),
       });
     }
-    // Propagar a las OTs linkeadas. Avanza siempre; REGRESA solo dentro de la
-    // banda que maneja la agenda (ASIGNADA↔COORDINADA): confirmado→tentativo
-    // debe volver la OT a ASIGNADA (UAT 2026-07-30). Estados de trabajo
-    // (EN_CURSO+) nunca se regresan desde acá. Best-effort.
-    const targetOT = AGENDA_TO_OT_ESTADO[estado];
-    if (targetOT) {
-      for (const en of targets) {
-        if (!en.otNumber) continue;
-        const otNum = en.otNumber;
-        ordenesTrabajoService.getByOtNumber(otNum).then(ot => {
-          if (!ot) return;
-          const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
-          const BANDA_AGENDA: OTEstadoAdmin[] = ['ASIGNADA', 'COORDINADA'];
-          const avanza = OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current];
-          const regresa = OT_ESTADO_ORDER[targetOT] < OT_ESTADO_ORDER[current]
-            && BANDA_AGENDA.includes(current) && BANDA_AGENDA.includes(targetOT);
-          if (avanza || regresa) {
-            return ordenesTrabajoService.update(otNum, {
-              estadoAdmin: targetOT,
-              estadoAdminFecha: new Date().toISOString(),
-            });
-          }
-        }).catch(err => console.error('[AgendaPage] propagar estadoAgenda a OT falló:', err));
-      }
+    // Propagar a las OTs linkeadas (avanza siempre, regresa solo en la banda
+    // de coordinación — ver `propagarEstadoAgendaAOT`). Best-effort.
+    for (const en of targets) {
+      if (en.otNumber) propagarEstadoAgendaAOT(en.otNumber, estado);
     }
   }, [updateEntry, selectedCell, entries]);
 
@@ -1131,7 +1121,12 @@ export const AgendaPage: FC = () => {
         onSearch={() => setShowBuscador(true)}
         onPickDate={goToDate}
         vista={vista}
-        onVistaChange={v => setFilter('vista', v)}
+        onVistaChange={v => {
+          setFilter('vista', v);
+          // Planificacion siempre en el mes; el toggle Semanas/Mes es del almanaque.
+          if (v === 'grilla' && zoomLevel !== 'mes') setZoomLevel('mes');
+        }}
+        onZoomChange={setZoomLevel}
         ingenieros={ingenieros}
         ingenieroId={filters.ingeniero}
         onIngenieroChange={id => setFilter('ingeniero', id)}
@@ -1150,6 +1145,7 @@ export const AgendaPage: FC = () => {
           onCreate={handleCrearReserva}
         />
       )}
+      <AgendaUndoAviso texto={avisoDeshacer} />
 
       <AgendaInfoBar
         selectedCell={selectedCell}
@@ -1177,9 +1173,11 @@ export const AgendaPage: FC = () => {
         <div className="flex-1 relative overflow-hidden">
           {/* Grid area — absolute positioning decouples grid from sidebar */}
           <div
-            className="absolute top-0 left-0 bottom-0 overflow-hidden"
+            className="group absolute top-0 left-0 bottom-0 overflow-hidden"
             style={{ right: sidebarWidth + 6 }}
           >
+            {/* Flechas de período sobre la grilla (2026-09-03). El almanaque trae las suyas. */}
+            {!loading && vista === 'grilla' && <FlechasLaterales onPrev={goToPrev} onNext={goToNext} />}
             {loading ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
@@ -1194,6 +1192,8 @@ export const AgendaPage: FC = () => {
                 entries={entries}
                 ingenieros={ingenieros}
                 ingenieroId={filters.ingeniero}
+                onPrev={goToPrev}
+                onNext={goToNext}
               />
             ) : (
               <AgendaGrid
@@ -1320,6 +1320,14 @@ export const AgendaPage: FC = () => {
             >
               <ColorRef titulo="Vacaciones" />
               Agregar vacaciones
+            </button>
+            {/* Autos (2026-09-04): VTV, service, trámites del vehículo — violeta oscuro */}
+            <button
+              onClick={() => handleAgregarEventoFijo('Autos')}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-violet-50 hover:text-violet-800 flex items-center gap-1.5"
+            >
+              <ColorRef titulo="Autos" />
+              Agregar autos (VTV / service)
             </button>
             <button
               onClick={handleOpenNotaInput}

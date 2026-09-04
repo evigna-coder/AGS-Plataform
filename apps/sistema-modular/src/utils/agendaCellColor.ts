@@ -89,6 +89,10 @@ const REGLAS: ReglaColor[] = [
   { campo: 'titulo', test: /estudios m[ée]dicos/i, bg: 'bg-[#ffe23f]', text: 'text-[#3d3300]' },
   // Vacaciones (2026-08-12) — naranja Claude.
   { campo: 'titulo', test: /vacaciones/i, bg: 'bg-[#D97757]', text: 'text-[#401c10]' },
+  // Autos (2026-09-04): VTV, service, cualquier trámite del vehículo — violeta
+  // OSCURO, el único tono que no tenía la grilla (Firma de recibos es el
+  // violeta claro). `\b` para no pintar "autoclave" ni "autosampler".
+  { campo: 'titulo', test: /\bautos?\b/i, bg: 'bg-[#5b21b6]', text: 'text-[#ede9fe]' },
 ];
 
 /**

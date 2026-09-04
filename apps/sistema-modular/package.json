@@ -44,6 +44,7 @@
     "test:contrato-servicios": "tsx src/components/presupuestos/contrato/__tests__/materializarServicios.test.ts",
     "test:control-antiguedad": "tsx src/utils/__tests__/controlSemanalAntiguedad.test.ts",
     "test:agenda-revert-ot": "tsx src/utils/__tests__/agendaRevertOT.test.ts",
+    "test:agenda-undo": "tsx src/utils/__tests__/agendaUndo.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"

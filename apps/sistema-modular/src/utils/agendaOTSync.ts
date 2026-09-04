@@ -2,6 +2,7 @@ import type { AgendaEntry, EstadoAgenda, OTEstadoAdmin, WorkOrder } from '@ags/s
 import { addDays, isWeekend, parseISO } from 'date-fns';
 import { formatDateKey } from './agendaDateUtils';
 import { sistemasService } from '../services/firebaseService';
+import { ordenesTrabajoService } from '../services/otService';
 
 /**
  * Mapping EstadoAgenda → OT estadoAdmin target.
@@ -118,4 +119,55 @@ export interface ClipboardData {
   entries?: AgendaEntry[];
   /** Celda origen del corte — el comentario de celda viaja al pegar. */
   srcCell?: { ingenieroId: string; fecha: string; quarter: 1 | 2 | 3 | 4 };
+}
+
+/**
+ * Estampa en la OT el ingeniero y la fecha de su entrada de agenda y, si estaba
+ * en CREADA, la promueve a ASIGNADA. Es lo que hacen el drop desde la cola y
+ * el pegado; el DESHACER lo usa para que recrear una entrada borrada (o volver
+ * a mover una) deje la OT como estaba. Best-effort: no bloquea la agenda.
+ *
+ * Estado FRESCO de Firestore (el de la cola puede estar viejo) y
+ * `skipAgendaSync` porque la entrada ya existe: sin el flag, el rebote
+ * OT→agenda podía duplicarla.
+ */
+export function reasignarOTDesdeAgenda(
+  otNumber: string,
+  cambio: { ingenieroId: string; ingenieroNombre: string; fecha: string },
+  origen = 'agenda',
+): void {
+  ordenesTrabajoService.getByOtNumber(otNumber).then(fresh => {
+    const promover = !fresh?.estadoAdmin || fresh.estadoAdmin === 'CREADA';
+    return ordenesTrabajoService.update(otNumber, {
+      ingenieroAsignadoId: cambio.ingenieroId,
+      ingenieroAsignadoNombre: cambio.ingenieroNombre,
+      fechaServicioAprox: cambio.fecha,
+      ...(promover ? { estadoAdmin: 'ASIGNADA' as OTEstadoAdmin, estadoAdminFecha: new Date().toISOString() } : {}),
+    }, { skipAgendaSync: true });
+  }).catch(err => console.error(`[${origen}] sync OT ${otNumber} falló:`, err));
+}
+
+/**
+ * Propaga un estado de agenda a la OT linkeada. Avanza siempre; REGRESA solo
+ * dentro de la banda que maneja la agenda (ASIGNADA↔COORDINADA): confirmado→
+ * tentativo debe volver la OT a ASIGNADA (UAT 2026-07-30). Estados de trabajo
+ * (EN_CURSO+) nunca se regresan desde acá. `cancelado` no propaga. Best-effort.
+ */
+export function propagarEstadoAgendaAOT(otNumber: string, estado: EstadoAgenda): void {
+  const targetOT = AGENDA_TO_OT_ESTADO[estado];
+  if (!targetOT) return;
+  ordenesTrabajoService.getByOtNumber(otNumber).then(ot => {
+    if (!ot) return;
+    const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
+    const BANDA_AGENDA: OTEstadoAdmin[] = ['ASIGNADA', 'COORDINADA'];
+    const avanza = OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current];
+    const regresa = OT_ESTADO_ORDER[targetOT] < OT_ESTADO_ORDER[current]
+      && BANDA_AGENDA.includes(current) && BANDA_AGENDA.includes(targetOT);
+    if (avanza || regresa) {
+      return ordenesTrabajoService.update(otNumber, {
+        estadoAdmin: targetOT,
+        estadoAdminFecha: new Date().toISOString(),
+      });
+    }
+  }).catch(err => console.error(`[agenda] propagar estadoAgenda a OT ${otNumber} falló:`, err));
 }
