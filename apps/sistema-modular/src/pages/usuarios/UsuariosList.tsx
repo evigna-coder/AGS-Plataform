@@ -18,8 +18,9 @@ import { Modal } from '../../components/ui/Modal';
 import type { UsuarioAGS, UserRole, AppId, ModuloId, UserPermissionsOverride } from '@ags/shared';
 import {
   USER_ROLE_LABELS, USER_STATUS_LABELS, USER_STATUS_COLORS,
-  ROLE_DEFAULTS, MODULO_LABELS, MODULO_GROUPS, APP_LABELS, getUserPermissions,
+  ROLE_DEFAULTS, APP_LABELS, getUserPermissions, PERMISOS_VERSION,
 } from '@ags/shared';
+import { PermisosModulosTree } from '../../components/usuarios/PermisosModulosTree';
 
 const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'admin_ing_soporte', 'ventas', 'admin_contable', 'administracion'];
 const ALL_APPS = Object.keys(APP_LABELS) as AppId[];
@@ -261,6 +262,9 @@ function EditUserModal({ usuario, onClose, onSaved }: {
   const toggleModulo = (mod: ModuloId) => {
     setModulos(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod]);
   };
+  const setModulosMany = (mods: ModuloId[], on: boolean) => {
+    setModulos(prev => on ? [...new Set([...prev, ...mods])] : prev.filter(m => !mods.includes(m)));
+  };
 
   const handleResetDefaults = () => {
     setUseCustom(false);
@@ -281,7 +285,8 @@ function EditUserModal({ usuario, onClose, onSaved }: {
         await usuariosService.updateRoles(usuario.id, extraRoles);
       }
       // Guardar permisos
-      const permisos: UserPermissionsOverride | null = useCustom ? { apps, modulos } : null;
+      // version: el override se guarda ya partido por pantalla (2026-09-04).
+      const permisos: UserPermissionsOverride | null = useCustom ? { apps, modulos, version: PERMISOS_VERSION } : null;
       const permisosChanged = useCustom !== !!usuario.permisos ||
         (useCustom && (JSON.stringify(apps) !== JSON.stringify(usuario.permisos?.apps) || JSON.stringify(modulos) !== JSON.stringify(usuario.permisos?.modulos)));
       if (permisosChanged) {
@@ -429,42 +434,9 @@ function EditUserModal({ usuario, onClose, onSaved }: {
               </div>
             </div>
 
-            {/* Modulos — agrupados como el sidebar (MODULO_GROUPS) */}
-            <div>
-              <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-2">Modulos</p>
-              <div className="space-y-3">
-                {MODULO_GROUPS.map(group => (
-                  <div key={group.label}>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{group.label}</p>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {group.modulos.map(mod => {
-                        const isChecked = modulos.includes(mod);
-                        const isRoleDefault = roleDefaults.modulos.includes(mod);
-                        return (
-                          <label key={mod} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            !useCustom ? 'opacity-60 cursor-not-allowed' : ''
-                          } ${isChecked ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={!useCustom}
-                              onChange={() => toggleModulo(mod)}
-                              className="w-3.5 h-3.5 accent-teal-600 rounded"
-                            />
-                            <span className="text-[11px] text-slate-700">{MODULO_LABELS[mod]}</span>
-                            {useCustom && isChecked !== isRoleDefault && (
-                              <span className={`ml-auto text-[8px] font-bold ${isChecked ? 'text-emerald-500' : 'text-red-400'}`}>
-                                {isChecked ? '+' : '-'}
-                              </span>
-                            )}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Modulos — el árbol exacto del sidebar (2026-09-04) */}
+            <PermisosModulosTree modulos={modulos} roleDefaults={roleDefaults.modulos}
+              editable={useCustom} onToggle={toggleModulo} onSetMany={setModulosMany} />
 
             {/* Info sobre diferencias */}
             {useCustom && (

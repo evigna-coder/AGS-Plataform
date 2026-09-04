@@ -42,7 +42,7 @@ assert.equal(
 // 3. Grupos sintéticos (#) no son destino navegable; se baja a la hoja.
 assert.equal(
   resolveLandingPath([
-    stock([{ name: 'Operación', path: '#stock-operacion', children: [{ name: 'Unidades', path: '/stock/unidades', modulo: 'stock-operacion' }] }]),
+    stock([{ name: 'Operación', path: '#stock-operacion', children: [{ name: 'Unidades', path: '/stock/unidades', modulo: 'stock-unidades' }] }]),
   ]),
   '/stock/unidades',
   'un grupo sintético no puede ser el landing',

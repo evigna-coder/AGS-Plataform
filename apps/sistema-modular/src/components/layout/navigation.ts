@@ -1,4 +1,5 @@
 import type { ModuloId } from '@ags/shared';
+import { ALL_MODULOS, MODULO_LABELS } from '@ags/shared';
 import { useFeatureFlags } from '../../contexts/FeatureFlagsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveLandingPath } from './landingPath';
@@ -32,8 +33,8 @@ export const navigation: NavItem[] = [
       { name: 'Presupuestos', path: '/presupuestos', icon: '📋', modulo: 'presupuestos' },
       { name: 'Contratos', path: '/contratos', icon: '📑', modulo: 'contratos' },
       { name: 'Facturación', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
-      { name: 'Pend. documentación', path: '/facturacion/pendientes-documentacion', icon: '📄', modulo: 'facturacion' },
-      { name: 'Cuotas por facturar', path: '/facturacion/cuotas-por-facturar', icon: '🗓️', modulo: 'facturacion' },
+      { name: 'Pend. documentación', path: '/facturacion/pendientes-documentacion', icon: '📄', modulo: 'pendientes-documentacion' },
+      { name: 'Cuotas por facturar', path: '/facturacion/cuotas-por-facturar', icon: '🗓️', modulo: 'cuotas-por-facturar' },
     ],
   },
   {
@@ -47,35 +48,35 @@ export const navigation: NavItem[] = [
     ],
   },
   {
-    // Sin `modulo` propio: el grupo Stock se muestra si hay ≥1 hijo visible. El gate vive
-    // en cada hoja (sub-módulo), no en el grupo — así una hoja de módulo propio (Pagos VEP,
-    // Calif. Proveedores) sigue visible para quien tenga ESE módulo aunque no tenga el resto
-    // del sub-grupo. El landing '/stock' lo resuelve StockHome según permisos.
+    // Sin `modulo` propio: el grupo Stock se muestra si hay ≥1 hijo visible. Cada hoja
+    // tiene su propio módulo (2026-09-04: una pantalla del sidebar = un permiso), así que
+    // el panel de permisos muestra exactamente esto. El landing '/stock' lo resuelve
+    // StockHome según permisos.
     name: 'Stock', path: '/stock', icon: '📦',
     children: [
       {
         name: 'Operación', path: '#stock-operacion', icon: '🔁',
         children: [
-          { name: 'Unidades', path: '/stock/unidades', modulo: 'stock-operacion' },
-          { name: 'Minikits', path: '/stock/minikits', modulo: 'stock-operacion' },
-          { name: 'Faltantes en minikits', path: '/stock/minikits/faltantes', modulo: 'stock-operacion' },
-          { name: 'Asignaciones', path: '/stock/asignaciones', modulo: 'stock-operacion' },
-          { name: 'Historial asig.', path: '/stock/asignaciones/historial', modulo: 'stock-operacion' },
-          { name: 'Remitos', path: '/stock/remitos', modulo: 'stock-operacion' },
-          { name: 'Movimientos', path: '/stock/movimientos', modulo: 'stock-operacion' },
-          { name: 'Consumos por equipo', path: '/stock/consumos', modulo: 'stock-operacion' },
-          { name: 'Alertas', path: '/stock/alertas', modulo: 'stock-operacion' },
+          { name: 'Unidades', path: '/stock/unidades', modulo: 'stock-unidades' },
+          { name: 'Minikits', path: '/stock/minikits', modulo: 'stock-minikits' },
+          { name: 'Faltantes en minikits', path: '/stock/minikits/faltantes', modulo: 'stock-minikits-faltantes' },
+          { name: 'Asignaciones', path: '/stock/asignaciones', modulo: 'stock-asignaciones' },
+          { name: 'Historial asig.', path: '/stock/asignaciones/historial', modulo: 'stock-asignaciones-historial' },
+          { name: 'Remitos', path: '/stock/remitos', modulo: 'stock-remitos' },
+          { name: 'Movimientos', path: '/stock/movimientos', modulo: 'stock-movimientos' },
+          { name: 'Consumos por equipo', path: '/stock/consumos', modulo: 'stock-consumos' },
+          { name: 'Alertas', path: '/stock/alertas', modulo: 'stock-alertas' },
         ],
       },
       {
         name: 'Compras', path: '#stock-compras', icon: '🛒',
         children: [
-          { name: 'Requerimientos', path: '/stock/requerimientos', modulo: 'stock-compras' },
-          { name: 'Planificación', path: '/stock/planificacion', modulo: 'stock-compras' },
-          { name: 'Ordenes de Compra', path: '/stock/ordenes-compra', modulo: 'stock-compras' },
-          { name: 'Importaciones', path: '/stock/importaciones', modulo: 'stock-compras' },
+          { name: 'Requerimientos', path: '/stock/requerimientos', modulo: 'stock-requerimientos' },
+          { name: 'Planificación', path: '/stock/planificacion', modulo: 'stock-planificacion' },
+          { name: 'Ordenes de Compra', path: '/stock/ordenes-compra', modulo: 'stock-ordenes-compra' },
+          { name: 'Importaciones', path: '/stock/importaciones', modulo: 'stock-importaciones' },
           { name: 'Pagos VEP', path: '/stock/pagos-vep', icon: '💸', modulo: 'pagos' },
-          { name: 'Entregas', path: '/entregas', modulo: 'stock-compras' },
+          { name: 'Entregas', path: '/entregas', modulo: 'entregas' },
         ],
       },
       {
@@ -83,7 +84,7 @@ export const navigation: NavItem[] = [
         children: [
           { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
           { name: 'Patrones', path: '/patrones', icon: '⚗️', modulo: 'patrones' },
-          { name: 'Columnas', path: '/columnas', icon: '📊', modulo: 'instrumentos' },
+          { name: 'Columnas', path: '/columnas', icon: '📊', modulo: 'columnas' },
           { name: 'Dispositivos', path: '/dispositivos', icon: '📱', modulo: 'dispositivos' },
           { name: 'Vehículos', path: '/vehiculos', icon: '🚗', modulo: 'vehiculos' },
           { name: 'Fichas Propiedad', path: '/fichas', icon: '🔧', modulo: 'fichas' },
@@ -93,12 +94,12 @@ export const navigation: NavItem[] = [
       {
         name: 'Catálogos', path: '#stock-catalogos', icon: '📇',
         children: [
-          { name: 'Articulos', path: '/stock/articulos', modulo: 'stock-catalogos' },
-          { name: 'Proveedores', path: '/stock/proveedores', modulo: 'stock-catalogos' },
+          { name: 'Articulos', path: '/stock/articulos', modulo: 'stock-articulos' },
+          { name: 'Proveedores', path: '/stock/proveedores', modulo: 'stock-proveedores' },
           { name: 'Calif. Proveedores', path: '/calificacion-proveedores', icon: '⭐', modulo: 'calificacion-proveedores' },
-          { name: 'Posiciones', path: '/stock/posiciones', modulo: 'stock-catalogos' },
-          { name: 'Pos. Arancelarias', path: '/stock/posiciones-arancelarias', modulo: 'stock-catalogos' },
-          { name: 'Marcas', path: '/stock/marcas', modulo: 'stock-catalogos' },
+          { name: 'Posiciones', path: '/stock/posiciones', modulo: 'stock-posiciones' },
+          { name: 'Pos. Arancelarias', path: '/stock/posiciones-arancelarias', modulo: 'stock-posiciones-arancelarias' },
+          { name: 'Marcas', path: '/stock/marcas', modulo: 'stock-marcas' },
         ],
       },
     ],
@@ -106,11 +107,10 @@ export const navigation: NavItem[] = [
   {
     name: 'Personas', path: '#personas', icon: '🧑‍💼',
     children: [
-      // Ingenieros usa el gate de `usuarios` — mismo "padrón de personal".
-      { name: 'Ingenieros', path: '/stock/ingenieros', icon: '👷', modulo: 'usuarios' },
+      { name: 'Ingenieros', path: '/stock/ingenieros', icon: '👷', modulo: 'ingenieros' },
     ],
   },
-  { name: 'Documentos QF', path: '/qf-documentos', icon: '📄' },
+  { name: 'Documentos QF', path: '/qf-documentos', icon: '📄', modulo: 'qf-documentos' },
   {
     name: 'Administración', path: '#administracion', icon: '🧾',
     children: [
@@ -298,4 +298,63 @@ export function isMvpDefault(path: string): boolean {
   const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
   if (!isDesktopMvp) return true;
   return DESKTOP_MVP_ALLOWED.has(path);
+}
+
+/** Árbol para el panel de permisos: espeja el sidebar, nivel por nivel. */
+export interface PermisoGrupo {
+  label: string;
+  modulos: { id: ModuloId; label: string }[];
+  subgrupos: PermisoGrupo[];
+}
+
+/**
+ * Árbol de permisos DERIVADO de la navegación (2026-09-04). El panel de
+ * permisos mostraba una lista aparte que había quedado atrás del sidebar:
+ * faltaban pantallas y otras estaban fundidas en un módulo grueso. Con esto
+ * lo que se otorga es exactamente lo que se ve al costado, y sumar una entrada
+ * al sidebar la suma sola al panel.
+ *
+ * Hojas sueltas del primer nivel (Dashboard, Documentos QF) van en "General".
+ * Un grupo con módulo propio (Admin) aparece como permiso del grupo, y sus
+ * hojas sin módulo quedan cubiertas por ese permiso. Los módulos que no
+ * tienen entrada en el sidebar (Establecimientos) van al final, en "Otras
+ * pantallas", para que sigan siendo otorgables.
+ */
+export function arbolDePermisos(): PermisoGrupo[] {
+  const vistos = new Set<ModuloId>();
+  const entrada = (id: ModuloId, label: string) => {
+    if (vistos.has(id)) return null;
+    vistos.add(id);
+    return { id, label };
+  };
+  const armar = (node: NavItem): PermisoGrupo => {
+    const g: PermisoGrupo = { label: node.name, modulos: [], subgrupos: [] };
+    if (node.modulo) {
+      const e = entrada(node.modulo, `${node.name} (todo)`);
+      if (e) g.modulos.push(e);
+    }
+    for (const c of node.children ?? []) {
+      if (c.children) g.subgrupos.push(armar(c));
+      else if (c.modulo) {
+        const e = entrada(c.modulo, c.name);
+        if (e) g.modulos.push(e);
+      }
+    }
+    return g;
+  };
+  const general: PermisoGrupo = { label: 'General', modulos: [], subgrupos: [] };
+  const grupos: PermisoGrupo[] = [];
+  for (const n of navigation) {
+    if (n.children) grupos.push(armar(n));
+    else if (n.modulo) {
+      const e = entrada(n.modulo, n.name);
+      if (e) general.modulos.push(e);
+    }
+  }
+  const otros = ALL_MODULOS.filter(m => !vistos.has(m)).map(id => ({ id, label: MODULO_LABELS[id] }));
+  return [
+    ...(general.modulos.length ? [general] : []),
+    ...grupos,
+    ...(otros.length ? [{ label: 'Otras pantallas', modulos: otros, subgrupos: [] }] : []),
+  ];
 }

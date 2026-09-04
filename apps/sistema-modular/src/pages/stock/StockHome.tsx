@@ -9,9 +9,11 @@ import type { ModuloId } from '@ags/shared';
  * Operación. Orden = catálogos (comportamiento previo) → operación → compras → pagos.
  */
 const STOCK_LANDING: { modulo: ModuloId; path: string }[] = [
-  { modulo: 'stock-catalogos', path: '/stock/articulos' },
-  { modulo: 'stock-operacion', path: '/stock/unidades' },
-  { modulo: 'stock-compras', path: '/stock/ordenes-compra' },
+  { modulo: 'stock-articulos', path: '/stock/articulos' },
+  { modulo: 'stock-unidades', path: '/stock/unidades' },
+  { modulo: 'stock-remitos', path: '/stock/remitos' },
+  { modulo: 'stock-ordenes-compra', path: '/stock/ordenes-compra' },
+  { modulo: 'stock-importaciones', path: '/stock/importaciones' },
   { modulo: 'pagos', path: '/stock/pagos-vep' },
 ];
 
