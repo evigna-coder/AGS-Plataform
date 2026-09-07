@@ -2369,6 +2369,8 @@ ${linea}`,
       montoPorMoneda?: Partial<Record<MonedaCuota, number>>;         // Phase 12 MIXTA
       observaciones?: string;
       cuotaId?: string;                                              // Phase 12 anticipo back-ref
+      /** Lote de certificación que respalda el aviso (2026-09-07). */
+      certificacionId?: string;
     },
     actor?: { uid: string; name?: string },
   ): Promise<{ solicitudId: string }> {
@@ -2539,6 +2541,7 @@ ${linea}`,
         montoPorMoneda: resolvedMontoPorMoneda,                       // BILL-04
         porcentajeCoberturaPorMoneda,                                 // BILL-04 derived
         ordenesCompraIds: pres.ordenesCompraIds || [],
+        certificacionId: extras?.certificacionId ?? null,
         observaciones: extras?.observaciones ?? null,
         solicitadoPor: actor?.uid ?? null,
         solicitadoPorNombre: actor?.name ?? null,

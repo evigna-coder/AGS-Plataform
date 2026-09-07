@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { presupuestosService, facturacionService } from '../../services/firebaseService';
 import { ordenesTrabajoService } from '../../services/firebaseService';
+import { CierreAvisoParcial } from './CierreAvisoParcial';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, SolicitudFacturacion } from '@ags/shared';
 import { MONEDA_SIMBOLO, presupuestoEstaAceptado, ESTADO_PRESUPUESTO_LABELS } from '@ags/shared';
@@ -10,7 +11,7 @@ interface Props {
   otNumber: string;
   budgets: string[];
   clienteId: string;
-  /** Ya no se usa (generarAvisoFacturacion lo resuelve del ppto); se acepta por compat. */
+  /** Lo usa el aviso parcial (2026-09-07); el aviso total lo resuelve del ppto. */
   clienteNombre?: string;
   onSolicitudCreated: (id: string) => void;
 }
@@ -33,13 +34,14 @@ const OT_CERRADA_ADMIN = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
  * y al click se re-verifica contra el estado real del ppto (server truth).
  */
 export const CierreFacturacionWizard: React.FC<Props> = ({
-  otNumber, budgets, clienteId, onSolicitudCreated,
+  otNumber, budgets, clienteId, clienteNombre, onSolicitudCreated,
 }) => {
   const { usuario } = useAuth();
   const [loading, setLoading] = useState(true);
   const [presupuestosInfo, setPresupuestosInfo] = useState<PresupuestoInfo[]>([]);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     if (budgets.length === 0) { setLoading(false); return; }
@@ -151,6 +153,9 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
         const noAceptado = !presupuestoEstaAceptado(info.presupuesto.estado);
         const sent = sentIds.has(info.presupuesto.id);
         const sym = MONEDA_SIMBOLO[info.presupuesto.moneda] || '$';
+        // Parcial: cuando el aviso total no aplica (quedan OTs, o ya hubo
+        // avisos previos) y el presupuesto está aceptado.
+        const ofreceParcial = !sent && !noAceptado && (bloqueada || hasExisting);
         return (
           <div key={info.presupuesto.id} className="border border-slate-200 rounded-lg p-2.5 bg-white space-y-1.5">
             <div className="flex items-center justify-between">
@@ -202,6 +207,19 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
               <p className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Ya existen {info.solicitudesExistentes.length} solicitud(es) de facturacion para este presupuesto
               </p>
+            )}
+            {/* Aviso parcial por esta OT (2026-09-07): presupuestos por N visitas. */}
+            {ofreceParcial && (
+              <CierreAvisoParcial
+                presupuesto={info.presupuesto}
+                otNumber={otNumber}
+                clienteNombre={clienteNombre ?? ''}
+                disabled={sendingId !== null}
+                onCreated={id => {
+                  if (id) onSolicitudCreated(id);
+                  setSentIds(prev => new Set(prev).add(info.presupuesto.id));
+                }}
+              />
             )}
           </div>
         );

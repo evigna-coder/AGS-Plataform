@@ -14,7 +14,14 @@ interface Props {
   clienteNombre: string;
   condicionPagoNombre: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (solicitudId?: string) => void;
+  /**
+   * Aviso parcial desde el cierre de una OT (2026-09-07): la solicitud queda
+   * vinculada a esa OT. Caso "presupuesto por 10 visitas, una OT por visita":
+   * cada cierre informa su parte sin esperar a la última.
+   */
+  otNumbers?: string[];
+  observacionesInicial?: string;
 }
 
 interface ItemSelection {
@@ -25,7 +32,7 @@ interface ItemSelection {
 }
 
 export const SolicitarFacturaModal: React.FC<Props> = ({
-  open, presupuesto, clienteNombre, condicionPagoNombre, onClose, onCreated,
+  open, presupuesto, clienteNombre, condicionPagoNombre, onClose, onCreated, otNumbers, observacionesInicial,
 }) => {
   const { usuario } = useAuth();
   const [selections, setSelections] = useState<ItemSelection[]>([]);
@@ -40,6 +47,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!open) return;
+    setObservaciones(observacionesInicial ?? '');
     facturacionService.getByPresupuesto(presupuesto.id).then(previas => {
       setSolicitudesPrevias(previas.filter(s => s.estado !== 'anulada'));
       // Calculate already invoiced quantities per item
@@ -60,7 +68,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         };
       }));
     });
-  }, [open, presupuesto.id]);
+  }, [open, presupuesto.id, observacionesInicial]);
 
   const toggleItem = (idx: number) => {
     setSelections(prev => prev.map((s, i) => i === idx ? { ...s, selected: !s.selected } : s));
@@ -110,7 +118,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
             subtotal: s.cantidad * s.item.precioUnitario,
           }));
 
-      await facturacionService.create({
+      const solicitudId = await facturacionService.create({
         presupuestoId: presupuesto.id,
         presupuestoNumero: presupuesto.numero,
         clienteId: presupuesto.clienteId,
@@ -120,6 +128,9 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         montoTotal,
         moneda: presupuesto.moneda,
         estado: 'pendiente',
+        // OT que respalda este aviso parcial (2026-09-07): Facturación abre
+        // su reporte desde la solicitud, como en el aviso total.
+        otNumbers: otNumbers?.length ? otNumbers : null,
         observaciones: observaciones || null,
         ...(modo === 'porcentaje' && presupuesto.moneda !== 'MIXTA'
           ? { porcentajeCoberturaPorMoneda: { [presupuesto.moneda]: pctNum } }
@@ -152,7 +163,9 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         presupuestoNumero: presupuesto.numero,
         clienteId: presupuesto.clienteId,
         montoLabel: `${presupuesto.moneda} ${montoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
-        otsLabel: modo === 'porcentaje' ? `anticipo ${pctNum}%` : 'facturación parcial por ítems',
+        otsLabel: otNumbers?.length
+          ? `OT ${otNumbers.join(', ')} — ${modo === 'porcentaje' ? `${pctNum}% del presupuesto` : 'parcial por ítems'}`
+          : modo === 'porcentaje' ? `anticipo ${pctNum}%` : 'facturación parcial por ítems',
         actorUid: usuario?.id ?? null,
       });
 
@@ -161,7 +174,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
       await presupuestosService.trySyncFinalizacion(presupuesto.id)
         .catch(err => console.warn('[SolicitarFacturaModal] trySyncFinalizacion:', err));
 
-      onCreated();
+      onCreated(solicitudId);
       onClose();
     } catch (err) {
       console.error('Error creando solicitud de facturación:', err);
