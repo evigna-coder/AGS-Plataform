@@ -197,6 +197,14 @@ export const facturacionService = {
         }
       }
 
+      // ── Anulada con certificación (2026-09-07): el lote deja de contar esa
+      // solicitud, así el papel del cliente vuelve a poder pasarse o quitarse.
+      if (data.estado === 'anulada' && sol?.certificacionId) {
+        const { certificacionesService } = await import('./certificacionesService');
+        await certificacionesService.desvincularSolicitud(sol.certificacionId, sol.id).catch(err =>
+          console.warn('[facturacionService.update] desvincular certificación tras anulación falló:', err));
+      }
+
       // ── Aviso de FACTURA CARGADA (2026-08-17) ────────────────────────────
       // Cargar la factura no avisaba a nadie: el circuito moría en
       // Administración y el presupuesto quedaba esperando a que alguien se

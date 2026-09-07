@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { ImporteCertificado, ItemCertificacion, MonedaPresupuesto } from '@ags/shared';
+import type { ImporteCertificado, ItemCertificacion } from '@ags/shared';
+import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { certificacionesService } from '../../services/certificacionesService';
 
-const MONEDAS: MonedaPresupuesto[] = ['ARS', 'USD', 'EUR'];
 const lbl = 'text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1 block';
 const inp = 'w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs';
 
@@ -29,7 +29,9 @@ interface Props {
 export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, clienteNombre, periodo, pendientes }: Props) {
   const [numero, setNumero] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const [importes, setImportes] = useState<ImporteCertificado[]>([{ moneda: 'ARS', monto: 0 }]);
+  /** Pesos y dólares siempre a la vista (2026-09-07): el caso normal es
+   *  un documento con una parte en cada moneda. Euros, a pedido. */
+  const [importes, setImportes] = useState<ImporteCertificado[]>([{ moneda: 'ARS', monto: 0 }, { moneda: 'USD', monto: 0 }]);
   const [observaciones, setObservaciones] = useState('');
   const [archivos, setArchivos] = useState<File[]>([]);
   /**
@@ -43,7 +45,7 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
   useEffect(() => {
     if (!open) return;
     setNumero(''); setFecha(new Date().toISOString().slice(0, 10));
-    setImportes([{ moneda: 'ARS', monto: 0 }]);
+    setImportes([{ moneda: 'ARS', monto: 0 }, { moneda: 'USD', monto: 0 }]);
     setObservaciones(''); setArchivos([]);
     setElegidas(new Set(pendientes.map(p => p.otNumber)));
   }, [open, pendientes]);
@@ -55,7 +57,6 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
 
   const handleSubmit = async () => {
     if (guardando) return;
-    if (conMonto.length === 0) { alert('Cargá al menos un importe certificado'); return; }
     setGuardando(true);
     try {
       await certificacionesService.agregarRecibida(loteId, {
@@ -97,34 +98,42 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
           </div>
         </div>
 
-        <div>
-          <div className="flex items-baseline justify-between mb-1">
-            <span className={lbl}>Importes certificados</span>
-            <button onClick={() => setImportes(p => [...p, { moneda: 'USD', monto: 0 }])}
-              className="text-[11px] text-teal-600 hover:underline">+ Otra moneda</button>
+        {/* Importes: recuadro destacado (2026-09-07, "apenas se veía"), con
+            pesos y dólares fijos — un documento suele certificar una parte en
+            cada moneda, y cada una genera su propia solicitud de facturación. */}
+        <div className="rounded-lg border-2 border-teal-200 bg-teal-50/40 px-3 py-2.5">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-xs font-semibold text-teal-900">Importes certificados
+              <span className="font-normal text-teal-700/80"> (si el cliente los informa)</span>
+            </span>
+            {!importes.some(i => i.moneda === 'EUR') && (
+              <button onClick={() => setImportes(p => [...p, { moneda: 'EUR', monto: 0 }])}
+                className="text-[11px] text-teal-700 hover:underline">+ Euros</button>
+            )}
           </div>
-          {/* Multi-moneda: un mismo documento puede certificar pesos y dólares
-              por separado, y así se factura. */}
-          <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-3">
             {importes.map((imp, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <select value={imp.moneda} className={`${inp} w-24`}
-                  onChange={e => setImporte(i, { moneda: e.target.value as MonedaPresupuesto })}>
-                  {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <input type="number" step="0.01" min={0} value={imp.monto || ''}
-                  onChange={e => setImporte(i, { monto: Number(e.target.value) || 0 })}
-                  placeholder="0,00" className={`${inp} flex-1 text-right tabular-nums`} />
-                {importes.length > 1 && (
-                  <button onClick={() => setImportes(p => p.filter((_, j) => j !== i))}
-                    className="text-red-400 hover:text-red-600 text-sm px-1">×</button>
-                )}
+              <div key={imp.moneda}>
+                <label className="block text-[11px] font-medium text-teal-900 mb-1">
+                  {imp.moneda === 'ARS' ? 'Pesos (ARS)' : imp.moneda === 'USD' ? 'Dólares (USD)' : 'Euros (EUR)'}
+                  {imp.moneda === 'EUR' && (
+                    <button onClick={() => setImportes(p => p.filter((_, j) => j !== i))}
+                      className="ml-2 text-red-400 hover:text-red-600">quitar</button>
+                  )}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-mono text-teal-700 w-9 shrink-0">{MONEDA_SIMBOLO[imp.moneda] || imp.moneda}</span>
+                  <input type="number" step="0.01" min={0} value={imp.monto || ''}
+                    onChange={e => setImporte(i, { monto: Number(e.target.value) || 0 })}
+                    placeholder="0,00"
+                    className="w-full border border-teal-300 bg-white rounded-lg px-3 py-2 text-base text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </div>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">
-            Es el monto que se va a facturar. Si el cliente certificó menos de lo presupuestado,
-            va lo certificado.
+          <p className="text-[10px] text-teal-800/70 mt-2">
+            Se genera una solicitud de facturación por cada moneda con monto. Si no se informa
+            ningún importe, se factura según el presupuesto de las OTs que certifica.
           </p>
         </div>
 

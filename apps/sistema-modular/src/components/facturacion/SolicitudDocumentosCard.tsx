@@ -25,7 +25,7 @@ interface Props {
  * Solo lecturas — no toca el flujo de facturar/cobrar.
  */
 export const SolicitudDocumentosCard = ({ solicitud }: Props) => {
-  const { ocs, reportes, loadingDocs, generandoPdf, verPresupuestoPDF } = useSolicitudDocumentos(solicitud);
+  const { ocs, reportes, certificaciones, loadingDocs, generandoPdf, verPresupuestoPDF } = useSolicitudDocumentos(solicitud);
 
   const sinOtNumbers = !solicitud.otNumbers || solicitud.otNumbers.length === 0;
 
@@ -74,6 +74,20 @@ export const SolicitudDocumentosCard = ({ solicitud }: Props) => {
             ),
           )
         )}
+
+        {/* Certificación del cliente (2026-09-07): el papel que respalda la
+            factura cuando el cliente certifica por lote. Solo si hay. */}
+        {!loadingDocs && certificaciones.map((c, i) => (
+          <button
+            key={`${c.loteId}-${i}`}
+            type="button"
+            onClick={() => openUrl(c.url)}
+            className={chipActive}
+            title={c.nombre || 'Certificación del cliente'}
+          >
+            Certificación{c.numero ? ` ${c.numero}` : c.periodo ? ` ${c.periodo}` : ''}{certificaciones.length > 1 ? ` (${i + 1})` : ''} <span aria-hidden>↗</span>
+          </button>
+        ))}
 
         {/* Reporte PDF de cada OT del aviso */}
         {loadingDocs ? (

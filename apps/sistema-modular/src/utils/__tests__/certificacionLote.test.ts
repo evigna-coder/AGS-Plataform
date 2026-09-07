@@ -43,9 +43,9 @@ check('legacy: lote facturado cubre el papel', recibidasSinFacturar(d).length ==
 const e = lote({ recibidas: [rec({ solicitudesIds: undefined })] });
 check('legacy: sin facturar → pendiente', recibidasSinFacturar(e).length === 1);
 
-// Papel sin importe (solo archivo) no se factura ni mantiene abierto.
+// Papel sin importe (2026-09-07): se factura segun presupuesto, asi que cuenta y mantiene abierto.
 const f = lote({ recibidas: [rec({ importes: [] })] });
-check('sin importe no cuenta', recibidasSinFacturar(f).length === 0 && !certificacionAbierta(f));
+check('sin importe cuenta igual', recibidasSinFacturar(f).length === 1 && certificacionAbierta(f));
 
 // OTs pendientes: abierto aunque no haya papeles.
 check('OT pendiente → abierto', certificacionAbierta(lote({ estado: 'solicitada', items: [{ otNumber: '1', estado: 'pendiente' }] })));

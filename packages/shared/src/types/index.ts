@@ -2177,6 +2177,13 @@ export interface SolicitudFacturacion {
   // --- Phase 10 (10-01) — aviso facturación automático desde cerrarAdministrativamente ---
   /** OCs del cliente vinculadas. Back-ref al momento del cierre admin — no se mantiene sync con el ppto. */
   ordenesCompraIds?: string[] | null;
+  /**
+   * Lote de certificación que respalda el aviso (2026-09-07). Facturación
+   * necesita el papel del cliente adjunto a la factura, igual que la OC.
+   * Ausente en avisos anteriores: se resuelve desde las OTs, que llevan
+   * `certificacionId` estampado al liberarse.
+   */
+  certificacionId?: string | null;
   /** ISO timestamp cuando el mail al contable fue marcado como enviado (estado 'enviada'). */
   enviadaAt?: string | null;
   // --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
@@ -4826,9 +4833,13 @@ export function certificacionResuelta(cert: Pick<Certificacion, 'items' | 'otNum
 }
 
 /**
- * Documentos del lote que tienen importe y todavía no se pasaron a
- * facturación (2026-09-04). Un lote con dos plantas recibe dos papeles en
- * momentos distintos: cada uno se factura cuando llega, no al final.
+ * Documentos del lote que todavía no se pasaron a facturación (2026-09-04).
+ * Un lote con dos plantas recibe dos papeles en momentos distintos: cada uno
+ * se factura cuando llega, no al final.
+ *
+ * El importe certificado es OPCIONAL (2026-09-07): si el cliente lo informa,
+ * se factura ese; si no, se factura según el presupuesto de las OTs que el
+ * papel certificó. Un papel sin importe cuenta igual como pendiente.
  *
  * Lotes anteriores llevaban la marca a nivel lote (`solicitudesIds`): si el
  * lote ya se facturó y el documento no dice nada, se lo toma por facturado.
@@ -4838,8 +4849,7 @@ export function recibidasSinFacturar(
 ): CertificacionRecibida[] {
   const loteFacturado = !!cert.solicitudesIds?.length;
   return recibidasDeCertificacion(cert).filter(r =>
-    (r.importes ?? []).some(i => Number.isFinite(i.monto) && i.monto !== 0)
-    && !(r.solicitudesIds?.length)
+    !(r.solicitudesIds?.length)
     && !(loteFacturado && r.solicitudesIds === undefined));
 }
 

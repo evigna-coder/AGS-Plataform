@@ -9,6 +9,8 @@ import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLOR
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SolicitudDocumentosCard } from '../../components/facturacion/SolicitudDocumentosCard';
+import { SolicitudDetalleOTsCard } from '../../components/facturacion/SolicitudDetalleOTsCard';
+import { useSolicitudDetalleOTs } from '../../hooks/useSolicitudDetalleOTs';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -39,6 +41,8 @@ export const FacturacionDetail = () => {
   const actor = { uid: firebaseUser?.uid || '', name: usuario?.displayName || undefined };
 
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
+  // Establecimientos y detalle por OT (2026-09-07), como en el PDF de certificación.
+  const detalle = useSolicitudDetalleOTs(solicitud);
   const [clienteFallback, setClienteFallback] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -237,7 +241,7 @@ export const FacturacionDetail = () => {
 
       {/* Metadata */}
       <Card>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           <div><p className={lbl}>Fecha solicitud</p><p className="text-xs text-slate-700">{fmtDate(solicitud.createdAt)}</p></div>
           <div><p className={lbl}>Solicitado por</p><p className="text-xs text-slate-700">{solicitud.solicitadoPorNombre || '—'}</p></div>
           {/* La OT del aviso estaba solo dentro del chip del reporte, así que la
@@ -253,6 +257,12 @@ export const FacturacionDetail = () => {
               </div>
             ) : <p className="text-xs text-slate-400">—</p>}
           </div>
+          <div>
+            <p className={lbl}>Establecimiento{detalle.establecimientos.length > 1 ? 's' : ''}</p>
+            {detalle.establecimientos.length > 0
+              ? detalle.establecimientos.map(e => <p key={e} className="text-xs text-slate-700">{e}</p>)
+              : <p className="text-xs text-slate-400">{detalle.loading ? '…' : '—'}</p>}
+          </div>
           <div><p className={lbl}>Condicion de pago</p><p className="text-xs text-slate-700">{solicitud.condicionPago || '—'}</p></div>
           <div><p className={lbl}>Monto total</p><p className="text-sm font-bold text-teal-700">{fmtMoney(solicitud.montoTotal)}</p></div>
         </div>
@@ -260,6 +270,9 @@ export const FacturacionDetail = () => {
 
       {/* Accesos a los documentos que se adjuntan a la factura (ppto, OC, reportes OT) */}
       <SolicitudDocumentosCard solicitud={solicitud} />
+
+      {/* Qué se hizo, dónde y cuándo — mismas columnas que el PDF de certificación. */}
+      <SolicitudDetalleOTsCard filas={detalle.filas} loading={detalle.loading} />
 
       {/* Admin quick-actions (Marcar enviada / facturada) */}
       {canAdminAction && (solicitud.estado === 'pendiente' || solicitud.estado === 'enviada') && (

@@ -2,7 +2,7 @@ import { doc, collection, getDocs, getDoc, query, where, Timestamp } from 'fireb
 import { db, createBatch, batchAudit, deepCleanForFirestore, getCreateTrace } from './firebase';
 import { ordenesTrabajoService } from './otService';
 import { certificacionStorageService } from './certificacionStorageService';
-import type { Certificacion, CertificacionRecibida, EstadoOTCertificacion, ImporteCertificado, ItemCertificacion } from '@ags/shared';
+import type { Certificacion, CertificacionRecibida, EstadoOTCertificacion, ImporteCertificado, ItemCertificacion, Presupuesto } from '@ags/shared';
 import { certificacionAbierta, itemsDeCertificacion, recibidasDeCertificacion, recibidasSinFacturar } from '@ags/shared';
 import { facturacionService } from './facturacionService';
 
@@ -23,6 +23,31 @@ const mapDoc = (d: any): Certificacion => ({
   createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
   updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
 });
+
+/**
+ * Una solicitud ANULADA no cuenta como facturada (2026-09-07). El lote guarda
+ * los ids de las solicitudes que generó; si una se anula desde Facturación, el
+ * papel tiene que volver a poder pasarse (o quitarse). Se resuelve al LEER,
+ * sin escribir: así también cubre los lotes que quedaron con el id colgado
+ * antes de que `facturacionService.update` avisara al lote.
+ */
+async function sinSolicitudesAnuladas(certs: Certificacion[]): Promise<Certificacion[]> {
+  const ids = new Set<string>();
+  for (const c of certs) {
+    for (const id of c.solicitudesIds ?? []) ids.add(id);
+    for (const r of c.recibidas ?? []) for (const id of r.solicitudesIds ?? []) ids.add(id);
+  }
+  if (ids.size === 0) return certs;
+  const sols = await Promise.all([...ids].map(id => facturacionService.getById(id).catch(() => null)));
+  const anuladas = new Set(sols.filter(s => s?.estado === 'anulada').map(s => s!.id));
+  if (anuladas.size === 0) return certs;
+  const limpiar = (list?: string[] | null) => list?.filter(id => !anuladas.has(id));
+  return certs.map(c => ({
+    ...c,
+    solicitudesIds: limpiar(c.solicitudesIds) ?? c.solicitudesIds,
+    recibidas: c.recibidas?.map(r => r.solicitudesIds ? { ...r, solicitudesIds: limpiar(r.solicitudesIds) } : r) ?? c.recibidas,
+  }));
+}
 
 export const certificacionesService = {
   /**
@@ -84,12 +109,35 @@ export const certificacionesService = {
     const snap = await getDocs(q);
     const items = snap.docs.map(mapDoc);
     items.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-    return items;
+    return sinSolicitudesAnuladas(items);
   },
 
   async getById(id: string): Promise<Certificacion | null> {
     const snap = await getDoc(doc(db, 'certificaciones', id));
-    return snap.exists() ? mapDoc(snap) : null;
+    if (!snap.exists()) return null;
+    const [cert] = await sinSolicitudesAnuladas([mapDoc(snap)]);
+    return cert;
+  },
+
+  /**
+   * Saca de un lote la referencia a una solicitud anulada (2026-09-07), para
+   * que el papel vuelva a poder pasarse a facturación o quitarse. Lo llama
+   * `facturacionService.update` al anular.
+   */
+  async desvincularSolicitud(loteId: string, solicitudId: string): Promise<void> {
+    const snap = await getDoc(doc(db, 'certificaciones', loteId));
+    if (!snap.exists()) return;
+    const cert = mapDoc(snap);
+    const quitar = (list?: string[] | null) => (list ?? []).filter(id => id !== solicitudId);
+    const patch = deepCleanForFirestore({
+      solicitudesIds: quitar(cert.solicitudesIds),
+      recibidas: (cert.recibidas ?? []).map(r => r.solicitudesIds ? { ...r, solicitudesIds: quitar(r.solicitudesIds) } : r),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.update(doc(db, 'certificaciones', loteId), patch);
+    batchAudit(batch, { action: 'update', collection: 'certificaciones', documentId: loteId, after: patch });
+    await batch.commit();
   },
 
   /**
@@ -310,6 +358,92 @@ export const certificacionesService = {
   },
 
   /**
+   * Quita una certificacion cargada por error (2026-09-07), para volver a
+   * cargarla bien. Deshace lo que hizo `agregarRecibida`:
+   *   - las OTs que ese papel certifico vuelven a `pendiente` en el lote y a
+   *     RETENIDAS por certificacion (salen de `otsListasParaFacturar`);
+   *   - los archivos se borran de Storage (best-effort);
+   *   - el lote vuelve a 'solicitada' si no queda otro papel.
+   *
+   * Si el papel ya se paso a facturacion no se deja: hay que anular esa
+   * solicitud desde Facturacion primero, para no dejar una factura sin su
+   * respaldo.
+   */
+  async quitarRecibida(loteId: string, recibidaId: string): Promise<{ otsRevertidas: string[] }> {
+    const lote = await this.getById(loteId);
+    if (!lote) throw new Error('Lote de certificacion no encontrado');
+    const recibidas = recibidasDeCertificacion(lote);
+    const rec = recibidas.find(r => r.id === recibidaId);
+    if (!rec) throw new Error('Certificacion no encontrada en el lote');
+    const facturada = !!rec.solicitudesIds?.length || (!!lote.solicitudesIds?.length && rec.solicitudesIds === undefined);
+    if (facturada) {
+      throw new Error(`La certificacion ${rec.numero ?? ''} ya se paso a facturacion. Anula primero la solicitud desde Facturacion y despues quitala.`);
+    }
+
+    // OTs que certifico ESTE papel: por `recibidaId` en los items; los papeles
+    // viejos no lo tienen, y ahi vale su lista de OTs o, si era el unico
+    // papel, todo lo certificado del lote.
+    const items = itemsDeCertificacion(lote);
+    let otsDelPapel = new Set(items.filter(i => i.recibidaId === rec.id).map(i => i.otNumber));
+    if (otsDelPapel.size === 0 && rec.otNumbers?.length) otsDelPapel = new Set(rec.otNumbers);
+    if (otsDelPapel.size === 0 && recibidas.length === 1) {
+      otsDelPapel = new Set(items.filter(i => i.estado === 'certificada').map(i => i.otNumber));
+    }
+
+    const itemsFinales = items.map(i => otsDelPapel.has(i.otNumber) && i.estado === 'certificada'
+      ? { ...i, estado: 'pendiente' as const, motivo: null, fechaResolucion: null, recibidaId: null }
+      : i);
+    const restantes = recibidas.filter(r => r.id !== rec.id && r.id !== 'legacy');
+    const numeroEraDeEste = !!lote.numero && lote.numero === rec.numero && !restantes.some(r => r.numero === lote.numero);
+
+    const patch = deepCleanForFirestore({
+      recibidas: restantes,
+      items: itemsFinales,
+      estado: restantes.length > 0 ? ('recibida' as const) : ('solicitada' as const),
+      ...(numeroEraDeEste ? { numero: null } : {}),
+      // El formato viejo (un solo archivo suelto) tambien se limpia.
+      ...(rec.id === 'legacy' ? { archivoUrl: null, archivoPath: null } : {}),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.update(doc(db, 'certificaciones', loteId), patch);
+    batchAudit(batch, { action: 'update', collection: 'certificaciones', documentId: loteId, after: patch });
+    await batch.commit();
+
+    // Archivos: best-effort, el registro ya no los referencia.
+    const paths = [...(rec.archivos ?? []).map(a => a.path), rec.archivoPath].filter((p): p is string => !!p);
+    for (const p of paths) await certificacionStorageService.remove(p);
+
+    // Volver a retener las OTs y sacarlas de la lista de "listas para facturar".
+    const { presupuestosService } = await import('./presupuestosService');
+    const otsRevertidas: string[] = [];
+    for (const otNumber of otsDelPapel) {
+      try {
+        const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
+        if (!ot) continue;
+        await ordenesTrabajoService.update(otNumber, {
+          retenidaFacturacion: true,
+          requisitoFacturacionPendiente: 'certificacion',
+          certificacionId: null,
+          certificacionNumero: null,
+          certificacionArchivoUrl: null,
+        });
+        for (const num of ot.budgets ?? []) {
+          const ppto = await presupuestosService.getByNumero(num).catch(() => null);
+          if (!ppto?.otsListasParaFacturar?.includes(otNumber)) continue;
+          await presupuestosService.update(ppto.id, {
+            otsListasParaFacturar: ppto.otsListasParaFacturar.filter(n => n !== otNumber),
+          } as Partial<Presupuesto>);
+        }
+        otsRevertidas.push(otNumber);
+      } catch (err) {
+        console.error(`[certificaciones.quitarRecibida] no se pudo re-retener OT ${otNumber}:`, err);
+      }
+    }
+    return { otsRevertidas };
+  },
+
+  /**
    * Genera la(s) solicitud(es) de facturacion del lote (2026-08-17).
    *
    * SE FACTURA LO CERTIFICADO: el monto sale de cada documento del cliente,
@@ -331,7 +465,7 @@ export const certificacionesService = {
     if (pendientes.length === 0) {
       throw new Error(lote.solicitudesIds?.length
         ? 'Todas las certificaciones de este lote ya se pasaron a facturacion'
-        : 'El lote no tiene importes certificados: carga la certificacion con su importe');
+        : 'El lote no tiene ninguna certificacion cargada');
     }
     const certificadas = itemsDeCertificacion(lote).filter(i => i.estado === 'certificada');
     if (certificadas.length === 0) throw new Error('El lote no tiene ninguna OT certificada');
@@ -361,7 +495,25 @@ export const certificacionesService = {
       const ppto = numeroPpto ? await presupuestosService.getByNumero(numeroPpto) : null;
       const refCert = rec.numero ?? '';
       const ids: string[] = [];
-      for (const imp of rec.importes) {
+      const conImporte = (rec.importes ?? []).filter(i => Number.isFinite(i.monto) && i.monto !== 0);
+      if (conImporte.length === 0) {
+        // Sin importe certificado (2026-09-07): se factura segun el
+        // presupuesto, por el camino normal del aviso — mismos items, mismo
+        // total, mismos guards (OC adjunta, OTs listas). El papel solo
+        // respalda; no fija el monto.
+        if (!ppto) throw new Error(`Las OTs de la certificacion ${refCert || 'sin numero'} no tienen presupuesto: no hay con que armar el aviso`);
+        const { solicitudId } = await presupuestosService.generarAvisoFacturacion(
+          ppto.id,
+          otsDelPapel.map(i => i.otNumber),
+          {
+            observaciones: `Certificacion del cliente${refCert ? ` N° ${refCert}` : ''}, sin importe informado: se factura segun presupuesto. ${otsDelPapel.length} OT(s).`,
+            certificacionId: loteId,
+          },
+          actor,
+        );
+        ids.push(solicitudId);
+      }
+      for (const imp of conImporte) {
         if (!Number.isFinite(imp.monto) || imp.monto === 0) continue;
         const id = await facturacionService.create({
           presupuestoId: ppto?.id ?? '',
@@ -383,6 +535,8 @@ export const certificacionesService = {
           moneda: imp.moneda,
           estado: 'pendiente',
           otNumbers: otsDelPapel.map(i => i.otNumber),
+          // Facturación adjunta el papel del cliente a la factura (2026-09-07).
+          certificacionId: loteId,
           observaciones: `Importe segun certificacion del cliente`
             + `${refCert ? ` N° ${refCert}` : ''}. ${otsDelPapel.length} OT(s).`,
           solicitadoPor: actor?.uid ?? null,

@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import type { Certificacion } from '@ags/shared';
 import { recibidasDeCertificacion, recibidasSinFacturar, totalesCertificados } from '@ags/shared';
+import { certificacionesService } from '../../services/certificacionesService';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 const fmt = (moneda: string, monto: number) => `${moneda} ${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 
@@ -7,6 +10,8 @@ interface Props {
   cert: Certificacion;
   actuando: boolean;
   onPasarAFacturacion: (cert: Certificacion) => void;
+  /** Se quitó un documento: el lote y las OTs cambiaron. */
+  onCambio: () => void;
 }
 
 /**
@@ -15,7 +20,20 @@ interface Props {
  * documento por documento: cada papel dice si ya se facturó, y el botón
  * "Pasar a facturación" cuenta los que faltan.
  */
-export function CertificacionRecibidasBlock({ cert, actuando, onPasarAFacturacion }: Props) {
+export function CertificacionRecibidasBlock({ cert, actuando, onPasarAFacturacion, onCambio }: Props) {
+  const confirm = useConfirm();
+  const [quitando, setQuitando] = useState(false);
+  /** Quitar un papel cargado por error (2026-09-07) para volver a cargarlo bien. */
+  const quitar = async (recId: string, numero: string | null | undefined) => {
+    if (!await confirm(`¿Quitar la certificación ${numero || 'sin número'}? Las OTs que certificó vuelven a pendientes y quedan retenidas otra vez. Después podés cargarla de nuevo.`)) return;
+    setQuitando(true);
+    try {
+      await certificacionesService.quitarRecibida(cert.id, recId);
+      onCambio();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo quitar la certificación');
+    } finally { setQuitando(false); }
+  };
   const recibidas = recibidasDeCertificacion(cert);
   if (recibidas.length === 0) return null;
   const sinFacturar = recibidasSinFacturar(cert);
@@ -28,15 +46,19 @@ export function CertificacionRecibidasBlock({ cert, actuando, onPasarAFacturacio
           <span className="font-mono font-semibold text-teal-800 shrink-0">{r.numero || 'S/N'}</span>
           <span className="text-slate-500 shrink-0">{r.fecha ? r.fecha.slice(0, 10) : 's/f'}</span>
           <span className="text-slate-700 flex-1 tabular-nums">
-            {r.importes.map(i => fmt(i.moneda, i.monto)).join('  ·  ') || '—'}
+            {r.importes.map(i => fmt(i.moneda, i.monto)).join('  ·  ') || <span className="text-slate-400">según presupuesto</span>}
             {r.otNumbers?.length ? <span className="text-slate-400"> · {r.otNumbers.length} OT{r.otNumbers.length !== 1 ? 's' : ''}</span> : null}
           </span>
-          {r.importes.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-              sinFacturarIds.has(r.id) ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'
-            }`}>
-              {sinFacturarIds.has(r.id) ? 'Sin facturar' : 'Facturada'}
-            </span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+            sinFacturarIds.has(r.id) ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'
+          }`}>
+            {sinFacturarIds.has(r.id) ? 'Sin facturar' : 'Facturada'}
+          </span>
+          {sinFacturarIds.has(r.id) && (
+            <button type="button" onClick={() => void quitar(r.id, r.numero)} disabled={quitando || actuando}
+              className="text-red-400 hover:text-red-600 hover:underline shrink-0 disabled:opacity-40" title="Quitar este documento y volver a cargarlo">
+              Quitar
+            </button>
           )}
           {(r.archivos?.length ? r.archivos : r.archivoUrl ? [{ url: r.archivoUrl, path: '', nombre: '' }] : []).map((a, i, arr) => (
             <a key={a.url} href={a.url} target="_blank" rel="noreferrer" title={a.nombre || undefined}

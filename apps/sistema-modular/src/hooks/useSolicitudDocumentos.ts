@@ -3,11 +3,23 @@ import type { SolicitudFacturacion, OrdenCompraCliente } from '@ags/shared';
 import { ordenesCompraClienteService } from '../services/ordenesCompraClienteService';
 import { ordenesTrabajoService, presupuestosService } from '../services/firebaseService';
 import { abrirPresupuestoPdf } from '../utils/abrirPresupuestoPdf';
+import { certificacionesService } from '../services/certificacionesService';
+import { recibidasDeCertificacion } from '@ags/shared';
 
 export interface ReporteOTAcceso {
   otNumber: string;
   /** URL del PDF definitivo del reporte, o null si la OT no se finalizó / falló el upload. */
   pdfUrl: string | null;
+}
+
+/** Un archivo de certificación del cliente, listo para abrir desde la factura. */
+export interface CertificacionAcceso {
+  loteId: string;
+  /** N° del documento del cliente (o del lote), o null si no tiene. */
+  numero: string | null;
+  periodo: string | null;
+  url: string;
+  nombre: string | null;
 }
 
 /**
@@ -23,6 +35,7 @@ export interface ReporteOTAcceso {
 export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
   const [ocs, setOcs] = useState<OrdenCompraCliente[]>([]);
   const [reportes, setReportes] = useState<ReporteOTAcceso[]>([]);
+  const [certificaciones, setCertificaciones] = useState<CertificacionAcceso[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [generandoPdf, setGenerandoPdf] = useState(false);
 
@@ -70,16 +83,35 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
 
         // ── Reportes de OT ───────────────────────────────────────────────
         const otNums = solicitud.otNumbers || [];
-        const reps = await Promise.all(
-          otNums.map(async (n): Promise<ReporteOTAcceso> => {
-            const ot = await ordenesTrabajoService.getByOtNumber(n).catch(() => null);
-            return { otNumber: n, pdfUrl: ot?.pdfUrl || null };
-          }),
-        );
+        const ots = await Promise.all(otNums.map(n => ordenesTrabajoService.getByOtNumber(n).catch(() => null)));
+        const reps: ReporteOTAcceso[] = otNums.map((n, i) => ({ otNumber: n, pdfUrl: ots[i]?.pdfUrl || null }));
+
+        // ── Certificaciones del cliente (2026-09-07) ─────────────────────
+        // Fuente primaria: `solicitud.certificacionId`. Fallback para los
+        // avisos generados antes de ese campo: las OTs llevan `certificacionId`
+        // estampado al liberarse, así que el papel se encuentra igual.
+        const loteIds = [...new Set([
+          solicitud.certificacionId,
+          ...ots.map(o => o?.certificacionId),
+        ].filter((x): x is string => !!x))];
+        const lotes = await Promise.all(loteIds.map(id => certificacionesService.getById(id).catch(() => null)));
+        const certs: CertificacionAcceso[] = [];
+        for (const lote of lotes) {
+          if (!lote) continue;
+          for (const r of recibidasDeCertificacion(lote)) {
+            const archivos = r.archivos?.length
+              ? r.archivos
+              : r.archivoUrl ? [{ url: r.archivoUrl, path: r.archivoPath ?? '', nombre: '' }] : [];
+            for (const a of archivos) {
+              certs.push({ loteId: lote.id, numero: r.numero || lote.numero || null, periodo: lote.periodo ?? null, url: a.url, nombre: a.nombre || null });
+            }
+          }
+        }
 
         if (!cancelled) {
           setOcs([...ocDocs.filter((o): o is OrdenCompraCliente => !!o), ...adjuntosOC]);
           setReportes(reps);
+          setCertificaciones(certs);
         }
       } catch (err) {
         console.error('[useSolicitudDocumentos] Error cargando documentos:', err);
@@ -105,5 +137,5 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
     }
   }, [solicitud]);
 
-  return { ocs, reportes, loadingDocs, generandoPdf, verPresupuestoPDF };
+  return { ocs, reportes, certificaciones, loadingDocs, generandoPdf, verPresupuestoPDF };
 }

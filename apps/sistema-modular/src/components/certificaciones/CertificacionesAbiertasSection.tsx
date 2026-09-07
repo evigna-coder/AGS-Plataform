@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Certificacion, EstadoOTCertificacion } from '@ags/shared';
 import {
-  ESTADO_CERTIFICACION_LABELS, ESTADO_OT_CERTIFICACION_LABELS, itemsDeCertificacion,
+  ESTADO_CERTIFICACION_LABELS, ESTADO_OT_CERTIFICACION_LABELS, itemsDeCertificacion, certificacionAbierta,
 } from '@ags/shared';
 import { AgregarRecibidaModal } from './AgregarRecibidaModal';
 import { CertificacionRecibidasBlock } from './CertificacionRecibidasBlock';
@@ -38,6 +38,9 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
   const promptText = usePrompt();
   const { firebaseUser, usuario } = useAuth();
   const [certs, setCerts] = useState<Certificacion[]>([]);
+  /** Lotes ya resueltos y facturados (2026-09-07): se muestran a pedido, en lectura. */
+  const [finalizadas, setFinalizadas] = useState<Certificacion[]>([]);
+  const [verFinalizadas, setVerFinalizadas] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [actuando, setActuando] = useState(false);
   /** lote al que se le está cargando una certificación recibida. */
@@ -45,8 +48,11 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
 
   const load = useCallback(async () => {
     setCargando(true);
-    try { setCerts(await certificacionesService.getAbiertas()); }
-    catch (err) { console.error('[CertificacionesAbiertas]', err); setCerts([]); }
+    try {
+      const todas = await certificacionesService.getAll();
+      setCerts(todas.filter(certificacionAbierta));
+      setFinalizadas(todas.filter(c => !certificacionAbierta(c)));
+    } catch (err) { console.error('[CertificacionesAbiertas]', err); setCerts([]); setFinalizadas([]); }
     finally { setCargando(false); }
   }, []);
 
@@ -112,19 +118,30 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
   };
 
   if (cargando) return null;
-  if (certs.length === 0) return null;
+  if (certs.length === 0 && finalizadas.length === 0) return null;
+  const lista = verFinalizadas ? [...certs, ...finalizadas] : certs;
 
   return (
     <Card compact>
-      <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest mb-3">
-        Certificaciones pedidas al cliente ({certs.length})
-      </p>
+      <div className="flex items-center gap-3 mb-3">
+        <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">
+          Certificaciones pedidas al cliente ({certs.length})
+        </p>
+        {finalizadas.length > 0 && (
+          <label className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={verFinalizadas} onChange={e => setVerFinalizadas(e.target.checked)}
+              className="w-3.5 h-3.5 accent-teal-600" />
+            Ver finalizadas ({finalizadas.length})
+          </label>
+        )}
+      </div>
       <div className="space-y-4">
-        {certs.map(cert => {
+        {lista.map(cert => {
           const items = itemsDeCertificacion(cert);
           const pendientes = items.filter(i => i.estado === 'pendiente').length;
+          const finalizada = !certificacionAbierta(cert);
           return (
-            <div key={cert.id} className="border border-slate-200 rounded-lg overflow-hidden">
+            <div key={cert.id} className={`border border-slate-200 rounded-lg overflow-hidden ${finalizada ? 'opacity-70' : ''}`}>
               <div className="px-3 py-2 bg-slate-50 flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold text-slate-800">{cert.clienteNombre || 'Cliente'}</span>
                 {cert.periodo && (
@@ -155,7 +172,8 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
                   </button>
                 )}
               </div>
-              <CertificacionRecibidasBlock cert={cert} actuando={actuando} onPasarAFacturacion={c => void pasarAFacturacion(c)} />
+              <CertificacionRecibidasBlock cert={cert} actuando={actuando} onPasarAFacturacion={c => void pasarAFacturacion(c)}
+                onCambio={() => { void load(); onResuelta(); }} />
 
               <div className="divide-y divide-slate-100">
                 {items.map(item => (
