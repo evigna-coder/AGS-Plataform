@@ -28,6 +28,9 @@ export interface EditOTFormState {
   ordenesCompra: string[];
   fechaServicioAprox: string;
   problemaFallaInicial: string;
+  /** Faltaban en la edicion (2026-09-07): se cargaban al crear y despues no se veian ni se podian corregir. */
+  materialesParaServicio: string;
+  comentarioFacturacion: string;
   estadoAdmin: OTEstadoAdmin;
   esFacturable: boolean;
   tieneContrato: boolean;
@@ -58,7 +61,7 @@ const INITIAL_CIERRE: CierreAdministrativo = {
 const INITIAL_FORM: EditOTFormState = {
   clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '', tipoServicio: '',
   contactoId: '', ingenieroId: '', presupuestos: [''], ordenesCompra: [''],
-  fechaServicioAprox: '', problemaFallaInicial: '', estadoAdmin: 'CREADA',
+  fechaServicioAprox: '', problemaFallaInicial: '', materialesParaServicio: '', comentarioFacturacion: '', estadoAdmin: 'CREADA',
   esFacturable: true, tieneContrato: false, esGarantia: false,
   cierreAdmin: INITIAL_CIERRE,
   articulos: [],
@@ -141,6 +144,8 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
           : (ot.ordenCompra ? [ot.ordenCompra] : ['']),
         fechaServicioAprox: ot.fechaServicioAprox || '',
         problemaFallaInicial: ot.problemaFallaInicial || '',
+        materialesParaServicio: ot.materialesParaServicio || '',
+        comentarioFacturacion: ot.comentarioFacturacion || '',
         estadoAdmin: ot.estadoAdmin || (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'CREADA'),
         esFacturable: ot.esFacturable ?? true,
         tieneContrato: ot.tieneContrato ?? false,
@@ -424,6 +429,8 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         ordenCompra: form.ordenesCompra.find(o => o.trim() !== '')?.trim() || null,
         fechaServicioAprox: form.fechaServicioAprox || null,
         problemaFallaInicial: form.problemaFallaInicial || '',
+        materialesParaServicio: form.materialesParaServicio || '',
+        comentarioFacturacion: form.comentarioFacturacion || null,
         estadoAdmin: estadoAdminFinal,
         estadoAdminFecha: estadoAdminFecha || null,
         estadoHistorial,

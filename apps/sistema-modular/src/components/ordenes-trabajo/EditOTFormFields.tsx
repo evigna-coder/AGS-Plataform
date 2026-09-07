@@ -208,6 +208,27 @@ export const EditOTFormFields: React.FC<Props> = ({
         disabled={readOnly}
         className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 disabled:bg-slate-100 disabled:text-slate-400" />
     </div>
+
+    {/* Materiales + Comentario facturación (2026-09-07): existían en el alta
+        pero no en la edición — una vez creada la OT no se veían. */}
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className={lbl}>Materiales para servicio</label>
+        <textarea value={form.materialesParaServicio}
+          onChange={e => set('materialesParaServicio', e.target.value)}
+          rows={2} placeholder="Materiales necesarios..."
+          disabled={readOnly}
+          className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 disabled:bg-slate-100 disabled:text-slate-400" />
+      </div>
+      <div>
+        <label className={lbl}>Comentario para facturación</label>
+        <textarea value={form.comentarioFacturacion}
+          onChange={e => set('comentarioFacturacion', e.target.value)}
+          rows={2} placeholder="Notas para el área de facturación..."
+          disabled={readOnly}
+          className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 disabled:bg-slate-100 disabled:text-slate-400" />
+      </div>
+    </div>
   </>
   );
 };
