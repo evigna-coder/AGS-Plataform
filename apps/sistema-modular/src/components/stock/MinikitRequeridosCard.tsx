@@ -22,6 +22,12 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
 
 export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer, onReponerLibre, onImprimir }: Props) => {
   const [ordenImpresion, setOrdenImpresion] = useState<OrdenListadoMinikit>('sector');
+  /**
+   * Reponer también lo que está completo (2026-09-04): a veces se quiere
+   * llevar 2 de una parte cuyo mínimo es 1. Apagado por defecto para que el
+   * "+ Reponer" siga apareciendo solo donde falta y no ensucie la lista.
+   */
+  const [reponerTodos, setReponerTodos] = useState(false);
   const comparison = useMemo(() => {
     const filas = requeridos.map(req => {
       // Sumar `cantidad` (un doc puede valer N unidades), no contar docs
@@ -79,6 +85,13 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
                 className="text-teal-600 hover:underline font-medium text-[11px]">Imprimir</button>
             </span>
           )}
+          {onReponer && (
+            <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer" title="Mostrar + Reponer también en los artículos que ya están completos, para sumar unidades por encima del mínimo">
+              <input type="checkbox" checked={reponerTodos} onChange={e => setReponerTodos(e.target.checked)}
+                className="w-3.5 h-3.5 accent-teal-600" />
+              Reponer sobre el mínimo
+            </label>
+          )}
           {onReponerLibre && (
             <button onClick={onReponerLibre} className="text-teal-600 hover:underline font-medium text-[11px]">+ Reponer artículo</button>
           )}
@@ -113,11 +126,12 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
                 </td>
                 {onReponer && (
                   <td className="text-xs py-2 text-center">
-                    {c.status !== 'ok' ? (
+                    {c.status !== 'ok' || reponerTodos ? (
                       <button
                         type="button"
-                        onClick={() => onReponer(c, c.cantidadMinima - c.actual)}
-                        className="text-teal-600 hover:underline font-medium text-[11px]"
+                        onClick={() => onReponer(c, Math.max(0, c.cantidadMinima - c.actual))}
+                        className={`hover:underline font-medium text-[11px] ${c.status === 'ok' ? 'text-slate-400 hover:text-teal-600' : 'text-teal-600'}`}
+                        title={c.status === 'ok' ? 'Sumar unidades por encima del mínimo' : undefined}
                       >
                         + Reponer
                       </button>

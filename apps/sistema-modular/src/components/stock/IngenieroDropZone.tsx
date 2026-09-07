@@ -1,4 +1,5 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { parseDecimal } from '../../utils/parseDecimal';
 
 /** Drop-zone de un ingeniero en el modal de asignar (colapsada sin items). */
 export const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onClienteChange,
@@ -86,10 +87,13 @@ export const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpt
               <div className="flex items-center gap-1 shrink-0 ml-1">
                 {(item.cantidadMax ?? 1) > 1 && (
                   <label className="flex items-center gap-0.5" title={`Unidades del lote (máx. ${item.cantidadMax})`}>
-                    <input type="number" min={1} max={item.cantidadMax} value={item.cantidad}
-                      onChange={e => {
-                        const v = parseInt(e.target.value) || 1;
-                        onCantidad(item.id, Math.max(1, Math.min(v, item.cantidadMax ?? v)));
+                    {/* Decimales (2026-09-04): un lote de 2,5 L se lleva de a 0,5.
+                        Antes parseInt lo truncaba y el minimo era 1. */}
+                    <input type="text" inputMode="decimal" key={`${item.id}-${item.cantidad}`} defaultValue={String(item.cantidad)}
+                      onBlur={e => {
+                        const v = parseDecimal(e.target.value);
+                        if (v <= 0) { e.target.value = String(item.cantidad); return; }
+                        onCantidad(item.id, Math.min(v, item.cantidadMax ?? v));
                       }}
                       onFocus={e => e.currentTarget.select()}
                       className="w-11 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-center" />

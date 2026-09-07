@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Articulo, ItemImportacion } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { parseDecimal } from '../../utils/parseDecimal';
 
 export interface IngresoItemState {
   verificado: boolean;
@@ -54,6 +55,12 @@ export const IngresarStockItemRow: React.FC<Props> = ({ item, articulo, state, p
   // los renglones, que son la mayoria, no ocupa nada (2026-08-20).
   const [serieAbierta, setSerieAbierta] = useState(false);
   const mostrarSeries = requiereSerie || serieAbierta || !!state.serialesText;
+  // Cantidad como texto (2026-09-04): `parseInt` truncaba 0,5 → 0 y el
+  // type=number rechazaba la coma. Los reactivos de minikit vienen en litros.
+  const [cantidadStr, setCantidadStr] = useState(String(state.cantidadReal));
+  useEffect(() => {
+    setCantidadStr(prev => parseDecimal(prev) === state.cantidadReal ? prev : String(state.cantidadReal));
+  }, [state.cantidadReal]);
 
   return (
     <div className={`border-b last:border-b-0 border-slate-100 px-2 py-1.5 transition-colors ${state.verificado ? (valido ? 'bg-teal-50/40' : 'bg-amber-50/40') : ''}`}>
@@ -75,8 +82,9 @@ export const IngresarStockItemRow: React.FC<Props> = ({ item, articulo, state, p
         </div>
 
         <div className="w-16 shrink-0">
-          <input type="number" min={0} value={state.cantidadReal} aria-label="Cantidad recibida"
-            onChange={e => { const n = parseInt(e.target.value, 10); onChange({ cantidadReal: isNaN(n) || n < 0 ? 0 : n }); }}
+          <input type="text" inputMode="decimal" value={cantidadStr} aria-label="Cantidad recibida"
+            onFocus={e => e.currentTarget.select()}
+            onChange={e => { setCantidadStr(e.target.value); const n = parseDecimal(e.target.value); onChange({ cantidadReal: n < 0 ? 0 : n }); }}
             className={`${inputClass} text-center ${cantMismatch ? 'border-amber-400' : ''}`} />
         </div>
 

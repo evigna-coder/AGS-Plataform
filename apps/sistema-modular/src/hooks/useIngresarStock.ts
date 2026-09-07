@@ -90,12 +90,14 @@ export function useIngresarStock() {
         // Cómo se materializan las unidades físicas:
         //  - con series → un doc por serie (cantidad 1).
         //  - sin series pero con lote → un solo doc agrupado (cantidad = N).
-        //  - sin trazabilidad → un doc por unidad (cantidad 1).
+        //  - sin trazabilidad → un doc por unidad (cantidad 1); si la cantidad
+        //    tiene decimales (2026-09-04: 0,5 L de reactivo), un solo doc con
+        //    esa cantidad — no hay "media unidad" que crear por separado.
         const loteId = rec.nroLote?.trim() || null;
         const unidadesACrear: { nroSerie: string | null; nroLote: string | null; cantidad: number }[] =
           rec.nrosSerie.length > 0
             ? rec.nrosSerie.map(s => ({ nroSerie: s, nroLote: loteId, cantidad: 1 }))
-            : loteId
+            : loteId || !Number.isInteger(rec.cantidadReal)
               ? [{ nroSerie: null, nroLote: loteId, cantidad: rec.cantidadReal }]
               : Array.from({ length: rec.cantidadReal }, () => ({ nroSerie: null, nroLote: null, cantidad: 1 }));
 
