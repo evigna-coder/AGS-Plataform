@@ -1766,9 +1766,28 @@ export const presupuestosService = {
    * (adminConfig/flujos). Si no existe ticket comercial, crea uno en compras.
    * El estado del circuito no cambia — solo área + responsable + posta de traza.
    */
+  /**
+   * Quién recibe los tickets de COMPRAS que nacen de un presupuesto (2026-09-07,
+   * caso TKT-01240): el usuario de seguimiento (Miguel), o el responsable del
+   * área compras, o el de admin de soporte. Antes el ticket se creaba sin
+   * asignar y el alta lo mandaba al responsable de admin de soporte (Cynthia),
+   * que no es quien compra.
+   */
+  async _asignatarioCompras(): Promise<{ id: string; nombre: string } | null> {
+    const cfg = await adminConfigService.getWithDefaults();
+    const candidatos = [cfg.usuarioSeguimientoId, cfg.responsablePorArea?.compras, cfg.responsablePorArea?.admin_soporte]
+      .filter((x): x is string => !!x);
+    for (const cid of candidatos) {
+      const u = await usuariosService.getById(cid).catch(() => null);
+      if (u && u.status === 'activo') return { id: cid, nombre: u.displayName ?? '' };
+    }
+    return null;
+  },
+
   async _derivarTicketACompras(presupuestoId: string, actor?: { uid: string; name?: string }): Promise<void> {
     const pres = await this.getById(presupuestoId);
     if (!pres) return;
+    const compras = await this._asignatarioCompras();
     const existingSnap = await getDocs(
       query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
     );
@@ -1785,15 +1804,15 @@ export const presupuestosService = {
         fecha: new Date().toISOString(),
         deUsuarioId: actor?.uid ?? 'system',
         deUsuarioNombre: actor?.name ?? 'Sistema',
-        aUsuarioId: '',
-        aUsuarioNombre: '',
+        aUsuarioId: compras?.id ?? '',
+        aUsuarioNombre: compras?.nombre ?? '',
         comentario: `Ppto ${pres.numero} aceptado con faltantes de stock — a Compras (comprar/importar antes de coordinar OTs)`,
         estadoAnterior: comercial.estado,
         estadoNuevo: comercial.estado,
       };
       // Regla de áreas 2026-08-05: compras/importaciones viven en admin de
       // soporte (Miguel es el encargado de compras) — derivar ahí.
-      await leadsService.derivar(comercial.id, posta, '', null, 'admin_soporte', accion);
+      await leadsService.derivar(comercial.id, posta, compras?.id ?? '', compras?.nombre ?? null, 'admin_soporte', accion);
       console.log(`[_derivarTicketACompras] ticket ${comercial.id} → admin_soporte/compras (ppto ${pres.numero})`);
       return;
     }
@@ -1819,8 +1838,9 @@ export const presupuestosService = {
       moduloId: null,
       estado: 'nuevo',
       postas: [],
-      asignadoA: null,
-      asignadoNombre: null,
+      // Al usuario de seguimiento/compras, no al responsable del área (2026-09-07).
+      asignadoA: compras?.id ?? null,
+      asignadoNombre: compras?.nombre ?? null,
       derivadoPor: actor?.uid ?? null,
       // Regla de áreas 2026-08-05: compras/importaciones → admin de soporte
       // (Miguel es el encargado de compras; no hay bandeja propia de compras).
@@ -2189,7 +2209,28 @@ export const presupuestosService = {
     });
     if (workUnitOTs.length === 0) return; // solo parents con children que quedaron afuera — raro, skip
     const allOTsFinalized = workUnitOTs.every(o => o.estadoAdmin === 'FINALIZADO');
-    if (!allOTsFinalized) return;
+
+    // 'facturado' sigue a las FACTURAS, no al cierre de la OT (2026-09-08, caso
+    // Eriochem P1-005046-01). Antes, si alguna OT no estaba FINALIZADO este
+    // método salía acá y el presupuesto quedaba en "pendiente de facturación"
+    // con la factura ya cargada — un estado que dice que falta algo que no
+    // falta. Ahora: con todas las solicitudes facturadas, y el trabajo cerrado
+    // administrativamente (o el presupuesto ya en pendiente_facturacion), pasa
+    // a 'facturado'. FINALIZADO de las OTs sigue siendo condición solo para
+    // 'finalizado'. Un anticipo facturado con el trabajo en curso no lo mueve.
+    if (!allOTsFinalized) {
+      if ((pres.otsListasParaFacturar ?? []).length > 0) return;
+      const { facturacionService: factSvc } = await import('./facturacionService');
+      const sols = (await factSvc.getByPresupuesto(presupuestoId).catch(() => [])).filter(s => s.estado !== 'anulada');
+      const todasFact = sols.length > 0 && sols.every(s => s.estado === 'facturada' || s.estado === 'cobrada');
+      const CERRADA_ADMIN = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+      const trabajoCerrado = workUnitOTs.every(o => CERRADA_ADMIN.has(o.estadoAdmin ?? ''));
+      if (todasFact && pres.estado !== 'facturado' && (pres.estado === 'pendiente_facturacion' || trabajoCerrado)) {
+        await this.update(presupuestoId, { estado: 'facturado' } as any);
+        console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → facturado (facturas cargadas; OTs sin FINALIZAR)`);
+      }
+      return;
+    }
 
     // ── Phase 12 BILL-06: esquema mode branch ────────────────────────────
     // When ppto has an esquema, finalizacion requires canFinalizeFromEsquema
@@ -2200,13 +2241,22 @@ export const presupuestosService = {
       // Re-read pres after recompute (caller may have just run _recomputeAndPersistEsquema)
       const presFresh = await this.getById(presupuestoId);
       if (!presFresh) return;
-      if (!canFinalizeFromEsquema(presFresh.esquemaFacturacion, presFresh.finalizarConSoloFacturado)) {
-        return;
-      }
       // Mismo criterio que la rama legacy: el cobro es lo que finaliza.
       const solsEsq = (await facturacionService.getByPresupuesto(presupuestoId).catch(() => []))
         .filter(s => s.estado !== 'anulada');
       const cobradasEsq = solsEsq.length > 0 && solsEsq.every(s => s.estado === 'cobrada');
+      if (!canFinalizeFromEsquema(presFresh.esquemaFacturacion, presFresh.finalizarConSoloFacturado)) {
+        // Las cuotas no cierran (p. ej. una quedó colgada de una solicitud
+        // anulada y reemplazada), pero las FACTURAS sí: todas las solicitudes
+        // vivas facturadas → 'facturado' igual (2026-09-08, Eriochem
+        // P1-005046-01). Las cuotas gatean 'finalizado', no 'facturado'.
+        const factEsq = solsEsq.length > 0 && solsEsq.every(s => s.estado === 'facturada' || s.estado === 'cobrada');
+        if (factEsq && pres.estado !== 'facturado') {
+          await this.update(presupuestoId, { estado: 'facturado' } as any);
+          console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → facturado (facturas cargadas; cuotas sin cerrar)`);
+        }
+        return;
+      }
       if (!cobradasEsq && solsEsq.length > 0) {
         if (pres.estado !== 'facturado') {
           await this.update(presupuestoId, { estado: 'facturado' } as any);
@@ -2223,7 +2273,13 @@ export const presupuestosService = {
     // Check 2: otsListasParaFacturar debe estar vacío (Tier-1)
     // Si quedan OTs sin incluir en una solicitud, el ppto no puede finalizar.
     // Campo opcional — si no existe (pptos viejos), tratar como vacío.
-    const pendientesParaFacturar: string[] = pres.otsListasParaFacturar ?? [];
+    // Una OT que ya está nombrada en una solicitud viva no está pendiente,
+    // aunque haya quedado en la lista (2026-09-08: avisos parciales viejos no
+    // la sacaban y el ppto quedaba trabado con la factura cargada).
+    const solsVivas = (await facturacionService.getByPresupuesto(presupuestoId).catch(() => []))
+      .filter(s => s.estado !== 'anulada');
+    const otsAvisadas = new Set(solsVivas.flatMap(s => s.otNumbers ?? []));
+    const pendientesParaFacturar: string[] = (pres.otsListasParaFacturar ?? []).filter(n => !otsAvisadas.has(n));
     if (pendientesParaFacturar.length > 0) {
       console.log(`[trySyncFinalizacion] ppto ${pres.numero} tiene ${pendientesParaFacturar.length} OT(s) pendientes de facturar — skip`);
       return;

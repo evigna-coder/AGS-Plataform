@@ -8,6 +8,7 @@ import { presupuestosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { SolicitarFacturaPorcentajePanel, pctDisponibleDe } from './SolicitarFacturaPorcentajePanel';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   presupuesto: Presupuesto;
@@ -93,7 +94,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
     : selectedItems.length > 0;
 
   const handleSubmit = async () => {
-    if (!puedeEnviar) { alert(modo === 'porcentaje' ? 'Ingresá un porcentaje válido' : 'Seleccione al menos un item'); return; }
+    if (!puedeEnviar) { notify.warning(modo === 'porcentaje' ? 'Ingresá un porcentaje válido' : 'Seleccione al menos un item'); return; }
     try {
       setSaving(true);
       // Modo %: línea única — no descuenta cantidades de ítems (el saldo se
@@ -151,7 +152,14 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         // 'finalizado': el ppto se clavaba en "Pendiente de facturación" con la
         // factura ya emitida (caso P3-005071-01). El otro camino —el aviso
         // desde el cierre de OT— sí las sacaba; este no.
-        ...(estado === 'completa' ? { otsListasParaFacturar: [] } : {}),
+        // Las OTs que nombra este aviso ya están facturadas: salen de la lista
+        // aunque el monto sea parcial (2026-09-08, cuatro pptos trabados en
+        // pendiente_facturacion con la factura cargada y la OT todavía "lista").
+        ...(estado === 'completa'
+          ? { otsListasParaFacturar: [] }
+          : otNumbers?.length
+            ? { otsListasParaFacturar: (presupuesto.otsListasParaFacturar ?? []).filter(n => !otNumbers.includes(n)) }
+            : {}),
       } as any);
 
       // Aviso a Administración (2026-08-18). Este camino creaba la solicitud y
@@ -178,7 +186,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
       onClose();
     } catch (err) {
       console.error('Error creando solicitud de facturación:', err);
-      alert('Error al crear la solicitud');
+      notify.error('Error al crear la solicitud');
     } finally {
       setSaving(false);
     }
