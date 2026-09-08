@@ -14,6 +14,7 @@ import type {
 import { establecimientoPerteneceACliente, establecimientoUnicoId, otSinAgenda } from '@ags/shared';
 import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
+import { notify } from '../utils/notify';
 export interface EditOTFormState {
   clienteId: string;
   /** Editable desde 2026-08-09: el modal no tenia el campo, asi que una OT
@@ -105,7 +106,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       ordenesTrabajoService.getPatronesSeleccionados(otNumber).catch(() => [] as PatronSeleccionado[]),
       establecimientosService.getAll().catch(() => [] as Establecimiento[]),
     ]).then(async ([ot, c, s, ts, ings, patronesSel, ests]) => {
-      if (!ot) { alert('OT no encontrada'); onClose(); return; }
+      if (!ot) { notify.error('OT no encontrada'); onClose(); return; }
       setOtOriginal(ot);
       setClientes(c);
       setSistemas(s);
@@ -159,7 +160,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         patronesSeleccionados: patronesSel ?? [],
       });
       setLoading(false);
-    }).catch(() => { alert('Error al cargar la OT'); onClose(); });
+    }).catch(() => { notify.error('Error al cargar la OT'); onClose(); });
   }, [open, otNumber]);
 
   // Normalizar ingenieroId legacy (2026-07-31): OTs asignadas por agenda (o
@@ -260,7 +261,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       }
     } catch (err) {
       console.error('[useEditOTForm] handleCierreAdminTransition failed:', err);
-      alert('Error al transicionar a cierre administrativo');
+      notify.error('Error al transicionar a cierre administrativo');
     } finally {
       setSaving(false);
     }
@@ -268,9 +269,9 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
   // ── Confirm cierre (FINALIZADO transition — mail+ticket admin already ran in CIERRE_ADMINISTRATIVO) ──
   const handleConfirmarCierre = async () => {
-    if (!form.cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+    if (!form.cierreAdmin.horasConfirmadas) { notify.warning('Debe confirmar las horas trabajadas'); return; }
     if (!form.cierreAdmin.partesConfirmadas && form.articulos.length > 0) {
-      alert('Debe confirmar los materiales/repuestos');
+      notify.warning('Debe confirmar los materiales/repuestos');
       return;
     }
     const ahora = new Date().toISOString();
@@ -316,13 +317,13 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         status: 'FINALIZADO',
       }));
       if (!dedujoOk) {
-        alert('La OT se finalizó, pero la deducción de stock falló. Revisá el stock del cierre y descontá a mano si hace falta.');
+        notify.error('La OT se finalizó, pero la deducción de stock falló. Revisá el stock del cierre y descontá a mano si hace falta.');
       }
       onSaved();
       onClose();
     } catch (err) {
       console.error('[useEditOTForm] handleConfirmarCierre failed:', err);
-      alert('Error al confirmar cierre');
+      notify.error('Error al confirmar cierre');
     } finally {
       setSaving(false);
     }
@@ -353,27 +354,27 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       }));
     } catch (err) {
       console.error('[useEditOTForm] handleReabrirOT failed:', err);
-      alert('Error al reabrir la OT');
+      notify.error('Error al reabrir la OT');
     } finally {
       setSaving(false);
     }
   };
 
   const handleSave = async () => {
-    if (!form.clienteId) { alert('Seleccione un cliente'); return; }
-    if (!form.tipoServicio) { alert('Seleccione un tipo de servicio'); return; }
+    if (!form.clienteId) { notify.warning('Seleccione un cliente'); return; }
+    if (!form.tipoServicio) { notify.warning('Seleccione un tipo de servicio'); return; }
     // Fin de semana (2026-08-12): guardar la OT con fecha sincroniza la agenda
     // (syncFromOT mueve la entrada sin pasar por los guards de useAgenda), así
     // que el bloqueo tiene que estar también acá.
     if (esFinDeSemana(form.fechaServicioAprox)) {
-      alert(mensajeFinDeSemana(form.fechaServicioAprox));
+      notify.warning(mensajeFinDeSemana(form.fechaServicioAprox));
       return;
     }
     // Las OTs sin agenda (entrega, proveedor externo, alquiler) no llevan
     // responsable asignado — el sidebar hasta deshabilita el selector — así que
     // el cierre no puede exigirlo (2026-08-25).
     const sinAgenda = otSinAgenda({ tipoOT: otOriginal?.tipoOT, tipoServicio: form.tipoServicio });
-    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda) { alert('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
+    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda) { notify.warning('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
 
     const cliente = clientes.find(c => c.id === form.clienteId);
     const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId);
@@ -386,7 +387,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId)
       ?? ingenieros.find(u => u.id === form.ingenieroId);
 
-    if (!cliente) { alert('Cliente no encontrado'); return; }
+    if (!cliente) { notify.warning('Cliente no encontrado'); return; }
 
     let estadoHistorial = otOriginal?.estadoHistorial || [];
     let estadoAdminFecha = otOriginal?.estadoAdminFecha || '';
@@ -529,7 +530,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
       onSaved();
       onClose();
-    } catch { alert('Error al guardar'); }
+    } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
 

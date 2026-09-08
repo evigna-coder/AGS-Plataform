@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { presupuestosService } from '../../services/presupuestosService';
 
+import { notify } from '../../utils/notify';
 /**
  * Entry point for direct URL access (/presupuestos/:id).
  * Verifies the presupuesto exists, opens the floating modal, and redirects to
@@ -26,7 +27,7 @@ export const PresupuestoDetail = () => {
         const presupuesto = await presupuestosService.getById(id);
         if (cancelled) return;
         if (!presupuesto) {
-          alert('El presupuesto no existe o fue eliminado.');
+          notify.error('El presupuesto no existe o fue eliminado.');
           navigate('/presupuestos', { replace: true });
           return;
         }
@@ -35,7 +36,7 @@ export const PresupuestoDetail = () => {
       } catch (err) {
         if (cancelled) return;
         console.error('Error cargando presupuesto por URL:', err);
-        alert('Error al cargar el presupuesto.');
+        notify.error('Error al cargar el presupuesto.');
         navigate('/presupuestos', { replace: true });
       }
     };

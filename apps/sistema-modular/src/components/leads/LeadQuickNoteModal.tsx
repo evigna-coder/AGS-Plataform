@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
 interface LeadQuickNoteModalProps {
   lead: Lead;
   onClose: () => void;
@@ -34,7 +35,7 @@ export const LeadQuickNoteModal = ({ lead, onClose, onAdded }: LeadQuickNoteModa
       await leadsService.agregarComentario(lead.id, posta);
       onAdded();
     } catch {
-      alert('Error al agregar nota');
+      notify.error('Error al agregar nota');
     } finally {
       setSaving(false);
     }

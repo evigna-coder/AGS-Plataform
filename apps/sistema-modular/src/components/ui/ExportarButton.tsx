@@ -2,6 +2,7 @@ import { MenuButton, type MenuButtonItem } from './MenuButton';
 import { exportToExcel, type ExportColumn } from '../../utils/exportToExcel';
 import { exportListadoPDF } from '../../utils/exportListadoPDF';
 
+import { notify } from '../../utils/notify';
 /**
  * Botón estándar "Exportar ▾" para el header de las listas (2026-08-12):
  * Excel (.xlsx) y PDF desde la MISMA definición de columnas (`ExportColumn<T>`)
@@ -61,7 +62,7 @@ export function ExportarButton<T>({
               titulo, subtitulo, filtrosAplicados, columnas, data, filename: fname, orientacion,
             }).catch(err => {
               console.error('[ExportarButton] error generando PDF:', err);
-              alert('Error al generar el PDF');
+              notify.error('Error al generar el PDF');
             });
           },
         },

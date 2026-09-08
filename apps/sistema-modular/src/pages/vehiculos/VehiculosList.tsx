@@ -14,6 +14,7 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { VEHICULOS_EXPORT_COLUMNS } from '../../utils/exports/exportVehiculos';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 function vencimientoStatus(fecha: string): 'ok' | 'warning' | 'expired' {
   if (!fecha) return 'ok';
   const diff = new Date(fecha).getTime() - Date.now();
@@ -99,7 +100,7 @@ export const VehiculosList = () => {
 
       <div className="flex-1 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+          <LoadingState message="Cargando…" />
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-lg border border-slate-200 text-center py-12">
             <p className="text-slate-400">No se encontraron vehículos</p>

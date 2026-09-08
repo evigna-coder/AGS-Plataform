@@ -11,6 +11,8 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { TIPOS_SERVICIO_ESTANDAR } from '../../utils/tiposServicioEstandar';
 import { TIPOS_SERVICIO_EXPORT_COLUMNS } from '../../utils/exports/exportTiposServicio';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 const normalizar = (s: string) => s.trim().toLowerCase();
 
 export const TiposServicio = () => {
@@ -34,7 +36,7 @@ export const TiposServicio = () => {
       setTipos(data);
     } catch (error) {
       console.error('Error cargando tipos de servicio:', error);
-      alert('Error al cargar tipos de servicio');
+      notify.error('Error al cargar tipos de servicio');
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,7 @@ export const TiposServicio = () => {
 
   const handleSave = async () => {
     if (!formData.nombre.trim()) {
-      alert('El nombre del tipo de servicio es obligatorio');
+      notify.warning('El nombre del tipo de servicio es obligatorio');
       return;
     }
 
@@ -67,7 +69,7 @@ export const TiposServicio = () => {
       setFormData({ nombre: '', generaRecurrenciaAnual: false });
     } catch (error) {
       console.error('Error guardando tipo de servicio:', error);
-      alert('Error al guardar el tipo de servicio');
+      notify.error('Error al guardar el tipo de servicio');
     }
   };
 
@@ -75,7 +77,7 @@ export const TiposServicio = () => {
     const existentes = new Set(tipos.map(t => normalizar(t.nombre)));
     const faltantes = TIPOS_SERVICIO_ESTANDAR.filter(n => !existentes.has(normalizar(n)));
     if (faltantes.length === 0) {
-      alert('Ya están cargados todos los tipos estándar.');
+      notify.warning('Ya están cargados todos los tipos estándar.');
       return;
     }
     if (!await confirm(`Se crearán ${faltantes.length} tipo(s) de servicio faltante(s):\n\n${faltantes.join('\n')}`)) return;
@@ -87,7 +89,7 @@ export const TiposServicio = () => {
       await loadData();
     } catch (error) {
       console.error('Error cargando tipos estándar:', error);
-      alert('Error al cargar los tipos estándar');
+      notify.error('Error al cargar los tipos estándar');
     } finally {
       setSeeding(false);
     }
@@ -106,15 +108,13 @@ export const TiposServicio = () => {
       await loadData();
     } catch (error) {
       console.error('Error eliminando tipo de servicio:', error);
-      alert('Error al eliminar el tipo de servicio');
+      notify.error('Error al eliminar el tipo de servicio');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando tipos de servicio...</p>
-      </div>
+      <LoadingState message="Cargando tipos de servicio…" />
     );
   }
 

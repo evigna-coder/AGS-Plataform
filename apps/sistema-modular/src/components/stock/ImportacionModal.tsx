@@ -14,6 +14,8 @@ import { resumenRecepcion } from '../../utils/importacionRecepcion';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { importacionesService, unidadesService } from '../../services/firebaseService';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   impId: string | null;
@@ -177,7 +179,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
       costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
     }
     if (costoPorArticulo.size === 0) {
-      alert('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
+      notify.warning('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
       return;
     }
     const ok = await confirm({
@@ -193,11 +195,11 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
         factorEmbarque: costeo.factorEmbarque,
         costoPorArticulo,
       });
-      alert(`Costeo confirmado.\n\nUnidades actualizadas: ${r.actualizadas}` +
+      notify.error(`Costeo confirmado.\n\nUnidades actualizadas: ${r.actualizadas}` +
         (r.sinCosto > 0 ? `\nSin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
     } catch (e) {
       console.error('[ImportacionModal] confirmar costeo:', e);
-      alert('Error al confirmar el costeo.');
+      notify.error('Error al confirmar el costeo.');
     } finally {
       setConfirmandoCosteo(false);
     }
@@ -218,7 +220,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
       costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
     }
     if (costoPorArticulo.size === 0) {
-      alert('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
+      notify.warning('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
       return;
     }
     const ok = await confirm({
@@ -238,7 +240,7 @@ Sigue siendo estimado — no confirma el costeo definitivo. Las unidades con cos
         factorEmbarque: costeo.factorEmbarque,
         costoPorArticulo,
       });
-      alert(`Estimado actualizado.
+      notify.warning(`Estimado actualizado.
 
 Unidades actualizadas: ${r.actualizadas}` +
         (r.confirmadas > 0 ? `
@@ -247,7 +249,7 @@ Con costeo confirmado (no se tocaron): ${r.confirmadas}` : '') +
 Sin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
     } catch (e) {
       console.error('[ImportacionModal] re-estimar costeo:', e);
-      alert('Error al actualizar el estimado.');
+      notify.error('Error al actualizar el estimado.');
     } finally {
       setConfirmandoCosteo(false);
     }
@@ -352,10 +354,10 @@ No se van a poder ingresar mas unidades por este embarque.`,
           {seleccionarOC ? (
             <div>
               <label className={lbl}>Orden de compra (importación) *</label>
-              <select className={ctrl} value={h.ordenCompraId} onChange={e => h.selectOC(e.target.value)}>
+              <Select className="w-full" value={h.ordenCompraId} onChange={e => h.selectOC(e.target.value)}>
                 <option value="">Seleccionar OC...</option>
                 {h.ocOptions.map(oc => <option key={oc.id} value={oc.id}>{oc.numero} — {oc.proveedorNombre}</option>)}
-              </select>
+              </Select>
             </div>
           ) : null}
 
@@ -396,23 +398,23 @@ No se van a poder ingresar mas unidades por este embarque.`,
             )}
             <div>
               <label className={lbl}>Incoterm</label>
-              <select className={ctrl} value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
+              <Select className="w-full" value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
                 <option value="">—</option>
                 {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className={lbl}>Despachante</label>
               {/* Proveedores con categoría "Despachante de aduanas"
                   (2026-08-07) — antes era una lista fija en el código. El valor
                   ya cargado se conserva aunque el proveedor no esté migrado. */}
-              <select className={ctrl} value={h.form.despachante} onChange={e => h.set('despachante', e.target.value)}>
+              <Select className="w-full" value={h.form.despachante} onChange={e => h.set('despachante', e.target.value)}>
                 <option value="">—</option>
                 {h.form.despachante && !h.despachantes.some(d => d.nombre === h.form.despachante) && (
                   <option value={h.form.despachante}>{h.form.despachante}</option>
                 )}
                 {h.despachantes.map(d => <option key={d.id} value={d.nombre}>{d.nombre}</option>)}
-              </select>
+              </Select>
             </div>
             {/* Courier (2026-08-06): cambia el costeo — sin percepciones. */}
             <div>
@@ -429,13 +431,13 @@ No se van a poder ingresar mas unidades por este embarque.`,
               <label className={lbl}>Agente de carga</label>
               {nuevoAgente === null ? (
                 <div className="flex gap-1">
-                  <select className={ctrl} value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
+                  <Select className="w-full" value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
                     <option value="">—</option>
                     {h.form.agenteCarga && !h.agentes.some(a => a.nombre === h.form.agenteCarga) && (
                       <option value={h.form.agenteCarga}>{h.form.agenteCarga}</option>
                     )}
                     {h.agentes.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
-                  </select>
+                  </Select>
                   <button type="button" title="Nuevo agente" onClick={() => setNuevoAgente('')}
                     className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">+</button>
                 </div>
@@ -473,13 +475,13 @@ No se van a poder ingresar mas unidades por este embarque.`,
                 <div className="flex gap-1">
                   <input type="number" className={ctrl} value={h.form.fleteDeclarado} onFocus={selectAll}
                     onChange={e => h.set('fleteDeclarado', e.target.value)} placeholder="0.00" />
-                  <select className={`${ctrl} w-24`} value={h.form.monedaFleteDeclarado}
+                  <Select className="w-full w-24" value={h.form.monedaFleteDeclarado}
                     onChange={e => h.set('monedaFleteDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
                     <option value="">{h.monedaOC}</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="ARS">ARS</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div>
@@ -487,13 +489,13 @@ No se van a poder ingresar mas unidades por este embarque.`,
                 <div className="flex gap-1">
                   <input type="number" className={ctrl} value={h.form.seguroDeclarado} onFocus={selectAll}
                     onChange={e => h.set('seguroDeclarado', e.target.value)} placeholder="0.00" />
-                  <select className={`${ctrl} w-24`} value={h.form.monedaSeguroDeclarado}
+                  <Select className="w-full w-24" value={h.form.monedaSeguroDeclarado}
                     onChange={e => h.set('monedaSeguroDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
                     <option value="">{h.monedaOC}</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="ARS">ARS</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div>
@@ -540,10 +542,10 @@ No se van a poder ingresar mas unidades por este embarque.`,
               </div>
               <div>
                 <label className={lbl}>Moneda VEP</label>
-                <select className={ctrl} value={h.form.vepMoneda} onChange={e => h.set('vepMoneda', e.target.value as 'ARS' | 'USD' | 'EUR')}>
+                <Select className="w-full" value={h.form.vepMoneda} onChange={e => h.set('vepMoneda', e.target.value as 'ARS' | 'USD' | 'EUR')}>
                   <option value="ARS">ARS</option>
                   <option value="USD">USD</option>
-                </select>
+                </Select>
               </div>
               <Input inputSize="sm" label="Fecha pago VEP" type="date" value={h.form.vepFechaPago} onChange={e => h.set('vepFechaPago', e.target.value)} />
             </div>
@@ -586,11 +588,11 @@ No se van a poder ingresar mas unidades por este embarque.`,
               </div>
               <div>
                 <label className={lbl}>Moneda</label>
-                <select className={ctrl} value={h.form.giroMoneda} onChange={e => h.set('giroMoneda', e.target.value as 'ARS' | 'USD' | 'EUR')}>
+                <Select className="w-full" value={h.form.giroMoneda} onChange={e => h.set('giroMoneda', e.target.value as 'ARS' | 'USD' | 'EUR')}>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
                   <option value="ARS">ARS</option>
-                </select>
+                </Select>
               </div>
               <Input inputSize="sm" label="Fecha estimada de giro" type="date" value={h.form.giroFechaEstimada} onChange={e => h.set('giroFechaEstimada', e.target.value)} />
             </div>

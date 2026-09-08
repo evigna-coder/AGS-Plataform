@@ -7,6 +7,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface DerivarLeadModalProps {
   lead: Lead;
   onClose: () => void;
@@ -103,12 +105,12 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
       if (isSistema) {
         // ── SISTEMA FLOW: crear pendiente + finalizar ticket ──
         if (!comentario.trim()) {
-          alert('Escribí la descripción de la pendiente');
+          notify.warning('Escribí la descripción de la pendiente');
           setSaving(false);
           return;
         }
         if (!resolvedClienteId) {
-          alert('No se encontró el cliente en el sistema. Verificá que el cliente exista.');
+          notify.warning('No se encontró el cliente en el sistema. Verificá que el cliente exista.');
           setSaving(false);
           return;
         }
@@ -176,7 +178,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
       }
     } catch (err: any) {
       console.error('Error derivando ticket:', err);
-      alert(`Error al derivar: ${err?.message || 'Error desconocido'}`);
+      notify.error(`Error al derivar: ${err?.message || 'Error desconocido'}`);
     } finally {
       setSaving(false);
     }
@@ -195,20 +197,20 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Motivo</label>
-            <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+            <Select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className="w-full">
               {Object.entries(MOTIVO_LLAMADO_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={labelClass}>Área destino</label>
-            <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as TicketArea | '')} className={selectClass}>
+            <Select value={areaDestino} onChange={e => setAreaDestino(e.target.value as TicketArea | '')} className="w-full">
               <option value="">Sin área específica</option>
               {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -252,14 +254,14 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
             {resolvedClienteId && equipos.length > 0 && (
               <div>
                 <label className={labelClass}>Equipo (opcional)</label>
-                <select value={equipoId} onChange={e => setEquipoId(e.target.value)} className={selectClass}>
+                <Select value={equipoId} onChange={e => setEquipoId(e.target.value)} className="w-full">
                   <option value="">Sin equipo específico</option>
                   {equipos.map(e => (
                     <option key={e.id} value={e.id}>
                       {e.nombre} ({e.codigoInternoCliente || 'sin código'})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
 
@@ -289,14 +291,14 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={labelClass}>Derivar a</label>
-                <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)} className={selectClass}>
+                <Select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)} className="w-full">
                   <option value="">Sin asignar</option>
                   {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className={labelClass}>Próximo contacto</label>
-                <select
+                <Select
                   value={prioridad}
                   onChange={e => {
                     const v = e.target.value;
@@ -307,13 +309,13 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
                       setFechaContactoCustom('');
                     }
                   }}
-                  className={selectClass}
+                  className="w-full"
                 >
                   {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
                     <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
                   ))}
                   <option value="custom">Elegir fecha específica...</option>
-                </select>
+                </Select>
                 {prioridad === 'custom' && (
                   <input type="date" value={fechaContactoCustom} onChange={e => setFechaContactoCustom(e.target.value)}
                     className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"

@@ -13,6 +13,8 @@ import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const OCDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -38,18 +40,18 @@ export const OCDetail = () => {
     try {
       setLoading(true);
       const data = await ordenesCompraService.getById(id);
-      if (!data) { alert('Orden de compra no encontrada'); navigate('/stock/ordenes-compra'); return; }
+      if (!data) { notify.error('Orden de compra no encontrada'); navigate('/stock/ordenes-compra'); return; }
       setOc(data);
     } catch (err) {
       console.error('Error cargando OC:', err);
-      alert('Error al cargar la orden de compra');
+      notify.error('Error al cargar la orden de compra');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading || !oc) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando orden de compra...</p></div>;
+    return <LoadingState message="Cargando orden de compra…" />;
   }
 
   const canEdit = oc.estado === 'borrador';

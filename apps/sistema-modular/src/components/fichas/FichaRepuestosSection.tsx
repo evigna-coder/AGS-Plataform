@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { fichasService } from '../../services/firebaseService';
 import type { FichaPropiedad, RepuestoPendiente } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   ficha: FichaPropiedad;
   onUpdate: () => void;
@@ -77,15 +78,14 @@ export function FichaRepuestosSection({ ficha, onUpdate }: Props) {
                 {r.ordenCompraId && <span>OC: {r.ordenCompraNumero || r.ordenCompraId}</span>}
               </div>
             </div>
-            <select
-              className="text-xs border border-slate-200 rounded px-2 py-1"
+            <Select
               value={r.estado}
               onChange={e => handleUpdateEstado(idx, e.target.value as any)}
             >
               <option value="pendiente">Pendiente</option>
               <option value="en_proceso">En proceso</option>
               <option value="recibido">Recibido</option>
-            </select>
+            </Select>
             <button className="text-xs text-red-400 hover:text-red-600" onClick={() => handleRemove(idx)}>Quitar</button>
           </div>
         ))}

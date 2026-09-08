@@ -5,6 +5,7 @@ import { qfDocumentosService } from '../../services/qfDocumentosService';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
+import { notify } from '../../utils/notify';
 const Stat = ({ n, label, color }: { n: number; label: string; color: string }) => (
   <div className="rounded-lg border border-slate-200 py-2">
     <div className={`text-lg font-semibold ${color}`}>{n}</div>
@@ -48,7 +49,7 @@ export function SincronizarBibliotecaButton() {
       setReport(await qfDocumentosService.sincronizarDesdeBiblioteca(items));
     } catch (err) {
       console.error('[SincronizarBiblioteca]', err);
-      alert('Error al sincronizar con la Biblioteca de tablas');
+      notify.error('Error al sincronizar con la Biblioteca de tablas');
     } finally {
       setRunning(false);
     }

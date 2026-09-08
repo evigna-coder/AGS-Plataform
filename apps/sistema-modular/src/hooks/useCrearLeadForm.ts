@@ -5,6 +5,7 @@ import { leadsService, usuariosService, clientesService, sistemasService, modulo
 import { useAuth } from '../contexts/AuthContext';
 import { matchesSearch } from '../utils/searchTerms';
 
+import { notify } from '../utils/notify';
 export interface LeadPrefill {
   clienteId?: string;
   razonSocial?: string;
@@ -178,7 +179,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
       if (pendingFiles.length > 0) await leadsService.uploadAdjuntos(leadId, pendingFiles, 0);
       onCreated?.(leadId);
       onClose();
-    } catch { alert('Error al crear el lead'); }
+    } catch { notify.error('Error al crear el lead'); }
     finally { setSaving(false); }
   };
 

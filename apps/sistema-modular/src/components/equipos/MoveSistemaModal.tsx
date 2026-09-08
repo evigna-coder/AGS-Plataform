@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
 interface SistemaToMove {
   id: string;
   nombre: string;
@@ -87,7 +88,7 @@ export const MoveSistemaModal: React.FC<MoveSistemaModalProps> = ({
       onMoved();
     } catch (err) {
       console.error('Error moviendo sistema(s):', err);
-      alert('Error al mover los sistemas');
+      notify.error('Error al mover los sistemas');
     } finally {
       setSaving(false);
     }

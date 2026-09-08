@@ -12,6 +12,8 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PROVEEDORES_EXPORT_COLUMNS, TIPO_PROVEEDOR_LABELS } from '../../utils/exports/exportProveedores';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const TIPO_COLORS = { nacional: 'bg-blue-50 text-blue-700', internacional: 'bg-purple-50 text-purple-700' };
 
 export const ProveedoresPage = () => {
@@ -50,13 +52,13 @@ export const ProveedoresPage = () => {
 
   const handleToggle = async (p: Proveedor) => {
     try { await proveedoresService.update(p.id, { activo: !p.activo }); reload(); }
-    catch { alert('Error al cambiar estado'); }
+    catch { notify.error('Error al cambiar estado'); }
   };
 
   const handleDelete = async (p: Proveedor) => {
     if (!await confirm(`¿Eliminar permanentemente "${p.nombre}"?`)) return;
     try { await proveedoresService.delete(p.id); reload(); }
-    catch { alert('Error al eliminar'); }
+    catch { notify.error('Error al eliminar'); }
   };
 
   return (
@@ -78,12 +80,12 @@ export const ProveedoresPage = () => {
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <Select value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
+            >
             <option value="">Todos los tipos</option>
             <option value="nacional">Nacional</option>
             <option value="internacional">Internacional</option>
-          </select>
+          </Select>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos

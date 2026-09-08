@@ -17,6 +17,9 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const STATUS_ICON: Record<DocumentoIngresoStatus, { symbol: string; cls: string }> = {
   no_requerido: { symbol: '—', cls: 'text-slate-300' },
   requerido: { symbol: '✓', cls: 'text-emerald-600 font-bold' },
@@ -80,7 +83,7 @@ export const IngresoEmpresasList = () => {
       await ingresoEmpresasService.delete(item.id);
     } catch (err) {
       console.error('Error eliminando:', err);
-      alert('Error al eliminar');
+      notify.error('Error al eliminar');
     }
   };
 
@@ -112,22 +115,21 @@ export const IngresoEmpresasList = () => {
             onChange={e => setBusq(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
-          <select
+          <Select
             value={filters.tipo}
             onChange={e => setFilter('tipo', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
             {(Object.keys(TIPO_INGRESO_LABELS) as TipoIngresoCliente[]).map(k => (
               <option key={k} value={k}>{TIPO_INGRESO_LABELS[k]}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </PageHeader>
 
       <div className="flex-1 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+          <LoadingState message="Cargando…" />
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-lg border border-slate-200 text-center py-12">
             <p className="text-slate-400">No se encontraron registros</p>

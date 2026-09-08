@@ -16,6 +16,8 @@ import { ImportacionModal } from './ImportacionModal';
 import { previewOrdenCompraPDF } from './pdf/generateOrdenCompraPDF';
 import { useOrdenCompraForm, type OCPrefill } from '../../hooks/useOrdenCompraForm';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   ocId: string | null;
@@ -104,7 +106,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
       onClose();
     } catch (err) {
       console.error('[OrdenCompraModal] error eliminando OC:', err);
-      alert('Error al eliminar la orden de compra');
+      notify.error('Error al eliminar la orden de compra');
     }
   };
 
@@ -168,18 +170,18 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
               </div>
               <div>
                 <label className={lbl}>Proveedor *</label>
-                <select value={h.proveedorId} onChange={e => h.handleProveedorChange(e.target.value)} className={selectClass}>
+                <Select value={h.proveedorId} onChange={e => h.handleProveedorChange(e.target.value)} className="w-full">
                   <option value="">Seleccionar proveedor...</option>
                   {h.proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className={lbl}>Moneda</label>
-                <select value={h.moneda} onChange={e => h.setMoneda(e.target.value as 'ARS' | 'USD' | 'EUR')} className={selectClass}>
+                <Select value={h.moneda} onChange={e => h.setMoneda(e.target.value as 'ARS' | 'USD' | 'EUR')} className="w-full">
                   <option value="ARS">ARS</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
-                </select>
+                </Select>
               </div>
               {/* En ALTA se escribe solo la parte numérica y el prefijo del
                   proveedor va adelante. En EDICIÓN se escribe el número completo,
@@ -215,10 +217,10 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
                 <>
                   <div>
                     <label className={lbl}>Incoterm</label>
-                    <select value={h.incoterm} onChange={e => h.setIncoterm(e.target.value)} className={selectClass}>
+                    <Select value={h.incoterm} onChange={e => h.setIncoterm(e.target.value)} className="w-full">
                       <option value="">—</option>
                       {['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'].map(i => <option key={i} value={i}>{i}</option>)}
-                    </select>
+                    </Select>
                   </div>
                   {/* Flete y seguro acordados: la importación los levanta como
                       declarados y entran en la base CIF del costeo (2026-08-24). */}

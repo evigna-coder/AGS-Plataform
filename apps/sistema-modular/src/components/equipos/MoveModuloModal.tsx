@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { sistemasService } from '../../services/firebaseService';
 
+import { notify } from '../../utils/notify';
 interface Props {
   modulo: ModuloSistema;
   currentSistemaId: string;
@@ -29,7 +30,7 @@ export const MoveModuloModal: React.FC<Props> = ({ modulo, currentSistemaId, onM
     if (!targetId) return;
     setMoving(true);
     try { await onMove(targetId); }
-    catch { alert('Error al mover el modulo'); }
+    catch { notify.error('Error al mover el modulo'); }
     finally { setMoving(false); }
   };
 

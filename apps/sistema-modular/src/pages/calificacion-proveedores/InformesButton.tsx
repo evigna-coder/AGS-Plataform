@@ -7,6 +7,7 @@ import {
   CALIFICACIONES_RESUMEN_COLUMNS, CALIFICACIONES_DETALLE_COLUMNS,
 } from '../../utils/exports/exportCalificaciones';
 
+import { notify } from '../../utils/notify';
 /** yyyymmdd en hora local — mismo criterio que ExportarButton. */
 function hoySlug(): string {
   const d = new Date();
@@ -22,7 +23,7 @@ export function InformesButton({ items }: { items: CalificacionProveedor[] }) {
   const pdf = <T,>(opts: ExportListadoPDFOptions<T>) => {
     void exportListadoPDF(opts).catch(err => {
       console.error('[InformesButton] error generando PDF:', err);
-      alert('Error al generar el PDF');
+      notify.error('Error al generar el PDF');
     });
   };
 

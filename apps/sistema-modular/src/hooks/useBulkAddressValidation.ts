@@ -4,6 +4,7 @@ import { establecimientosService } from '../services/firebaseService';
 import { useBackgroundTasks } from '../contexts/BackgroundTasksContext';
 import type { Establecimiento } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 interface FieldDiff {
   field: string;
   label: string;
@@ -121,7 +122,7 @@ export function useBulkAddressValidation(
         prev.map(r => r.est.id === row.est.id ? { ...r, applied: true, diffs: [] } : r)
       );
     } catch {
-      alert('Error al actualizar establecimiento');
+      notify.error('Error al actualizar establecimiento');
     }
   };
 

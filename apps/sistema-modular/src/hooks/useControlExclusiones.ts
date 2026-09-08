@@ -1,5 +1,6 @@
 import { useConfirm } from '../components/ui/ConfirmDialog';
 
+import { notify } from '../utils/notify';
 /**
  * Quitar/reponer filas del control de la semana visible (extraído de
  * ControlSemanal.tsx el 2026-09-02, presupuesto de 250 líneas).
@@ -32,13 +33,13 @@ export function useControlExclusiones(deps: {
   ) => {
     if (!await confirm({ title: titulo, message: nota, confirmLabel: 'Quitar' })) return;
     try { await accion(); }
-    catch { alert('No se pudo quitar del control'); }
+    catch { notify.error('No se pudo quitar del control'); }
   };
 
   const reponer = async (cuantas: number, sujeto: string, accion: () => Promise<void>) => {
     if (!await confirm(`¿Reponer ${cuantas} ${sujeto} al control de esta semana?`)) return;
     try { await accion(); }
-    catch { alert('No se pudieron reponer'); }
+    catch { notify.error('No se pudieron reponer'); }
   };
 
   return {

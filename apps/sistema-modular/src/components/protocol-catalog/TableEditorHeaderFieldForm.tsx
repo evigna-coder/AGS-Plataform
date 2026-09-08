@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { TableHeaderField } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   field: TableHeaderField;
   allFields: TableHeaderField[];
@@ -74,12 +75,12 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
       <div className="flex gap-2">
         <Input placeholder="Etiqueta (ej: Inyector, Ruido)" value={label}
           onChange={e => setLabel(e.target.value)} />
-        <select value={inputType} onChange={e => setInputType(e.target.value as 'select' | 'number' | 'text')}
-          className="border border-slate-300 rounded-lg px-2 text-xs bg-white">
+        <Select value={inputType} onChange={e => setInputType(e.target.value as 'select' | 'number' | 'text')}
+          >
           <option value="select">Dropdown</option>
           <option value="number">Numérico</option>
           <option value="text">Texto libre</option>
-        </select>
+        </Select>
       </div>
       {inputType === 'select' ? (
         <div className="space-y-2">
@@ -111,16 +112,16 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
         <div className="border-t border-slate-200 pt-2 space-y-1.5">
           <label className="text-[10px] font-bold uppercase text-slate-500">Visibilidad condicional (opcional)</label>
           <div className="flex gap-2">
-            <select
+            <Select
               value={visTriggerField}
               onChange={e => { setVisTriggerField(e.target.value); setVisValues([]); }}
-              className="border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white flex-1"
+              className="flex-1"
             >
               <option value="">Siempre visible</option>
               {triggerCandidates.map(f => (
                 <option key={f.fieldId} value={f.fieldId}>Mostrar cuando {f.label} =</option>
               ))}
-            </select>
+            </Select>
           </div>
           {triggerField && (
             <div className="flex flex-wrap gap-1.5">

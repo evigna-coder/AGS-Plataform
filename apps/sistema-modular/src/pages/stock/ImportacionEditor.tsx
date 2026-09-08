@@ -11,6 +11,8 @@ import { ItemEmbarqueSelector } from '../../components/stock/ItemEmbarqueSelecto
 import type { OrdenCompra, ItemOC, ItemImportacion } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP'] as const;
 
 interface FromOCState {
@@ -79,7 +81,7 @@ export const ImportacionEditor = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.ordenCompraId) { alert('Selecciona una orden de compra'); return; }
+    if (!form.ordenCompraId) { notify.warning('Selecciona una orden de compra'); return; }
     try {
       setSaving(true);
       const payload = deepCleanForFirestore({
@@ -109,7 +111,7 @@ export const ImportacionEditor = () => {
       }
       navigate(`/stock/importaciones/${id}`);
     } catch (err) {
-      alert('Error al crear la importacion');
+      notify.error('Error al crear la importacion');
     } finally {
       setSaving(false);
     }
@@ -144,17 +146,17 @@ export const ImportacionEditor = () => {
               ) : (
                 <div>
                   <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Orden de compra (tipo importacion)</label>
-                  <select
+                  <Select
                     value={form.ordenCompraId}
                     onChange={e => handleOCChange(e.target.value)}
-                    className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full"
                     disabled={loadingOC}
                   >
                     <option value="">{loadingOC ? 'Cargando...' : 'Seleccionar OC'}</option>
                     {ordenesCompra.map(oc => (
                       <option key={oc.id} value={oc.id}>{oc.numero} - {oc.proveedorNombre}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
               {form.proveedorNombre && (
@@ -179,14 +181,14 @@ export const ImportacionEditor = () => {
               <Input inputSize="sm" label="Naviera" value={form.naviera} onChange={set('naviera')} placeholder="Ej: Maersk" />
               <div>
                 <label className="text-[11px] font-medium text-slate-700 mb-1 block">Incoterm</label>
-                <select
+                <Select
                   value={form.incoterm}
                   onChange={set('incoterm')}
-                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full"
                 >
                   <option value="">Seleccionar</option>
                   {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
           </Card>

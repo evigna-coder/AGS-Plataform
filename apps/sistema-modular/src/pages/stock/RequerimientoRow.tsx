@@ -21,6 +21,7 @@ export const URGENCIA_COLORS: Record<UrgenciaRequerimiento, string> = {
 // URGENCIA_LABELS vive en el módulo de export (Excel/PDF usa los mismos textos);
 // se re-exporta desde acá para no romper a los consumidores existentes.
 import { URGENCIA_LABELS } from '../../utils/exports/exportRequerimientos';
+import { Select } from '../../components/ui/Select';
 export { URGENCIA_LABELS };
 
 export interface RequerimientoRowProps {
@@ -142,12 +143,12 @@ export const RequerimientoRow = ({
       </td>
       <td className={`px-2 py-2 ${getAlignClass(6)}`} onClick={e => { if (isPendiente) { e.stopPropagation(); startEdit(r, 'urgencia'); } }}>
         {isEditingUrgencia ? (
-          <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus
-            className="border-b border-teal-400 focus:outline-none bg-transparent text-xs">
+          <Select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus
+            >
             {(['baja', 'media', 'alta', 'critica'] as UrgenciaRequerimiento[]).map(u => (
               <option key={u} value={u}>{URGENCIA_LABELS[u]}</option>
             ))}
-          </select>
+          </Select>
         ) : r.urgencia ? (
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${isPendiente ? 'cursor-pointer' : ''} ${URGENCIA_COLORS[r.urgencia]}`}>
             {URGENCIA_LABELS[r.urgencia]}

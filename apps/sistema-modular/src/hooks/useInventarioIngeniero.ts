@@ -10,6 +10,7 @@ import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { usePrompt } from '../components/ui/PromptDialog';
 
+import { notify } from '../utils/notify';
 export interface InventarioItem extends ItemAsignacion {
   asignacionId: string;
   asignacionNumero: string;
@@ -91,7 +92,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       // (asignadoAId de instrumento/dispositivo, ubicación de unidad, minikit).
       await asignacionesService.devolverItems(item.asignacionId, [{ itemId: item.id, cantidad: remaining }]);
       await loadData(true);
-    } catch { alert('Error al devolver'); }
+    } catch { notify.error('Error al devolver'); }
     finally { setSaving(false); }
   };
 
@@ -117,7 +118,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
         await asignacionesService.devolverItems(asigId, its);
       }
       await loadData(true);
-    } catch { alert('Error al devolver'); }
+    } catch { notify.error('Error al devolver'); }
     finally { setSaving(false); }
   };
 
@@ -137,7 +138,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
       await asignacionesService.consumirItems(item.asignacionId, [{ itemId: item.id, cantidad: remaining, otNumber: ot || undefined }]);
       await loadData(true);
-    } catch { alert('Error al consumir'); }
+    } catch { notify.error('Error al consumir'); }
     finally { setSaving(false); }
   };
 
@@ -147,7 +148,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
     try {
       await asignacionesService.reasignarCliente(item.asignacionId, [item.id], clienteId, clienteNombre);
       await loadData(true);
-    } catch { alert('Error al reasignar cliente'); }
+    } catch { notify.error('Error al reasignar cliente'); }
     finally { setSaving(false); }
   };
 
@@ -241,7 +242,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       await loadData(true);
     } catch (err) {
       console.error('Error al transferir:', err);
-      alert('Error al transferir');
+      notify.error('Error al transferir');
     }
     finally { setSaving(false); }
   };

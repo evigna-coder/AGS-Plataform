@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { DateInput } from '../../components/ui/DateInput';
 
+import { EmptyState } from '../../components/ui/EmptyState';
 const ACTION_TABS: { value: '' | AuditAction; label: string }[] = [
   { value: '', label: 'Todas' },
   { value: 'create', label: 'Creaciones' },
@@ -383,9 +384,7 @@ export default function AuditoriaPage() {
         {loading && entries.length === 0 ? (
           <p className="text-center text-slate-400 text-sm py-12">Cargando auditoría…</p>
         ) : filtered.length === 0 ? (
-          <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron eventos con estos filtros.</p>
-          </div></Card>
+          <EmptyState message="No se encontraron eventos con estos filtros." hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table className="w-full">

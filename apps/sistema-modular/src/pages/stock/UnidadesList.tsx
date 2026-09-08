@@ -9,7 +9,6 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -27,6 +26,10 @@ import {
 import type { UnidadStock, CondicionUnidad, EstadoUnidad, TipoOrigenDestino, Presentacion, Articulo } from '@ags/shared';
 import { PresentacionSearchHint } from '../../components/stock/PresentacionSearchHint';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 
 /** Días enteros desde una fecha ISO — cuánto hace que la pieza está afuera. */
@@ -112,7 +115,7 @@ export const UnidadesList = () => {
       });
     } catch (err) {
       console.error('Error liberando reserva:', err);
-      alert(err instanceof Error ? err.message : 'Error al liberar la reserva');
+      notify.error(err instanceof Error ? err.message : 'Error al liberar la reserva');
     } finally {
       setLiberandoId(null);
     }
@@ -136,7 +139,7 @@ export const UnidadesList = () => {
       }
     } catch (err) {
       console.error('Error liberando reservas del grupo:', err);
-      alert(err instanceof Error ? err.message : 'Error al liberar las reservas');
+      notify.error(err instanceof Error ? err.message : 'Error al liberar las reservas');
     } finally {
       setLiberandoId(null);
     }
@@ -246,16 +249,16 @@ export const UnidadesList = () => {
           <input type="text" placeholder="Buscar por codigo, descripcion, serie o lote..."
             value={localSearch} onChange={e => setLocalSearch(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-64 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <Select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
+            >
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoUnidad[]).map(k => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
-          </select>
-          <select value={filters.condicion} onChange={e => setFilter('condicion', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </Select>
+          <Select value={filters.condicion} onChange={e => setFilter('condicion', e.target.value)}
+            >
             <option value="">Todas las condiciones</option>
             {(Object.keys(CONDICION_LABELS) as CondicionUnidad[]).map(k => <option key={k} value={k}>{CONDICION_LABELS[k]}</option>)}
-          </select>
+          </Select>
           <div className="w-56">
             <SearchableSelect value={filters.deposito} onChange={v => setFilter('deposito', v)} size="sm"
               options={[{ value: '', label: 'Todos los depositos' }, ...depositos]}
@@ -286,11 +289,11 @@ export const UnidadesList = () => {
           }}
         />
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
+          <LoadingState message="Cargando unidades…" />
         ) : !vistaDetalle ? (
           <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} />
         ) : filtered.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
+          <EmptyState message="No se encontraron unidades" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white overflow-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

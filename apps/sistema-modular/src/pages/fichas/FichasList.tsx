@@ -6,7 +6,6 @@ import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { matchesSearch } from '../../utils/searchTerms';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateFichaModal } from '../../components/fichas/CreateFichaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
@@ -23,6 +22,8 @@ import { proximaAccionFicha } from '../../utils/proximaAccionFicha';
 import { FichaProximaAccionButton } from '../../components/fichas/FichaProximaAccionButton';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 /**
  * Resumen del problema reportado en la ficha — toma el descripcionProblema del
  * primer item. Si está vacío (ej. ficha recién creada desde el portal sin
@@ -248,17 +249,9 @@ export function FichasList() {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando fichas...</p></div>
+          <LoadingState message="Cargando fichas…" />
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay fichas registradas</p>
-              <button onClick={() => setShowCreate(true)}
-                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primera ficha
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No hay fichas registradas" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primera ficha </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

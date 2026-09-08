@@ -21,6 +21,7 @@ import { useFichaItemOptions, newItemDraft, draftFromItem, draftIdentityFields, 
 import { FichaItemDraftFields } from './FichaItemDraftFields';
 import { FichaClienteOrigenSection } from './FichaClienteOrigenSection';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -177,7 +178,7 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
       onClose();
     } catch (err) {
       console.error('Error guardando ficha:', err);
-      alert('Error al guardar la ficha');
+      notify.error('Error al guardar la ficha');
     } finally {
       setSaving(false);
     }

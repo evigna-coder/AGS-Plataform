@@ -15,6 +15,8 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
 
@@ -122,9 +124,9 @@ export const FacturacionDetail = () => {
         otsLabel: 'reenvío manual del aviso',
         actorUid: actor?.uid ?? null,
       });
-      alert('Aviso enviado a Administración.');
+      notify.error('Aviso enviado a Administración.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo enviar el aviso');
+      notify.error(e instanceof Error ? e.message : 'No se pudo enviar el aviso');
     } finally { setSaving(false); }
   };
 
@@ -135,7 +137,7 @@ export const FacturacionDetail = () => {
       setSaving(true);
       await facturacionService.marcarEnviada(solicitud.id, actor);
       await reload();
-    } catch { alert('Error al marcar como enviada'); }
+    } catch { notify.error('Error al marcar como enviada'); }
     finally { setSaving(false); }
   };
 
@@ -146,7 +148,7 @@ export const FacturacionDetail = () => {
       setSaving(true);
       await facturacionService.marcarFacturada(solicitud.id, actor);
       await reload();
-    } catch { alert('Error al marcar como facturada'); }
+    } catch { notify.error('Error al marcar como facturada'); }
     finally { setSaving(false); }
   };
 
@@ -156,13 +158,13 @@ export const FacturacionDetail = () => {
     try {
       await facturacionService.agregarNota(solicitud.id, notaDraft, actor);
       await reload();
-    } catch { alert('Error al guardar nota'); }
+    } catch { notify.error('Error al guardar nota'); }
     finally { setSavingNota(false); }
   };
 
   const handleRegistrarFactura = async () => {
     if (!id || !factura.numeroFactura || !factura.fechaFactura) {
-      alert('Ingrese al menos el numero y fecha de factura');
+      notify.warning('Ingrese al menos el numero y fecha de factura');
       return;
     }
     try {
@@ -176,20 +178,20 @@ export const FacturacionDetail = () => {
       });
       await reload();
     } catch {
-      alert('Error al registrar la factura');
+      notify.error('Error al registrar la factura');
     } finally {
       setSaving(false);
     }
   };
 
   const handleRegistrarCobro = async () => {
-    if (!id || !fechaCobro) { alert('Ingrese la fecha de cobro'); return; }
+    if (!id || !fechaCobro) { notify.error('Ingrese la fecha de cobro'); return; }
     try {
       setSaving(true);
       await facturacionService.registrarCobro(id, fechaCobro);
       await reload();
     } catch {
-      alert('Error al registrar el cobro');
+      notify.error('Error al registrar el cobro');
     } finally {
       setSaving(false);
     }
@@ -202,7 +204,7 @@ export const FacturacionDetail = () => {
       await facturacionService.update(id, { estado: 'anulada' });
       await reload();
     } catch {
-      alert('Error al anular');
+      notify.error('Error al anular');
     } finally {
       setSaving(false);
     }
@@ -376,14 +378,14 @@ export const FacturacionDetail = () => {
             </div>
             <div>
               <label className={lbl}>Tipo Comprobante</label>
-              <select value={factura.tipoComprobante} onChange={e => setFactura(f => ({ ...f, tipoComprobante: e.target.value }))} className={inputClass}>
+              <Select value={factura.tipoComprobante} onChange={e => setFactura(f => ({ ...f, tipoComprobante: e.target.value }))} className="w-full">
                 <option value="">—</option>
                 <option value="FA">Factura A</option>
                 <option value="FB">Factura B</option>
                 <option value="FC">Factura C</option>
                 <option value="NCA">Nota de Crédito A</option>
                 <option value="NCB">Nota de Crédito B</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className={lbl}>Punto de Venta</label>

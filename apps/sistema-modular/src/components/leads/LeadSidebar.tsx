@@ -10,6 +10,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
 import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 
+import { Select } from '../ui/Select';
 interface LeadSidebarProps {
   lead: Lead;
   usuarios: UsuarioAGS[];
@@ -59,7 +60,7 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
             </span>
           </InfoRow>
           <InfoRow label="Próximo contacto">
-            <select value={lead.prioridad || ''} onChange={e => {
+            <Select value={lead.prioridad || ''} onChange={e => {
               const p = e.target.value as TicketPrioridad | '';
               if (!p) { onFieldUpdate?.('prioridad', null); return; }
               const dias = TICKET_PRIORIDAD_DIAS[p];
@@ -67,12 +68,12 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
               onFieldUpdate?.('prioridad', p);
               onFieldUpdate?.('proximoContacto', d.toISOString().split('T')[0]);
             }}
-              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              >
               <option value="">Sin definir</option>
               {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
                 <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
-            </select>
+            </Select>
             <input type="date" value={localFechaContacto}
               onChange={e => { setLocalFechaContacto(e.target.value); onFieldUpdate?.('proximoContacto', e.target.value); }}
               className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"

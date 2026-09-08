@@ -9,6 +9,7 @@ import { articuloMatchesSearch, baseDePresentacion } from '../../utils/articuloS
 import { OCWizardCargados } from './OCWizardCargados';
 import { OCWizardResultados } from './OCWizardResultados';
 
+import { Select } from '../ui/Select';
 interface Props {
   onAdd: (item: Partial<ItemOC>) => void;
   onClose: () => void;
@@ -195,8 +196,8 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose, items = [] })
             {presentaciones.length > 0 && (
               <div>
                 <label className={lbl}>Presentación (N° de parte del proveedor)</label>
-                <select
-                  className={ctrl}
+                <Select
+                  className="w-full" selectSize="md"
                   value={presentacion?.codigoParte ?? ''}
                   onChange={e => {
                     const p = presentaciones.find(x => x.codigoParte === e.target.value);
@@ -209,7 +210,7 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose, items = [] })
                       {p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
             <div>

@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
 export const OTNew = () => {
   const navigate = useNavigate();
   const goBack = useNavigateBack();
@@ -117,7 +118,7 @@ export const OTNew = () => {
       }
     } catch (error) {
       console.error('Error cargando datos:', error);
-      alert('Error al cargar los datos');
+      notify.error('Error al cargar los datos');
     }
   };
 
@@ -150,25 +151,25 @@ export const OTNew = () => {
     e.preventDefault();
     
     if (!formData.otNumber.trim()) {
-      alert('El número de OT es obligatorio');
+      notify.warning('El número de OT es obligatorio');
       return;
     }
     
     // Validar formato de OT: 5 dígitos + opcional .NN
     const otRegex = /^\d{5}(?:\.\d{2})?$/;
     if (!otRegex.test(formData.otNumber)) {
-      alert('Formato inválido. Use 5 dígitos, opcional .NN (ej: 25660 o 25660.02)');
+      notify.warning('Formato inválido. Use 5 dígitos, opcional .NN (ej: 25660 o 25660.02)');
       return;
     }
     
     if (!formData.clienteId) {
-      alert('Debe seleccionar un cliente');
+      notify.warning('Debe seleccionar un cliente');
       return;
     }
 
     // En OT de entrega el equipo es opcional; en servicio sigue siendo obligatorio.
     if (formData.tipoOT !== 'entrega' && !formData.sistemaId) {
-      alert('Debe seleccionar un sistema');
+      notify.warning('Debe seleccionar un sistema');
       return;
     }
 
@@ -180,11 +181,11 @@ export const OTNew = () => {
       const contacto = contactos.find(c => c.id === formData.contactoId);
 
       if (!cliente) {
-        alert('Error: Cliente no encontrado');
+        notify.error('Error: Cliente no encontrado');
         return;
       }
       if (formData.tipoOT !== 'entrega' && !sistema) {
-        alert('Error: Sistema no encontrado');
+        notify.error('Error: Sistema no encontrado');
         return;
       }
       
@@ -208,7 +209,7 @@ export const OTNew = () => {
       if (presupuestoIdFromUrl) {
         const pres = await presupuestosService.getById(presupuestoIdFromUrl);
         if (!pres) {
-          alert('Error: el presupuesto vinculado no se encontró');
+          notify.error('Error: el presupuesto vinculado no se encontró');
           return;
         }
         presupuestoNumero = pres.numero;
@@ -293,11 +294,11 @@ export const OTNew = () => {
         }
       }
 
-      alert('Orden de trabajo creada exitosamente. Puede abrirla en el editor completo desde el detalle.');
+      notify.error('Orden de trabajo creada exitosamente. Puede abrirla en el editor completo desde el detalle.');
       navigate(`/ordenes-trabajo/${formData.otNumber}`);
     } catch (error) {
       console.error('Error creando OT:', error);
-      alert(error instanceof Error ? error.message : 'Error al crear la orden de trabajo');
+      notify.error(error instanceof Error ? error.message : 'Error al crear la orden de trabajo');
     } finally {
       setLoading(false);
     }
@@ -309,7 +310,7 @@ export const OTNew = () => {
       setFormData(prev => ({ ...prev, otNumber: nextOT }));
     } catch (error) {
       console.error('Error generando OT:', error);
-      alert('Error al generar número de OT automático');
+      notify.error('Error al generar número de OT automático');
     }
   };
 

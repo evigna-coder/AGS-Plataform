@@ -63,6 +63,28 @@ interface PendingConfirm {
 
 let nextConfirmId = 1;
 
+/** Provider vivo, para `confirmar()` desde afuera de React. */
+let globalConfirm: InternalConfirmFn | null = null;
+
+/**
+ * Confirmación desde cualquier lado — hooks, servicios, handlers sueltos —
+ * sin pasar por `useConfirm` (2026-09-07). Reemplazo del `window.confirm`
+ * nativo: mismo diálogo del sistema, no bloqueante. Si el provider no está
+ * montado (tests) cae al nativo para no cambiar el comportamiento.
+ *
+ * Con un string, el botón sale en rojo si la acción suena destructiva
+ * (eliminar, borrar, anular, descartar, quitar).
+ *
+ *   if (!await confirmar('¿Eliminar este contacto?')) return;
+ */
+export function confirmar(options: ConfirmOptions | string): Promise<boolean> {
+  const opts: ConfirmOptions = typeof options === 'string'
+    ? { message: options, danger: /eliminar|borrar|anular|descartar|quitar|revertir|deshacer/i.test(options) }
+    : options;
+  if (!globalConfirm) return Promise.resolve(window.confirm(opts.message));
+  return globalConfirm(opts, null);
+}
+
 export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   // Lista (no singleton): un confirm esperando en una pestaña oculta no debe
   // ser pisado por un confirm abierto en otra pestaña.
@@ -78,6 +100,11 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
       setPendings(prev => [...prev, { id: nextConfirmId++, options, overlay, resolve }]);
     });
   }, []);
+
+  useEffect(() => {
+    globalConfirm = confirm;
+    return () => { globalConfirm = null; };
+  }, [confirm]);
 
   const handleResolve = useCallback((entry: PendingConfirm, value: boolean) => {
     entry.resolve(value);

@@ -5,6 +5,8 @@ import { contratosService, tiposServicioService, sistemasService } from '../../s
 import { TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import type { Contrato, ServicioContrato, Sistema, TipoLimiteContrato, TipoServicio } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
 const chip = (selected: boolean) =>
@@ -59,8 +61,8 @@ export const EditContratoModal: React.FC<Props> = ({ open, contrato, onClose, on
   };
 
   const handleSave = async () => {
-    if (!fechaInicio || !fechaFin) { alert('Completá la vigencia'); return; }
-    if (servicios.length === 0) { alert('El contrato necesita al menos un servicio incluido'); return; }
+    if (!fechaInicio || !fechaFin) { notify.warning('Completá la vigencia'); return; }
+    if (servicios.length === 0) { notify.warning('El contrato necesita al menos un servicio incluido'); return; }
     setSaving(true);
     try {
       await contratosService.update(contrato.id, {
@@ -76,7 +78,7 @@ export const EditContratoModal: React.FC<Props> = ({ open, contrato, onClose, on
       onClose();
     } catch (err) {
       console.error('[EditContratoModal] guardar:', err);
-      alert('Error al guardar el contrato');
+      notify.error('Error al guardar el contrato');
     } finally {
       setSaving(false);
     }
@@ -103,9 +105,9 @@ export const EditContratoModal: React.FC<Props> = ({ open, contrato, onClose, on
           </div>
           <div>
             <label className={lbl}>Tipo de limite</label>
-            <select value={tipoLimite} onChange={e => setTipoLimite(e.target.value as TipoLimiteContrato)} className={inputClass}>
+            <Select value={tipoLimite} onChange={e => setTipoLimite(e.target.value as TipoLimiteContrato)} className="w-full">
               {Object.entries(TIPO_LIMITE_CONTRATO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 

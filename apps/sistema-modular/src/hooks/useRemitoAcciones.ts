@@ -8,6 +8,7 @@ import { remitoFirmaStorageService } from '../services/remitoFirmaStorageService
 import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 import type { Remito, RemitoItem, EstadoRemito } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 /**
  * Acciones del detalle de remito (fix I4 auditoría de stock):
  * - Confirmar un remito con items de stock propio APLICA el efecto real sobre
@@ -34,7 +35,7 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       else await remitosService.update(id, { estado, ...extra });
     } catch (e) {
       console.error('Error updating remito:', e);
-      alert(e instanceof Error ? e.message : 'Error al actualizar remito');
+      notify.error(e instanceof Error ? e.message : 'Error al actualizar remito');
     } finally { setActing(false); }
   };
 
@@ -50,7 +51,7 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       }
     } catch (e) {
       console.error('Error confirmando remito:', e);
-      alert(e instanceof Error ? e.message : 'Error al confirmar el remito');
+      notify.error(e instanceof Error ? e.message : 'Error al confirmar el remito');
     } finally { setActing(false); }
   };
 
@@ -75,7 +76,7 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       }
     } catch (e) {
       console.error('Error registrando devolución:', e);
-      alert(e instanceof Error ? e.message : 'Error al registrar la devolución');
+      notify.error(e instanceof Error ? e.message : 'Error al registrar la devolución');
     } finally { setActing(false); }
   };
 
@@ -106,7 +107,7 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       }
     } catch (e) {
       console.error('Error subiendo remito firmado:', e);
-      alert(e instanceof Error ? e.message : 'Error al subir el remito firmado');
+      notify.error(e instanceof Error ? e.message : 'Error al subir el remito firmado');
     } finally { setActing(false); }
   };
 
@@ -124,7 +125,7 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       });
     } catch (e) {
       console.error('Error quitando firma:', e);
-      alert(e instanceof Error ? e.message : 'Error al quitar la firma');
+      notify.error(e instanceof Error ? e.message : 'Error al quitar la firma');
     } finally { setActing(false); }
   };
 
@@ -149,12 +150,12 @@ export function useRemitoAcciones(id: string | undefined, remito: Remito | null)
       const revertidas = await movimientosAplicarService.anularRemito({
         remito, motivo, creadoPor: nombreUsuarioActual(),
       });
-      alert(revertidas === 0
+      notify.info(revertidas === 0
         ? 'Remito anulado. No había stock que devolver (remito documental).'
         : `Remito anulado. ${revertidas} unidad(es) devueltas a su posición de origen.`);
     } catch (e) {
       console.error('Error anulando remito:', e);
-      alert(e instanceof Error ? e.message : 'Error al anular el remito');
+      notify.error(e instanceof Error ? e.message : 'Error al anular el remito');
     } finally { setActing(false); }
   };
 

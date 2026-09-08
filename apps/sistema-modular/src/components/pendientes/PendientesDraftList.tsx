@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { PendienteTipo } from '@ags/shared';
 import { PENDIENTE_TIPO_LABELS } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 export interface PendienteDraft {
   tempId: string;
   tipo: PendienteTipo;
@@ -121,10 +122,10 @@ export const PendientesDraftList: React.FC<PendientesDraftListProps> = ({
           </div>
 
           {equipos.length > 0 && (
-            <select
+            <Select
               value={newEquipoId}
               onChange={e => setNewEquipoId(e.target.value)}
-              className="w-full border border-slate-200 rounded px-2 py-1 text-[11px] bg-white"
+              className="w-full" selectSize="xs"
             >
               <option value="">Sin equipo específico</option>
               {equipos.map(e => (
@@ -133,7 +134,7 @@ export const PendientesDraftList: React.FC<PendientesDraftListProps> = ({
                   {e.agsVisibleId ? ` (${e.agsVisibleId})` : ''}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
 
           <textarea

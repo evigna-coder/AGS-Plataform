@@ -2,6 +2,7 @@ import React from 'react';
 import type { TipoEquipoComponente, TipoEquipoServicio, TipoServicioPlantilla } from '@ags/shared';
 import { TIPO_SERVICIO_PLANTILLA_LABELS } from '@ags/shared';
 
+import { Select } from '../../components/ui/Select';
 const th = 'px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-500 text-left';
 const td = 'px-2 py-1';
 const input = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
@@ -107,9 +108,9 @@ export const ServiciosEditor: React.FC<{
                 <td className={td}><input className={input} value={s.descripcion} onChange={e => update(s.id, 'descripcion', e.target.value)} placeholder="Mantenimiento Preventivo - HPLC 1100 Con ALS" /></td>
                 <td className={td}><input type="number" className={input} value={s.cantidadDefault} onChange={e => update(s.id, 'cantidadDefault', parseInt(e.target.value) || 0)} /></td>
                 <td className={td}>
-                  <select className={input} value={s.tipo} onChange={e => update(s.id, 'tipo', e.target.value as TipoServicioPlantilla)}>
+                  <Select className="w-full" selectSize="xs" value={s.tipo} onChange={e => update(s.id, 'tipo', e.target.value as TipoServicioPlantilla)}>
                     {Object.entries(TIPO_SERVICIO_PLANTILLA_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                  </select>
+                  </Select>
                 </td>
                 <td className={`${td} text-center`}>
                   <input

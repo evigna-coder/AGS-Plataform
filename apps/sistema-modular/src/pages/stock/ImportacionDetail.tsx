@@ -19,6 +19,7 @@ import { resumenRecepcion, describirFaltantes } from '../../utils/importacionRec
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
 export const ImportacionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,14 +42,14 @@ export const ImportacionDetail = () => {
       setLoading(true);
       const data = await importacionesService.getById(id);
       if (!data) {
-        alert('Importacion no encontrada');
+        notify.error('Importacion no encontrada');
         navigate('/stock/importaciones');
         return;
       }
       setImp(data);
     } catch (err) {
       console.error('Error cargando importacion:', err);
-      alert('Error al cargar importacion');
+      notify.error('Error al cargar importacion');
     } finally {
       setLoading(false);
     }

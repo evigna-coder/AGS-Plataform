@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { Importacion } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   imp: Importacion;
   onUpdate: () => void;
@@ -43,7 +44,7 @@ export const ImportacionEmbarqueSection: React.FC<Props> = ({ imp, onUpdate }) =
       setEditing(false);
       onUpdate();
     } catch (err) {
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -68,7 +69,7 @@ export const ImportacionEmbarqueSection: React.FC<Props> = ({ imp, onUpdate }) =
       setForm(prev => ({ ...prev, fechaArriboReal: hoy }));
       onUpdate();
     } catch {
-      alert('Error al confirmar el arribo');
+      notify.error('Error al confirmar el arribo');
     } finally {
       setSaving(false);
     }

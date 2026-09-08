@@ -8,6 +8,7 @@ import { TableEditorHeaderFieldForm } from './TableEditorHeaderFieldForm';
 import { HeaderTableEditor } from './HeaderTableEditor';
 import type { TableCatalogEntry, TableCatalogColumn, TableCatalogRow, TableCatalogRule } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 type Tab = 'columns' | 'rows' | 'rules' | 'headers';
 
 
@@ -315,19 +316,19 @@ export const TableEditor = ({ table, onChange }: Props) => {
                   />
                   <div className="flex items-center gap-1">
                     <label className="text-[10px] text-slate-500">Desde col:</label>
-                    <select
+                    <Select
                       value={g.startCol}
                       onChange={e => {
                         const groups = [...(table.columnGroups ?? [])];
                         groups[gi] = { ...groups[gi], startCol: Number(e.target.value) };
                         upd('columnGroups', groups);
                       }}
-                      className="border border-indigo-300 rounded px-1.5 py-1 text-xs"
+                      selectSize="xs"
                     >
                       {table.columns.map((col, ci) => (
                         <option key={ci} value={ci}>{ci}: {col.label}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-1">
                     <label className="text-[10px] text-slate-500">Abarca:</label>

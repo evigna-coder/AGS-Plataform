@@ -5,7 +5,6 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { RemitoFormModal } from '../../components/remitos/RemitoFormModal';
@@ -24,6 +23,10 @@ import {
   REMITO_ESTADO_LABELS as ESTADO_LABELS,
   type RemitoExportRow,
 } from '../../utils/exports/exportRemitos';
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
 const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-teal-50 text-teal-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700', servicio: 'bg-cyan-50 text-cyan-700' };
 
@@ -69,7 +72,7 @@ export const RemitosList = () => {
   const handleEstado = async (r: Remito, estado: EstadoRemito, extra?: Partial<Remito>) => {
     setActingId(r.id);
     try { await remitosService.update(r.id, { estado, ...extra }); }
-    catch (err) { console.error('Error actualizando remito:', err); alert('Error al actualizar el remito'); }
+    catch (err) { console.error('Error actualizando remito:', err); notify.error('Error al actualizar el remito'); }
     finally { setActingId(null); }
   };
 
@@ -82,7 +85,7 @@ export const RemitosList = () => {
   const handleCompletar = async (r: Remito) => {
     const pendientes = (r.items ?? []).filter(it =>
       !it.devuelto && !it.consumido && it.cantidad - (it.cantidadConsumida ?? 0) > 0);
-    if (pendientes.length > 0 && !confirm(
+    if (pendientes.length > 0 && !await confirm(
       `El remito ${r.numero} tiene ${pendientes.length} ítem(s) sin resolver (ni devueltos ni consumidos).\n\n` +
       'Completarlo NO descuenta stock, y esas partes dejan de ofrecerse como origen en el cierre de OT.\n' +
       'Si la mercadería se va a imputar a una OT, dejá el remito como está y descargala desde el cierre.\n\n' +
@@ -93,7 +96,7 @@ export const RemitosList = () => {
     // remito y la unidad quedaba perdida (caso 0001-00017404).
     setActingId(r.id);
     try { await remitosService.completar(r.id, { fechaDevolucion: new Date().toISOString() }); }
-    catch (err) { alert(err instanceof Error ? err.message : 'Error al completar el remito'); }
+    catch (err) { notify.error(err instanceof Error ? err.message : 'Error al completar el remito'); }
     finally { setActingId(null); }
   };
 
@@ -102,7 +105,7 @@ export const RemitosList = () => {
   const handleEntregado = async (r: Remito) => {
     setActingId(r.id);
     try { await remitosService.marcarEntregadoEnProveedor(r.id); }
-    catch (err) { console.error('Error marcando entregado:', err); alert('Error al marcar como entregado'); }
+    catch (err) { console.error('Error marcando entregado:', err); notify.error('Error al marcar como entregado'); }
     finally { setActingId(null); }
   };
 
@@ -112,7 +115,7 @@ export const RemitosList = () => {
       await imprimirRemitoStock(r);
     } catch (err) {
       console.error('Error imprimiendo remito:', err);
-      alert('Error al imprimir el remito');
+      notify.error('Error al imprimir el remito');
     } finally {
       setImprimiendoId(null);
     }
@@ -198,7 +201,7 @@ export const RemitosList = () => {
       setRemitos(prev => prev.filter(r => r.id !== id));
     } catch (error) {
       console.error('Error eliminando remito:', error);
-      alert('Error al eliminar el remito');
+      notify.error('Error al eliminar el remito');
     }
   };
 
@@ -264,21 +267,21 @@ export const RemitosList = () => {
           ))}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <select value={filters.estado || 'pendientes'} onChange={e => setFilter('estado', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <Select value={filters.estado || 'pendientes'} onChange={e => setFilter('estado', e.target.value)}
+            >
             <option value="pendientes">Pendientes (borrador + en tránsito)</option>
             <option value="todos">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoRemito[]).map(k => (
               <option key={k} value={k}>{ESTADO_LABELS[k]}</option>
             ))}
-          </select>
-          <select value={filters.tipo} onChange={e => setFilter('tipo', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </Select>
+          <Select value={filters.tipo} onChange={e => setFilter('tipo', e.target.value)}
+            >
             <option value="">Todos los tipos</option>
             {(Object.keys(TIPO_LABELS) as TipoRemito[]).map(k => (
               <option key={k} value={k}>{TIPO_LABELS[k]}</option>
             ))}
-          </select>
+          </Select>
           <div className="min-w-[180px]">
             <SearchableSelect value={filters.clienteId} onChange={v => setFilter('clienteId', v)}
               options={clienteOpts}
@@ -294,9 +297,9 @@ export const RemitosList = () => {
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remitos...</p></div>
+          <LoadingState message="Cargando remitos…" />
         ) : sorted.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron remitos</p></div></Card>
+          <EmptyState message="No se encontraron remitos" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white overflow-x-auto">
               <table ref={tableRef} className="tabla-compacta w-full table-fixed">

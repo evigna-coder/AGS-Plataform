@@ -7,6 +7,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 type Moneda = 'ARS' | 'USD' | 'EUR';
 
 export const OCEditor = () => {
@@ -41,7 +44,7 @@ export const OCEditor = () => {
       if (isEdit) {
         setLoading(true);
         const oc = await ordenesCompraService.getById(id!);
-        if (!oc) { alert('OC no encontrada'); navigate('/stock/ordenes-compra'); return; }
+        if (!oc) { notify.warning('OC no encontrada'); navigate('/stock/ordenes-compra'); return; }
         setTipo(oc.tipo);
         setProveedorId(oc.proveedorId);
         setProveedorNombre(oc.proveedorNombre);
@@ -67,7 +70,7 @@ export const OCEditor = () => {
       }
     } catch (err) {
       console.error('Error cargando datos:', err);
-      alert('Error al cargar datos');
+      notify.error('Error al cargar datos');
     } finally {
       setLoading(false);
     }
@@ -92,8 +95,8 @@ export const OCEditor = () => {
   const calcTotal = calcSubtotal;
 
   const handleSave = async () => {
-    if (!proveedorId) { alert('Seleccione un proveedor'); return; }
-    if (items.length === 0) { alert('Agregue al menos un item'); return; }
+    if (!proveedorId) { notify.warning('Seleccione un proveedor'); return; }
+    if (items.length === 0) { notify.warning('Agregue al menos un item'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -113,14 +116,14 @@ export const OCEditor = () => {
       }
     } catch (err) {
       console.error('Error guardando OC:', err);
-      alert('Error al guardar la orden de compra');
+      notify.error('Error al guardar la orden de compra');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
+    return <LoadingState message="Cargando…" />;
   }
 
   return (
@@ -142,28 +145,28 @@ export const OCEditor = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value as TipoOC)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <Select value={tipo} onChange={e => setTipo(e.target.value as TipoOC)}
+                className="w-full">
                 <option value="nacional">Nacional</option>
                 <option value="importacion">Importacion</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Proveedor</label>
-              <select value={proveedorId} onChange={e => handleProveedorChange(e.target.value)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <Select value={proveedorId} onChange={e => handleProveedorChange(e.target.value)}
+                className="w-full">
                 <option value="">Seleccionar proveedor...</option>
                 {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Moneda</label>
-              <select value={moneda} onChange={e => setMoneda(e.target.value as Moneda)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <Select value={moneda} onChange={e => setMoneda(e.target.value as Moneda)}
+                className="w-full">
                 <option value="ARS">ARS</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
-              </select>
+              </Select>
             </div>
             <Input inputSize="sm" label="Proforma N." value={proformaNumero} onChange={e => setProformaNumero(e.target.value)} />
             <Input inputSize="sm" label="Fecha proforma" type="date" value={fechaProforma} onChange={e => setFechaProforma(e.target.value)} />

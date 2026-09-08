@@ -6,6 +6,7 @@ import { abrirPresupuestoPdf } from '../utils/abrirPresupuestoPdf';
 import { certificacionesService } from '../services/certificacionesService';
 import { recibidasDeCertificacion } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 export interface ReporteOTAcceso {
   otNumber: string;
   /** URL del PDF definitivo del reporte, o null si la OT no se finalizó / falló el upload. */
@@ -131,7 +132,7 @@ export function useSolicitudDocumentos(solicitud: SolicitudFacturacion | null) {
       await abrirPresupuestoPdf(solicitud.presupuestoId);
     } catch (err) {
       console.error('[useSolicitudDocumentos] Error generando PDF del presupuesto:', err);
-      alert('Error al generar el PDF del presupuesto');
+      notify.error('Error al generar el PDF del presupuesto');
     } finally {
       setGenerandoPdf(false);
     }

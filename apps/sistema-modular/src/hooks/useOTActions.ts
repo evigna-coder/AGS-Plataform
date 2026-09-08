@@ -5,6 +5,7 @@ import { presupuestosVivosDeHermanas } from '../utils/presupuestosVivosOT';
 import type { WorkOrder, Cliente } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
 
+import { notify } from '../utils/notify';
 interface UseOTActionsParams {
   otNumber?: string;
   form: OTFormState;
@@ -59,8 +60,8 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
 
   // ---- Create new item ----
   const handleCreateNewItem = useCallback(async () => {
-    if (!otNumber || !cliente) { alert('Error: No se puede crear item sin OT padre o cliente'); return; }
-    if (!newItemData.tipoServicio.trim()) { alert('El tipo de servicio es obligatorio'); return; }
+    if (!otNumber || !cliente) { notify.error('Error: No se puede crear item sin OT padre o cliente'); return; }
+    if (!newItemData.tipoServicio.trim()) { notify.warning('El tipo de servicio es obligatorio'); return; }
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
       const ahoraIso = new Date().toISOString();
@@ -143,7 +144,7 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
           .catch(err => console.error('[handleCreateNewItem] vincular presupuestos falló:', err));
       }
 
-      alert(budgetsHeredados.length > 0
+      notify.error(budgetsHeredados.length > 0
         ? `Item ${nextNum} creado con los presupuestos del trabajo: ${budgetsHeredados.join(', ')}`
         : `Item ${nextNum} creado exitosamente`);
       setShowNewItemModal(false);
@@ -153,7 +154,7 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
       }
     } catch (err) {
       console.error('Error creando item OT:', err);
-      alert(err instanceof Error ? err.message : 'Error al crear el item');
+      notify.error(err instanceof Error ? err.message : 'Error al crear el item');
     }
   }, [otNumber, cliente, newItemData, form, setItems]);
 
@@ -193,11 +194,11 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
       await leadsService.linkOT(leadId, otNumber);
       setField('leadId', leadId);
       markInteracted();
-      alert(`Lead creado exitosamente. Se vinculo a la OT-${otNumber}.`);
+      notify.success(`Lead creado exitosamente. Se vinculo a la OT-${otNumber}.`);
       navigate(`/leads/${leadId}`);
     } catch (err) {
       console.error('Error creando lead desde OT:', err);
-      alert('Error al crear el lead');
+      notify.error('Error al crear el lead');
     } finally {
       setCreatingLead(false);
     }

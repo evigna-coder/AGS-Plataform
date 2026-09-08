@@ -18,6 +18,8 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ComponentesEditor, ServiciosEditor } from './TipoEquipoNestedEditors';
 import { seedPlantillasIniciales } from './seedPlantillas';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 interface FormData {
   nombre: string;
   descripcion: string;
@@ -53,11 +55,11 @@ export const TiposEquipoList = () => {
     try {
       setSeeding(true);
       const n = await seedPlantillasIniciales();
-      alert(`${n} plantillas cargadas correctamente.`);
+      notify.success(`${n} plantillas cargadas correctamente.`);
       await load();
     } catch (err) {
       console.error('Error seed:', err);
-      alert('Error cargando las plantillas iniciales');
+      notify.error('Error cargando las plantillas iniciales');
     } finally {
       setSeeding(false);
     }
@@ -69,7 +71,7 @@ export const TiposEquipoList = () => {
       setPlantillas(await tiposEquipoService.getAll());
     } catch (err) {
       console.error('Error cargando tipos de equipo:', err);
-      alert('Error al cargar los tipos de equipo');
+      notify.error('Error al cargar los tipos de equipo');
     } finally {
       setLoading(false);
     }
@@ -102,13 +104,13 @@ export const TiposEquipoList = () => {
       await load();
     } catch (err) {
       console.error('Error eliminando:', err);
-      alert('Error al eliminar la plantilla');
+      notify.error('Error al eliminar la plantilla');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nombre.trim()) { alert('El nombre es obligatorio'); return; }
+    if (!form.nombre.trim()) { notify.warning('El nombre es obligatorio'); return; }
     try {
       setSaving(true);
       const payload = {
@@ -128,14 +130,14 @@ export const TiposEquipoList = () => {
       await load();
     } catch (err) {
       console.error('Error guardando:', err);
-      alert('Error al guardar la plantilla');
+      notify.error('Error al guardar la plantilla');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
+    return <LoadingState message="Cargando…" />;
   }
 
   return (

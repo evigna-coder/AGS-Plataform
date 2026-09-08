@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { qfDocumentosService } from '../../services/qfDocumentosService';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -92,15 +93,15 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
         <div className="grid grid-cols-4 gap-2">
           <div>
             <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">Tipo</label>
-            <select
+            <Select
               value={tipo}
               onChange={(e) => setTipo(e.target.value as QFTipo)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
+              className="w-full" selectSize="md"
             >
               {(Object.keys(QF_TIPO_LABELS) as QFTipo[]).map(t => (
                 <option key={t} value={t}>{QF_TIPO_LABELS[t]}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <Input
             label="Familia"

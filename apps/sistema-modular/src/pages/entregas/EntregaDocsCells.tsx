@@ -5,6 +5,7 @@ import { ordenesCompraService } from '../../services/firebaseService';
 import { proveedoresService } from '../../services/personalService';
 import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenCompraPDF';
 
+import { notify } from '../../utils/notify';
 /**
  * Los papeles de la fila de entregas, abiertos sin salir de la pantalla
  * (2026-08-24).
@@ -38,7 +39,7 @@ export const EntregaPresupuestoCell: React.FC<{ row: EntregaRow }> = ({ row }) =
       await abrirPresupuestoPdf(row.presupuestoId);
     } catch (err) {
       console.error('[EntregaPresupuestoCell] error abriendo PDF del presupuesto', err);
-      alert('No se pudo generar el PDF del presupuesto.');
+      notify.error('No se pudo generar el PDF del presupuesto.');
     } finally {
       setGenerando(false);
     }
@@ -101,12 +102,12 @@ export const EntregaOCProveedorCell: React.FC<{ row: EntregaRow; bold?: boolean 
     setLoading(true);
     try {
       const oc = await ordenesCompraService.getById(row.ocId!);
-      if (!oc) { alert('No se encontró la orden de compra.'); return; }
+      if (!oc) { notify.error('No se encontró la orden de compra.'); return; }
       const prov = await proveedoresService.getById(oc.proveedorId).catch(() => null);
       await previewOrdenCompraPDF(oc, prov);
     } catch (err) {
       console.error('[EntregaOCProveedorCell] error abriendo PDF de OC', err);
-      alert('No se pudo abrir el PDF de la orden de compra.');
+      notify.error('No se pudo abrir el PDF de la orden de compra.');
     } finally {
       setLoading(false);
     }

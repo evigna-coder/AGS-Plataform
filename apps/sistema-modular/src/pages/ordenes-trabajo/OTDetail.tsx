@@ -14,6 +14,7 @@ import type { OTEstadoAdmin } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { Select } from '../../components/ui/Select';
 export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
   const { state } = useLocation();
@@ -55,15 +56,15 @@ export const OTDetail = () => {
               {OT_ESTADO_LABELS[ot.estadoAdmin] ?? ot.estadoAdmin}
             </span>
             {!ot.readOnly && (
-              <select
+              <Select
                 value={ot.estadoAdmin}
                 onChange={e => ot.handleEstadoAdminChange(e.target.value as OTEstadoAdmin)}
-                className="border rounded-lg px-2 py-0.5 text-xs text-slate-600 border-slate-300"
+                selectSize="xs"
               >
                 {OT_ESTADO_ORDER.map(e => (
                   <option key={e} value={e}>{OT_ESTADO_LABELS[e]}</option>
                 ))}
-              </select>
+              </Select>
             )}
             {ot.enCierreAdmin && (
               <span className="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full border border-cyan-200">

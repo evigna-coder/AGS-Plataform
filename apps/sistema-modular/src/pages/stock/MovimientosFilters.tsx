@@ -4,6 +4,7 @@ import { DateInput } from '../../components/ui/DateInput';
 // Labels compartidos con el export Excel/PDF (misma fuente = mismos textos).
 import { TIPO_MOVIMIENTO_LABELS as TIPO_LABELS } from '../../utils/exports/exportMovimientos';
 
+import { Select } from '../../components/ui/Select';
 const TIPOS: TipoMovimiento[] = ['ingreso', 'egreso', 'transferencia', 'consumo', 'devolucion', 'ajuste'];
 
 interface Props {
@@ -43,10 +44,10 @@ export function MovimientosFilters({
 }: Props) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <select value={tipo} onChange={e => onTipoChange(e.target.value)} className={inputCls}>
+      <Select value={tipo} onChange={e => onTipoChange(e.target.value)} >
         <option value="">Todos los tipos</option>
         {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
-      </select>
+      </Select>
       <input
         type="text"
         placeholder="Codigo, descripcion, OC, despacho, serie/lote..."

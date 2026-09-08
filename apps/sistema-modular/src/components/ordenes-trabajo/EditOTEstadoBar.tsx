@@ -1,6 +1,7 @@
 import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { EditOTFormState } from '../../hooks/useEditOTForm';
 
+import { Select } from '../ui/Select';
 interface Props {
   form: EditOTFormState;
   set: (key: string, value: any) => void;
@@ -16,15 +17,15 @@ export const EditOTEstadoBar: React.FC<Props> = ({ form, set, readOnly }) => {
         {OT_ESTADO_LABELS[form.estadoAdmin] ?? form.estadoAdmin}
       </span>
       {!readOnly && (
-        <select
+        <Select
           value={form.estadoAdmin}
           onChange={e => set('estadoAdmin', e.target.value)}
-          className="border rounded-lg px-2 py-0.5 text-xs text-slate-600 border-slate-300"
+          selectSize="xs"
         >
           {OT_ESTADO_ORDER.map(e => (
             <option key={e} value={e}>{OT_ESTADO_LABELS[e]}</option>
           ))}
-        </select>
+        </Select>
       )}
       <div className="flex-1" />
       <div className="flex flex-wrap gap-x-3">

@@ -6,7 +6,6 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Establecimiento, Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -19,6 +18,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { ESTABLECIMIENTOS_EXPORT_COLUMNS, buildEstablecimientosExportRows, buildEstablecimientosFiltrosExport } from '../../utils/exports/exportEstablecimientos';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown, onDoubleClick }: { onMouseDown: (e: React.MouseEvent) => void; onDoubleClick?: () => void }) => (
@@ -96,7 +98,7 @@ export const EstablecimientosList = () => {
       await establecimientosService.delete(est.id);
     } catch (e) {
       console.error('Error eliminando establecimiento:', e);
-      alert('Error al eliminar el establecimiento');
+      notify.error('Error al eliminar el establecimiento');
     }
   };
 
@@ -111,7 +113,7 @@ export const EstablecimientosList = () => {
       setSelected(new Set());
     } catch (e) {
       console.error('Error eliminando establecimientos:', e);
-      alert('Error al eliminar establecimientos');
+      notify.error('Error al eliminar establecimientos');
     } finally {
       setDeleting(false);
     }
@@ -206,17 +208,9 @@ export const EstablecimientosList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando establecimientos...</p></div>
+          <LoadingState message="Cargando establecimientos…" />
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron establecimientos</p>
-              <button onClick={() => setShowCreate(true)}
-                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primer establecimiento
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No se encontraron establecimientos" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer establecimiento </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto overflow-x-hidden h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

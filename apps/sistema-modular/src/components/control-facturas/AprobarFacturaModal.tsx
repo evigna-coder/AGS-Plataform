@@ -4,6 +4,7 @@ import { facturasService } from '../../services/facturasService';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
 interface AprobarFacturaModalProps {
   factura: Factura;
   actor: string;
@@ -28,7 +29,7 @@ export const AprobarFacturaModal = ({ factura, actor, onClose, onApproved }: Apr
       onClose();
     } catch (err) {
       console.error('Error al aprobar la factura:', err);
-      alert('Error al aprobar la factura');
+      notify.error('Error al aprobar la factura');
     } finally {
       setSaving(false);
     }

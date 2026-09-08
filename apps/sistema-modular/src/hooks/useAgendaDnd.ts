@@ -8,6 +8,7 @@ import { findEntriesAtCell, formatDateKey, type SelectedCell } from '../utils/ag
 import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../utils/finDeSemana';
 import { resolveEquipoAgsId, continuaElRango, extenderRangoHacia } from '../utils/agendaOTSync';
 
+import { notify } from '../utils/notify';
 /** Keep the drag chip centered on the cursor regardless of grab origin. */
 const CHIP = 13; // half of 26px chip
 export const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) => {
@@ -138,19 +139,19 @@ export function useAgendaDnd(args: UseAgendaDndArgs) {
     // este corte la entrada se bloqueaba pero la OT quedaba con fecha de finde.
     const findeTarget = primerFinDeSemanaEnRango(targetFecha, targetFecha);
     if (findeTarget) {
-      alert(mensajeFinDeSemana(findeTarget));
+      notify.warning(mensajeFinDeSemana(findeTarget));
       return;
     }
     // Bloqueo duro de feriados: nada se puede soltar sobre un día feriado.
     const feriadoTarget = primerFeriadoEnRango?.(targetFecha, targetFecha);
     if (feriadoTarget) {
-      alert(`El ${feriadoTarget} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      notify.warning(`El ${feriadoTarget} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
       return;
     }
     // Día AGS del ingeniero destino: no laborable para ÉL — mismo bloqueo.
     const diaAgsTarget = primerDiaAgsEnRango?.(targetIngenieroId, targetFecha, targetFecha);
     if (diaAgsTarget) {
-      alert(`El ${diaAgsTarget} es día AGS de ${targetIngeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
+      notify.warning(`El ${diaAgsTarget} es día AGS de ${targetIngeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return;
     }
 

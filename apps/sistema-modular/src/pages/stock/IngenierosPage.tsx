@@ -12,6 +12,8 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { AREA_INGENIERO_LABELS as AREA_LABELS, INGENIEROS_EXPORT_COLUMNS } from '../../utils/exports/exportIngenieros';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const AREA_OPTIONS: AreaIngeniero[] = ['campo', 'taller', 'electronica', 'mecanica', 'ventas', 'admin'];
 
 interface FormState {
@@ -72,7 +74,7 @@ export const IngenierosPage = () => {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
-    } catch { alert('Error al crear el ingeniero'); }
+    } catch { notify.error('Error al crear el ingeniero'); }
     finally { setSaving(false); }
   };
 
@@ -99,14 +101,14 @@ export const IngenierosPage = () => {
       });
       setEditingId(null);
       reload();
-    } catch { alert('Error al actualizar'); }
+    } catch { notify.error('Error al actualizar'); }
   };
 
   const handleToggle = async (ing: Ingeniero) => {
     try {
       await ingenierosService.update(ing.id, { activo: !ing.activo });
       reload();
-    } catch { alert('Error al cambiar estado'); }
+    } catch { notify.error('Error al cambiar estado'); }
   };
 
   const handleDelete = async (ing: Ingeniero) => {
@@ -114,7 +116,7 @@ export const IngenierosPage = () => {
     try {
       await ingenierosService.delete(ing.id);
       reload();
-    } catch { alert('Error al eliminar'); }
+    } catch { notify.error('Error al eliminar'); }
   };
 
   return (
@@ -139,7 +141,7 @@ export const IngenierosPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Cuenta Google (Workspace)</label>
-                <select value={form.usuarioId} onChange={e => {
+                <Select value={form.usuarioId} onChange={e => {
                   const uid = e.target.value;
                   const usr = usuarios.find(u => u.id === uid);
                   setForm(f => ({
@@ -148,21 +150,21 @@ export const IngenierosPage = () => {
                     nombre: usr?.displayName || f.nombre,
                     email: usr?.email || f.email,
                   }));
-                }} className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                }} className="w-full">
                   <option value="">Sin vincular</option>
                   {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.email})</option>)}
-                </select>
+                </Select>
               </div>
               <Input label="Nombre *" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" autoFocus />
               <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@ejemplo.com" />
               <Input label="Teléfono" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} placeholder="+54 11 ..." />
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Area</label>
-                <select value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value as AreaIngeniero | '' }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                <Select value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value as AreaIngeniero | '' }))}
+                  className="w-full">
                   <option value="">Sin asignar</option>
                   {AREA_OPTIONS.map(a => <option key={a} value={a}>{AREA_LABELS[a]}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div className="flex justify-end mt-3">
@@ -195,7 +197,7 @@ export const IngenierosPage = () => {
                   {editingId === ing.id ? (
                     <div className="flex-1 mr-4 space-y-1.5">
                       <div className="grid grid-cols-2 gap-2">
-                        <select value={editForm.usuarioId} onChange={e => {
+                        <Select value={editForm.usuarioId} onChange={e => {
                           const uid = e.target.value;
                           const usr = usuarios.find(u => u.id === uid);
                           setEditForm(f => ({
@@ -204,21 +206,21 @@ export const IngenierosPage = () => {
                             nombre: usr?.displayName || f.nombre,
                             email: usr?.email || f.email,
                           }));
-                        }} className="border border-slate-300 rounded px-2 py-1 text-xs bg-white col-span-2">
+                        }} className="col-span-2">
                           <option value="">Sin vincular a cuenta Google</option>
                           {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.email})</option>)}
-                        </select>
+                        </Select>
                         <input type="text" value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
                           className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Nombre" autoFocus />
                         <input type="text" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                           className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Email" />
                         <input type="text" value={editForm.telefono} onChange={e => setEditForm(f => ({ ...f, telefono: e.target.value }))}
                           className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Telefono" />
-                        <select value={editForm.area} onChange={e => setEditForm(f => ({ ...f, area: e.target.value as AreaIngeniero | '' }))}
-                          className="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+                        <Select value={editForm.area} onChange={e => setEditForm(f => ({ ...f, area: e.target.value as AreaIngeniero | '' }))}
+                          >
                           <option value="">Sin area</option>
                           {AREA_OPTIONS.map(a => <option key={a} value={a}>{AREA_LABELS[a]}</option>)}
-                        </select>
+                        </Select>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => handleUpdate(ing.id)} className="text-green-600 hover:underline font-medium text-[11px]">Guardar</button>

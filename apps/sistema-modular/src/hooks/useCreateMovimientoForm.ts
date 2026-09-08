@@ -11,6 +11,7 @@ import type {
 } from '@ags/shared';
 import { normalizarSerie } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 export const TIPO_MOV_OPTIONS: { value: TipoMovimiento; label: string }[] = [
   { value: 'ingreso', label: 'Ingreso' },
   { value: 'egreso', label: 'Egreso' },
@@ -288,27 +289,27 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   const sumCantidad = (list: UnidadStock[]) => list.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
 
   const handleSave = async () => {
-    if (!form.articuloId) { alert('Seleccione un articulo'); return; }
+    if (!form.articuloId) { notify.warning('Seleccione un articulo'); return; }
     if (form.tipo === 'ajuste') {
-      if (!form.cantidad || form.cantidad === 0) { alert('El ajuste no puede ser cero (usá + para sumar y − para restar)'); return; }
-    } else if (!form.cantidad || form.cantidad <= 0) { alert('La cantidad debe ser mayor a 0'); return; }
+      if (!form.cantidad || form.cantidad === 0) { notify.warning('El ajuste no puede ser cero (usá + para sumar y − para restar)'); return; }
+    } else if (!form.cantidad || form.cantidad <= 0) { notify.warning('La cantidad debe ser mayor a 0'); return; }
 
     const articulo = articulos.find(a => a.id === form.articuloId);
-    if (!articulo) { alert('Articulo no encontrado'); return; }
+    if (!articulo) { notify.warning('Articulo no encontrado'); return; }
 
     // Resolver origen
     let origenTipo: TipoOrigenDestino;
     let origenId = '';
     let origenNombre = '';
     if (slot.origen === 'ubicacion_con_stock' || slot.origen === 'proveedor') {
-      if (!form.origenKey) { alert('Seleccione el origen'); return; }
+      if (!form.origenKey) { notify.warning('Seleccione el origen'); return; }
       const opt = findOption(origenOptions, form.origenKey);
-      if (!opt) { alert('Origen inválido'); return; }
+      if (!opt) { notify.warning('Origen inválido'); return; }
       origenTipo = opt.tipo; origenId = opt.id; origenNombre = opt.nombre;
     } else {
       origenTipo = FALLBACK_TIPO_ORIGENDESTINO[form.tipo].origen;
       origenNombre = form.origenLibre.trim();
-      if (slot.origen === 'texto_libre' && !origenNombre) { alert('Complete el origen'); return; }
+      if (slot.origen === 'texto_libre' && !origenNombre) { notify.warning('Complete el origen'); return; }
     }
 
     // Resolver destino
@@ -318,14 +319,14 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
     if (init.lockDestino) {
       destinoTipo = init.lockDestino.tipo; destinoId = init.lockDestino.id; destinoNombre = init.lockDestino.nombre;
     } else if (slot.destino === 'ubicacion_interna') {
-      if (!form.destinoKey) { alert('Seleccione el destino'); return; }
+      if (!form.destinoKey) { notify.warning('Seleccione el destino'); return; }
       const opt = findOption(destinoOptions, form.destinoKey);
-      if (!opt) { alert('Destino inválido'); return; }
+      if (!opt) { notify.warning('Destino inválido'); return; }
       destinoTipo = opt.tipo; destinoId = opt.id; destinoNombre = opt.nombre;
     } else {
       destinoTipo = FALLBACK_TIPO_ORIGENDESTINO[form.tipo].destino;
       destinoNombre = form.destinoLibre.trim();
-      if (slot.destino === 'texto_libre' && !destinoNombre) { alert('Complete el destino'); return; }
+      if (slot.destino === 'texto_libre' && !destinoNombre) { notify.warning('Complete el destino'); return; }
     }
 
     const origen: PuntoMovimiento = { tipo: origenTipo, id: origenId, nombre: origenNombre };
@@ -343,18 +344,18 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
       if (requiereSerie) {
         series = form.seriesText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean);
         if (series.length !== form.cantidad) {
-          alert(`Artículo con n° de serie: ingresá exactamente ${form.cantidad} serie${form.cantidad !== 1 ? 's' : ''} (una por línea). Cargaste ${series.length}.`);
+          notify.warning(`Artículo con n° de serie: ingresá exactamente ${form.cantidad} serie${form.cantidad !== 1 ? 's' : ''} (una por línea). Cargaste ${series.length}.`);
           return;
         }
         // Comparación normalizada (2026-09-01): misma regla en todos los caminos
         // de alta de stock — "ABC 123" y "abc-123" son la misma serie.
         const norm = series.map(normalizarSerie);
-        if (new Set(norm).size !== norm.length) { alert('Hay números de serie repetidos en la carga'); return; }
+        if (new Set(norm).size !== norm.length) { notify.warning('Hay números de serie repetidos en la carga'); return; }
         const existentes = new Set(unidades.filter(u => u.nroSerie).map(u => normalizarSerie(u.nroSerie)));
         const dup = series.find((_, i) => existentes.has(norm[i]));
-        if (dup) { alert(`El n° de serie "${dup}" ya existe para este artículo`); return; }
+        if (dup) { notify.warning(`El n° de serie "${dup}" ya existe para este artículo`); return; }
       }
-      if (requiereLote && !form.lote.trim()) { alert('Artículo con n° de lote: ingresá el lote'); return; }
+      if (requiereLote && !form.lote.trim()) { notify.warning('Artículo con n° de lote: ingresá el lote'); return; }
     }
 
     // Egreso / consumo / transferencia: se descuentan o mueven unidades reales.
@@ -362,7 +363,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
     let candidatas: UnidadStock[] = [];
     if (form.tipo === 'egreso' || form.tipo === 'consumo' || form.tipo === 'transferencia') {
       if (requiereSerie && unidadesSeleccionadas.length === 0) {
-        alert('Artículo con n° de serie: seleccioná las unidades específicas (trazabilidad). No se registran movimientos sin unidad identificada.');
+        notify.warning('Artículo con n° de serie: seleccioná las unidades específicas (trazabilidad). No se registran movimientos sin unidad identificada.');
         return;
       }
       candidatas = unidadesSeleccionadas.length > 0
@@ -370,17 +371,17 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
         : [...unidadesEnOrigen].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // FIFO
       const disponible = sumCantidad(candidatas);
       if (disponible < form.cantidad) {
-        alert(`Stock insuficiente: en ${unidadesSeleccionadas.length > 0 ? 'las unidades seleccionadas' : 'el origen'} hay ${disponible} y estás registrando ${form.cantidad}. El movimiento no se registra sin efecto real sobre las existencias.`);
+        notify.warning(`Stock insuficiente: en ${unidadesSeleccionadas.length > 0 ? 'las unidades seleccionadas' : 'el origen'} hay ${disponible} y estás registrando ${form.cantidad}. El movimiento no se registra sin efecto real sobre las existencias.`);
         return;
       }
       if (form.tipo === 'transferencia' && origenTipo === destinoTipo && origenId === destinoId) {
-        alert('El destino es la misma ubicación que el origen');
+        notify.warning('El destino es la misma ubicación que el origen');
         return;
       }
     }
 
     if (form.tipo === 'ajuste' && unidadesSeleccionadas.length !== 1) {
-      alert('Ajuste: seleccioná exactamente UNA unidad de la lista del origen para ajustar su cantidad.');
+      notify.warning('Ajuste: seleccioná exactamente UNA unidad de la lista del origen para ajustar su cantidad.');
       return;
     }
 
@@ -443,7 +444,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
       onCreated();
     } catch (err) {
       console.error('[CreateMovimientoModal]', err);
-      alert(err instanceof Error ? `Error al registrar el movimiento: ${err.message}` : 'Error al registrar el movimiento');
+      notify.error(err instanceof Error ? `Error al registrar el movimiento: ${err.message}` : 'Error al registrar el movimiento');
     } finally { setSaving(false); }
   };
 

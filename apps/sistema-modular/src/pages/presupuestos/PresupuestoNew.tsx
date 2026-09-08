@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
 export const PresupuestoNew = () => {
   const navigate = useNavigate();
   const goBack = useNavigateBack();
@@ -54,7 +55,7 @@ export const PresupuestoNew = () => {
       setSistemas(sistemasData);
     } catch (error) {
       console.error('Error cargando datos:', error);
-      alert('Error al cargar los datos');
+      notify.error('Error al cargar los datos');
     }
   };
 
@@ -83,7 +84,7 @@ export const PresupuestoNew = () => {
     e.preventDefault();
     
     if (!formData.clienteId) {
-      alert('Debe seleccionar un cliente');
+      notify.warning('Debe seleccionar un cliente');
       return;
     }
 
@@ -116,11 +117,11 @@ export const PresupuestoNew = () => {
         await leadsService.linkPresupuesto(origenId, presupuestoId);
       }
 
-      alert('Presupuesto creado exitosamente');
+      notify.success('Presupuesto creado exitosamente');
       navigate(`/presupuestos/${presupuestoId}`);
     } catch (error) {
       console.error('Error creando presupuesto:', error);
-      alert('Error al crear el presupuesto');
+      notify.error('Error al crear el presupuesto');
     } finally {
       setLoading(false);
     }

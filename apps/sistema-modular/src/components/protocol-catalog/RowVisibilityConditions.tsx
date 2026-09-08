@@ -1,5 +1,6 @@
 import type { TableHeaderField } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 /** Una condición de visibilidad: la fila se muestra según el valor de un campo de encabezado. */
 export interface VisibilityCondition {
   headerFieldId: string;
@@ -71,16 +72,16 @@ export const RowVisibilityConditions = ({ headerFields, conditions, onChange }: 
                   )}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Campo de encabezado</label>
-                    <select
+                    <Select
                       value={cond.headerFieldId}
                       onChange={e => update(idx, { headerFieldId: e.target.value, values: [] })}
-                      className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                      className="w-full" selectSize="md"
                     >
                       <option value="">Sin condición (siempre visible)</option>
                       {headerFields.map(hf => (
                         <option key={hf.fieldId} value={hf.fieldId}>{hf.label}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   {cond.headerFieldId && (
                     <>

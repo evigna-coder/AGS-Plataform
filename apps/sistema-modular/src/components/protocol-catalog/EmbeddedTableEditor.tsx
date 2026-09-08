@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
+import { Select } from '../ui/Select';
 interface EmbeddedColumn {
   key: string;
   label: string;
@@ -237,14 +238,14 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
                   {columns.map(col => (
                     <td key={col.key} className="p-1">
                       {col.options && col.options.length > 0 ? (
-                        <select
-                          className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-500"
+                        <Select
+                          className="w-full"
                           value={row[col.key] ?? ''}
                           onChange={e => updateCell(ri, col.key, e.target.value)}
                         >
                           <option value="">—</option>
                           {col.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
+                        </Select>
                       ) : (
                         <input
                           className={`w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-500 ${col.isRowHeader ? 'font-semibold' : ''}`}

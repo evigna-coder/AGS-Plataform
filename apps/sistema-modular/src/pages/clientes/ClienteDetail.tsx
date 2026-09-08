@@ -8,6 +8,8 @@ import { ClienteMainContent } from '../../components/clientes/ClienteMainContent
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const ClienteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -51,13 +53,13 @@ export const ClienteDetail = () => {
           });
         }
       } else {
-        alert('Cliente no encontrado');
+        notify.error('Cliente no encontrado');
         navigate('/clientes');
       }
       setLoading(false);
     }, (err) => {
       console.error('Error cargando cliente:', err);
-      alert('Error al cargar el cliente');
+      notify.error('Error al cargar el cliente');
       setLoading(false);
     });
     return () => unsub();
@@ -127,7 +129,7 @@ export const ClienteDetail = () => {
       setEditing(false);
     } catch (error) {
       console.error('Error guardando cliente:', error);
-      alert('Error al guardar el cliente');
+      notify.error('Error al guardar el cliente');
     } finally {
       setSaving(false);
     }
@@ -135,9 +137,7 @@ export const ClienteDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando cliente...</p>
-      </div>
+      <LoadingState message="Cargando cliente…" />
     );
   }
 

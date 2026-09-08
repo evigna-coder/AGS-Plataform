@@ -6,9 +6,9 @@
  */
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Card } from '../../components/ui/Card';
 import { MOTIVO_BAJA_LOTE_LABELS, type Patron, type PatronLoteBajaEntry } from '@ags/shared';
 
+import { EmptyState } from '../../components/ui/EmptyState';
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const MOTIVO_CLS: Record<string, string> = {
@@ -36,11 +36,7 @@ export function PatronesBajasTable({
 
   if (rows.length === 0) {
     return (
-      <Card>
-        <div className="text-center py-12">
-          <p className="text-slate-400">Sin lotes dados de baja</p>
-        </div>
-      </Card>
+      <EmptyState message="Sin lotes dados de baja" />
     );
   }
 

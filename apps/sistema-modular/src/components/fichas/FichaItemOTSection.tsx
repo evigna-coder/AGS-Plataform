@@ -6,6 +6,7 @@ import { fichasService, ordenesTrabajoService } from '../../services/firebaseSer
 import type { FichaPropiedad, ItemFicha, WorkOrder } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 
+import { confirmar } from '../ui/ConfirmDialog';
 interface Props {
   ficha: FichaPropiedad;
   item: ItemFicha;
@@ -66,7 +67,7 @@ export function FichaItemOTSection({ ficha, item, onUpdate }: Props) {
       const ot = await ordenesTrabajoService.getByOtNumber(num);
       if (!ot) { setError(`La OT ${num} no existe`); return; }
       if (ot.clienteId && ficha.clienteId && ot.clienteId !== ficha.clienteId) {
-        const seguir = window.confirm(
+        const seguir = await confirmar(
           `Atención: la OT ${num} figura a nombre de "${ot.razonSocial || ot.clienteId}", ` +
           `que no coincide con el cliente de esta ficha (${ficha.clienteNombre}).\n\n¿Asignarla igual?`,
         );

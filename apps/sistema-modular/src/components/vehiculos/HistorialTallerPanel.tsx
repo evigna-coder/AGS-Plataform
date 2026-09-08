@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import type { VisitaTaller } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props {
   vehiculoId: string;
   historial: VisitaTaller[];
@@ -17,7 +18,7 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
-    if (!form.taller.trim() || !form.fecha) return alert('Taller y fecha son obligatorios');
+    if (!form.taller.trim() || !form.fecha) return notify.warning('Taller y fecha son obligatorios');
     setSaving(true);
     try {
       await historialTallerService.create(vehiculoId, {
@@ -34,7 +35,7 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
       onChanged();
     } catch (err) {
       console.error(err);
-      alert('Error al agregar');
+      notify.error('Error al agregar');
     } finally {
       setSaving(false);
     }

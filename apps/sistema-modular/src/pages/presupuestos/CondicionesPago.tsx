@@ -12,6 +12,8 @@ import {
   CONDICIONES_PAGO_EXPORT_COLUMNS, condicionPagoPlazoTexto,
 } from '../../utils/exports/exportCondicionesPago';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const CondicionesPago = () => {
   const goBack = useNavigateBack();
   const confirm = useConfirm();
@@ -45,7 +47,7 @@ export const CondicionesPago = () => {
       setCondiciones(condicionesData);
     } catch (error) {
       console.error('Error cargando condiciones:', error);
-      alert('Error al cargar las condiciones de pago');
+      notify.error('Error al cargar las condiciones de pago');
     } finally {
       setLoading(false);
     }
@@ -79,10 +81,10 @@ export const CondicionesPago = () => {
     try {
       await condicionesPagoService.delete(id);
       await loadData();
-      alert('Condición de pago eliminada exitosamente');
+      notify.success('Condición de pago eliminada exitosamente');
     } catch (error) {
       console.error('Error eliminando condición:', error);
-      alert('Error al eliminar la condición de pago');
+      notify.error('Error al eliminar la condición de pago');
     }
   };
 
@@ -90,12 +92,12 @@ export const CondicionesPago = () => {
     e.preventDefault();
     
     if (!formData.nombre.trim()) {
-      alert('El nombre es obligatorio');
+      notify.warning('El nombre es obligatorio');
       return;
     }
 
     if (formData.dias < 0) {
-      alert('Los días no pueden ser negativos');
+      notify.warning('Los días no pueden ser negativos');
       return;
     }
 
@@ -104,10 +106,10 @@ export const CondicionesPago = () => {
       
       if (editingId) {
         await condicionesPagoService.update(editingId, formData);
-        alert('Condición de pago actualizada exitosamente');
+        notify.success('Condición de pago actualizada exitosamente');
       } else {
         await condicionesPagoService.create(formData);
-        alert('Condición de pago creada exitosamente');
+        notify.success('Condición de pago creada exitosamente');
       }
       
       setShowForm(false);
@@ -115,7 +117,7 @@ export const CondicionesPago = () => {
       await loadData();
     } catch (error) {
       console.error('Error guardando condición:', error);
-      alert('Error al guardar la condición de pago');
+      notify.error('Error al guardar la condición de pago');
     } finally {
       setSaving(false);
     }
@@ -126,9 +128,7 @@ export const CondicionesPago = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando condiciones...</p>
-      </div>
+      <LoadingState message="Cargando condiciones…" />
     );
   }
 

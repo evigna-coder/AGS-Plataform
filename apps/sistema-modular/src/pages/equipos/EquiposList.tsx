@@ -7,7 +7,6 @@ import { matchesSearch } from '../../utils/searchTerms';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { establecimientoPerteneceACliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -20,6 +19,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { EQUIPOS_EXPORT_COLUMNS, buildEquiposExportRows, buildEquiposFiltrosExport } from '../../utils/exports/exportEquipos';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown, onDoubleClick }: { onMouseDown: (e: React.MouseEvent) => void; onDoubleClick?: () => void }) => (
@@ -170,7 +172,7 @@ export const EquiposList = () => {
       await sistemasService.delete(sistemaId);
     } catch (error) {
       console.error('Error eliminando sistema:', error);
-      alert('Error al eliminar el sistema');
+      notify.error('Error al eliminar el sistema');
     }
   };
 
@@ -185,7 +187,7 @@ export const EquiposList = () => {
       setSelected(new Set());
     } catch (error) {
       console.error('Error eliminando sistemas:', error);
-      alert('Error al eliminar sistemas');
+      notify.error('Error al eliminar sistemas');
     } finally {
       setDeleting(false);
     }
@@ -219,7 +221,7 @@ export const EquiposList = () => {
   };
 
   const handleReassign = async () => {
-    if (!reassignEstId) { alert('Seleccione un establecimiento destino'); return; }
+    if (!reassignEstId) { notify.warning('Seleccione un establecimiento destino'); return; }
     setReassigning(true);
     try {
       for (const id of selected) {
@@ -232,7 +234,7 @@ export const EquiposList = () => {
       setShowReassign(false);
     } catch (error) {
       console.error('Error reasignando sistemas:', error);
-      alert('Error al reasignar');
+      notify.error('Error al reasignar');
     } finally {
       setReassigning(false);
     }
@@ -311,16 +313,9 @@ export const EquiposList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando equipos...</p></div>
+          <LoadingState message="Cargando equipos…" />
         ) : sistemasFiltrados.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron sistemas</p>
-              <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primer sistema
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No se encontraron sistemas" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer sistema </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto overflow-x-hidden h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

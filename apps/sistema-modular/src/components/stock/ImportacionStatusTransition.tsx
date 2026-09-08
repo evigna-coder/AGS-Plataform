@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import type { Importacion, EstadoImportacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   imp: Importacion;
   onClose: () => void;
@@ -75,7 +76,7 @@ export const ImportacionStatusTransition: React.FC<Props> = ({ imp, onClose, onU
       await importacionesService.update(imp.id, { estado: selected });
       onUpdate();
     } catch (err) {
-      alert('Error al cambiar estado');
+      notify.error('Error al cambiar estado');
     } finally {
       setSaving(false);
     }

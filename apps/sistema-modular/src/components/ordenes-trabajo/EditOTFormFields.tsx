@@ -5,6 +5,7 @@ import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, In
 import { MONEDA_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { EditOTFormState } from '../../hooks/useEditOTForm';
 
+import { Select } from '../ui/Select';
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
 const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
 
@@ -93,13 +94,13 @@ export const EditOTFormFields: React.FC<Props> = ({
       </div>
       <div>
         <label className={lbl}>Módulo</label>
-        <select value={form.moduloId} onChange={e => set('moduloId', e.target.value)}
-          className={selectClass} disabled={readOnly || !form.sistemaId || modulos.length === 0}>
+        <Select value={form.moduloId} onChange={e => set('moduloId', e.target.value)}
+          className="w-full" disabled={readOnly || !form.sistemaId || modulos.length === 0}>
           <option value="">{modulos.length === 0 ? 'Sin módulos' : 'Sistema completo'}</option>
           {modulos.map(m => (
             <option key={m.id} value={m.id}>{m.nombre}{m.serie ? ` (${m.serie})` : ''}</option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
 
@@ -107,28 +108,28 @@ export const EditOTFormFields: React.FC<Props> = ({
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className={lbl}>Contacto</label>
-        <select value={form.contactoId} onChange={e => set('contactoId', e.target.value)}
-          className={selectClass} disabled={readOnly || contactos.length === 0}>
+        <Select value={form.contactoId} onChange={e => set('contactoId', e.target.value)}
+          className="w-full" disabled={readOnly || contactos.length === 0}>
           <option value="">Sin contacto</option>
           {contactos.map(c => (
             <option key={c.id} value={c.id}>{c.nombre}{c.cargo ? ` — ${c.cargo}` : ''}</option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className={`${lbl}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda ? ' text-amber-600' : ''}`}>
           Responsable asignado{form.estadoAdmin !== 'CREADA' && !sinAgenda ? ' *' : ''}
         </label>
-        <select value={form.ingenieroId} onChange={e => {
+        <Select value={form.ingenieroId} onChange={e => {
             set('ingenieroId', e.target.value);
             if (e.target.value && form.estadoAdmin === 'CREADA') set('estadoAdmin', 'ASIGNADA');
           }}
-          className={`${selectClass}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda ? ' ring-1 ring-amber-400 border-amber-400' : ''}`} disabled={readOnly}>
+          className={form.estadoAdmin !== 'CREADA' && !form.ingenieroId && !sinAgenda ? 'ring-1 ring-amber-400 !border-amber-400' : ''} disabled={readOnly}>
           <option value="">Sin asignar</option>
           {ingenieros.map(u => (
             <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
 

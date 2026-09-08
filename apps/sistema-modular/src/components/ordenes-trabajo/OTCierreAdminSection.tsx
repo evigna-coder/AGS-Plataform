@@ -9,6 +9,7 @@ import { CierreFacturacionWizard } from './CierreFacturacionWizard';
 import { CierrePatronesConsumidosSection } from './CierrePatronesConsumidosSection';
 import { useOTFinalizable } from '../../hooks/useOTFinalizable';
 
+import { notify } from '../../utils/notify';
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const inp = 'w-full border rounded-lg px-2.5 py-1 text-xs bg-white border-slate-300 disabled:bg-slate-100 disabled:text-slate-400';
@@ -218,8 +219,8 @@ export const OTCierreAdminSection: React.FC<Props> = ({
               disabled={disabled || finalizable.loading || !finalizable.puedeFinalizarse}
               title={finalizable.razon ?? undefined}
               onClick={() => {
-                if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
-                if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+                if (!cierreAdmin.horasConfirmadas) { notify.warning('Debe confirmar las horas trabajadas'); return; }
+                if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { notify.warning('Debe confirmar los materiales/repuestos'); return; }
                 setShowPreview(true);
               }}
               className="w-full"

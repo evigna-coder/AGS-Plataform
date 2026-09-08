@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useEnviarOrdenCompra, type EnviarOCStatus } from '../../hooks/useEnviarOrdenCompra';
 
+import { notify } from '../../utils/notify';
 const STATUS_MSG: Record<EnviarOCStatus, string> = {
   idle: 'Enviar', authorizing: 'Autorizando Gmail...', generating_pdf: 'Generando PDF...',
   sending: 'Enviando...', updating_firestore: 'Actualizando estado...', sent: 'Enviado', error: 'Enviar',
@@ -72,7 +73,7 @@ export const EnviarOrdenCompraModal: React.FC<Props> = ({ open, oc, proveedor, o
   };
 
   const handleSend = () => {
-    if (!to.trim()) { alert('Ingresá el email del proveedor'); return; }
+    if (!to.trim()) { notify.warning('Ingresá el email del proveedor'); return; }
     const htmlBody = body.split('\n').map(l => l || '<br/>').join('<br/>');
     send({ to: splitEmails(to), cc: splitEmails(cc), subject, htmlBody });
   };

@@ -2,7 +2,7 @@
  * Phase 14 BOM-04 — pure validator for Patron.componentes before save.
  *
  * Extracted from PatronEditorPage.tsx to keep the page under the 250-LOC budget
- * spirit of components.md. Returns the error message to alert(), or null if OK.
+ * spirit of components.md. Returns the error message to notify.warning(), or null if OK.
  *
  * Guards (RESEARCH pitfalls 1 + 3):
  *  - Pitfall 3 (spillover): duplicate codigoComponente within the same patron

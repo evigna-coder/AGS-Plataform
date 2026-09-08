@@ -1,5 +1,6 @@
 import type { Minikit, MinikitRequeridoItem, UnidadStock } from '@ags/shared';
 
+import { notify } from './notify';
 export type OrdenListadoMinikit = 'sector' | 'codigo' | 'descripcion';
 
 /**
@@ -110,7 +111,7 @@ function imprimirPorIframe(html: string): void {
   iframe.style.border = '0';
   document.body.appendChild(iframe);
   const idoc = iframe.contentDocument;
-  if (!idoc) { document.body.removeChild(iframe); alert('No se pudo preparar la impresión.'); return; }
+  if (!idoc) { document.body.removeChild(iframe); notify.error('No se pudo preparar la impresión.'); return; }
   idoc.open();
   idoc.write(html);
   idoc.close();

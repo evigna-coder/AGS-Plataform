@@ -17,6 +17,7 @@ import { CALIFICACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportCalific
 import { detalleCalificacion } from '../../utils/calificaciones';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 const FILTER_SCHEMA = {
   ciclo: { type: 'string' as const, default: 'pendiente' },
   proveedorId: { type: 'string' as const, default: '' },
@@ -184,7 +185,7 @@ export function CalificacionesList() {
 
       <div className="flex-1 min-h-0 px-4 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>
+          <LoadingState message="Cargando calificaciones…" />
         ) : (
           <CalificacionesTable
             items={filtered}

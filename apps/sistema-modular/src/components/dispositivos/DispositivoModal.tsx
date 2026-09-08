@@ -8,6 +8,8 @@ import { EntornosEditor } from './EntornosEditor';
 import { DispositivoFotos } from './DispositivoFotos';
 import type { CaraFotoDispositivo } from '../../services/dispositivoFotoStorageService';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -107,7 +109,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
 
   const handleSave = async () => {
     if (!form.marca.trim() || !form.modelo.trim()) {
-      alert('Complete marca y modelo');
+      notify.warning('Complete marca y modelo');
       return;
     }
     setSaving(true);
@@ -122,7 +124,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
       onClose();
       onSaved();
     } catch {
-      alert('Error al guardar el dispositivo');
+      notify.error('Error al guardar el dispositivo');
     } finally {
       setSaving(false);
     }
@@ -130,7 +132,6 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
 
   const handleClose = () => { onClose(); setForm(getEmpty()); };
   const lbl = 'block text-[11px] font-medium text-slate-500 mb-1';
-  const selectCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
   const esComputadora = form.tipo === 'computadora';
 
   return (
@@ -146,9 +147,9 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
       <div className="space-y-4">
         <div>
           <label className={lbl}>Tipo</label>
-          <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={selectCls}>
+          <Select value={form.tipo} onChange={e => set('tipo', e.target.value)} className="w-full">
             {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Input inputSize="sm" label="Marca *" value={form.marca} onChange={e => set('marca', e.target.value)} placeholder="Ej: Samsung" />

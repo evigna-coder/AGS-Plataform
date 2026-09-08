@@ -6,6 +6,7 @@ import { ordenesTrabajoService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { UnidadStock } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   minikit: { id: string; codigo: string; nombre: string };
   unidad: UnidadStock;
@@ -121,14 +122,14 @@ export const ConsumirUnidadMinikitModal: React.FC<Props> = ({ minikit, unidad, o
                 Reserva ppto <span className="font-mono">{reservaSel?.reservadoParaPresupuestoNumero ?? '—'}</span> → repone el kit.
               </p>
             ) : (
-              <select className={ctrl + ' bg-white'} value={reservaId ?? ''} onChange={e => setReservaId(e.target.value || null)}>
+              <Select className="w-full" selectSize="md" value={reservaId ?? ''} onChange={e => setReservaId(e.target.value || null)}>
                 <option value="">No saldar ninguna reserva</option>
                 {reservas.map(r => (
                   <option key={r.id} value={r.id}>
                     Ppto {r.reservadoParaPresupuestoNumero ?? '—'}{r.nroSerie ? ` · S/N ${r.nroSerie}` : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </div>
         )}

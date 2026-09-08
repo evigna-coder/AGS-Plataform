@@ -10,6 +10,8 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { CATEGORIAS_PRESUPUESTO_EXPORT_COLUMNS } from '../../utils/exports/exportCategoriasPresupuesto';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const CategoriasPresupuesto = () => {
   const goBack = useNavigateBack();
   const confirm = useConfirm();
@@ -50,7 +52,7 @@ export const CategoriasPresupuesto = () => {
       setCategorias(categoriasData);
     } catch (error) {
       console.error('Error cargando categorías:', error);
-      alert('Error al cargar las categorías');
+      notify.error('Error al cargar las categorías');
     } finally {
       setLoading(false);
     }
@@ -98,10 +100,10 @@ export const CategoriasPresupuesto = () => {
     try {
       await categoriasPresupuestoService.delete(id);
       await loadData();
-      alert('Categoría eliminada exitosamente');
+      notify.success('Categoría eliminada exitosamente');
     } catch (error) {
       console.error('Error eliminando categoría:', error);
-      alert('Error al eliminar la categoría');
+      notify.error('Error al eliminar la categoría');
     }
   };
 
@@ -109,7 +111,7 @@ export const CategoriasPresupuesto = () => {
     e.preventDefault();
     
     if (!formData.nombre.trim()) {
-      alert('El nombre es obligatorio');
+      notify.warning('El nombre es obligatorio');
       return;
     }
 
@@ -118,10 +120,10 @@ export const CategoriasPresupuesto = () => {
       
       if (editingId) {
         await categoriasPresupuestoService.update(editingId, formData);
-        alert('Categoría actualizada exitosamente');
+        notify.success('Categoría actualizada exitosamente');
       } else {
         await categoriasPresupuestoService.create(formData);
-        alert('Categoría creada exitosamente');
+        notify.success('Categoría creada exitosamente');
       }
       
       setShowForm(false);
@@ -129,7 +131,7 @@ export const CategoriasPresupuesto = () => {
       await loadData();
     } catch (error) {
       console.error('Error guardando categoría:', error);
-      alert('Error al guardar la categoría');
+      notify.error('Error al guardar la categoría');
     } finally {
       setSaving(false);
     }
@@ -137,9 +139,7 @@ export const CategoriasPresupuesto = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando categorías...</p>
-      </div>
+      <LoadingState message="Cargando categorías…" />
     );
   }
 

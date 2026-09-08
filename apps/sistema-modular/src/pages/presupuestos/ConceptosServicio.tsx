@@ -14,6 +14,7 @@ import {
   buildConceptosServicioExportRows, CONCEPTOS_SERVICIO_EXPORT_COLUMNS,
 } from '../../utils/exports/exportConceptosServicio';
 
+import { Select } from '../../components/ui/Select';
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
 export function ConceptosServicio() {
@@ -211,9 +212,9 @@ export function ConceptosServicio() {
             <Input inputSize="sm" label="Valor base *" type="number" min={0} step={0.01} value={String(valorBase)} onChange={e => setValorBase(Number(e.target.value) || 0)} />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Moneda</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={moneda} onChange={e => setMoneda(e.target.value as MonedaPresupuesto)}>
+              <Select className="w-full" value={moneda} onChange={e => setMoneda(e.target.value as MonedaPresupuesto)}>
                 {MONEDAS.map(m => <option key={m} value={m}>{m} ({MONEDA_SIMBOLO[m]})</option>)}
-              </select>
+              </Select>
             </div>
             <Input inputSize="sm" label="Factor actualiz." type="number" min={0} step={0.01} value={String(factor)} onChange={e => setFactor(Number(e.target.value) || 1)} />
           </div>
@@ -222,10 +223,10 @@ export function ConceptosServicio() {
           </p>
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria impositiva</label>
-            <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={catId} onChange={e => setCatId(e.target.value)}>
+            <Select className="w-full" value={catId} onChange={e => setCatId(e.target.value)}>
               <option value="">Sin categoria</option>
               {categorias.filter(c => c.activo).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
+            </Select>
           </div>
           <label className="flex items-center gap-2 text-xs text-slate-600">
             <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} className="rounded border-slate-300" />

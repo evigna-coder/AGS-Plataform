@@ -18,6 +18,7 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 export const EquipoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ export const EquipoDetail = () => {
     if (!id) return;
     setLoading(true);
     const unsub = sistemasService.subscribeById(id, async (sistemaData) => {
-      if (!sistemaData) { alert('Sistema no encontrado'); navigate('/equipos'); return; }
+      if (!sistemaData) { notify.warning('Sistema no encontrado'); navigate('/equipos'); return; }
 
       setSistema(sistemaData);
       let est: Establecimiento | null = null;
@@ -86,7 +87,7 @@ export const EquipoDetail = () => {
       setLoading(false);
     }, (err) => {
       console.error('Error cargando datos:', err);
-      alert('Error al cargar los datos');
+      notify.error('Error al cargar los datos');
       setLoading(false);
     });
     return () => unsub();
@@ -155,7 +156,7 @@ export const EquipoDetail = () => {
       setTimeout(() => setSaveMsg(''), 2000);
     } catch (error) {
       console.error('Error guardando sistema:', error);
-      alert('Error al guardar el sistema');
+      notify.error('Error al guardar el sistema');
     } finally { setSaving(false); }
   };
 
@@ -168,7 +169,7 @@ export const EquipoDetail = () => {
       const modelo = cat?.modelos.find(m => m.codigo === form.modeloCodigo);
       if (modelo) { nombreFinal = modelo.codigo; descripcionFinal = modelo.descripcion; }
     }
-    if (!nombreFinal.trim()) { alert('Por favor seleccione un modelo o ingrese el nombre del modulo'); return; }
+    if (!nombreFinal.trim()) { notify.warning('Por favor seleccione un modelo o ingrese el nombre del modulo'); return; }
 
     const clean = (v: any) => (v === '' || v == null ? null : v);
     const data = {
@@ -184,15 +185,15 @@ export const EquipoDetail = () => {
     try {
       if (editingId) {
         await modulosService.update(id, editingId, data);
-        alert('Modulo actualizado exitosamente');
+        notify.success('Modulo actualizado exitosamente');
       } else {
         await modulosService.create(id, data);
-        alert('Modulo agregado exitosamente');
+        notify.success('Modulo agregado exitosamente');
       }
       await loadData(true);
     } catch (error) {
       console.error('Error guardando modulo:', error);
-      alert('Error al guardar el modulo. Verifique la consola para mas detalles.');
+      notify.error('Error al guardar el modulo. Verifique la consola para mas detalles.');
     }
   };
 
@@ -204,7 +205,7 @@ export const EquipoDetail = () => {
       setModulos(prev => prev.filter(m => m.id !== moduloId));
     } catch (error) {
       console.error('Error moviendo modulo:', error);
-      alert('Error al mover el modulo');
+      notify.error('Error al mover el modulo');
     }
   };
 
@@ -216,7 +217,7 @@ export const EquipoDetail = () => {
       await loadData(true);
     } catch (error) {
       console.error('Error eliminando modulo:', error);
-      alert('Error al eliminar el modulo');
+      notify.error('Error al eliminar el modulo');
     }
   };
 

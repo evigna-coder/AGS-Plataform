@@ -3,6 +3,7 @@ import { ordenesTrabajoService } from '../services/firebaseService';
 import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 /**
  * Selección múltiple y acciones masivas del listado de OTs (borrar / cambiar estado).
  *
@@ -37,7 +38,7 @@ export function useOTBulkActions(
     try {
       for (const otNum of selectedOTs) await ordenesTrabajoService.delete(otNum);
       clearSelection();
-    } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
+    } catch (err) { notify.error(err instanceof Error ? err.message : 'Error al eliminar'); }
   };
 
   const handleBulkEstado = async (nuevoEstado: OTEstadoAdmin) => {
@@ -54,7 +55,7 @@ export function useOTBulkActions(
         });
       }
       clearSelection();
-    } catch { alert('Error al cambiar estados'); }
+    } catch { notify.error('Error al cambiar estados'); }
   };
 
   return {

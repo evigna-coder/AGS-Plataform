@@ -6,6 +6,7 @@ import { useMovimientoLoteForm, TIPO_LOTE_OPTIONS, type TipoLote } from '../../h
 import { MovimientoLoteLineas } from './MovimientoLoteLineas';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -15,7 +16,6 @@ interface Props {
 }
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-1';
-const selectCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
 
 /**
  * "Registrar movimiento" en LOTE: varios artículos en un mismo movimiento
@@ -42,16 +42,16 @@ export const CreateMovimientoLoteModal: React.FC<Props> = ({ open, onClose, onCr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Tipo de movimiento *</label>
-            <select value={h.tipo}
+            <Select value={h.tipo}
               onChange={e => {
                 const v = e.target.value;
                 if (v === 'ingreso' && onRequestIngreso) { onRequestIngreso(); return; }
                 h.setTipo(v as TipoLote);
               }}
-              className={selectCls}>
+              className="w-full">
               {TIPO_LOTE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               {onRequestIngreso && <option value="ingreso">Ingreso (usar "Ingresar stock")…</option>}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={lbl}>{h.destinoCfg.label} *</label>

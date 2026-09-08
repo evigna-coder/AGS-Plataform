@@ -4,6 +4,7 @@ import { OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 
+import { notify } from '../utils/notify';
 interface Params {
   form: OTFormState;
   setField: <K extends keyof OTFormState>(field: K, value: OTFormState[K]) => void;
@@ -88,7 +89,7 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
     const targetIdx = OT_ESTADO_ORDER.indexOf(nuevoEstado);
     if (targetIdx > currentIdx) {
       const errors = validate(nuevoEstado);
-      if (Object.keys(errors).length > 0) { alert('No se puede avanzar el estado:\n' + Object.values(errors).join('\n')); return; }
+      if (Object.keys(errors).length > 0) { notify.warning('No se puede avanzar el estado:\n' + Object.values(errors).join('\n')); return; }
     }
     const ahora = new Date().toISOString();
     dirty();

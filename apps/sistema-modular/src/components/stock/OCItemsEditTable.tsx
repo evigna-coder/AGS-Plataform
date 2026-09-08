@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { ItemOC } from '@ags/shared';
 import { MoneyInput } from '../ui/MoneyInput';
 
+import { Select } from '../ui/Select';
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '€' };
 const IVA_OPCIONES = [21, 10.5, 0];
 
@@ -98,10 +99,10 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
                   </td>
                   {showIva && (
                     <td className="px-2 py-1">
-                      <select value={item.porcentajeIva ?? 21} onChange={e => onUpdate(item.id, 'porcentajeIva', Number(e.target.value))}
-                        className="w-full text-xs border border-slate-200 rounded px-1 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                      <Select value={item.porcentajeIva ?? 21} onChange={e => onUpdate(item.id, 'porcentajeIva', Number(e.target.value))}
+                        className="w-full" selectSize="xs">
                         {IVA_OPCIONES.map(v => <option key={v} value={v}>{v}%</option>)}
-                      </select>
+                      </Select>
                     </td>
                   )}
                   <td className="px-2 py-1 text-xs text-right text-slate-700 tabular-nums">

@@ -9,6 +9,8 @@ import { articulosService, marcasService, proveedoresService } from '../../servi
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -119,9 +121,9 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
   const handleClose = () => { onClose(); setForm(emptyForm); setCodigoDupWarning(''); setComexOpen(false); };
 
   const handleSave = async () => {
-    if (!form.codigo.trim()) { alert('El codigo es obligatorio'); return; }
-    if (!form.descripcion.trim()) { alert('La descripcion es obligatoria'); return; }
-    if (codigoDupWarning) { alert(codigoDupWarning); return; }
+    if (!form.codigo.trim()) { notify.warning('El codigo es obligatorio'); return; }
+    if (!form.descripcion.trim()) { notify.warning('La descripcion es obligatoria'); return; }
+    if (codigoDupWarning) { notify.info(codigoDupWarning); return; }
     setSaving(true);
     try {
       const data = {
@@ -141,12 +143,11 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
       handleClose();
       onCreated();
       if (navigateOnCreate) navigate(`/stock/articulos/${newId}`);
-    } catch { alert('Error al crear el articulo'); }
+    } catch { notify.error('Error al crear el articulo'); }
     finally { setSaving(false); }
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   // Enter avanza al siguiente campo (UAT 2026-07-15) — en el último, guarda.
   // Excluye textarea (Enter = salto de línea) y SearchableSelect (Enter = elegir opción).
@@ -195,15 +196,15 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             </div>
             <div>
               <label className={lbl}>Tipo</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={selectCls}>
+              <Select value={form.tipo} onChange={e => set('tipo', e.target.value)} className="w-full">
                 {TIPO_OPTIONS.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className={lbl}>Unidad medida</label>
-              <select value={form.unidadMedida} onChange={e => set('unidadMedida', e.target.value)} className={selectCls}>
+              <Select value={form.unidadMedida} onChange={e => set('unidadMedida', e.target.value)} className="w-full">
                 {UNIDAD_OPTIONS.map(u => <option key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</option>)}
-              </select>
+              </Select>
             </div>
             <Input inputSize="sm" label="Stock minimo" type="number" value={String(form.stockMinimo)}
               onChange={e => set('stockMinimo', Number(e.target.value) || 0)} />
@@ -229,10 +230,10 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             {(form.precioReferencia ?? 0) > 0 && (
               <div>
                 <label className={lbl}>Moneda</label>
-                <select value={form.monedaPrecio} onChange={e => set('monedaPrecio', e.target.value)} className={selectCls}>
+                <Select value={form.monedaPrecio} onChange={e => set('monedaPrecio', e.target.value)} className="w-full">
                   <option value="USD">USD</option>
                   <option value="ARS">ARS</option>
-                </select>
+                </Select>
               </div>
             )}
           </div>

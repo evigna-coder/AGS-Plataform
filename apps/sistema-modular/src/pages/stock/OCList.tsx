@@ -16,6 +16,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { OC_EXPORT_COLUMNS, buildOCFiltrosExport, TIPO_OC_LABELS as TIPO_LABELS } from '../../utils/exports/exportOrdenesCompra';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const TIPO_COLORS: Record<TipoOC, string> = { nacional: 'bg-emerald-100 text-emerald-700', importacion: 'bg-violet-100 text-violet-700' };
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC' };
 
@@ -70,11 +73,11 @@ export const OCList = () => {
     try {
       await deleteOrden(id);
       await loadOrdenes();
-    } catch { alert('Error al eliminar'); }
+    } catch { notify.error('Error al eliminar'); }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando ordenes de compra...</p></div>;
+    return <LoadingState message="Cargando ordenes de compra…" />;
   }
 
   return (
@@ -97,26 +100,24 @@ export const OCList = () => {
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <select
+          <Select
             value={filtroEstado}
             onChange={e => setFilter('estado', e.target.value)}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="__pendientes__">Pendientes</option>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_OC_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             value={filtroTipo}
             onChange={e => setFilter('tipo', e.target.value)}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
             <option value="nacional">Nacional</option>
             <option value="importacion">Importacion</option>
-          </select>
+          </Select>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showCanceladas} onChange={e => setFilter('showCanceladas', e.target.checked)} className="rounded border-slate-300" />
             Mostrar canceladas

@@ -7,6 +7,7 @@ import { DateInput } from '../ui/DateInput';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { diffDias, sumarDias } from '../../utils/previsionesFechas';
 
+import { notify } from '../../utils/notify';
 interface Props {
   prevision: AgendaPrevision | null;
   ingenieros: Ingeniero[];
@@ -45,8 +46,8 @@ export const ReprogramarPrevisionModal: React.FC<Props> = ({ prevision, ingenier
   };
 
   const handleSave = async () => {
-    if (!fechaInicio || !fechaFin) { alert('Indicá fecha de inicio y de fin'); return; }
-    if (fechaFin < fechaInicio) { alert('La fecha de fin no puede ser anterior al inicio'); return; }
+    if (!fechaInicio || !fechaFin) { notify.warning('Indicá fecha de inicio y de fin'); return; }
+    if (fechaFin < fechaInicio) { notify.warning('La fecha de fin no puede ser anterior al inicio'); return; }
     const ing = ingenieros.find(i => (i.usuarioId || i.id) === ingenieroId);
     setSaving(true);
     try {
@@ -59,7 +60,7 @@ export const ReprogramarPrevisionModal: React.FC<Props> = ({ prevision, ingenier
       onClose();
     } catch (err) {
       console.error('Error reprogramando previsión:', err);
-      alert('Error al reprogramar la previsión');
+      notify.error('Error al reprogramar la previsión');
     } finally {
       setSaving(false);
     }

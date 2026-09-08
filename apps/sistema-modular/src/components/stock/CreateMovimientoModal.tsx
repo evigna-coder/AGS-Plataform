@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { parseDecimal } from '../../utils/parseDecimal';
 import type { TipoOrigenDestino } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -21,7 +22,6 @@ interface Props {
 }
 
 const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500";
 
 const TIPO_ICON: Record<TipoOrigenDestino, string> = {
   posicion: '📦', minikit: '🧰', ingeniero: '👷', proveedor: '🏭', cliente: '👤',
@@ -128,16 +128,16 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Tipo de movimiento *</label>
-            <select value={h.form.tipo}
+            <Select value={h.form.tipo}
               onChange={e => {
                 const v = e.target.value as typeof h.form.tipo;
                 if (v === 'ingreso' && onRequestIngreso) { onRequestIngreso(); return; }
                 h.set('tipo', v);
               }}
               disabled={tipoLockeado}
-              className={selectCls}>
+              className="w-full">
               {TIPO_MOV_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            </Select>
           </div>
           <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'}
             type="text" inputMode="decimal"

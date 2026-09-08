@@ -12,6 +12,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 export const EquipoNew = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -98,7 +99,7 @@ export const EquipoNew = () => {
       if (clienteIdFromUrl) loadEstablecimientos(clienteIdFromUrl);
     } catch (error) {
       console.error('Error cargando datos:', error);
-      alert('Error al cargar categorías o clientes');
+      notify.error('Error al cargar categorías o clientes');
     }
   };
 
@@ -171,11 +172,11 @@ export const EquipoNew = () => {
         }
       }
       
-      alert('Sistema creado exitosamente');
+      notify.success('Sistema creado exitosamente');
       navigate(`/equipos/${sistemaId}`, { state: location.state });
     } catch (error) {
       console.error('Error creando sistema:', error);
-      alert('Error al crear el sistema');
+      notify.error('Error al crear el sistema');
     } finally {
       setLoading(false);
     }
@@ -196,7 +197,7 @@ export const EquipoNew = () => {
     }
     
     if (!nombreFinal.trim()) {
-      alert('Por favor seleccione un modelo o ingrese el nombre del módulo');
+      notify.warning('Por favor seleccione un modelo o ingrese el nombre del módulo');
       return;
     }
     

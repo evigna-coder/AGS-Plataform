@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ConfiguracionGC, InletType, DetectorType } from '@ags/shared';
 
+import { Select } from './ui/Select';
 interface GCPortsGridProps {
   value: ConfiguracionGC;
   onChange: (v: ConfiguracionGC) => void;
@@ -26,9 +27,6 @@ const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
   { value: 'SCD', label: 'SCD' },
   { value: 'MSD', label: 'MSD' },
 ];
-
-const selectClass =
-  'w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400';
 
 export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readOnly = false }) => {
   const handleChange = (field: keyof ConfiguracionGC, val: string) => {
@@ -93,69 +91,69 @@ export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readO
 
         {/* Puertos de inyección */}
         <p className="text-[11px] font-medium text-slate-700">Inyección</p>
-        <select
+        <Select
           value={value.puertoInyeccionFront ?? ''}
           onChange={e => handleChange('puertoInyeccionFront', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {INLET_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={value.puertoInyeccionBack ?? ''}
           onChange={e => handleChange('puertoInyeccionBack', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {INLET_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={value.puertoInyeccionAux ?? ''}
           onChange={e => handleChange('puertoInyeccionAux', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {INLET_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
+        </Select>
 
         {/* Detectores */}
         <p className="text-[11px] font-medium text-slate-700">Detector</p>
-        <select
+        <Select
           value={value.detectorFront ?? ''}
           onChange={e => handleChange('detectorFront', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {DETECTOR_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={value.detectorBack ?? ''}
           onChange={e => handleChange('detectorBack', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {DETECTOR_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={value.detectorAux ?? ''}
           onChange={e => handleChange('detectorAux', e.target.value)}
-          className={selectClass}
+          className="w-full"
         >
           <option value="">— Ninguno —</option>
           {DETECTOR_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
   );

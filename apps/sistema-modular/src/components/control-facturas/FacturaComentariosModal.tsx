@@ -5,6 +5,7 @@ import { leadsService } from '../../services/leadsService';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
 interface FacturaComentariosModalProps {
   factura: Factura;
   autor: string;
@@ -73,7 +74,7 @@ export const FacturaComentariosModal = ({ factura, autor, onClose, onAdded }: Fa
       onAdded?.();
     } catch (err) {
       console.error('Error al agregar comentario:', err);
-      alert('Error al agregar el comentario');
+      notify.error('Error al agregar el comentario');
     } finally {
       setSaving(false);
     }

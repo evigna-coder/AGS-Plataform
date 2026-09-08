@@ -7,6 +7,8 @@ import { Button } from '../ui/Button';
 import type { Importacion, DocumentoImportacion } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   imp: Importacion;
   onUpdate: () => void;
@@ -52,7 +54,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
       onUpdate();
     } catch (err) {
       console.error('Error subiendo documento:', err);
-      alert('Error al subir el documento');
+      notify.error('Error al subir el documento');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -65,7 +67,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
       await importacionesService.update(imp.id, { documentos: docs.filter(d => d.id !== docId) });
       onUpdate();
     } catch {
-      alert('Error al eliminar documento');
+      notify.error('Error al eliminar documento');
     }
   };
 
@@ -92,9 +94,9 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
       <div className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-3">
         <div>
           <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-0.5 block">Tipo</label>
-          <select value={tipo} onChange={e => setTipo(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+          <Select value={tipo} onChange={e => setTipo(e.target.value)} >
             {TIPOS_DOCUMENTO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="flex-1 min-w-[120px]">
           <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-0.5 block">Notas</label>

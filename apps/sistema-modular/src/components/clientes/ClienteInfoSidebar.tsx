@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 
+import { Select } from '../ui/Select';
 interface ClienteInfoSidebarProps {
   cliente: Cliente;
   editing: boolean;
@@ -195,15 +196,15 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
             <p className="text-[11px] text-slate-400 ml-5.5">Los reportes requeriran documentacion de trazabilidad</p>
             <div>
               <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Requisito para facturar</label>
-              <select
+              <Select
                 value={formData?.requisitoFacturacion ?? 'ninguno'}
                 onChange={(e) => setFormData({ ...formData, requisitoFacturacion: e.target.value as RequisitoFacturacion })}
-                className="w-full border rounded-lg px-2 py-1 text-xs border-slate-300 bg-white"
+                className="w-full"
               >
                 {(Object.keys(REQUISITO_FACTURACION_LABELS) as RequisitoFacturacion[]).map((k) => (
                   <option key={k} value={k}>{REQUISITO_FACTURACION_LABELS[k]}</option>
                 ))}
-              </select>
+              </Select>
               <p className="text-[11px] text-slate-400 mt-1">Documentacion que exige para poder facturar sus servicios (remito firmado / certificacion)</p>
             </div>
           </div>

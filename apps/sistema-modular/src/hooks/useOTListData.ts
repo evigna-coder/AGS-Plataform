@@ -8,6 +8,7 @@ import { fechaLocalYMD } from '../utils/formatFecha';
 import { matchesSearch } from '../utils/searchTerms';
 import { useEstablecimientoNombreById } from './useEstablecimientoSuffix';
 
+import { notify } from '../utils/notify';
 /** WorkOrder + fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox,
  *  la que se setea al asignar en agenda — definición de Esteban, UAT 2026-07-17).
  *  Se adjunta al cargar el snapshot para que el sort (sortByField) y el filtro por
@@ -71,7 +72,7 @@ export function useOTListData(filters: OTListFilters) {
       setTiposServicioList(tiposData);
       setIngenierosList(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
     } catch {
-      alert('Error al cargar los datos');
+      notify.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }

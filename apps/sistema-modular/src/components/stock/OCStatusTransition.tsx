@@ -6,6 +6,8 @@ import { calificacionesService } from '../../services/calificacionesService';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 const VALID_TRANSITIONS: Record<EstadoOC, EstadoOC[]> = {
   borrador: ['enviada_proveedor', 'cancelada'],
   enviada_proveedor: ['embarcada', 'recibida', 'cancelada'],
@@ -55,7 +57,7 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
       onUpdated();
     } catch (err) {
       console.error('Error actualizando estado:', err);
-      alert('Error al cambiar el estado');
+      notify.error('Error al cambiar el estado');
     } finally {
       setSaving(false);
     }
@@ -89,16 +91,16 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
         ) : (
           <div>
             <p className="text-[11px] font-medium text-slate-400 mb-1">Nuevo estado</p>
-            <select
+            <Select
               value={newEstado}
               onChange={e => setNewEstado(e.target.value as EstadoOC)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full"
             >
               <option value="">Seleccionar estado...</option>
               {allowedStates.map(s => (
                 <option key={s} value={s}>{ESTADO_OC_LABELS[s]}</option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
       </div>

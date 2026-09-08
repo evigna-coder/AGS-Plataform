@@ -7,7 +7,6 @@ import { usePrompt } from '../../components/ui/PromptDialog';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { DateInput } from '../../components/ui/DateInput';
@@ -17,6 +16,9 @@ import { CargarFacturaModal } from '../../components/control-facturas/CargarFact
 import { FacturaComentariosModal } from '../../components/control-facturas/FacturaComentariosModal';
 import { AprobarFacturaModal } from '../../components/control-facturas/AprobarFacturaModal';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const ESTADO_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Todas' },
   { value: 'pendiente', label: 'Pendientes' },
@@ -112,17 +114,17 @@ export const ControlFacturasList = () => {
       confirmLabel: 'Rechazar factura',
     });
     if (motivo === null) return;
-    if (!motivo.trim()) { alert('El rechazo necesita un motivo'); return; }
+    if (!motivo.trim()) { notify.error('El rechazo necesita un motivo'); return; }
     setBusyId(f.id);
     try { await facturasService.rechazar(f.id, motivo, actor); }
-    catch (err) { console.error(err); alert(err instanceof Error ? err.message : 'Error al rechazar'); }
+    catch (err) { console.error(err); notify.error(err instanceof Error ? err.message : 'Error al rechazar'); }
     finally { setBusyId(null); }
   };
 
   const marcarPagada = async (f: Factura) => {
     setBusyId(f.id);
     try { await facturasService.marcarPagada(f.id, actor); }
-    catch (err) { console.error(err); alert('Error al marcar como pagada'); }
+    catch (err) { console.error(err); notify.error('Error al marcar como pagada'); }
     finally { setBusyId(null); }
   };
 
@@ -171,12 +173,9 @@ export const ControlFacturasList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {loading && facturas.length === 0 ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando facturas...</p></div>
+          <LoadingState message="Cargando facturas…" />
         ) : filtered.length === 0 ? (
-          <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron facturas</p>
-            <button onClick={() => setShowCargar(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">Cargar primera factura</button>
-          </div></Card>
+          <EmptyState message="No se encontraron facturas" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCargar(true)} className="text-teal-600 hover:underline mt-2 text-xs">Cargar primera factura</button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
             <table className="tabla-compacta w-full">

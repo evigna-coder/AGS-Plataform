@@ -8,6 +8,8 @@ import { proveedoresService } from '../../services/firebaseService';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 import { ProveedorContactosEditor, normalizeContactos } from './ProveedorContactosEditor';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -66,7 +68,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
       });
       handleClose();
       onCreated();
-    } catch { alert('Error al crear el proveedor'); }
+    } catch { notify.error('Error al crear el proveedor'); }
     finally { setSaving(false); }
   };
 
@@ -89,11 +91,11 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-700 mb-1">Tipo</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+              <Select value={form.tipo} onChange={e => set('tipo', e.target.value)}
+                className="w-full">
                 <option value="nacional">Nacional</option>
                 <option value="internacional">Internacional</option>
-              </select>
+              </Select>
             </div>
             <Input inputSize="sm" label="CUIT" value={form.cuit} onChange={e => set('cuit', e.target.value)} placeholder="20-12345678-9" />
             <Input inputSize="sm" label="Codigo OC (3 letras)" value={form.codigoOC}

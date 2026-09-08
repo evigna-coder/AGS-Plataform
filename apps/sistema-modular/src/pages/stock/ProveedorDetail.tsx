@@ -13,6 +13,8 @@ import { CATEGORIAS_PROVEEDOR, CATEGORIA_PROVEEDOR_LABELS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const tipoBadge = (tipo: string) =>
   tipo === 'internacional'
     ? 'bg-purple-100 text-purple-700'
@@ -67,7 +69,7 @@ export const ProveedorDetail = () => {
     try {
       const data = await proveedoresService.getById(id);
       if (data) { setProveedor(data); setForm(toForm(data)); setContactos(data.contactos ?? []); }
-      else { alert('Proveedor no encontrado'); navigate('/stock/proveedores'); }
+      else { notify.error('Proveedor no encontrado'); navigate('/stock/proveedores'); }
     } catch (err) { console.error('Error cargando proveedor:', err); }
     finally { setLoading(false); }
   };
@@ -100,7 +102,7 @@ export const ProveedorDetail = () => {
       await proveedoresService.update(id, dataToSave);
       setProveedor(prev => prev ? { ...prev, ...dataToSave } as Proveedor : prev);
       setEditing(false);
-    } catch { alert('Error al guardar'); }
+    } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
 
@@ -166,11 +168,11 @@ export const ProveedorDetail = () => {
                   <Input inputSize="sm" label="Nombre *" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
                   <div>
                     <label className="block text-[11px] font-medium text-slate-700 mb-1">Tipo</label>
-                    <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                    <Select value={form.tipo} onChange={e => set('tipo', e.target.value)}
+                      className="w-full">
                       <option value="nacional">Nacional</option>
                       <option value="internacional">Internacional</option>
-                    </select>
+                    </Select>
                   </div>
                   {/* Rubros (2026-08-07): multi — DHL es agente de carga Y
                       despachante. Alimentan los selectores de importación y
@@ -250,13 +252,13 @@ export const ProveedorDetail = () => {
                   <Input inputSize="sm" label="Condiciones de pago" value={form.condicionesPago} onChange={e => set('condicionesPago', e.target.value)} />
                   <div>
                     <label className="block text-[11px] font-medium text-slate-700 mb-1">Moneda</label>
-                    <select value={form.moneda} onChange={e => set('moneda', e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                    <Select value={form.moneda} onChange={e => set('moneda', e.target.value)}
+                      className="w-full">
                       <option value="">Sin especificar</option>
                       <option value="ARS">ARS</option>
                       <option value="USD">USD</option>
                       <option value="EUR">EUR</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               ) : (

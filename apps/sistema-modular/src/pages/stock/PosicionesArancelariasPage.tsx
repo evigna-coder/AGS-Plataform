@@ -15,6 +15,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import type { PosicionArancelaria, TratamientoArancelario } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface FormState {
   codigo: string;
   descripcion: string;
@@ -135,7 +136,7 @@ export const PosicionesArancelariasPage = () => {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
-    } catch { alert('Error al crear la posicion arancelaria'); }
+    } catch { notify.error('Error al crear la posicion arancelaria'); }
     finally { setSaving(false); }
   };
 
@@ -152,18 +153,18 @@ export const PosicionesArancelariasPage = () => {
       });
       setEditingId(null);
       reload();
-    } catch { alert('Error al actualizar'); }
+    } catch { notify.error('Error al actualizar'); }
   };
 
   const handleToggle = async (p: PosicionArancelaria) => {
     try { await posicionesArancelariasService.update(p.id, { activo: !p.activo }); reload(); }
-    catch { alert('Error al cambiar estado'); }
+    catch { notify.error('Error al cambiar estado'); }
   };
 
   const handleDelete = async (p: PosicionArancelaria) => {
     if (!await confirm(`Eliminar permanentemente "${p.codigo}"?`)) return;
     try { await posicionesArancelariasService.delete(p.id); reload(); }
-    catch { alert('Error al eliminar'); }
+    catch { notify.error('Error al eliminar'); }
   };
 
   const numInput = (val: string, key: keyof FormState, setter: React.Dispatch<React.SetStateAction<FormState>>) => (

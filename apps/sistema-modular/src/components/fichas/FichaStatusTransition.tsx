@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import type { EstadoFicha } from '@ags/shared';
 import { ESTADO_FICHA_LABELS } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 const TRANSITIONS: Record<EstadoFicha, EstadoFicha[]> = {
   recibido: ['en_diagnostico'],
   en_diagnostico: ['en_reparacion', 'derivado_proveedor', 'esperando_repuesto', 'listo_para_entrega'],
@@ -67,8 +68,8 @@ export function FichaStatusTransition({ currentEstado, onTransition }: Props) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Nuevo estado *</label>
-            <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            <Select
+              className="w-full" selectSize="md"
               value={selectedEstado}
               onChange={e => setSelectedEstado(e.target.value as EstadoFicha)}
             >
@@ -76,7 +77,7 @@ export function FichaStatusTransition({ currentEstado, onTransition }: Props) {
               {options.map(e => (
                 <option key={e} value={e}>{ESTADO_FICHA_LABELS[e]}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Nota / comentario *</label>

@@ -10,6 +10,7 @@ import { EditContratoModal } from '../../components/contratos/EditContratoModal'
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 
 export const ContratoDetail = () => {
@@ -48,7 +49,7 @@ export const ContratoDetail = () => {
       setSaving(true);
       await contratosService.update(id, { estado });
       setContrato(prev => prev ? { ...prev, estado } : prev);
-    } catch { alert('Error al cambiar estado'); }
+    } catch { notify.error('Error al cambiar estado'); }
     finally { setSaving(false); }
   };
 

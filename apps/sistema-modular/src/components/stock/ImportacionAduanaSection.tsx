@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { Importacion } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   imp: Importacion;
   onUpdate: () => void;
@@ -35,7 +36,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
       setEditing(false);
       onUpdate();
     } catch (err) {
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }

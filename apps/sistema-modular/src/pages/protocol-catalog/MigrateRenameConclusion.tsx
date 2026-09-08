@@ -5,6 +5,7 @@ import { tableProjectsService, tableCatalogService } from '../../services/catalo
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 const TARGET_PROJECT_NAMES = [
   'Calificación + RQ HPLC 1100-1260',
   'Calificación de operación HPLC 1260/1290',
@@ -93,7 +94,7 @@ export const MigrateRenameConclusion = () => {
   }, []);
 
   const apply = async () => {
-    if (!confirm(`¿Aplicar los cambios a ${plan.length} tabla(s)? Esta operación no se puede deshacer automáticamente.`)) return;
+    if (!await confirmar(`¿Aplicar los cambios a ${plan.length} tabla(s)? Esta operación no se puede deshacer automáticamente.`)) return;
     setApplying(true);
     setApplyErrors([]);
     let success = 0;

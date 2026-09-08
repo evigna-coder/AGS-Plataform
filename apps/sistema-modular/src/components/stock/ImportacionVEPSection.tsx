@@ -5,6 +5,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { Importacion } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   imp: Importacion;
   onUpdate: () => void;
@@ -35,7 +37,7 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
       setEditing(false);
       onUpdate();
     } catch (err) {
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -52,7 +54,7 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
       });
       onUpdate();
     } catch {
-      alert('Error al confirmar el pago');
+      notify.error('Error al confirmar el pago');
     } finally {
       setSaving(false);
     }
@@ -104,14 +106,14 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
           <Input inputSize="sm" label="Monto" type="number" step="0.01" value={form.vepMonto} onChange={set('vepMonto')} />
           <div>
             <label className="text-[11px] font-medium text-slate-700 mb-1 block">Moneda</label>
-            <select
+            <Select
               value={form.vepMoneda}
               onChange={set('vepMoneda')}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full"
             >
               <option value="ARS">ARS</option>
               <option value="USD">USD</option>
-            </select>
+            </Select>
           </div>
           <Input inputSize="sm" label="Fecha de pago" type="date" value={form.vepFechaPago} onChange={set('vepFechaPago')} />
         </div>

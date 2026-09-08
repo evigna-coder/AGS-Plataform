@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { useRelinkearArticulos } from './useRelinkearArticulos';
 import type { ScannedItem } from './useRelinkearArticulos';
 
+import { Select } from '../../components/ui/Select';
 function ItemRow({ item, onToggle, onSelect }: {
   item: ScannedItem;
   onToggle: (id: string, v: boolean) => void;
@@ -19,16 +20,16 @@ function ItemRow({ item, onToggle, onSelect }: {
           <span className="font-mono text-teal-700">{candidate.codigo} — {candidate.descripcion}</span>
         )}
         {item.status === 'ambiguous' && (
-          <select
+          <Select
             value={item.selectedCandidateId ?? ''}
             onChange={e => onSelect(item.itemId, e.target.value)}
-            className="border border-slate-200 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-700 max-w-[240px]"
+            className="font-mono max-w-[240px]"
           >
             <option value="">— Elegir —</option>
             {item.candidates.map(c => (
               <option key={c.id} value={c.id}>{c.codigo} — {c.descripcion}</option>
             ))}
-          </select>
+          </Select>
         )}
         {item.status === 'no_match' && <span className="text-slate-400 italic">Sin coincidencia</span>}
       </td>

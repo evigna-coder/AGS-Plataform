@@ -11,6 +11,7 @@ import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, 
 import { presupuestoEstaAceptado, establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
+import { notify } from '../utils/notify';
 export interface CreateOTFormState {
   tipoOT: TipoOT;
   clienteId: string;
@@ -394,13 +395,13 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   };
 
   const handleSave = async () => {
-    if (!form.clienteId) { alert('Seleccione un cliente'); return; }
-    if (!form.tipoServicioId) { alert('Seleccione un tipo de servicio'); return; }
+    if (!form.clienteId) { notify.warning('Seleccione un cliente'); return; }
+    if (!form.tipoServicioId) { notify.warning('Seleccione un tipo de servicio'); return; }
     // Fin de semana (2026-08-12): no se coordinan servicios sábado ni domingo.
     // Se valida acá y no solo en la agenda porque guardar la OT con fecha
     // dispara autoCreateFromOT y la entrada nacía en el finde igual.
     if (esFinDeSemana(form.fechaServicioAprox)) {
-      alert(mensajeFinDeSemana(form.fechaServicioAprox));
+      notify.warning(mensajeFinDeSemana(form.fechaServicioAprox));
       return;
     }
     // Cupo del contrato (2026-08-17): "1 preventivo por equipo por año" se
@@ -415,12 +416,12 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         fecha: form.fechaServicioAprox || undefined,
       }).catch(() => ({ allowed: true } as const));
       if (!cupo.allowed) {
-        alert(`No se puede crear la OT bajo este contrato.\n\n${cupo.reason}`);
+        notify.error(`No se puede crear la OT bajo este contrato.\n\n${cupo.reason}`);
         return;
       }
     }
     if (presupuestoRequerido && !form.presupuestoId && !form.motivoFacturacion) {
-      alert('Debe seleccionar un presupuesto, o indicar la base de facturación (presupuesto pendiente, sin cargo o en garantía)');
+      notify.warning('Debe seleccionar un presupuesto, o indicar la base de facturación (presupuesto pendiente, sin cargo o en garantía)');
       return;
     }
 
@@ -429,7 +430,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       const tipoServ = tiposServicio.find(t => t.id === form.tipoServicioId);
       const validation = await contratosService.validateOTCreation(form.contratoId, tipoServ?.nombre);
       if (!validation.allowed) {
-        alert(`No se puede crear OT: ${validation.reason}`);
+        notify.warning(`No se puede crear OT: ${validation.reason}`);
         return;
       }
     }
@@ -452,19 +453,19 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId)
       ?? ingenieros.find(u => u.id === form.ingenieroId);
 
-    if (!cliente || !tipoServicioNombre) { alert('Datos incompletos'); return; }
+    if (!cliente || !tipoServicioNombre) { notify.warning('Datos incompletos'); return; }
     // OT sobre módulo AGS: requiere loaner elegido en lugar de sistema.
     if (otSobreLoaner && !loanerSeleccionado) {
-      alert('Seleccione el módulo AGS (loaner) para la OT');
+      notify.warning('Seleccione el módulo AGS (loaner) para la OT');
       return;
     }
     // En OT de entrega el equipo es opcional. En OT sobre loaner el equipo se
     // reemplaza por el módulo AGS. Con "equipo no listado" el equipo es texto
     // libre opcional. En OT de servicio común sigue siendo obligatorio.
     if (form.tipoOT !== 'entrega' && !loanerSeleccionado && !equipoNoListado) {
-      if (!form.sistemaId) { alert('Seleccione un equipo, o marque "El equipo no está en el listado / sin equipo"'); return; }
+      if (!form.sistemaId) { notify.warning('Seleccione un equipo, o marque "El equipo no está en el listado / sin equipo"'); return; }
       if (!sistema) {
-        alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
+        notify.warning('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
         return;
       }
     }
@@ -655,7 +656,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       onCreated(otNum);
     } catch (err) {
       console.error('Error creando OT:', err);
-      alert(err instanceof Error ? err.message : 'Error al crear la orden de trabajo');
+      notify.error(err instanceof Error ? err.message : 'Error al crear la orden de trabajo');
     }
     finally { setSaving(false); }
   };

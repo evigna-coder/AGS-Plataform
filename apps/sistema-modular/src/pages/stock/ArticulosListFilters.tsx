@@ -9,6 +9,7 @@ import {
   TIPO_ARTICULO_LABELS as TIPO_LABELS,
 } from '../../utils/exports/exportArticulos';
 
+import { Select } from '../../components/ui/Select';
 interface Props {
   localSearch: string;
   onSearchChange: (val: string) => void;
@@ -59,36 +60,33 @@ export function ArticulosListFilters({
         onChange={e => onSearchChange(e.target.value)}
         className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
       />
-      <select
+      <Select
         value={categoriaEquipo}
         onChange={e => onCategoriaChange(e.target.value)}
-        className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
         <option value="">Todas las categorias</option>
         {(Object.keys(CATEGORIA_LABELS) as CategoriaEquipoStock[]).map(k => (
           <option key={k} value={k}>{CATEGORIA_LABELS[k]}</option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         value={marcaId}
         onChange={e => onMarcaChange(e.target.value)}
-        className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
         <option value="">Todas las marcas</option>
         {marcas.map(m => (
           <option key={m.id} value={m.id}>{m.nombre}</option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         value={tipo}
         onChange={e => onTipoChange(e.target.value)}
-        className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
         <option value="">Todos los tipos</option>
         {(Object.keys(TIPO_LABELS) as TipoArticulo[]).map(k => (
           <option key={k} value={k}>{TIPO_LABELS[k]}</option>
         ))}
-      </select>
+      </Select>
       <div className="w-52">
         <SearchableSelect value={deposito} onChange={onDepositoChange} options={depositoOptions} placeholder="Deposito" size="sm" />
       </div>

@@ -175,25 +175,44 @@ const formatDate = (d?: string) => {
 
 ## Empty State
 
+Atom `EmptyState` (`components/ui/EmptyState`): ícono, mensaje, pista y acción,
+igual en todos los módulos. No armar el párrafo gris a mano.
+
 ```tsx
-<Card><div className="text-center py-12">
-  <p className="text-slate-400">No se encontraron {entity plural}</p>
-  <button onClick={() => setShowCreate(true)}
-    className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
-    Crear primer {entity}
-  </button>
-</div></Card>
+<EmptyState
+  message="No se encontraron {entity plural}"
+  hint="Probá con otros filtros o ampliá la búsqueda"   // cuando hay filtros activos
+  action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline">Crear primer {entity}</button>}
+/>
 ```
+
+`inline` para usarlo dentro de una sección que ya tiene Card.
 
 ## Loading State
 
+Atom `LoadingState` (`components/ui/LoadingState`): filas fantasma que laten,
+no el texto "Cargando…" suelto (la pantalla no salta cuando llegan los datos).
+
 ```tsx
-if (loading && items.length === 0) {
-  return <div className="flex items-center justify-center py-12">
-    <p className="text-slate-400">Cargando {entity plural}...</p>
-  </div>;
-}
+if (loading && items.length === 0) return <LoadingState message="Cargando {entity plural}…" />;
 ```
+
+## Selectores
+
+- Listas cortas y fijas (moneda, estado, tipo): atom `Select` (`components/ui/Select`),
+  un `<select>` nativo con la piel del sistema. `selectSize` xs/sm/md, `invalid` para
+  borde rojo. `className` solo para layout (w-*, flex-1, m*); nunca bordes/padding.
+- Listas largas o con búsqueda (clientes, artículos, establecimientos): `SearchableSelect`.
+- Nunca un `<select>` pelado con clases a mano.
+
+## Avisos y confirmaciones
+
+- Nunca `alert()` ni `window.confirm()`: abren el diálogo crudo de Windows.
+- Avisos: `notify.success / error / warning / info` (`utils/notify`), imperativo,
+  sirve en hooks, servicios y handlers. `notify.error(err)` acepta un `Error`.
+- Confirmar: `useConfirm()` dentro de componentes (queda en la pestaña que lo
+  pidió); `confirmar()` (`components/ui/ConfirmDialog`) desde hooks/servicios.
+  Ambos devuelven `Promise<boolean>`.
 
 ## HARD RULES
 
@@ -216,7 +235,7 @@ if (loading && items.length === 0) {
 - [ ] All cells single-line (truncate / whitespace-nowrap)
 - [ ] Badges: `text-[10px] font-medium px-1.5 py-0.5 rounded-full`
 - [ ] Actions: `text-[10px] font-medium` with color coding
-- [ ] Empty state with create link
+- [ ] `EmptyState` con acción de crear; `LoadingState` mientras carga; sin `alert()`
 - [ ] Loading state
 - [ ] Modals at bottom
 - [ ] Max 250 lines

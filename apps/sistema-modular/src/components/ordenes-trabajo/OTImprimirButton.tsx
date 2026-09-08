@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { notify } from '../../utils/notify';
 interface Props {
   otNumber: string;
   /** `icono` para el listado (solo la impresora), `boton` para el modal. */
@@ -24,7 +25,7 @@ export function OTImprimirButton({ otNumber, variante = 'icono' }: Props) {
       await imprimirOT(otNumber);
     } catch (err) {
       console.error('[OTImprimirButton] imprimir fallo:', err);
-      alert(err instanceof Error ? err.message : 'No se pudo generar la hoja de la OT');
+      notify.error(err instanceof Error ? err.message : 'No se pudo generar la hoja de la OT');
     } finally {
       setCargando(false);
     }

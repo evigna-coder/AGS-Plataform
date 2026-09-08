@@ -27,6 +27,7 @@ import {
 } from '@ags/shared';
 import { validatePatronComponentes } from './patronComponentesValidation';
 
+import { notify } from '../../utils/notify';
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -169,10 +170,10 @@ export const PatronEditorPage = () => {
         setLotes(prev => prev.filter((_, i) => i !== idx));
         setLotesBaja(prev => [...prev, entry]);
       } else {
-        alert('El lote ya no está en el patrón (posiblemente dado de baja desde otra sesión). Recargá la página.');
+        notify.error('El lote ya no está en el patrón (posiblemente dado de baja desde otra sesión). Recargá la página.');
       }
     } catch {
-      alert('Error al dar de baja el lote');
+      notify.error('Error al dar de baja el lote');
     }
   };
   const updateLote = (idx: number, key: keyof PatronLote, value: any) => {
@@ -180,16 +181,16 @@ export const PatronEditorPage = () => {
   };
 
   const handleSave = async (): Promise<string | null> => {
-    if (!codigoArticulo.trim()) { alert('El código de artículo es obligatorio'); return null; }
-    if (!descripcion.trim()) { alert('La descripción es obligatoria'); return null; }
-    if (categorias.length === 0) { alert('Seleccione al menos una categoría'); return null; }
+    if (!codigoArticulo.trim()) { notify.warning('El código de artículo es obligatorio'); return null; }
+    if (!descripcion.trim()) { notify.warning('La descripción es obligatoria'); return null; }
+    if (categorias.length === 0) { notify.warning('Seleccione al menos una categoría'); return null; }
     // Validar lotes: al menos tienen que tener lote
     for (const [i, l] of lotes.entries()) {
-      if (!l.lote.trim()) { alert(`El lote #${i + 1} necesita un código de lote`); return null; }
+      if (!l.lote.trim()) { notify.error(`El lote #${i + 1} necesita un código de lote`); return null; }
     }
     // Phase 14 BOM-04 — guards sobre componentes (RESEARCH pitfalls 1+3)
     const componentesError = validatePatronComponentes(componentes);
-    if (componentesError) { alert(componentesError); return null; }
+    if (componentesError) { notify.error(componentesError); return null; }
     setSaving(true);
     try {
       const data: Omit<Patron, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -208,7 +209,7 @@ export const PatronEditorPage = () => {
     } catch (err) {
       // Errores del service guard (rename con consumos previos) propagan acá.
       const msg = err instanceof Error ? err.message : 'Error al guardar el patrón';
-      alert(msg);
+      notify.warning(msg);
       return null;
     } finally {
       setSaving(false);
@@ -221,9 +222,9 @@ export const PatronEditorPage = () => {
   };
 
   const handleCertUpload = async (loteIdx: number, file: File) => {
-    if (!id) { alert('Guarde el patrón primero antes de subir certificados'); return; }
+    if (!id) { notify.warning('Guarde el patrón primero antes de subir certificados'); return; }
     if (!lotes[loteIdx]?.lote.trim()) {
-      alert('El lote necesita un código antes de subir el certificado');
+      notify.warning('El lote necesita un código antes de subir el certificado');
       return;
     }
     setUploadingLoteIdx(loteIdx);
@@ -247,7 +248,7 @@ export const PatronEditorPage = () => {
       const refreshed = await getPatron(savedId);
       if (refreshed) setLotes(refreshed.lotes);
     } catch {
-      alert('Error al subir el certificado');
+      notify.error('Error al subir el certificado');
     } finally {
       setUploadingLoteIdx(null);
     }

@@ -11,6 +11,7 @@ import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete'
 import type { CondicionIva, RequisitoFacturacion } from '@ags/shared';
 import { REQUISITO_FACTURACION_LABELS } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -98,7 +99,7 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
       handleClose();
       onCreated();
       navigate(`/clientes/${clienteId}`);
-    } catch { alert('Error al crear el cliente'); }
+    } catch { notify.error('Error al crear el cliente'); }
     finally { setSaving(false); }
   };
 

@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { RowVisibilityConditions, type VisibilityCondition } from './RowVisibilityConditions';
 import type { TableCatalogColumn, TableCatalogRow, TableHeaderField } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 type RowMode = 'data' | 'title' | 'selector' | 'checkbox';
 
 interface Props {
@@ -266,16 +267,16 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
               {columns.length > 1 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase">Dropdown en:</span>
-                  <select
+                  <Select
                     value={selectorColumn}
                     onChange={e => setSelectorColumn(Number(e.target.value))}
-                    className="text-xs border border-slate-300 rounded px-1.5 py-0.5 bg-white"
+                    selectSize="xs"
                   >
                     <option value={0}>{columns[0]?.label ?? 'Col 1'} (junto al label)</option>
                     {columns.slice(1).map((col, i) => (
                       <option key={col.key} value={i + 1}>{col.label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
             </div>
@@ -328,10 +329,10 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
           <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 space-y-1.5">
             <p className="text-[10px] font-bold text-violet-700 uppercase">Variable del reporte</p>
             <p className="text-[10px] text-violet-600">Cuando se asigna una variable, la columna de valor se auto-rellena con datos del reporte (cliente, OT, ingeniero, etc.).</p>
-            <select
+            <Select
               value={variable}
               onChange={e => setVariable(e.target.value)}
-              className="w-full border border-violet-300 rounded-lg px-2 py-1.5 text-sm bg-white"
+              className="w-full" selectSize="md"
             >
               <option value="">Sin variable (valor manual)</option>
               <optgroup label="Cliente">
@@ -353,7 +354,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
                 <option value="ags.email">Email</option>
                 <option value="ags.web">Sitio web</option>
               </optgroup>
-            </select>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -368,27 +369,27 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
                   )}
                 </label>
                 {col.type === 'pass_fail' ? (
-                  <select
+                  <Select
                     value={String(cells[col.key] ?? '')}
                     onChange={e => handleChange(col.key, e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full" selectSize="md"
                   >
                     <option value="">—</option>
                     <option value="PASA">PASA</option>
                     <option value="FALLA">FALLA</option>
                     <option value="N/A">N/A</option>
-                  </select>
+                  </Select>
                 ) : col.type === 'select_input' && col.options?.length ? (
-                  <select
+                  <Select
                     value={String(cells[col.key] ?? '')}
                     onChange={e => handleChange(col.key, e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full" selectSize="md"
                   >
                     <option value="">—</option>
                     {col.options.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
-                  </select>
+                  </Select>
                 ) : col.type === 'checkbox' ? (
                   <div className="flex items-center h-9">
                     <input

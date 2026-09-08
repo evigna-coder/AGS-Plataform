@@ -31,6 +31,7 @@ import {
   type ClipboardData,
 } from '../../utils/agendaOTSync';
 
+import { notify } from '../../utils/notify';
 /**
  * Posición del menú contextual. Abría SIEMPRE hacia arriba
  * (`bottom: innerHeight - y`), así que en la primera fila de celdas se salía por
@@ -321,20 +322,20 @@ export const AgendaPage: FC = () => {
     // Fin de semana — ANTES de cualquier efecto, igual que feriados (2026-08-12).
     const findePaste = primerFinDeSemanaEnRango(fechaInicio, fechaFin);
     if (findePaste) {
-      alert(mensajeFinDeSemana(findePaste));
+      notify.warning(mensajeFinDeSemana(findePaste));
       return;
     }
     // Bloqueo duro de feriados — ANTES de cualquier efecto (el sync de la OT
     // corre en paralelo al alta de la entrada).
     const feriadoPaste = primerFeriadoEnRango(fechaInicio, fechaFin);
     if (feriadoPaste) {
-      alert(`El ${feriadoPaste} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      notify.warning(`El ${feriadoPaste} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
       return;
     }
     // Día AGS del ingeniero destino (no laborable individual) — mismo bloqueo.
     const diaAgsPaste = primerDiaAgsEnRango(cell.ingenieroId, fechaInicio, fechaFin);
     if (diaAgsPaste) {
-      alert(`El ${diaAgsPaste} es día AGS de ${ingeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
+      notify.warning(`El ${diaAgsPaste} es día AGS de ${ingeniero.nombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return;
     }
 
@@ -347,12 +348,12 @@ export const AgendaPage: FC = () => {
         const end = span > 0 ? formatDateKey(addDays(parseISO(cell.fecha), span)) : cell.fecha;
         const finde = primerFinDeSemanaEnRango(cell.fecha, end);
         if (finde) {
-          alert(mensajeFinDeSemana(finde));
+          notify.warning(mensajeFinDeSemana(finde));
           return;
         }
         const fer = primerFeriadoEnRango(cell.fecha, end);
         if (fer) {
-          alert(`El ${fer} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+          notify.warning(`El ${fer} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
           return;
         }
       }
@@ -739,7 +740,7 @@ export const AgendaPage: FC = () => {
       }
     } catch (err) {
       console.error('Error guardando comentario de agenda:', err);
-      alert('Error al guardar el comentario');
+      notify.error('Error al guardar el comentario');
     }
     setNotaInput(null);
   }, [notaInput, notaTexto, upsertNota, deleteNota]);

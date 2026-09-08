@@ -136,7 +136,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
             {entry.sistemaNombre && <span className="text-[11px] text-slate-400 truncate">{entry.sistemaNombre}</span>}
             {entry.equipoAgsId && <span className="text-[11px] font-mono text-slate-500 shrink-0">{entry.equipoAgsId}</span>}
 
-            {/* Estado dropdown */}
+            {/* Estado dropdown: pill de color, diseño propio (select nativo a propósito) */}
             <select
               value={entry.estadoAgenda}
               onChange={e => onChangeEstado?.(entry.id, e.target.value as EstadoAgenda)}

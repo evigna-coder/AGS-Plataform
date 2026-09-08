@@ -9,6 +9,7 @@ import { KitComponentesSection } from './KitComponentesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   articuloId: string | null;
@@ -29,7 +30,6 @@ const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
 ];
 
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide";
-const selectCls = "w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-700";
 const inputCls = "w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700";
 const section = "text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest";
 
@@ -88,15 +88,15 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           </div>
           <div>
             <label className={lbl}>Tipo</label>
-            <select value={h.form.tipo} onChange={e => h.set('tipo', e.target.value)} className={selectCls}>
+            <Select value={h.form.tipo} onChange={e => h.set('tipo', e.target.value)} className="w-full">
               {TIPO_OPTIONS.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={lbl}>Unidad</label>
-            <select value={h.form.unidadMedida} onChange={e => h.set('unidadMedida', e.target.value)} className={selectCls}>
+            <Select value={h.form.unidadMedida} onChange={e => h.set('unidadMedida', e.target.value)} className="w-full">
               {UNIDAD_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -112,10 +112,10 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           {(h.form.precioReferencia ?? 0) > 0 && (
             <div>
               <label className={lbl}>Moneda</label>
-              <select value={h.form.monedaPrecio} onChange={e => h.set('monedaPrecio', e.target.value)} className={selectCls}>
+              <Select value={h.form.monedaPrecio} onChange={e => h.set('monedaPrecio', e.target.value)} className="w-full">
                 <option value="USD">USD</option>
                 <option value="ARS">ARS</option>
-              </select>
+              </Select>
             </div>
           )}
           <div>

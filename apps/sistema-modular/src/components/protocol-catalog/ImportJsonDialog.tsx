@@ -6,6 +6,7 @@ import { convertDocxToProtocolJson } from '../../utils/wordToProtocolJson';
 import { mapSection } from '../../utils/tableCatalogJsonImport';
 import type { TableCatalogEntry } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 
 interface Props {
@@ -169,11 +170,11 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
               <label className="block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide">
                 Tipo de sistema (se aplica a todas las tablas)
               </label>
-              <select value={sysType} onChange={e => setSysType(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={sysType} onChange={e => setSysType(e.target.value)}
+                className="w-full" selectSize="md">
                 <option value="">Seleccionar...</option>
                 {SYS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              </Select>
             </div>
 
             {mode === 'word' ? (

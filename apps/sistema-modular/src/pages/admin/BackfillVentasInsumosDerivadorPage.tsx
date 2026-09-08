@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { leadsService, usuariosService } from '../../services/firebaseService';
 import type { UsuarioAGS } from '@ags/shared';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 type Result = Awaited<ReturnType<typeof leadsService.backfillVentasInsumosDerivador>>;
 
 export default function BackfillVentasInsumosDerivadorPage() {
@@ -39,7 +40,7 @@ export default function BackfillVentasInsumosDerivadorPage() {
 
   const apply = async () => {
     if (!preview) return;
-    if (!confirm(
+    if (!await confirmar(
       `Stampear ventasInsumosCreadoPor en ${preview.asignados} ticket(s). ` +
       'Idempotente (no toca tickets ya stampeados). ¿Continuar?'
     )) return;

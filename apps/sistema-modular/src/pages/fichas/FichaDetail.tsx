@@ -14,6 +14,7 @@ import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 export function FichaDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ export function FichaDetail() {
     const msg = itemsEnEnvio.length === 1
       ? `Confirmar entrega del item ${itemsEnEnvio[0].subId}?`
       : `Confirmar entrega de ${itemsEnEnvio.length} items?`;
-    if (!window.confirm(msg)) return;
+    if (!await confirmar(msg)) return;
     for (const it of itemsEnEnvio) {
       await fichasService.transitionItem(
         ficha.id,

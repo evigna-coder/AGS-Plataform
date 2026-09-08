@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { AddressAutocomplete, AutocompleteResult } from '../../components/AddressAutocomplete';
 
+import { notify } from '../../utils/notify';
 const TIPOS: { value: Establecimiento['tipo']; label: string }[] = [
   { value: 'planta', label: 'Planta' },
   { value: 'sucursal', label: 'Sucursal' },
@@ -132,16 +133,16 @@ export const EstablecimientoNew = () => {
       if (isEditMode) {
         // En update NO actualizamos clienteCuit para evitar cambios no intencionales
         await establecimientosService.update(id!, payload);
-        alert('Establecimiento actualizado correctamente');
+        notify.success('Establecimiento actualizado correctamente');
         navigate(`/establecimientos/${id}`);
       } else {
         const newId = await establecimientosService.create(clienteCuit, payload);
-        alert('Establecimiento creado correctamente');
+        notify.success('Establecimiento creado correctamente');
         navigate(`/establecimientos/${newId}`);
       }
     } catch (err) {
       console.error(err);
-      alert(`Error al ${isEditMode ? 'actualizar' : 'crear'} el establecimiento`);
+      notify.error(`Error al ${isEditMode ? 'actualizar' : 'crear'} el establecimiento`);
     } finally {
       setLoading(false);
     }

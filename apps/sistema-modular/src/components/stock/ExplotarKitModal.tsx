@@ -7,6 +7,7 @@ import { kitsService } from '../../services/kitsService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Articulo, UnidadStock, UbicacionStock } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   articulo: Articulo | null;
@@ -71,7 +72,7 @@ export function ExplotarKitModal({ open, articulo, onClose, onSuccess }: Props) 
       setDone(`${r.kitsConsumidos} kit(s) consumidos · ${r.componentesCreados} unidad(es) de componentes dadas de alta en ${seleccionada.ubicacion.referenciaNombre}.`);
       onSuccess?.();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al explotar el kit');
+      notify.error(e instanceof Error ? e.message : 'Error al explotar el kit');
     } finally {
       setConfirming(false);
     }

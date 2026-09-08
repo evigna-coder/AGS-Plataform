@@ -13,6 +13,8 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { CONSUMIBLES_POR_MODULO_EXPORT_COLUMNS } from '../../utils/exports/exportConsumiblesPorModulo';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 const FILTER_SCHEMA = {
   q: { type: 'string' as const, default: '' },
 };
@@ -46,7 +48,7 @@ export const ConsumiblesPorModuloList = () => {
       setItems(await consumiblesPorModuloService.getAll());
     } catch (err) {
       console.error('Error cargando consumibles por módulo:', err);
-      alert('Error al cargar los módulos');
+      notify.error('Error al cargar los módulos');
     } finally {
       setLoading(false);
     }
@@ -86,12 +88,12 @@ export const ConsumiblesPorModuloList = () => {
       await load();
     } catch (err) {
       console.error('Error eliminando módulo:', err);
-      alert('Error al eliminar el módulo');
+      notify.error('Error al eliminar el módulo');
     }
   };
 
   if (loading && items.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
+    return <LoadingState message="Cargando…" />;
   }
 
   return (

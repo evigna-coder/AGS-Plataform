@@ -3,6 +3,8 @@ import type { Pendiente, PendienteTipo } from '@ags/shared';
 import { PENDIENTE_TIPO_LABELS, PENDIENTE_TIPO_COLORS } from '@ags/shared';
 import { pendientesService } from '../../services/pendientesService';
 
+import { notify } from '../../utils/notify';
+import { confirmar } from '../ui/ConfirmDialog';
 export interface PendientesActivosBannerProps {
   /** Cliente al que filtrar. Si es null/undefined, no carga nada. */
   clienteId: string | null | undefined;
@@ -82,7 +84,7 @@ export const PendientesActivosBanner: React.FC<PendientesActivosBannerProps> = (
   };
 
   const handleDescartarClick = async (p: Pendiente) => {
-    const confirmado = confirm(`¿Descartar pendiente?\n\n"${p.descripcion}"`);
+    const confirmado = await confirmar(`¿Descartar pendiente?\n\n"${p.descripcion}"`);
     if (!confirmado) return;
     setDescartandoId(p.id);
     try {
@@ -90,7 +92,7 @@ export const PendientesActivosBanner: React.FC<PendientesActivosBannerProps> = (
       onDescartar?.(p);
     } catch (err) {
       console.error('Error descartando:', err);
-      alert('No se pudo descartar');
+      notify.error('No se pudo descartar');
     } finally {
       setDescartandoId(null);
     }

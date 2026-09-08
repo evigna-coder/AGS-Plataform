@@ -10,6 +10,7 @@ import { sectoresCatalogService, type SectorCatalog } from '../../services/catal
 import type { Cliente, Establecimiento, CategoriaEquipo, ConfiguracionGC } from '@ags/shared';
 import { esGaseoso, establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -88,10 +89,10 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
   };
 
   const handleSave = async () => {
-    if (!form.establecimientoId) { alert('Seleccione un establecimiento'); return; }
-    if (!form.categoriaId) { alert('Seleccione una categoria'); return; }
+    if (!form.establecimientoId) { notify.warning('Seleccione un establecimiento'); return; }
+    if (!form.categoriaId) { notify.warning('Seleccione una categoria'); return; }
     const finalNombre = form.nombre === '__otro__' ? form.nombreManual.trim() : form.nombre;
-    if (!finalNombre) { alert('El nombre es obligatorio'); return; }
+    if (!finalNombre) { notify.warning('El nombre es obligatorio'); return; }
 
     setSaving(true);
     try {
@@ -119,7 +120,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
       handleClose();
       onCreated();
       navigate(`/equipos/${sistemaId}`, { state: { from: pathname } });
-    } catch (err) { console.error('Error creando sistema:', err); alert('Error al crear el sistema'); }
+    } catch (err) { console.error('Error creando sistema:', err); notify.error('Error al crear el sistema'); }
     finally { setSaving(false); }
   };
 

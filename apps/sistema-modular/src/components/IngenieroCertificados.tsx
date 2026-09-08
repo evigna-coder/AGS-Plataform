@@ -4,6 +4,8 @@ import { CATEGORIA_PATRON_LABELS } from '@ags/shared';
 import { certificadosIngenieroService } from '../services/personalService';
 import { useConfirm } from './ui/ConfirmDialog';
 
+import { notify } from '../utils/notify';
+import { Select } from './ui/Select';
 const CATEGORIAS: CategoriaPatron[] = ['gc', 'hplc', 'uv', 'osmometro', 'polarimetro'];
 
 interface Props {
@@ -71,14 +73,14 @@ export const IngenieroCertificados: FC<Props> = ({ ingenieroId, ingenieroNombre 
         fechaVencimiento: fechaVencimiento || null,
       }, file);
       resetForm();
-    } catch { alert('Error al subir certificado'); }
+    } catch { notify.error('Error al subir certificado'); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (cert: CertificadoIngeniero) => {
     if (!await confirm(`¿Eliminar certificado "${cert.descripcion}"?`)) return;
     try { await certificadosIngenieroService.delete(cert.id, cert.certificadoStoragePath); }
-    catch { alert('Error al eliminar'); }
+    catch { notify.error('Error al eliminar'); }
   };
 
   return (
@@ -94,10 +96,10 @@ export const IngenieroCertificados: FC<Props> = ({ ingenieroId, ingenieroNombre 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Categoría</label>
-              <select value={categoria} onChange={e => setCategoria(e.target.value as CategoriaPatron)}
-                className="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+              <Select value={categoria} onChange={e => setCategoria(e.target.value as CategoriaPatron)}
+                className="w-full">
                 {CATEGORIAS.map(c => <option key={c} value={c}>{CATEGORIA_PATRON_LABELS[c]}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Descripción *</label>

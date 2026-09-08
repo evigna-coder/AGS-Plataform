@@ -25,6 +25,8 @@ import {
   type AccionPendienteRow,
 } from './AccionesPendientesRow';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
+import { Select } from '../../components/ui/Select';
 const FILTERS_SCHEMA = {
   tipo: { type: 'string' as const, default: '' },
   antiguedad: { type: 'string' as const, default: '' },
@@ -104,7 +106,7 @@ export default function AccionesPendientesPage() {
   };
 
   const handleResolve = async (row: AccionPendienteRow) => {
-    if (!window.confirm(`Marcar como resuelta la acción "${TYPE_LABELS[row.action.type]}" de ${row.presupuestoNumero}?`)) return;
+    if (!await confirmar(`Marcar como resuelta la acción "${TYPE_LABELS[row.action.type]}" de ${row.presupuestoNumero}?`)) return;
     setActingOn(row.action.id);
     try {
       await presupuestosService.markPendingActionResolved(row.presupuestoId, row.action.id);
@@ -139,41 +141,39 @@ export default function AccionesPendientesPage() {
         <div className="flex gap-3 flex-wrap items-end">
           <div>
             <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-600 mb-1">Tipo</label>
-            <select
+            <Select
               value={filters.tipo}
               onChange={e => setFilter('tipo', e.target.value)}
-              className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white"
             >
               <option value="">Todos</option>
               <option value="crear_ticket_seguimiento">Crear ticket seguimiento</option>
               <option value="derivar_comex">Derivar a Comex</option>
               <option value="enviar_mail_facturacion">Enviar mail facturación</option>
               <option value="notificar_coordinador_ot">Notificar coordinador OT</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-600 mb-1">Antigüedad</label>
-            <select
+            <Select
               value={filters.antiguedad}
               onChange={e => setFilter('antiguedad', e.target.value)}
-              className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white"
             >
               <option value="">Cualquier</option>
               <option value="nuevo">&lt; 1 día</option>
               <option value="mediana">1-7 días</option>
               <option value="vieja">&gt; 7 días</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-600 mb-1">Cliente</label>
-            <select
+            <Select
               value={filters.clienteId}
               onChange={e => setFilter('clienteId', e.target.value)}
-              className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white max-w-[200px]"
+              className="max-w-[200px]"
             >
               <option value="">Todos</option>
               {clienteIds.map(cid => (<option key={cid} value={cid}>{cid}</option>))}
-            </select>
+            </Select>
           </div>
           {hasActiveFilter && (
             <Button variant="ghost" size="sm" onClick={resetFilters}>Limpiar filtros</Button>

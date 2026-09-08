@@ -12,6 +12,8 @@ import {
   CATEGORIAS_MODULOS_EXPORT_COLUMNS, CATEGORIAS_SISTEMAS_EXPORT_COLUMNS,
 } from '../../utils/exports/exportCategoriasEquipo';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 type TabType = 'sistemas' | 'modulos';
 
 export const CategoriasEquipo = () => {
@@ -50,7 +52,7 @@ export const CategoriasEquipo = () => {
       setCategoriasModulos(modulosData);
     } catch (error) {
       console.error('Error cargando categorías:', error);
-      if (!silent) alert('Error al cargar categorías');
+      if (!silent) notify.error('Error al cargar categorías');
     } finally {
       if (!silent) setLoading(false);
     }
@@ -59,7 +61,7 @@ export const CategoriasEquipo = () => {
   // Handlers para categorías de sistemas
   const handleSaveSistema = async () => {
     if (!formDataSistemas.nombre.trim()) {
-      alert('El nombre es obligatorio');
+      notify.warning('El nombre es obligatorio');
       return;
     }
     try {
@@ -81,7 +83,7 @@ export const CategoriasEquipo = () => {
       setFormDataSistemas({ nombre: '', modelosText: '' });
     } catch (error) {
       console.error('Error guardando categoría:', error);
-      alert('Error al guardar la categoría');
+      notify.error('Error al guardar la categoría');
     }
   };
 
@@ -98,20 +100,20 @@ export const CategoriasEquipo = () => {
       await loadAll(true);
     } catch (error) {
       console.error('Error eliminando categoría:', error);
-      alert('Error al eliminar la categoría');
+      notify.error('Error al eliminar la categoría');
     }
   };
 
   // Handlers para categorías de módulos
   const handleAddModelo = () => {
     if (!nuevoModelo.codigo.trim()) {
-      alert('El código del modelo es obligatorio');
+      notify.warning('El código del modelo es obligatorio');
       return;
     }
     
     // Verificar que no exista ya un modelo con ese código
     if (formDataModulos.modelos.some(m => m.codigo === nuevoModelo.codigo.trim())) {
-      alert('Ya existe un modelo con ese código');
+      notify.warning('Ya existe un modelo con ese código');
       return;
     }
     
@@ -134,12 +136,12 @@ export const CategoriasEquipo = () => {
 
   const handleSaveModulo = async () => {
     if (!formDataModulos.nombre.trim()) {
-      alert('El nombre es obligatorio');
+      notify.warning('El nombre es obligatorio');
       return;
     }
     
     if (formDataModulos.modelos.length === 0) {
-      alert('Debe agregar al menos un modelo');
+      notify.warning('Debe agregar al menos un modelo');
       return;
     }
 
@@ -162,7 +164,7 @@ export const CategoriasEquipo = () => {
       setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
     } catch (error) {
       console.error('Error guardando categoría de módulo:', error);
-      alert('Error al guardar la categoría de módulo');
+      notify.error('Error al guardar la categoría de módulo');
     }
   };
 
@@ -180,15 +182,13 @@ export const CategoriasEquipo = () => {
       await loadAll(true);
     } catch (error) {
       console.error('Error eliminando categoría de módulo:', error);
-      alert('Error al eliminar la categoría de módulo');
+      notify.error('Error al eliminar la categoría de módulo');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando categorías...</p>
-      </div>
+      <LoadingState message="Cargando categorías…" />
     );
   }
 

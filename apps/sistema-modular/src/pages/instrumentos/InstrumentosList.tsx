@@ -34,6 +34,9 @@ import {
   type EstadoEfectivo,
 } from '../../utils/exports/exportInstrumentos';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const CATS_INSTRUMENTO = Object.entries(CATEGORIA_INSTRUMENTO_LABELS) as [CategoriaInstrumento, string][];
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
@@ -110,7 +113,7 @@ export const InstrumentosList = () => {
       await deactivateInstrumento(inst.id);
       reload();
     } catch {
-      alert('Error al desactivar el instrumento');
+      notify.error('Error al desactivar el instrumento');
     }
   };
 
@@ -135,7 +138,7 @@ export const InstrumentosList = () => {
       );
     } catch (err) {
       console.error('Error exportando PDF:', err);
-      alert('No se pudo generar el PDF');
+      notify.error('No se pudo generar el PDF');
     } finally {
       setExporting(false);
     }
@@ -214,15 +217,11 @@ export const InstrumentosList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando instrumentos...</p></div>
+          <LoadingState message="Cargando instrumentos…" />
         ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay instrumentos que coincidan con los filtros</p>
-            </div>
-          </Card>
+          <EmptyState message="No hay instrumentos que coincidan con los filtros" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

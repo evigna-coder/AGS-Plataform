@@ -8,7 +8,6 @@ import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { Card } from '../../components/ui/Card';
 import { DispositivoModal } from '../../components/dispositivos/DispositivoModal';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
 import { softwareDeDispositivo, dispositivoTieneSoftware } from '@ags/shared';
@@ -18,6 +17,8 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { DISPOSITIVOS_EXPORT_COLUMNS, TIPO_DISPOSITIVO_LABELS as TIPO_LABELS } from '../../utils/exports/exportDispositivos';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const TIPO_COLORS: Record<TipoDispositivo, string> = {
   celular: 'bg-blue-50 text-blue-700',
   computadora: 'bg-purple-50 text-purple-700',
@@ -116,9 +117,9 @@ export const DispositivosList = () => {
 
       <div className="flex-1 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+          <LoadingState message="Cargando…" />
         ) : filtered.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron dispositivos</p></div></Card>
+          <EmptyState message="No se encontraron dispositivos" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white overflow-x-auto">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

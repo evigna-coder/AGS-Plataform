@@ -22,6 +22,7 @@ import { useFichaItemOptions, newItemDraft, draftIdentityFields, type ItemFichaD
 import { FichaItemDraftFields } from './FichaItemDraftFields';
 import { FichaClienteOrigenSection } from './FichaClienteOrigenSection';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -172,7 +173,7 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
       navigate(`/fichas/${fichaId}`);
     } catch (err) {
       console.error('Error creando ficha:', err);
-      alert('Error al crear la ficha');
+      notify.error('Error al crear la ficha');
     } finally {
       setSaving(false);
     }

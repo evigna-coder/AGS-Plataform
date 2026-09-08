@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { vehiculosService } from '../../services/firebaseService';
 import type { Vehiculo, CriterioServicioVehiculo, VencimientoVehiculo } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -100,7 +101,7 @@ export const VehiculoModal: React.FC<Props> = ({ open, onClose, onSaved, editDat
   };
 
   const handleSave = async () => {
-    if (!form.patente.trim()) return alert('La patente es obligatoria');
+    if (!form.patente.trim()) return notify.warning('La patente es obligatoria');
     setSaving(true);
     try {
       const payload = {
@@ -124,7 +125,7 @@ export const VehiculoModal: React.FC<Props> = ({ open, onClose, onSaved, editDat
       onClose();
     } catch (err) {
       console.error('Error guardando vehículo:', err);
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }

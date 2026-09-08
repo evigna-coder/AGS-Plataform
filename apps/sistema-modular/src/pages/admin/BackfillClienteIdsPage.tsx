@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { leadsService } from '../../services/leadsService';
 import { clientesService } from '../../services/clientesService';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 type Result = { total: number; matched: number; ambiguous: number; unmatched: number; skipped: number };
 
 export default function BackfillClienteIdsPage() {
@@ -13,7 +14,7 @@ export default function BackfillClienteIdsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
-    if (!confirm('Re-matchear clienteId para tickets sin cliente vinculado. Los ambiguos quedan en /admin/revision-clienteid para resolución manual. ¿Continuar?')) return;
+    if (!await confirmar('Re-matchear clienteId para tickets sin cliente vinculado. Los ambiguos quedan en /admin/revision-clienteid para resolución manual. ¿Continuar?')) return;
     setRunning(true);
     setError(null);
     setResult(null);

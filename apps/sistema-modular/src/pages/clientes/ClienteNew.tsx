@@ -8,6 +8,7 @@ import { clientesService } from '../../services/firebaseService';
 import type { CondicionIva } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
 export const ClienteNew = () => {
   const navigate = useNavigate();
   const goBack = useNavigateBack();
@@ -66,11 +67,11 @@ export const ClienteNew = () => {
       if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
       if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
       const clienteId = await clientesService.create(clienteData);
-      alert('Cliente creado exitosamente');
+      notify.success('Cliente creado exitosamente');
       navigate(`/clientes/${clienteId}`);
     } catch (error) {
       console.error('Error creando cliente:', error);
-      alert('Error al crear el cliente');
+      notify.error('Error al crear el cliente');
     } finally {
       setLoading(false);
     }

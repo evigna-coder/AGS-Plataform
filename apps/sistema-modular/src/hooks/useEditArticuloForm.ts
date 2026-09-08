@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { articulosService, marcasService, proveedoresService } from '../services/firebaseService';
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion, KitComponente } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 export interface ArticuloFormState {
   codigo: string; descripcion: string; categoriaEquipo: CategoriaEquipoStock;
   marcaId: string; tipo: TipoArticulo; unidadMedida: string; stockMinimo: number;
@@ -104,9 +105,9 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
   const handleClose = () => { onClose(); setForm(EMPTY_ARTICULO_FORM); setCodigoDupWarning(''); setComexOpen(false); };
 
   const handleSave = async () => {
-    if (!form.codigo.trim()) { alert('El codigo es obligatorio'); return; }
-    if (!form.descripcion.trim()) { alert('La descripcion es obligatoria'); return; }
-    if (codigoDupWarning) { alert(codigoDupWarning); return; }
+    if (!form.codigo.trim()) { notify.warning('El codigo es obligatorio'); return; }
+    if (!form.descripcion.trim()) { notify.warning('La descripcion es obligatoria'); return; }
+    if (codigoDupWarning) { notify.info(codigoDupWarning); return; }
     if (!articuloId) return;
     // Presentaciones: descartar filas incompletas; factor entero > 0.
     const presentacionesLimpias = form.presentaciones
@@ -140,7 +141,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
       });
       handleClose();
       onSaved();
-    } catch { alert('Error al guardar el articulo'); }
+    } catch { notify.error('Error al guardar el articulo'); }
     finally { setSaving(false); }
   };
 

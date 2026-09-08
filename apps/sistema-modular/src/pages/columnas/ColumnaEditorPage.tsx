@@ -16,6 +16,7 @@ import {
   type Marca,
 } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -82,11 +83,11 @@ export const ColumnaEditorPage = () => {
   };
 
   const handleSave = async (): Promise<string | null> => {
-    if (!codigoArticulo.trim()) { alert('El código de artículo es obligatorio'); return null; }
-    if (!descripcion.trim()) { alert('La descripción es obligatoria'); return null; }
-    if (categorias.length === 0) { alert('Seleccione al menos una categoría'); return null; }
+    if (!codigoArticulo.trim()) { notify.warning('El código de artículo es obligatorio'); return null; }
+    if (!descripcion.trim()) { notify.warning('La descripción es obligatoria'); return null; }
+    if (categorias.length === 0) { notify.warning('Seleccione al menos una categoría'); return null; }
     for (const [i, s] of series.entries()) {
-      if (!s.serie.trim()) { alert(`La serie #${i + 1} necesita un número de serie`); return null; }
+      if (!s.serie.trim()) { notify.warning(`La serie #${i + 1} necesita un número de serie`); return null; }
     }
     setSaving(true);
     try {
@@ -100,7 +101,7 @@ export const ColumnaEditorPage = () => {
       };
       return await saveColumna(data, id);
     } catch {
-      alert('Error al guardar la columna');
+      notify.error('Error al guardar la columna');
       return null;
     } finally {
       setSaving(false);
@@ -113,14 +114,14 @@ export const ColumnaEditorPage = () => {
   };
 
   const handleCertUpload = async (serieIdx: number, file: File) => {
-    if (!id) { alert('Guarde la columna primero antes de subir certificados'); return; }
+    if (!id) { notify.warning('Guarde la columna primero antes de subir certificados'); return; }
     setUploadingSerieIdx(serieIdx);
     try {
       await uploadCertificadoSerie(id, serieIdx, file);
       const refreshed = await getColumna(id);
       if (refreshed) setSeries(refreshed.series);
     } catch {
-      alert('Error al subir el certificado');
+      notify.error('Error al subir el certificado');
     } finally {
       setUploadingSerieIdx(null);
     }

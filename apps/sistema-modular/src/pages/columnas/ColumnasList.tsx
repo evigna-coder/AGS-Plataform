@@ -20,6 +20,9 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { COLUMNAS_EXPORT_COLUMNS } from '../../utils/exports/exportColumnas';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const CAT_OPTIONS = [
@@ -64,7 +67,7 @@ export const ColumnasList = () => {
       await deactivateColumna(c.id);
       reload();
     } catch {
-      alert('Error al desactivar la columna');
+      notify.error('Error al desactivar la columna');
     }
   };
 
@@ -109,15 +112,11 @@ export const ColumnasList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando columnas...</p></div>
+          <LoadingState message="Cargando columnas…" />
         ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay columnas cargadas</p>
-            </div>
-          </Card>
+          <EmptyState message="No hay columnas cargadas" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

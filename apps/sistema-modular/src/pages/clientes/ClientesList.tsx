@@ -6,7 +6,6 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateClienteModal } from '../../components/clientes/CreateClienteModal';
@@ -18,6 +17,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { CLIENTES_EXPORT_COLUMNS, buildClientesExportRows, buildClientesFiltrosExport } from '../../utils/exports/exportClientes';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown, onDoubleClick }: { onMouseDown: (e: React.MouseEvent) => void; onDoubleClick?: () => void }) => (
@@ -93,7 +95,7 @@ export const ClientesList = () => {
       await clientesService.update(cliente.id, { activo: !cliente.activo });
     } catch (e) {
       console.error(`Error al ${action} cliente:`, e);
-      alert(`Error al ${action} el cliente`);
+      notify.error(`Error al ${action} el cliente`);
     }
   };
 
@@ -130,7 +132,7 @@ export const ClientesList = () => {
       setSelected(new Set());
     } catch (e) {
       console.error('Error en acción masiva:', e);
-      alert('Error al procesar la acción masiva');
+      notify.error('Error al procesar la acción masiva');
     } finally {
       setBulkActioning(false);
     }
@@ -211,16 +213,9 @@ export const ClientesList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando clientes...</p></div>
+          <LoadingState message="Cargando clientes…" />
         ) : deferredFiltered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron clientes</p>
-              <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primer cliente
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No se encontraron clientes" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer cliente </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto overflow-x-hidden h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

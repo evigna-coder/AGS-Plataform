@@ -8,6 +8,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
 export interface ReservaServicioDatos {
   clienteId: string | null;
   clienteNombre: string;
@@ -121,7 +122,7 @@ export const AgendaReservaModal = ({ ingenieroNombre, fecha, onClose, onCreate, 
       onClose();
     } catch (err) {
       console.error('Error creando la reserva de servicio:', err);
-      alert('Error al crear la reserva');
+      notify.error('Error al crear la reserva');
     } finally {
       setSaving(false);
     }

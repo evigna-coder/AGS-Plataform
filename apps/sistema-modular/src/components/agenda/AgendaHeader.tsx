@@ -2,6 +2,7 @@ import { type FC, useState } from 'react';
 import type { Ingeniero, ZoomLevel } from '@ags/shared';
 import { formatRangeLabel } from '../../utils/agendaDateUtils';
 
+import { Select } from '../ui/Select';
 /** Vistas de la agenda: planificar (grilla de cuartos) vs leer (almanaque). */
 export type AgendaVista = 'grilla' | 'almanaque';
 
@@ -157,15 +158,15 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
           pinta una fila por ingeniero, y esconder filas ahí rompe la lectura de
           carga del equipo (2026-08-14). */}
       {vista === 'almanaque' && (
-        <select
+        <Select
           value={ingenieroId}
           onChange={e => onIngenieroChange(e.target.value)}
-          className="shrink-0 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+          className="shrink-0" selectSize="xs"
           title="Ver la agenda de un solo ingeniero"
         >
           <option value="">Todos los ingenieros</option>
           {ingenieros.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
-        </select>
+        </Select>
       )}
 
       {/* Alcance del almanaque (2026-09-03): 4 semanas desde la actual, o el

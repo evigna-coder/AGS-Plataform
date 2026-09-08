@@ -1,5 +1,6 @@
 import type { TableCatalogEntry } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   table: TableCatalogEntry;
 }
@@ -185,12 +186,12 @@ export const TablePreview = ({ table }: Props) => {
                             colIdx === 0 ? (
                               <span className="text-xs font-semibold text-slate-700">{row.selectorLabel}</span>
                             ) : colIdx === dropdownCol ? (
-                              <select className="border border-slate-300 rounded px-2 py-0.5 text-xs bg-white" disabled>
+                              <Select selectSize="xs" disabled>
                                 <option>Seleccionar...</option>
                                 {(row.selectorOptions ?? []).map(opt => (
                                   <option key={opt}>{opt}</option>
                                 ))}
-                              </select>
+                              </Select>
                             ) : (
                               row.cells[col.key] != null ? String(row.cells[col.key]) : '—'
                             )
@@ -198,12 +199,12 @@ export const TablePreview = ({ table }: Props) => {
                             colIdx === 0 ? (
                               <div className="flex items-center gap-1">
                                 <span className="text-xs font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
-                                <select className="border border-slate-300 rounded px-1 py-0.5 text-xs bg-white" disabled>
+                                <Select selectSize="xs" disabled>
                                   <option>Seleccionar...</option>
                                   {(row.selectorOptions ?? []).map(opt => (
                                     <option key={opt}>{opt}</option>
                                   ))}
-                                </select>
+                                </Select>
                               </div>
                             ) : (
                               row.cells[col.key] != null ? String(row.cells[col.key]) : '—'

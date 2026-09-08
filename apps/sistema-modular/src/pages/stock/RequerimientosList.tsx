@@ -6,7 +6,6 @@ import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { Button } from '../../components/ui/Button';
 import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
 import { VerRequerimientoModal } from '../../components/stock/VerRequerimientoModal';
@@ -30,6 +29,10 @@ import {
   buildRequerimientosFiltrosExport,
 } from '../../utils/exports/exportRequerimientos';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 // Estados que ya no requieren acción: fuera de la vista por defecto (UAT 2026-07-16:
 // un req ya comprado/ingresado no debe seguir figurando). 'completado' = legacy inválido.
 // 'en_compra' (2026-07-31): ya está en una OC — no requiere acción acá; se sigue desde
@@ -122,12 +125,12 @@ export const RequerimientosList = () => {
   }, [showAgregarOC]);
 
   const handleAgregarAOC = async () => {
-    if (!ocDestinoId) { alert('Seleccioná la orden de compra destino'); return; }
+    if (!ocDestinoId) { notify.error('Seleccioná la orden de compra destino'); return; }
     const sel = sorted.filter(r => selectedIds.has(r.id));
     const sinOC = sel.filter(r => !r.ordenCompraId);
-    if (sinOC.length === 0) { alert('Los requerimientos seleccionados ya están vinculados a una OC.'); return; }
+    if (sinOC.length === 0) { notify.warning('Los requerimientos seleccionados ya están vinculados a una OC.'); return; }
     if (sinOC.length < sel.length) {
-      alert(`${sel.length - sinOC.length} requerimiento(s) ya tenían OC y se saltean; se agregan ${sinOC.length}.`);
+      notify.info(`${sel.length - sinOC.length} requerimiento(s) ya tenían OC y se saltean; se agregan ${sinOC.length}.`);
     }
     const ok = await agregarAOCExistente(ocDestinoId, sinOC);
     if (ok) {
@@ -144,7 +147,7 @@ export const RequerimientosList = () => {
       setOcModalOpen(true);
       setOcDestinoId('');
     } else {
-      alert('Error al agregar los requerimientos a la OC');
+      notify.error('Error al agregar los requerimientos a la OC');
     }
   };
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, resetWidths } = useResizableColumns('requerimientos-list');
@@ -209,11 +212,11 @@ export const RequerimientosList = () => {
       setClientePorPresupuesto(new Map(ps.map(p => [p.id, nombre.get(p.clienteId) ?? ''])));
       setProveedores((provs as Array<{ id: string; nombre: string }>).map(p => ({ id: p.id, nombre: p.nombre })));
       if (r.creados > 0 || r.cancelados > 0) {
-        alert(`Recalculado: ${r.creados} requerimiento(s) nuevo(s) por stock mínimo, ${r.cancelados} cancelado(s) por stock repuesto.`);
+        notify.error(`Recalculado: ${r.creados} requerimiento(s) nuevo(s) por stock mínimo, ${r.cancelados} cancelado(s) por stock repuesto.`);
       }
     } catch (err) {
       console.error('[RequerimientosList] recalcular falló:', err);
-      alert('Error al recalcular');
+      notify.error('Error al recalcular');
     } finally {
       setRecalculando(false);
     }
@@ -241,7 +244,7 @@ export const RequerimientosList = () => {
     try {
       await requerimientosService.update(id, { estado: 'aprobado', fechaAprobacion: new Date().toISOString() });
       setRequerimientos(prev => prev.map(r => r.id === id ? { ...r, estado: 'aprobado' as const, fechaAprobacion: new Date().toISOString() } : r));
-    } catch { alert('Error al aprobar el requerimiento'); }
+    } catch { notify.error('Error al aprobar el requerimiento'); }
   };
 
   const handleDelete = async (id: string) => {
@@ -253,7 +256,7 @@ export const RequerimientosList = () => {
     try {
       await requerimientosService.delete(id);
       setRequerimientos(prev => prev.filter(r => r.id !== id));
-    } catch { alert('Error al eliminar el requerimiento'); }
+    } catch { notify.error('Error al eliminar el requerimiento'); }
   };
 
   const handleGenerarOC = async () => {
@@ -264,7 +267,7 @@ export const RequerimientosList = () => {
       // Abrir directo la OC generada para completar precios/proveedor.
       // Si se generó más de una (varios proveedores), se abre la primera.
       if (ocIds.length > 1) {
-        alert(`Se generaron ${ocIds.length} OCs (una por proveedor). Se abre la primera; el resto está en Órdenes de Compra.`);
+        notify.success(`Se generaron ${ocIds.length} OCs (una por proveedor). Se abre la primera; el resto está en Órdenes de Compra.`);
       }
       setOcModalId(ocIds[0]);
       setOcModalOpen(true);
@@ -340,34 +343,34 @@ export const RequerimientosList = () => {
             placeholder="Buscar por cliente, proveedor, artículo o número…"
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
-          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <Select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
+            >
             <option value="abiertos">Abiertos</option>
             <option value="todos">Todos los estados</option>
             {(Object.keys(ESTADO_REQUERIMIENTO_LABELS) as EstadoRequerimiento[]).map(k => (
               <option key={k} value={k}>{ESTADO_REQUERIMIENTO_LABELS[k]}</option>
             ))}
-          </select>
-          <select value={filters.origen} onChange={e => setFilter('origen', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </Select>
+          <Select value={filters.origen} onChange={e => setFilter('origen', e.target.value)}
+            >
             <option value="">Todos los orígenes</option>
             {(Object.keys(ORIGEN_REQUERIMIENTO_LABELS) as OrigenRequerimiento[]).map(k => (
               <option key={k} value={k}>{ORIGEN_REQUERIMIENTO_LABELS[k]}</option>
             ))}
-          </select>
-          <select value={filters.urgencia} onChange={e => setFilter('urgencia', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </Select>
+          <Select value={filters.urgencia} onChange={e => setFilter('urgencia', e.target.value)}
+            >
             <option value="">Todas las urgencias</option>
             {(Object.keys(URGENCIA_LABELS) as UrgenciaRequerimiento[]).map(k => (
               <option key={k} value={k}>{URGENCIA_LABELS[k]}</option>
             ))}
-          </select>
-          <select value={filters.condicional} onChange={e => setFilter('condicional', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </Select>
+          <Select value={filters.condicional} onChange={e => setFilter('condicional', e.target.value)}
+            >
             <option value="">Todos</option>
             <option value="true">Solo condicionales</option>
             <option value="false">Solo firmes</option>
-          </select>
+          </Select>
         </div>
         )}
       </PageHeader>
@@ -376,9 +379,9 @@ export const RequerimientosList = () => {
         {filters.tab === 'partes' ? (
           <RequerimientosPartesTab />
         ) : isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando requerimientos...</p></div>
+          <LoadingState message="Cargando requerimientos…" />
         ) : sorted.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron requerimientos</p></div></Card>
+          <EmptyState message="No se encontraron requerimientos" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white overflow-x-auto">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

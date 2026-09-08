@@ -18,6 +18,8 @@ import {
   ESTADO_MINIKIT_LABELS as ESTADO_LABELS,
 } from '../../utils/exports/exportMinikits';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
 const ESTADO_COLORS: Record<EstadoMinikit, string> = {
   en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-teal-600',
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
@@ -85,7 +87,7 @@ export const MinikitsList = () => {
       setForm({ codigo: '', nombre: '', descripcion: '' });
       setShowCreate(false);
     } catch {
-      alert('Error al crear el minikit');
+      notify.error('Error al crear el minikit');
     } finally {
       setCreating(false);
     }
@@ -95,7 +97,7 @@ export const MinikitsList = () => {
     try {
       await minikitsService.update(mk.id, { activo: !mk.activo });
     } catch {
-      alert('Error al cambiar el estado');
+      notify.error('Error al cambiar el estado');
     }
   };
 
@@ -104,7 +106,7 @@ export const MinikitsList = () => {
     try {
       await minikitsService.delete(mk.id);
     } catch {
-      alert('Error al eliminar el minikit');
+      notify.error('Error al eliminar el minikit');
     }
   };
 
@@ -188,11 +190,7 @@ export const MinikitsList = () => {
         {loading ? (
           <div className="flex justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
         ) : minikits.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay minikits registrados. Use el botón "+ Nuevo minikit" para agregar.</p>
-            </div>
-          </Card>
+          <EmptyState message="No hay minikits registrados. Use el botón &quot;+ Nuevo minikit&quot; para agregar." hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white overflow-x-auto">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

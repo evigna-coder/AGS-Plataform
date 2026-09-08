@@ -7,6 +7,8 @@ import { ingresoEmpresasService, clientesService } from '../../services/firebase
 import type { IngresoEmpresa, Cliente, TipoIngresoCliente, DocumentoIngresoStatus, DocumentacionIngreso } from '@ags/shared';
 import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS, DOCUMENTO_INGRESO_LABELS, DEFAULT_DOCUMENTACION } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -65,7 +67,7 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
   };
 
   const handleSave = async () => {
-    if (!form.clienteId) return alert('Seleccioná un cliente');
+    if (!form.clienteId) return notify.warning('Seleccioná un cliente');
     setSaving(true);
     try {
       const payload = {
@@ -87,7 +89,7 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
       onClose();
     } catch (err) {
       console.error('Error guardando ingreso:', err);
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -110,15 +112,15 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
           </div>
           <div>
             <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Tipo</label>
-            <select
+            <Select
               value={form.tipo}
               onChange={e => setForm(f => ({ ...f, tipo: e.target.value as TipoIngresoCliente }))}
-              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full"
             >
               {(Object.keys(TIPO_INGRESO_LABELS) as TipoIngresoCliente[]).map(k => (
                 <option key={k} value={k}>{TIPO_INGRESO_LABELS[k]}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -148,17 +150,16 @@ export const IngresoEmpresaModal: React.FC<Props> = ({ open, onClose, onSaved, e
             {DOCUMENTACION_INGRESO_KEYS.map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between gap-2">
                 <span className="text-xs text-slate-700 min-w-[120px]">{label}</span>
-                <select
+                <Select
                   value={form.documentacion[key]}
                   onChange={e => setDocStatus(key, e.target.value as DocumentoIngresoStatus)}
-                  className={`flex-1 px-2 py-1 border border-slate-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-teal-500 ${
-                    form.documentacion[key] === 'no_requerido' ? 'text-slate-400' : 'text-slate-800 font-medium'
-                  }`}
+                  selectSize="xs"
+                  className={`flex-1 ${form.documentacion[key] === 'no_requerido' ? '!text-slate-400' : 'font-medium'}`}
                 >
                   {STATUS_OPTIONS.map(s => (
                     <option key={s} value={s}>{DOCUMENTO_INGRESO_LABELS[s]}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             ))}
           </div>

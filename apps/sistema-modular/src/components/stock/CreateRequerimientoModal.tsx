@@ -6,6 +6,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { requerimientosService, articulosService, proveedoresService } from '../../services/firebaseService';
 import type { OrigenRequerimiento, Articulo, UrgenciaRequerimiento } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Proveedor { id: string; nombre: string; }
 
 interface Props {
@@ -103,10 +105,10 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
   };
 
   const handleSave = async () => {
-    if (!form.articuloDescripcion.trim()) { alert('Ingrese la descripción del artículo'); return; }
-    if (!form.cantidad || form.cantidad <= 0) { alert('Ingrese una cantidad válida'); return; }
-    if (!form.motivo.trim()) { alert('Ingrese el motivo del requerimiento'); return; }
-    if (!form.solicitadoPor.trim()) { alert('Ingrese quién solicita el requerimiento'); return; }
+    if (!form.articuloDescripcion.trim()) { notify.warning('Ingrese la descripción del artículo'); return; }
+    if (!form.cantidad || form.cantidad <= 0) { notify.warning('Ingrese una cantidad válida'); return; }
+    if (!form.motivo.trim()) { notify.warning('Ingrese el motivo del requerimiento'); return; }
+    if (!form.solicitadoPor.trim()) { notify.warning('Ingrese quién solicita el requerimiento'); return; }
 
     setSaving(true);
     try {
@@ -133,14 +135,13 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
       handleClose();
       onCreated();
     } catch {
-      alert('Error al crear el requerimiento');
+      notify.error('Error al crear el requerimiento');
     } finally {
       setSaving(false);
     }
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo requerimiento de compra"
@@ -171,18 +172,18 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
             onChange={e => set('unidadMedida', e.target.value)} placeholder="unidad" />
           <div>
             <label className={lbl}>Urgencia</label>
-            <select value={form.urgencia} onChange={e => set('urgencia', e.target.value)} className={selectCls}>
+            <Select value={form.urgencia} onChange={e => set('urgencia', e.target.value)} className="w-full">
               {URGENCIA_OPTIONS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Origen</label>
-            <select value={form.origen} onChange={e => set('origen', e.target.value)} className={selectCls}>
+            <Select value={form.origen} onChange={e => set('origen', e.target.value)} className="w-full">
               {ORIGEN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            </Select>
           </div>
           <Input inputSize="sm" label="Solicitado por *" value={form.solicitadoPor}
             onChange={e => set('solicitadoPor', e.target.value)} placeholder="Nombre del solicitante" />

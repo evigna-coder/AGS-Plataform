@@ -3,6 +3,7 @@ import { contratosService, clientesService, sistemasService, presupuestosService
 import { tiposServicioService } from '../services/importacionesService';
 import type { Cliente, Sistema, Presupuesto, TipoServicio, TipoLimiteContrato, ServicioContrato } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 export interface ContratoFormState {
   clienteId: string;
   presupuestoId: string;
@@ -114,9 +115,9 @@ export function useCreateContratoForm(open: boolean, onClose: () => void, onCrea
   const handleClose = () => { onClose(); setForm(INITIAL_FORM); };
 
   const handleSave = async () => {
-    if (!form.clienteId) { alert('Seleccione un cliente'); return; }
-    if (!form.fechaInicio || !form.fechaFin) { alert('Ingrese fechas de vigencia'); return; }
-    if (form.serviciosIncluidos.length === 0) { alert('Seleccione al menos un servicio'); return; }
+    if (!form.clienteId) { notify.warning('Seleccione un cliente'); return; }
+    if (!form.fechaInicio || !form.fechaFin) { notify.warning('Ingrese fechas de vigencia'); return; }
+    if (form.serviciosIncluidos.length === 0) { notify.warning('Seleccione al menos un servicio'); return; }
 
     try {
       setSaving(true);
@@ -143,7 +144,7 @@ export function useCreateContratoForm(open: boolean, onClose: () => void, onCrea
       onCreated?.();
     } catch (err) {
       console.error('Error creando contrato:', err);
-      alert('Error al crear el contrato');
+      notify.error('Error al crear el contrato');
     } finally {
       setSaving(false);
     }

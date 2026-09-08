@@ -34,6 +34,9 @@ import {
 import { PatronRow } from './PatronRow';
 import { PatronesBajasTable } from './PatronesBajasTable';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
@@ -156,7 +159,7 @@ export const PatronesList = () => {
       await deactivatePatron(p.id);
       reload();
     } catch {
-      alert('Error al desactivar el patrón');
+      notify.error('Error al desactivar el patrón');
     }
   };
 
@@ -179,7 +182,7 @@ export const PatronesList = () => {
       );
     } catch (err) {
       console.error('Error exportando PDF:', err);
-      alert('No se pudo generar el PDF');
+      notify.error('No se pudo generar el PDF');
     } finally {
       setExporting(false);
     }
@@ -268,17 +271,13 @@ export const PatronesList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando patrones...</p></div>
+          <LoadingState message="Cargando patrones…" />
         ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : vistaBajas ? (
           <PatronesBajasTable patrones={patrones} formatFechaAR={formatFechaAR} />
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay patrones cargados</p>
-            </div>
-          </Card>
+          <EmptyState message="No hay patrones cargados" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

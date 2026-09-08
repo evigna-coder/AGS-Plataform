@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   parentOt: WorkOrder | null;
@@ -27,7 +28,7 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
   const handleCreate = async () => {
     if (!parentOt) return;
     const parentBase = parentOt.otNumber.includes('.') ? parentOt.otNumber.split('.')[0] : parentOt.otNumber;
-    if (!form.tipoServicio.trim()) { alert('Seleccione tipo de servicio'); return; }
+    if (!form.tipoServicio.trim()) { notify.warning('Seleccione tipo de servicio'); return; }
     setSaving(true);
     try {
       const nextNum = await ordenesTrabajoService.getNextItemNumber(parentBase);
@@ -93,7 +94,7 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
       onCreated();
     } catch (err) {
       console.error('Error creando item OT:', err);
-      alert(err instanceof Error ? err.message : 'Error al crear el item');
+      notify.error(err instanceof Error ? err.message : 'Error al crear el item');
     }
     finally { setSaving(false); }
   };

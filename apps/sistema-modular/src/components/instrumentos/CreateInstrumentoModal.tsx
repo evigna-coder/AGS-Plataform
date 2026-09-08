@@ -9,6 +9,8 @@ import { useInstrumentos } from '../../hooks/useInstrumentos';
 import type { Marca, CategoriaInstrumento, CategoriaPatron } from '@ags/shared';
 import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -46,8 +48,8 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
   };
 
   const handleSave = async () => {
-    if (!form.nombre.trim()) { alert('El nombre es obligatorio'); return; }
-    if (form.categorias.length === 0) { alert('Seleccione al menos una categoria'); return; }
+    if (!form.nombre.trim()) { notify.warning('El nombre es obligatorio'); return; }
+    if (form.categorias.length === 0) { notify.warning('Seleccione al menos una categoria'); return; }
 
     setSaving(true);
     try {
@@ -68,12 +70,11 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
       handleClose();
       onCreated();
       navigate(`/instrumentos/${id}/editar`);
-    } catch { alert('Error al crear el instrumento'); }
+    } catch { notify.error('Error al crear el instrumento'); }
     finally { setSaving(false); }
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   const catLabels = form.tipo === 'instrumento'
     ? CATEGORIA_INSTRUMENTO_LABELS
@@ -94,12 +95,12 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
             onChange={e => set('nombre', e.target.value)} placeholder="Ej: Termometro digital" />
           <div>
             <label className={lbl}>Tipo</label>
-            <select value={form.tipo}
+            <Select value={form.tipo}
               onChange={e => { set('tipo', e.target.value); set('categorias', []); }}
-              className={selectCls}>
+              className="w-full">
               <option value="instrumento">Instrumento</option>
               <option value="patron">Patron</option>
-            </select>
+            </Select>
           </div>
         </div>
 

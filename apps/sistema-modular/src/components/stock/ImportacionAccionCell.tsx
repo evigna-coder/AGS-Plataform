@@ -3,6 +3,7 @@ import type { Importacion } from '@ags/shared';
 import { importacionesService } from '../../services/firebaseService';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 /**
  * Confirmación secuencial desde el listado de importaciones (2026-08-27): cada
  * fila ofrece UNA acción — la próxima del ciclo arribo → pago VEP → giro al
@@ -64,7 +65,7 @@ export const ImportacionAccionCell: React.FC<Props> = ({ imp, onDone }) => {
       onDone();
     } catch (err) {
       console.error('Error confirmando paso:', err);
-      alert('Error al confirmar');
+      notify.error('Error al confirmar');
     } finally {
       setConfirmando(false);
     }

@@ -8,6 +8,8 @@ import { usePrompt } from '../ui/PromptDialog';
 import { ordenesTrabajoService } from '../../services/otService';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const inp = 'w-full border rounded-lg px-2.5 py-1 text-xs bg-white border-slate-300 disabled:bg-slate-100 disabled:text-slate-400';
@@ -125,10 +127,10 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
       await ordenesTrabajoService.vincularPresupuestoAOTCerrada(
         otNumber, numero, motivo, { uid: firebaseUser?.uid || '', name: usuario?.displayName },
       );
-      alert(`${numero} vinculado y habilitado para facturar.`);
+      notify.error(`${numero} vinculado y habilitado para facturar.`);
       window.location.reload();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo vincular');
+      notify.error(e instanceof Error ? e.message : 'No se pudo vincular');
     } finally { setVinculando(false); }
   };
 
@@ -263,12 +265,12 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
           )}
           <div>
             <span className={lbl}>Ingeniero</span>
-            <select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
-              disabled={roTecnico || sinAgenda} className={inp}
+            <Select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
+              disabled={roTecnico || sinAgenda} className="w-full"
               title={sinAgenda ? 'Esta OT no se agenda: no lleva ingeniero asignado' : undefined}>
               <option value="">Sin asignar</option>
               {ingenieros.map(u => <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <span className={lbl}>Fecha aprox. servicio</span>

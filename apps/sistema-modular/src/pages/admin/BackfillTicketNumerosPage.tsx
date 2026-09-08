@@ -3,13 +3,14 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { leadsService } from '../../services/leadsService';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 export default function BackfillTicketNumerosPage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ total: number; yaNumerados: number; asignados: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
-    if (!confirm('Asignar números TKT-00001... a todos los tickets sin numero. ¿Continuar?')) return;
+    if (!await confirmar('Asignar números TKT-00001... a todos los tickets sin numero. ¿Continuar?')) return;
     setRunning(true);
     setError(null);
     setResult(null);

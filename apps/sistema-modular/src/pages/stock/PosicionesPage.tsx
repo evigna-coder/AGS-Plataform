@@ -18,6 +18,8 @@ import {
   TIPO_POSICION_LABELS as TIPO_LABELS,
 } from '../../utils/exports/exportPosiciones';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const TIPO_OPTIONS: TipoPosicionStock[] = ['cajonera', 'estante', 'deposito', 'vitrina', 'otro'];
 
 interface FormState {
@@ -62,7 +64,7 @@ export const PosicionesPage = () => {
       setForm(emptyForm);
       setShowCreate(false);
       reload(true);
-    } catch { alert('Error al crear la posición'); }
+    } catch { notify.error('Error al crear la posición'); }
     finally { setSaving(false); }
   };
 
@@ -84,19 +86,19 @@ export const PosicionesPage = () => {
       });
       setEditingId(null);
       reload(true);
-    } catch { alert('Error al actualizar'); }
+    } catch { notify.error('Error al actualizar'); }
   };
 
   const handleToggle = async (pos: PosicionNode) => {
     try { await posicionesStockService.update(pos.id, { activo: !pos.activo }); reload(true); }
-    catch { alert('Error al cambiar estado'); }
+    catch { notify.error('Error al cambiar estado'); }
   };
 
   const handleDelete = async (pos: PosicionNode) => {
-    if (pos.children.length > 0) { alert('No se puede eliminar una posición con sub-posiciones. Elimine o mueva las hijas primero.'); return; }
+    if (pos.children.length > 0) { notify.error('No se puede eliminar una posición con sub-posiciones. Elimine o mueva las hijas primero.'); return; }
     if (!await confirm(`¿Eliminar permanentemente "${pos.codigo} — ${pos.nombre}"?`)) return;
     try { await posicionesStockService.delete(pos.id); reload(true); }
-    catch { alert('Error al eliminar'); }
+    catch { notify.error('Error al eliminar'); }
   };
 
   // Memoizado: el filtrado del árbol (recursivo) corría inline en cada render y sobre
@@ -139,10 +141,10 @@ export const PosicionesPage = () => {
               <Input label="Nombre *" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Cajonera 1" />
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Tipo</label>
-                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as TipoPosicionStock }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                <Select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as TipoPosicionStock }))}
+                  className="w-full">
                   {TIPO_OPTIONS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Posición padre</label>
@@ -170,17 +172,17 @@ export const PosicionesPage = () => {
               placeholder="Buscar por nombre o código..."
               className="border border-slate-200 rounded-lg px-3 py-1 text-xs bg-white text-slate-700 w-64"
             />
-            <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value as TipoPosicionStock | '')}
-              className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white text-slate-600">
+            <Select value={tipoFilter} onChange={e => setTipoFilter(e.target.value as TipoPosicionStock | '')}
+              >
               <option value="">Todos los tipos</option>
               {TIPO_OPTIONS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
-            </select>
+            </Select>
             {zonas.length > 0 && (
-              <select value={zonaFilter} onChange={e => setZonaFilter(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white text-slate-600">
+              <Select value={zonaFilter} onChange={e => setZonaFilter(e.target.value)}
+                >
                 <option value="">Todas las zonas</option>
                 {zonas.map(z => <option key={z} value={z}>{z}</option>)}
-              </select>
+              </Select>
             )}
             <button
               onClick={() => setSortByName(v => !v)}
@@ -251,10 +253,10 @@ const PosicionRow = ({
                 className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Codigo" autoFocus />
               <input type="text" value={editForm.nombre} onChange={e => setEditForm({ ...editForm, nombre: e.target.value })}
                 className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Nombre" />
-              <select value={editForm.tipo} onChange={e => setEditForm({ ...editForm, tipo: e.target.value as TipoPosicionStock })}
-                className="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+              <Select value={editForm.tipo} onChange={e => setEditForm({ ...editForm, tipo: e.target.value as TipoPosicionStock })}
+                >
                 {TIPO_OPTIONS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
-              </select>
+              </Select>
               <input type="text" value={editForm.zona} onChange={e => setEditForm({ ...editForm, zona: e.target.value })}
                 className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Zona" />
               <input type="text" value={editForm.descripcion} onChange={e => setEditForm({ ...editForm, descripcion: e.target.value })}

@@ -4,6 +4,7 @@ import type { ChecklistItem, ChecklistItemType } from '@ags/shared';
 // Vite resuelve este import como asset URL en build y dev
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
+import { Select } from '../ui/Select';
 interface Props {
   onClose: () => void;
   onImport: (items: ChecklistItem[]) => void;
@@ -351,14 +352,14 @@ export const ImportChecklistPdfDialog = ({ onClose, onImport }: Props) => {
                       value={editLabels[item.itemId] ?? item.label}
                       onChange={e => setEditLabels(prev => ({ ...prev, [item.itemId]: e.target.value }))}
                     />
-                    <select value={item.itemType}
+                    <Select value={item.itemType}
                       onChange={e => updateItemType(item.itemId, e.target.value as ChecklistItemType)}
-                      className="text-[10px] bg-transparent border border-slate-200 rounded px-1 py-0.5 shrink-0"
+                      className="shrink-0" selectSize="xs"
                     >
                       {(Object.keys(TYPE_LABELS) as ChecklistItemType[]).map(t => (
                         <option key={t} value={t}>{TYPE_LABELS[t]}</option>
                       ))}
-                    </select>
+                    </Select>
                     {item.unit && <span className="text-[10px] text-blue-500 shrink-0">{item.unit}</span>}
                     {item.canBeNA && <span className="text-[10px] text-amber-600 shrink-0">N/A</span>}
                   </div>

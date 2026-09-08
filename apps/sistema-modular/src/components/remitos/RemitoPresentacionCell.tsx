@@ -1,6 +1,7 @@
 import type { RemitoItem } from '@ags/shared';
 import { cantidadImpresaRemito } from '../../utils/inventarioToRemitoItem';
 
+import { Select } from '../ui/Select';
 interface Props {
   item: RemitoItem;
   /** Envases declarados en el artículo base de esta línea. */
@@ -8,7 +9,6 @@ interface Props {
   onUpdate: (id: string, patch: Partial<RemitoItem>) => void;
 }
 
-const sel = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400';
 
 /**
  * Con qué código y en qué unidad sale IMPRESA la línea del remito (2026-08-14).
@@ -33,7 +33,7 @@ export function RemitoPresentacionCell({ item, envases, onUpdate }: Props) {
 
   return (
     <div className="space-y-0.5">
-      <select
+      <Select
         value={actual}
         onChange={e => {
           const env = envases.find(x => x.codigoParte === e.target.value);
@@ -41,13 +41,13 @@ export function RemitoPresentacionCell({ item, envases, onUpdate }: Props) {
             presentacion: env ? { codigoParte: env.codigoParte, factor: env.factor } : null,
           });
         }}
-        className={`${sel} font-mono`}
+        className="w-full font-mono" selectSize="xs"
       >
         <option value="">{item.articuloCodigo || 'Unidad'} (unidad)</option>
         {envases.map(e => (
           <option key={e.codigoParte} value={e.codigoParte}>{e.codigoParte} ×{e.factor}</option>
         ))}
-      </select>
+      </Select>
       {item.presentacion && (
         <span className={`block text-[9px] ${parcial ? 'text-amber-600' : 'text-slate-400'}`}>
           Imprime {impresa} × {item.presentacion.codigoParte}

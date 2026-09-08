@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 
+import { Select } from './Select';
 interface Props {
   value: string;
   onChange: (html: string) => void;
@@ -76,7 +77,7 @@ const TOOLBAR_BUTTONS: { id: BtnId; label: string; title: string; className?: st
 export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
-  // Última selección DENTRO del editor. El <select> de tamaño roba el foco al abrirse y
+  // Última selección DENTRO del editor. El <Select> de tamaño roba el foco al abrirse y
   // colapsa la selección → execCommand('fontSize') no aplicaba. Guardamos el rango y lo
   // restauramos antes de aplicar el tamaño.
   const savedRange = useRef<Range | null>(null);
@@ -120,7 +121,7 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
     updateActiveFormats();
   }, [emitChange]);
 
-  // Guarda el rango actual si está dentro del editor (para restaurarlo tras usar el <select>).
+  // Guarda el rango actual si está dentro del editor (para restaurarlo tras usar el <Select>).
   const saveSelection = useCallback(() => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
@@ -224,18 +225,18 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
         <div className="w-px h-5 bg-slate-300 mx-1" />
 
         {/* Font size — value fijo en '' para que actúe como menú (permite reelegir el mismo). */}
-        <select
+        <Select
           value=""
           onMouseDown={saveSelection}
           onChange={e => { if (e.target.value) execFontSize(e.target.value); }}
-          className="text-xs border border-slate-300 rounded px-1.5 py-1 bg-white text-slate-600 cursor-pointer"
+          className="cursor-pointer" selectSize="xs"
           title="Tamaño de letra"
         >
           <option value="" disabled>Tamaño</option>
           {FONT_SIZES.map(s => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Editable area */}

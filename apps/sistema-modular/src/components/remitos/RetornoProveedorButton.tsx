@@ -3,6 +3,7 @@ import type { RemitoItem } from '@ags/shared';
 import { remitosService } from '../../services/stockService';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props {
   item: RemitoItem;
 }
@@ -28,7 +29,7 @@ export function RetornoProveedorButton({ item }: Props) {
       await remitosService.registrarRetornoUnidad(item.unidadId);
     } catch (err) {
       console.error('[RetornoProveedorButton]', err);
-      alert(err instanceof Error ? err.message : 'No se pudo registrar el retorno');
+      notify.error(err instanceof Error ? err.message : 'No se pudo registrar el retorno');
     } finally {
       setActing(false);
     }

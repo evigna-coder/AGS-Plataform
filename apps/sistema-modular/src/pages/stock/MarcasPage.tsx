@@ -9,6 +9,7 @@ import { buildMarcasFiltrosExport, MARCAS_EXPORT_COLUMNS } from '../../utils/exp
 import type { Marca } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 export const MarcasPage = () => {
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +48,7 @@ export const MarcasPage = () => {
       setShowCreate(false);
       reload();
     } catch {
-      alert('Error al crear la marca');
+      notify.error('Error al crear la marca');
     } finally {
       setCreating(false);
     }
@@ -60,7 +61,7 @@ export const MarcasPage = () => {
       setEditingId(null);
       reload();
     } catch {
-      alert('Error al actualizar la marca');
+      notify.error('Error al actualizar la marca');
     }
   };
 
@@ -69,7 +70,7 @@ export const MarcasPage = () => {
       await marcasService.update(marca.id, { activo: !marca.activo });
       reload();
     } catch {
-      alert('Error al cambiar el estado');
+      notify.error('Error al cambiar el estado');
     }
   };
 
@@ -79,7 +80,7 @@ export const MarcasPage = () => {
       await marcasService.delete(marca.id);
       reload();
     } catch {
-      alert('Error al eliminar la marca');
+      notify.error('Error al eliminar la marca');
     }
   };
 

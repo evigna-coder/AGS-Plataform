@@ -17,6 +17,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { requerimientosService } from '../../services/firebaseService';
 import { URGENCIA_COLORS, URGENCIA_LABELS } from '../../pages/stock/RequerimientoRow';
 
+import { notify } from '../../utils/notify';
 interface Props {
   req: RequerimientoCompra | null;
   /** Proveedores activos para el selector de asignación (id + nombre). */
@@ -52,7 +53,7 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], 
       });
     } catch (err) {
       console.error('[VerRequerimientoModal] asignar proveedor:', err);
-      alert('No se pudo asignar el proveedor.');
+      notify.error('No se pudo asignar el proveedor.');
     } finally {
       setSaving(false);
     }

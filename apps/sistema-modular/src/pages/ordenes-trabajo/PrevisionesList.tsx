@@ -15,6 +15,8 @@ import { PrevisionesFiltersBar } from '../../components/previsiones/PrevisionesF
 import { GenerarPrevisionesButton } from '../../components/previsiones/GenerarPrevisionesButton';
 import { ReprogramarPrevisionModal } from '../../components/previsiones/ReprogramarPrevisionModal';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 const anioActual = new Date().getFullYear();
 
 // `tab` NO va en este schema a propósito: `resetFilters` borra todas las claves del
@@ -79,7 +81,7 @@ export const PrevisionesList: React.FC<Props> = ({ onTabChange }) => {
   const handleDescartar = async (p: AgendaPrevision) => {
     if (!await confirm(`¿Descartar la previsión de ${p.clienteNombre} (${p.tipoServicio})?`)) return;
     try { await previsionesService.descartar(p.id); }
-    catch { alert('Error al descartar la previsión'); }
+    catch { notify.error('Error al descartar la previsión'); }
   };
 
   const handleConvertida = async (otNumber?: string) => {
@@ -89,7 +91,7 @@ export const PrevisionesList: React.FC<Props> = ({ onTabChange }) => {
     try { await previsionesService.marcarConvertida(p.id, otNumber); }
     catch (err) {
       console.error('Error marcando la previsión como convertida:', err);
-      alert(`La OT ${otNumber} se creó, pero no se pudo marcar la previsión como convertida.`);
+      notify.error(`La OT ${otNumber} se creó, pero no se pudo marcar la previsión como convertida.`);
     }
   };
 
@@ -127,9 +129,7 @@ export const PrevisionesList: React.FC<Props> = ({ onTabChange }) => {
 
       <div className="flex-1 min-h-0 flex flex-col px-5 py-4">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-slate-400">Cargando previsiones...</p>
-          </div>
+          <LoadingState message="Cargando previsiones…" />
         ) : visibles.length === 0 ? (
           <EmptyState message={
             previsiones.length === 0

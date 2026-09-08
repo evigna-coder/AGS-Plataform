@@ -4,6 +4,7 @@ import { fichasService } from '../../services/firebaseService';
 import { useConfirm } from '../ui/ConfirmDialog';
 import type { ProximaAccionFicha } from '../../utils/proximaAccionFicha';
 
+import { notify } from '../../utils/notify';
 /**
  * El paso siguiente de la ficha, operable desde el listado (2026-08-23).
  *
@@ -54,7 +55,7 @@ export const FichaProximaAccionButton: React.FC<Props> = ({ ficha, accion, onDon
       onDone();
     } catch (err) {
       console.error('[FichaProximaAccionButton]', err);
-      alert('No se pudo aplicar el cambio.');
+      notify.error('No se pudo aplicar el cambio.');
     } finally {
       setBusy(false);
     }

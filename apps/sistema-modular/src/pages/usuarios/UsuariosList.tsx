@@ -12,7 +12,6 @@ import { usuariosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { USUARIOS_EXPORT_COLUMNS } from '../../utils/exports/exportUsuarios';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import type { UsuarioAGS, UserRole, AppId, ModuloId, UserPermissionsOverride } from '@ags/shared';
@@ -22,6 +21,10 @@ import {
 } from '@ags/shared';
 import { PermisosModulosTree } from '../../components/usuarios/PermisosModulosTree';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'admin_ing_soporte', 'ventas', 'admin_contable', 'administracion'];
 const ALL_APPS = Object.keys(APP_LABELS) as AppId[];
 
@@ -58,13 +61,13 @@ export const UsuariosList = () => {
     try {
       await usuariosService.approveUser(showApprove.id, selectedRole);
       setShowApprove(null);
-    } catch { alert('Error al aprobar usuario'); }
+    } catch { notify.error('Error al aprobar usuario'); }
   };
 
   const handleToggleStatus = async (u: UsuarioAGS) => {
     const newStatus = u.status === 'activo' ? 'deshabilitado' : 'activo';
     try { await usuariosService.updateStatus(u.id, newStatus); }
-    catch { alert('Error al cambiar estado'); }
+    catch { notify.error('Error al cambiar estado'); }
   };
 
   const formatDate = (d?: string | null) => {
@@ -89,9 +92,9 @@ export const UsuariosList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando usuarios...</p></div>
+          <LoadingState message="Cargando usuarios…" />
         ) : users.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No hay usuarios registrados.</p></div></Card>
+          <EmptyState message="No hay usuarios registrados." hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">
@@ -208,10 +211,10 @@ export const UsuariosList = () => {
             </div>
             <div>
               <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Asignar rol</label>
-              <select value={selectedRole} onChange={e => setSelectedRole(e.target.value as UserRole)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <Select value={selectedRole} onChange={e => setSelectedRole(e.target.value as UserRole)}
+                className="w-full">
                 {ROLES.map(r => <option key={r} value={r}>{USER_ROLE_LABELS[r]}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
         )}
@@ -294,7 +297,7 @@ function EditUserModal({ usuario, onClose, onSaved }: {
       }
       onSaved();
     } catch {
-      alert('Error al guardar cambios');
+      notify.error('Error al guardar cambios');
     } finally {
       setSaving(false);
     }

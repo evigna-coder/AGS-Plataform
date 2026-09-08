@@ -6,6 +6,7 @@ import { asignacionesService } from '../../services/firebaseService';
 import { movimientosAplicarService, itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 import { nombreUsuarioActual } from '../../services/asignacionesStockHelpers';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   remito: Remito;
@@ -55,7 +56,7 @@ export function RemitoDescargaModal({ open, remito, onClose }: Props) {
   const incluidas = useMemo(() => filas.filter(f => f.incluir), [filas]);
 
   const ejecutar = async () => {
-    if (incluidas.length === 0) { alert('No hay items seleccionados para devolver.'); return; }
+    if (incluidas.length === 0) { notify.warning('No hay items seleccionados para devolver.'); return; }
     setProcesando(true);
     try {
       const creadoPor = nombreUsuarioActual();
@@ -104,7 +105,7 @@ export function RemitoDescargaModal({ open, remito, onClose }: Props) {
       onClose();
     } catch (err) {
       console.error('[RemitoDescargaModal] devolución:', err);
-      alert(err instanceof Error ? err.message : 'Error al registrar la devolución');
+      notify.error(err instanceof Error ? err.message : 'Error al registrar la devolución');
     } finally {
       setProcesando(false);
     }

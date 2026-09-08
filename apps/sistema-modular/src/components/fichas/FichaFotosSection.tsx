@@ -7,6 +7,7 @@ import type { FichaPropiedad, FotoFicha } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { pushEscape } from '../../utils/escapeStack';
 
+import { notify } from '../../utils/notify';
 interface Props {
   ficha: FichaPropiedad;
   readOnly?: boolean;
@@ -65,7 +66,7 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate, embedded, collaps
       onUpdate();
     } catch (err) {
       console.error('Error subiendo foto:', err);
-      alert('Error al subir la foto.');
+      notify.error('Error al subir la foto.');
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -85,7 +86,7 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate, embedded, collaps
       onUpdate();
     } catch (err) {
       console.error('Error eliminando foto:', err);
-      alert('Error al eliminar la foto');
+      notify.error('Error al eliminar la foto');
     } finally {
       setDeleting(null);
     }

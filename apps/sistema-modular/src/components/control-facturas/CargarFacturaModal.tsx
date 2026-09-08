@@ -7,13 +7,14 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface CargarFacturaModalProps {
   onClose: () => void;
   onCreated?: () => void;
 }
 
 const labelClass = 'text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1 block';
-const selectClass = 'w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500';
 // El área 'sistema' es de pasaje (sin responsable), no se ofrece como destino.
 const AREAS = (Object.keys(TICKET_AREA_LABELS) as TicketArea[]).filter(a => a !== 'sistema');
 
@@ -86,7 +87,7 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
       onClose();
     } catch (err) {
       console.error('Error al cargar la factura:', err);
-      alert('Error al cargar la factura');
+      notify.error('Error al cargar la factura');
     } finally {
       setSaving(false);
     }
@@ -131,18 +132,18 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Área destino *</label>
-            <select value={areaDestino} onChange={e => { setAreaDestino(e.target.value as TicketArea | ''); setResponsableId(''); }} className={selectClass}>
+            <Select value={areaDestino} onChange={e => { setAreaDestino(e.target.value as TicketArea | ''); setResponsableId(''); }} className="w-full">
               <option value="">Seleccionar...</option>
               {AREAS.map(a => <option key={a} value={a}>{TICKET_AREA_LABELS[a]}</option>)}
-            </select>
+            </Select>
             {errors.area && <p className="text-xs text-red-600 mt-0.5">{errors.area}</p>}
           </div>
           <div>
             <label className={labelClass}>Responsable *</label>
-            <select value={responsableId} onChange={e => setResponsableId(e.target.value)} className={selectClass}>
+            <Select value={responsableId} onChange={e => setResponsableId(e.target.value)} className="w-full">
               <option value="">Seleccionar...</option>
               {responsablesOptions.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-            </select>
+            </Select>
             {errors.responsable && <p className="text-xs text-red-600 mt-0.5">{errors.responsable}</p>}
           </div>
         </div>

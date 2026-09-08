@@ -10,6 +10,7 @@ import { useConfirm } from '../components/ui/ConfirmDialog';
 import { usePrompt } from '../components/ui/PromptDialog';
 import { useAuth } from '../contexts/AuthContext';
 
+import { notify } from '../utils/notify';
 export function useOTDetail(otNumber?: string) {
   const confirm = useConfirm();
   const promptText = usePrompt();
@@ -64,7 +65,7 @@ export function useOTDetail(otNumber?: string) {
     const unsub = ordenesTrabajoService.subscribeByOtNumber(otNumber, (ot) => {
       if (!ot) {
         if (initialLoadDone.current) return;
-        alert('Orden de trabajo no encontrada');
+        notify.warning('Orden de trabajo no encontrada');
         navigate('/ordenes-trabajo');
         return;
       }
@@ -79,7 +80,7 @@ export function useOTDetail(otNumber?: string) {
       }
     }, (err) => {
       console.error('OT subscription error:', err);
-      if (!initialLoadDone.current) { alert('Error al cargar la orden de trabajo'); setLoading(false); }
+      if (!initialLoadDone.current) { notify.error('Error al cargar la orden de trabajo'); setLoading(false); }
     });
 
     return () => unsub();
@@ -106,7 +107,7 @@ export function useOTDetail(otNumber?: string) {
       }
       if (ot.sistemaId) { try { setModulosFiltrados(await modulosService.getBySistema(ot.sistemaId)); } catch { /* optional */ } }
       if (ot.presupuestoOrigenId) { try { const p = await presupuestosService.getById(ot.presupuestoOrigenId); if (p) setPresupuestoOrigenNumero(p.numero); } catch { /* optional */ } }
-    } catch { alert('Error al cargar datos relacionados'); } finally { setLoading(false); }
+    } catch { notify.error('Error al cargar datos relacionados'); } finally { setLoading(false); }
   }, [otNumber]);
 
   // ── Cascading selects ─────────────────────────────────────────
@@ -126,7 +127,7 @@ export function useOTDetail(otNumber?: string) {
   const handleSave = useCallback(async () => {
     if (!otNumber) return;
     try { setSaving(true); await ordenesTrabajoService.update(otNumber, buildSavePayload()); dirtyRef.current = false; }
-    catch { alert('Error al guardar los cambios'); } finally { setSaving(false); }
+    catch { notify.error('Error al guardar los cambios'); } finally { setSaving(false); }
   }, [otNumber, buildSavePayload]);
 
   useEffect(() => {
@@ -138,8 +139,8 @@ export function useOTDetail(otNumber?: string) {
 
   const handleDelete = useCallback(async () => {
     if (!otNumber || !await confirm(`Eliminar OT ${otNumber}?`)) return;
-    try { setSaving(true); await ordenesTrabajoService.delete(otNumber); alert('OT eliminada'); navigate('/ordenes-trabajo'); }
-    catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); } finally { setSaving(false); }
+    try { setSaving(true); await ordenesTrabajoService.delete(otNumber); notify.error('OT eliminada'); navigate('/ordenes-trabajo'); }
+    catch (err) { notify.error(err instanceof Error ? err.message : 'Error al eliminar'); } finally { setSaving(false); }
   }, [otNumber, navigate]);
 
   /**
@@ -163,10 +164,10 @@ export function useOTDetail(otNumber?: string) {
     try {
       setSaving(true);
       await ordenesTrabajoService.cancelarItem(otNumber, motivo);
-      alert(`Item ${otNumber} cancelado. El número queda ocupado; el próximo item sigue la numeración.`);
+      notify.error(`Item ${otNumber} cancelado. El número queda ocupado; el próximo item sigue la numeración.`);
       navigate('/ordenes-trabajo');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al cancelar el item');
+      notify.error(err instanceof Error ? err.message : 'Error al cancelar el item');
     } finally { setSaving(false); }
   }, [otNumber, navigate, promptText]);
 
@@ -207,7 +208,7 @@ export function useOTDetail(otNumber?: string) {
       console.log(`[useOTDetail] Cierre admin OK — ticket admin ${adminTicketId.slice(0, 6)}`);
     } catch (err: any) {
       console.error('[useOTDetail] cerrarAdministrativamente failed:', err);
-      alert(`Error al cerrar administrativamente: ${err?.message || 'Error desconocido'}\nLa transición local se aplicará pero el mail y el ticket admin podrían no haberse creado — revise /admin/acciones-pendientes.`);
+      notify.error(`Error al cerrar administrativamente: ${err?.message || 'Error desconocido'}\nLa transición local se aplicará pero el mail y el ticket admin podrían no haberse creado — revise /admin/acciones-pendientes.`);
       // Best-effort: register pendingAction on each linked presupuesto so the admin can retry.
       const ot = await ordenesTrabajoService.getByOtNumber(otNumber).catch(() => null);
       const presupuestoNumeros = ot?.budgets || [];
@@ -234,8 +235,8 @@ export function useOTDetail(otNumber?: string) {
 
   // ── Confirmar cierre (FINALIZADO transition — mail+ticket admin ya corrieron en CIERRE_ADMINISTRATIVO) ──
   const handleConfirmarCierre = useCallback(async () => {
-    if (!form.cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
-    if (!form.cierreAdmin.partesConfirmadas && form.articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+    if (!form.cierreAdmin.horasConfirmadas) { notify.warning('Debe confirmar las horas trabajadas'); return; }
+    if (!form.cierreAdmin.partesConfirmadas && form.articulos.length > 0) { notify.warning('Debe confirmar los materiales/repuestos'); return; }
     if (!otNumber) return;
     const ahora = new Date().toISOString();
     setField('cierreAdmin', { ...form.cierreAdmin, fechaCierreAdmin: ahora });
@@ -254,7 +255,7 @@ export function useOTDetail(otNumber?: string) {
       setRetenidaFacturacion(false);
       setRequisitoFacturacionPendiente(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al liberar para facturación');
+      notify.error(err instanceof Error ? err.message : 'Error al liberar para facturación');
     } finally { setSaving(false); }
   }, [otNumber, firebaseUser?.uid, usuario?.displayName, confirm]);
 

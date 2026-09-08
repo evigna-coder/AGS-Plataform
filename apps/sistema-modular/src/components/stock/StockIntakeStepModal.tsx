@@ -5,6 +5,7 @@ import { cantidadEnUnidadBase } from '@ags/shared';
 import type { UbicOption } from '../../hooks/useStockIntake';
 import { matchesSearch } from '../../utils/searchTerms';
 
+import { Select } from '../ui/Select';
 const CONDICIONES: CondicionUnidad[] = ['nuevo', 'bien_de_uso', 'reacondicionado', 'vendible', 'scrap'];
 const CONDICION_LABELS: Record<CondicionUnidad, string> = {
   nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap',
@@ -98,8 +99,8 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
               {mostrarEnvases && (
                 <div>
                   <label className={lbl}>Envase recibido</label>
-                  <select
-                    className={ctrl}
+                  <Select
+                    className="w-full" selectSize="md"
                     value={draft.presentacion?.codigoParte ?? ''}
                     onChange={e => {
                       const p = presentaciones.find(x => x.codigoParte === e.target.value);
@@ -112,7 +113,7 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
                         {p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
               <div>
@@ -134,10 +135,10 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
         {draft.step === 'condicion' && (
           <div>
             <label className={lbl}>Condición</label>
-            <select ref={inputRef as any} className={ctrl} value={draft.condicion}
+            <Select ref={inputRef as any} className="w-full" selectSize="md" value={draft.condicion}
               onChange={e => onPatch({ condicion: e.target.value as CondicionUnidad })} onKeyDown={onKey}>
               {CONDICIONES.map(c => <option key={c} value={c}>{CONDICION_LABELS[c]}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 

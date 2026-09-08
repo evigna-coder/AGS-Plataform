@@ -7,6 +7,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { PendientesDraftList, type PendienteDraft } from '../pendientes/PendientesDraftList';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface FinalizarLeadModalProps {
   lead: Lead;
   onClose: () => void;
@@ -101,7 +103,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
       onFinalized();
     } catch (err) {
       console.error('Error al finalizar ticket:', err);
-      alert('Error al finalizar el ticket');
+      notify.error('Error al finalizar el ticket');
     } finally {
       setSaving(false);
     }
@@ -124,17 +126,17 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
               {motivosDisponibles[0].label}
             </div>
           ) : (
-            <select
+            <Select
               value={estadoFinal}
               onChange={e => setEstadoFinal(e.target.value as 'finalizado' | 'no_concretado')}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full"
             >
               {motivosDisponibles.map(m => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
 

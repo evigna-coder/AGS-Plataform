@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import type { RegistroKm } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props {
   vehiculoId: string;
   registros: RegistroKm[];
@@ -17,7 +18,7 @@ export const RegistroKmPanel: React.FC<Props> = ({ vehiculoId, registros, onChan
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
-    if (!form.fecha || !form.km) return alert('Fecha y KM son obligatorios');
+    if (!form.fecha || !form.km) return notify.warning('Fecha y KM son obligatorios');
     setSaving(true);
     try {
       const km = parseInt(form.km);
@@ -28,7 +29,7 @@ export const RegistroKmPanel: React.FC<Props> = ({ vehiculoId, registros, onChan
       onChanged();
     } catch (err) {
       console.error(err);
-      alert('Error al registrar');
+      notify.error('Error al registrar');
     } finally {
       setSaving(false);
     }

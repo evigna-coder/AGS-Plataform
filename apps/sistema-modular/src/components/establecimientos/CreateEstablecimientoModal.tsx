@@ -9,6 +9,8 @@ import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete'
 import { direccionDesdeAutocomplete } from '../../utils/direccionDesdeAutocomplete';
 import type { Cliente, CondicionPago } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -60,11 +62,11 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
   const handleClose = () => { onClose(); setForm(emptyForm); };
 
   const handleSave = async () => {
-    if (!form.clienteCuit) { alert('Seleccione un cliente'); return; }
-    if (!form.nombre.trim()) { alert('El nombre es obligatorio'); return; }
-    if (!form.direccion.trim()) { alert('La direccion es obligatoria'); return; }
-    if (!form.localidad.trim()) { alert('La localidad es obligatoria'); return; }
-    if (!form.provincia.trim()) { alert('La provincia es obligatoria'); return; }
+    if (!form.clienteCuit) { notify.warning('Seleccione un cliente'); return; }
+    if (!form.nombre.trim()) { notify.warning('El nombre es obligatorio'); return; }
+    if (!form.direccion.trim()) { notify.warning('La direccion es obligatoria'); return; }
+    if (!form.localidad.trim()) { notify.warning('La localidad es obligatoria'); return; }
+    if (!form.provincia.trim()) { notify.warning('La provincia es obligatoria'); return; }
 
     setSaving(true);
     try {
@@ -83,12 +85,11 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
       handleClose();
       onCreated();
       navigate(`/establecimientos/${newId}`);
-    } catch { alert('Error al crear el establecimiento'); }
+    } catch { notify.error('Error al crear el establecimiento'); }
     finally { setSaving(false); }
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo establecimiento"
@@ -161,10 +162,10 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Tipo</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={selectCls}>
+              <Select value={form.tipo} onChange={e => set('tipo', e.target.value)} className="w-full">
                 <option value="">Sin especificar</option>
                 {TIPO_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className={lbl}>Condicion de pago</label>
@@ -175,11 +176,11 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
             </div>
             <div>
               <label className={lbl}>Tipo de servicio</label>
-              <select value={form.tipoServicio} onChange={e => set('tipoServicio', e.target.value)} className={selectCls}>
+              <Select value={form.tipoServicio} onChange={e => set('tipoServicio', e.target.value)} className="w-full">
                 <option value="">Sin especificar</option>
                 <option value="contrato">Contrato</option>
                 <option value="per_incident">Per incident</option>
-              </select>
+              </Select>
             </div>
             <Input inputSize="sm" label="Info pagos" value={form.infoPagos}
               onChange={e => set('infoPagos', e.target.value)} placeholder="Notas sobre pagos..." />

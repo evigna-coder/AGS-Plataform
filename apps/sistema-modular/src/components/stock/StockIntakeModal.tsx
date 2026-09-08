@@ -117,7 +117,7 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, pr
                   </td>
                   <td className="px-2 py-1.5 text-slate-600 capitalize">{it.condicion.replace('_', ' ')}</td>
                   <td className="px-2 py-1.5 text-slate-600 min-w-[190px]">
-                    {/* SearchableSelect y no <select> nativo: la lista de
+                    {/* SearchableSelect y no <Select> nativo: la lista de
                         ubicaciones es larga y hay que poder tipear para
                         encontrarla. Su desplegable va por portal con position
                         fixed, así que no lo recorta el overflow de la tabla. */}

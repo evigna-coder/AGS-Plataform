@@ -9,6 +9,7 @@ import { matchesSearch } from '../../utils/searchTerms';
 import type { Presupuesto, PresupuestoItem } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 /** Estados de requerimiento que ya no cuentan como "generado" para esta vista. */
 const REQ_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
 
@@ -109,7 +110,7 @@ export function RequerimientosPartesTab() {
       }
     } catch (err) {
       console.error(err);
-      alert('Error al generar el requerimiento');
+      notify.error('Error al generar el requerimiento');
     } finally {
       setGenerando(null);
     }

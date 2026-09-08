@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Card } from '../ui/Card';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../ui/SortableHeader';
 import { PresentacionesBadge } from './PresentacionesBadge';
 import { UnidadesSubTable } from './UnidadesSubTable';
 import { promedioCostoFactor } from '@ags/shared';
 import type { UnidadStock, Presentacion } from '@ags/shared';
 
+import { EmptyState } from '../ui/EmptyState';
 export interface AggRow {
   articuloId: string;
   codigo: string;
@@ -50,7 +50,7 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, o
   const sorted = useMemo(() => sortByField(rows, sortField, sortDir), [rows, sortField, sortDir]);
 
   if (rows.length === 0) return (
-    <Card><div className="text-center py-12"><p className="text-slate-400">No hay unidades cargadas</p></div></Card>
+    <EmptyState message="No hay unidades cargadas" />
   );
 
   return (

@@ -8,6 +8,7 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 type Tab = 'servicios' | 'historial' | 'km';
 
 export const VehiculoDetail = () => {
@@ -48,7 +49,7 @@ export const VehiculoDetail = () => {
     return () => unsub();
   }, [id, loadSubcollections]);
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
+  if (loading) return <LoadingState message="Cargando…" />;
   if (!vehiculo) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Vehículo no encontrado</p></div>;
 
   const latestKm = registrosKm.length > 0 ? registrosKm[0].km : vehiculo.kmActual ?? 0;

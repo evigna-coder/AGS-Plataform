@@ -6,6 +6,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
+import { notify } from '../../utils/notify';
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
 const inp = 'w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400';
 
@@ -76,7 +77,7 @@ export function ConvertirStockAPatronModal({ open, onClose, onConvertido, patron
         fechaVencimiento: vencimiento || null,
         creadoPor,
       });
-      alert(`${n} unidad(es) convertidas al lote ${lote.trim()}.`);
+      notify.error(`${n} unidad(es) convertidas al lote ${lote.trim()}.`);
       onConvertido();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo convertir');

@@ -13,6 +13,7 @@ import {
 import { primerFinDeSemanaEnRango, mensajeFinDeSemana } from '../utils/finDeSemana';
 import { debeRevertirOTAlBorrarEntrada } from '../utils/agendaRevertOT';
 
+import { notify } from '../utils/notify';
 export interface UseAgendaReturn {
   // Date navigation
   anchor: Date;
@@ -269,17 +270,17 @@ export function useAgenda(): UseAgendaReturn {
     // Va PRIMERO porque no depende de datos cargados (feriados/días AGS).
     const finde = primerFinDeSemanaEnRango(data.fechaInicio, data.fechaFin);
     if (finde) {
-      alert(mensajeFinDeSemana(finde));
+      notify.warning(mensajeFinDeSemana(finde));
       return '';
     }
     const feriado = primerFeriadoEnRango(data.fechaInicio, data.fechaFin);
     if (feriado) {
-      alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+      notify.warning(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
       return '';
     }
     const diaAgs = primerDiaAgsEnRango(data.ingenieroId, data.fechaInicio, data.fechaFin);
     if (diaAgs) {
-      alert(`El ${diaAgs} es día AGS de ${data.ingenieroNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
+      notify.warning(`El ${diaAgs} es día AGS de ${data.ingenieroNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
       return '';
     }
     // La marca de INTERIOR se resuelve ACÁ y no en cada llamador (2026-08-09).
@@ -309,19 +310,19 @@ export function useAgenda(): UseAgendaReturn {
       // cambio mueve o estira fechas — cambiar estado o notas no se toca.
       const finde = (data.fechaInicio || data.fechaFin) ? primerFinDeSemanaEnRango(inicio, fin) : null;
       if (finde) {
-        alert(mensajeFinDeSemana(finde));
+        notify.warning(mensajeFinDeSemana(finde));
         return;
       }
       const feriado = (data.fechaInicio || data.fechaFin) ? primerFeriadoEnRango(inicio, fin) : null;
       if (feriado) {
-        alert(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
+        notify.warning(`El ${feriado} está marcado como feriado — no se puede agendar ese día. Para hacerlo, desmarcá el feriado (click derecho sobre la fecha).`);
         return;
       }
       const ingId = data.ingenieroId ?? current?.ingenieroId ?? '';
       const ingNombre = data.ingenieroNombre ?? current?.ingenieroNombre ?? 'ese ingeniero';
       const diaAgs = primerDiaAgsEnRango(ingId, inicio, fin);
       if (diaAgs) {
-        alert(`El ${diaAgs} es día AGS de ${ingNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
+        notify.warning(`El ${diaAgs} es día AGS de ${ingNombre} (no laborable) — no se le puede agendar ese día. Para hacerlo, quitá el día AGS (click derecho sobre la celda).`);
         return;
       }
     }

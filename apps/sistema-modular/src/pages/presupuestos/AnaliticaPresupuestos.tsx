@@ -14,6 +14,7 @@ import { AnaliticaKpiRow } from '../../components/presupuestos/analitica/Analiti
 import { EnviadosAceptadosChart } from '../../components/presupuestos/analitica/EnviadosAceptadosChart';
 import { AgingTable, type AgingTableRow } from '../../components/presupuestos/analitica/AgingTable';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 const fmtDia = (iso: string) => {
   const m = iso.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
@@ -130,7 +131,7 @@ export const AnaliticaPresupuestos = () => {
           </div>
         )}
         {!error && loading && !data && (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando analítica…</p></div>
+          <LoadingState message="Cargando analítica…" />
         )}
         {!error && metrics && (
           <>

@@ -12,6 +12,7 @@ import { factorImportacionVigente } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 const CONDICION_COLORS: Record<CondicionUnidad, string> = {
   nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700',
   reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700',
@@ -79,7 +80,7 @@ export const ArticuloDetail = () => {
     return () => unsub();
   }, [id, loadUnidades]);
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando articulo...</p></div>;
+  if (loading) return <LoadingState message="Cargando articulo…" />;
   if (!articulo) return <div className="text-center py-12"><p className="text-slate-400">Articulo no encontrado</p><Link to="/stock" className="text-teal-600 hover:underline mt-2 inline-block">Volver</Link></div>;
 
   return (

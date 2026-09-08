@@ -7,6 +7,7 @@ import {
 } from '../services/firebaseService';
 import { proveedoresService } from '../services/personalService';
 
+import { notify } from '../utils/notify';
 /** Quién lleva la mercadería (2026-08-07). */
 export type QuienTransporta = 'ingeniero' | 'transportista';
 
@@ -305,7 +306,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       resto -= tomar;
     }
     if (resto > 0) {
-      alert(`De ${it.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
+      notify.info(`De ${it.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
     }
     setItems(prev => prev.map(x => (x.id === id ? { ...x, cantidad: cap } : x)).concat(nuevas));
     if (Object.keys(nuevosMax).length > 0) setMaxCantidad(prev => ({ ...prev, ...nuevosMax }));
@@ -392,7 +393,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       resto -= tomar;
     }
     if (resto > 0) {
-      alert(`De ${plantilla.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
+      notify.info(`De ${plantilla.articuloCodigo || 'este artículo'} hay ${deseada - resto} disponible(s) en stock — se cargó lo que hay.`);
     }
     const nuevas: RemitoItem[] = asignaciones.map(a => ({
       id: crypto.randomUUID(),
@@ -464,7 +465,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
   /** Crea o actualiza el remito (borrador). Devuelve el Remito persistido o null. */
   const guardar = useCallback(async (): Promise<Remito | null> => {
     const error = validar();
-    if (error) { alert(error); return null; }
+    if (error) { notify.error(error); return null; }
     setSaving(true);
     try {
       // Ingeniero y transportista son excluyentes: se persiste el elegido y se
@@ -507,7 +508,7 @@ export function useRemitoForm(open: boolean, remito: Remito | null) {
       return creado;
     } catch (err) {
       console.error('[useRemitoForm] guardar:', err);
-      alert('Error al guardar el remito');
+      notify.error('Error al guardar el remito');
       return null;
     } finally {
       setSaving(false);

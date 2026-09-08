@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { TableCatalogColumn } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   col: TableCatalogColumn;
   onSave: (col: TableCatalogColumn) => void;
@@ -28,8 +29,8 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
           onChange={e => setD({ ...d, label: e.target.value })} />
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <select value={d.type} onChange={e => setD({ ...d, type: e.target.value as TableCatalogColumn['type'] })}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+        <Select value={d.type} onChange={e => setD({ ...d, type: e.target.value as TableCatalogColumn['type'] })}
+          selectSize="md">
           <option value="text_input">Texto libre</option>
           <option value="number_input">Número</option>
           <option value="checkbox">Checkbox</option>
@@ -38,7 +39,7 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
           <option value="pass_fail">Pasa/Falla</option>
           <option value="select_input">Selección (una opción)</option>
           <option value="multi_select">Multi-selección (varias opciones)</option>
-        </select>
+        </Select>
         <Input placeholder="Unidad (ej: mL/min)" value={d.unit ?? ''}
           onChange={e => setD({ ...d, unit: e.target.value || null })} />
         {d.type === 'fixed_text' ? (
@@ -127,15 +128,15 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
           </div>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Alinear</label>
-            <select
+            <Select
               value={d.align ?? 'center'}
               onChange={e => setD({ ...d, align: e.target.value === 'center' ? null : e.target.value as 'left' | 'right' })}
-              className="border border-slate-300 rounded-lg px-1.5 py-1 text-xs"
+              selectSize="xs"
             >
               <option value="left">Izq</option>
               <option value="center">Centro</option>
               <option value="right">Der</option>
-            </select>
+            </Select>
           </div>
           <div className="flex items-center gap-1.5" title="Tamaño de fuente del contenido en pixeles. Vacío = default (10px). Útil cuando la columna tiene texto largo o multilínea.">
             <label className="text-xs font-medium text-slate-500">Tamaño (px)</label>

@@ -6,6 +6,7 @@ import { movimientosAplicarService, type PuntoMovimiento } from '../services/mov
 import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
 import type { Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, TipoOrigenDestino } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 /**
  * Movimiento en LOTE: varios artículos en un mismo movimiento (mismo tipo/destino), generando
  * un asiento por artículo. Cubre transferencia / egreso / consumo. El ORIGEN es POR LÍNEA:
@@ -189,20 +190,20 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
   const handleClose = () => { onClose(); reset(); };
 
   const handleSave = async () => {
-    if (lineas.length === 0) { alert('Agregá al menos un artículo'); return; }
+    if (lineas.length === 0) { notify.warning('Agregá al menos un artículo'); return; }
 
     let destino: PuntoMovimiento;
     let otNumber: string | null = null;
     if (destinoCfg.mode === 'ubicacion') {
       const d = locationOptions.find(o => o.key === destinoKey);
-      if (!d) { alert('Seleccioná el destino'); return; }
+      if (!d) { notify.warning('Seleccioná el destino'); return; }
       if (lineas.some(l => l.origenTipo === d.tipo && l.origenId === d.id)) {
-        alert('Hay una línea cuyo origen es el mismo que el destino'); return;
+        notify.warning('Hay una línea cuyo origen es el mismo que el destino'); return;
       }
       destino = { tipo: d.tipo, id: d.id, nombre: d.nombre };
     } else {
       const txt = destinoLibre.trim();
-      if (!txt) { alert(`Completá ${destinoCfg.label.toLowerCase()}`); return; }
+      if (!txt) { notify.warning(`Completá ${destinoCfg.label.toLowerCase()}`); return; }
       destino = { tipo: destinoCfg.tipo, id: '', nombre: txt };
       if (tipo === 'consumo') otNumber = txt;
     }
@@ -215,7 +216,7 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
       return !!fresh?.requiereNumeroSerie && l.unidadIds.length === 0;
     });
     if (desactualizadas.length > 0) {
-      alert(`El catálogo cambió durante la carga: ${desactualizadas.map(l => l.articuloCodigo).join(', ')} ahora requiere n° de serie. Quitá esa línea y volvé a agregarla seleccionando las unidades — el resto se conserva.`);
+      notify.warning(`El catálogo cambió durante la carga: ${desactualizadas.map(l => l.articuloCodigo).join(', ')} ahora requiere n° de serie. Quitá esa línea y volvé a agregarla seleccionando las unidades — el resto se conserva.`);
       return;
     }
 
@@ -256,7 +257,7 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
       onCreated();
     } catch (err) {
       console.error('[useMovimientoLoteForm]', err);
-      alert(err instanceof Error ? `Error al registrar el movimiento: ${err.message}` : 'Error al registrar el movimiento');
+      notify.error(err instanceof Error ? `Error al registrar el movimiento: ${err.message}` : 'Error al registrar el movimiento');
     } finally { setSaving(false); }
   };
 

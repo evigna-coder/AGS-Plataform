@@ -6,6 +6,7 @@ import type { TableCatalogEntry, ChecklistItem, ChecklistItemType } from '@ags/s
 import { ImportChecklistPdfDialog } from './ImportChecklistPdfDialog';
 import { EmbeddedTableEditor } from './EmbeddedTableEditor';
 
+import { Select } from '../ui/Select';
 interface Props {
   entry: TableCatalogEntry;
   onChange: (entry: TableCatalogEntry) => void;
@@ -99,7 +100,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         />
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <select
+        <Select
           value={d.itemType}
           onChange={e => {
             const newType = e.target.value as ChecklistItemType;
@@ -111,25 +112,25 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
               embeddedRows: newType === 'embedded_table' ? (d.embeddedRows ?? []) : null,
             });
           }}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+          selectSize="md"
         >
           <option value="checkbox">Checkbox</option>
           <option value="value_input">Campo valor</option>
           <option value="pass_fail">Cumple / No cumple</option>
           <option value="selector">Selector</option>
           <option value="embedded_table">Tabla informacional</option>
-        </select>
-        <select
+        </Select>
+        <Select
           value={d.depth}
           onChange={e => setD({ ...d, depth: Number(e.target.value) as ChecklistItem['depth'] })}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+          selectSize="md"
         >
           <option value={0}>0 — Cabecera</option>
           <option value={1}>1 — Sección</option>
           <option value={2}>2 — Sub-sección</option>
           <option value={3}>3 — Sub-sub-sección</option>
           <option value={4}>4 — Detalle</option>
-        </select>
+        </Select>
         {d.itemType === 'value_input' ? (
           <Input
             placeholder="Unidad (ej: bar, hs.)"
@@ -343,18 +344,18 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                   };
                   return (
                     <>
-                      <select
+                      <Select
                         value={vw.selectorItemId}
                         onChange={e => {
                           const sel = availableSelectors.find(s => s.itemId === e.target.value);
                           setD({ ...d, visibleWhen: { selectorItemId: e.target.value, values: sel?.selectorOptions?.slice(0, 1) ?? [] } });
                         }}
-                        className="text-[11px] border border-slate-300 rounded px-1.5 py-1 bg-white"
+                        selectSize="xs"
                       >
                         {availableSelectors.map(s => (
                           <option key={s.itemId} value={s.itemId}>{s.label || '(sin nombre)'}</option>
                         ))}
-                      </select>
+                      </Select>
                       <div className="flex flex-wrap gap-1.5">
                         {selectorOpts.map(opt => {
                           const isSelected = vw.values.includes(opt);
@@ -377,15 +378,15 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                   const vw = d.visibleWhen as { checkboxItemId: string; whenChecked: boolean };
                   return (
                     <>
-                      <select
+                      <Select
                         value={vw.checkboxItemId}
                         onChange={e => setD({ ...d, visibleWhen: { ...vw, checkboxItemId: e.target.value } })}
-                        className="text-[11px] border border-slate-300 rounded px-1.5 py-1 bg-white"
+                        selectSize="xs"
                       >
                         {availableCheckboxes.map(cb => (
                           <option key={cb.itemId} value={cb.itemId}>{cb.label || '(sin nombre)'}</option>
                         ))}
-                      </select>
+                      </Select>
                       <div className="flex gap-2">
                         <label className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
                           !vw.whenChecked ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'

@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import type { MinikitRequeridoItem, UnidadStock } from '@ags/shared';
 import type { OrdenListadoMinikit } from '../../utils/minikitImprimir';
 
+import { Select } from '../ui/Select';
 interface Props {
   requeridos: MinikitRequeridoItem[];
   unidades: UnidadStock[];
@@ -75,12 +76,12 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
           </span>
           {onImprimir && (
             <span className="flex items-center gap-1">
-              <select value={ordenImpresion} onChange={e => setOrdenImpresion(e.target.value as OrdenListadoMinikit)}
-                className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-slate-500">
+              <Select value={ordenImpresion} onChange={e => setOrdenImpresion(e.target.value as OrdenListadoMinikit)}
+                selectSize="xs">
                 <option value="sector">Por sector</option>
                 <option value="codigo">Por código</option>
                 <option value="descripcion">Alfabético</option>
-              </select>
+              </Select>
               <button onClick={() => onImprimir(ordenImpresion)}
                 className="text-teal-600 hover:underline font-medium text-[11px]">Imprimir</button>
             </span>

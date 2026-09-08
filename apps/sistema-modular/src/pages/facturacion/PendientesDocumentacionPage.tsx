@@ -16,6 +16,7 @@ import { usePrompt } from '../../components/ui/PromptDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PENDIENTES_DOCUMENTACION_EXPORT_COLUMNS } from '../../utils/exports/exportPendientesDocumentacion';
 
+import { notify } from '../../utils/notify';
 interface Grupo {
   clienteId: string;
   clienteNombre: string;
@@ -124,7 +125,7 @@ export const PendientesDocumentacionPage = () => {
       );
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo descartar');
+      notify.error(e instanceof Error ? e.message : 'No se pudo descartar');
     } finally { setActing(false); }
   };
 
@@ -135,7 +136,7 @@ export const PendientesDocumentacionPage = () => {
       await ordenesTrabajoService.liberarParaFacturacion(otNumber, { uid: firebaseUser?.uid || '', name: usuario?.displayName });
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al liberar');
+      notify.error(e instanceof Error ? e.message : 'Error al liberar');
     } finally { setActing(false); }
   };
 

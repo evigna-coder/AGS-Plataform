@@ -14,6 +14,8 @@ import type { DatosTransportista } from '../../services/stockService';
 import type { InventarioItem } from '../../hooks/useInventarioIngeniero';
 import type { Proveedor, TipoRemito, TipoRemitoItem, TipoItemAsignacion } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -126,9 +128,9 @@ export const CrearRemitoDesdeInventarioModal = ({
     if (creandoRef.current) return;
     const selected = elegibles.filter(i => selectedIds.has(itemKey(i)));
     if (selected.length === 0) return;
-    if (imprimir && !destinatario) { alert('Para imprimir el remito elegí el cliente destinatario (o destildá "Imprimir").'); return; }
+    if (imprimir && !destinatario) { notify.warning('Para imprimir el remito elegí el cliente destinatario (o destildá "Imprimir").'); return; }
     if (imprimir && !NUMERO_PREIMPRESO_REGEX.test(numero.trim())) {
-      alert('Para imprimir, cargá el número del papel preimpreso (formato 0001-00017405).');
+      notify.warning('Para imprimir, cargá el número del papel preimpreso (formato 0001-00017405).');
       return;
     }
 
@@ -169,7 +171,7 @@ export const CrearRemitoDesdeInventarioModal = ({
       onRemitoCreado?.(newId);
       navigate(`/stock/remitos/${newId}`);
     } catch {
-      alert('Error al crear el remito');
+      notify.error('Error al crear el remito');
     } finally {
       creandoRef.current = false;
       setSaving(false);
@@ -177,7 +179,6 @@ export const CrearRemitoDesdeInventarioModal = ({
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   return (
     <Modal open={open} onClose={handleClose} maxWidth="lg"
@@ -247,15 +248,15 @@ export const CrearRemitoDesdeInventarioModal = ({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Tipo de remito</label>
-            <select value={tipoRemito} onChange={e => setTipoRemito(e.target.value as TipoRemito)} className={selectCls}>
+            <Select value={tipoRemito} onChange={e => setTipoRemito(e.target.value as TipoRemito)} className="w-full">
               {TIPO_REMITO_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={lbl}>Tipo de items</label>
-            <select value={tipoRemitoItem} onChange={e => setTipoRemitoItem(e.target.value as TipoRemitoItem)} className={selectCls}>
+            <Select value={tipoRemitoItem} onChange={e => setTipoRemitoItem(e.target.value as TipoRemitoItem)} className="w-full">
               {TIPO_ITEM_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 

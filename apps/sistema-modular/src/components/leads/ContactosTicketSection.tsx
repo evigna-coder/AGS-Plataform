@@ -7,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { contactosService } from '../../services/firebaseService';
 
+import { confirmar } from '../ui/ConfirmDialog';
 const emptyForm: Omit<ContactoTicket, 'id'> = {
   nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false,
 };
@@ -100,8 +101,8 @@ export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnl
     close();
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm('¿Eliminar este contacto?')) return;
+  const handleDelete = async (id: string) => {
+    if (!await confirmar('¿Eliminar este contacto?')) return;
     let next = contactos.filter(c => c.id !== id);
     if (!next.some(c => c.esPrincipal) && next.length > 0) {
       next = applyPrincipal(next, next[0].id);

@@ -14,6 +14,7 @@ import { EMPTY_PARTY } from '../components/remitos/RemitoTransportistaPicker';
 import type { DatosTransportista } from '../services/stockService';
 import type { UnidadStock, Minikit, Ingeniero, Cliente, Asignacion, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Columna, Proveedor } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 /**
  * Un LOTE de patrón presentado como item asignable (2026-08-07). El patrón es
  * el kit; el lote es lo que el IST se lleva físicamente, con su vencimiento y
@@ -558,7 +559,7 @@ export function useAsignacionRapida() {
       return true;
     } catch (err) {
       console.error('Error al confirmar asignación:', err);
-      alert('Error al confirmar asignación');
+      notify.error('Error al confirmar asignación');
       return false;
     } finally { setSaving(false); }
   };

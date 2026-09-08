@@ -15,6 +15,9 @@ import { BulkAddModelosModal } from '../../components/protocol-catalog/BulkAddMo
 import type { TableCatalogEntry, TableProject } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Select } from '../../components/ui/Select';
 const thBase = 'px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-slate-400 relative select-none';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
@@ -166,7 +169,7 @@ export const TableCatalogPage = () => {
       const newId = await cloneTable(cloneTarget.id, { name: cloneName, sysType: cloneSysType, projectId: cloneProjectId });
       setCloneTarget(null);
       navigate(`/table-catalog/${newId}/edit`);
-    } catch { alert('Error al clonar'); }
+    } catch { notify.error('Error al clonar'); }
   };
   const handleArchive = async (entry: TableCatalogEntry) => {
     if (!await confirm(`¿Archivar "${entry.name}"?`)) return;
@@ -201,7 +204,7 @@ export const TableCatalogPage = () => {
         : imported;
       await importTables(withProject);
       reload(); // import necesita reload porque las tablas no están en estado local
-    } catch { alert('Error al importar'); }
+    } catch { notify.error('Error al importar'); }
   };
 
   return (
@@ -235,21 +238,21 @@ export const TableCatalogPage = () => {
           <div className="flex gap-4 items-end flex-wrap">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema</label>
-              <select value={filterSysType} onChange={e => setFilterSysType(e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={filterSysType} onChange={e => setFilterSysType(e.target.value)}
+                selectSize="md">
                 <option value="">Todos</option>
                 {SYS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Estado</label>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                selectSize="md">
                 <option value="">Todos</option>
                 <option value="draft">Borrador</option>
                 <option value="published">Publicado</option>
                 <option value="archived">Archivado</option>
-              </select>
+              </Select>
             </div>
             <Button variant="ghost" size="sm" onClick={() => { setFilterSysType(''); setFilterStatus(''); }}>Limpiar</Button>
           </div>
@@ -263,12 +266,12 @@ export const TableCatalogPage = () => {
             <span className="text-sm font-bold text-teal-800">{selectedIds.size} seleccionada(s)</span>
             <div className="flex gap-3 items-center">
               {projects.length > 0 && (
-                <select defaultValue="" onChange={e => { if (e.target.value) handleBulkMove(e.target.value === '__none__' ? null : e.target.value); e.target.value = ''; }}
-                  className="text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                <Select defaultValue="" onChange={e => { if (e.target.value) handleBulkMove(e.target.value === '__none__' ? null : e.target.value); e.target.value = ''; }}
+                  >
                   <option value="" disabled>Mover a proyecto...</option>
                   <option value="__none__">Sin proyecto</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                </Select>
               )}
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-600 hover:text-slate-900 font-medium">Deseleccionar</button>
               <button onClick={handleBulkDelete}
@@ -284,7 +287,7 @@ export const TableCatalogPage = () => {
         ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : tables.length === 0 ? (
-          <Card><div className="text-center py-12"><p className="text-slate-400">No hay tablas en este proyecto.</p></div></Card>
+          <EmptyState message="No hay tablas en este proyecto." />
         ) : (
           <Card>
             {hiddenCols.length > 0 && (
@@ -389,19 +392,19 @@ export const TableCatalogPage = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema</label>
-              <select value={cloneSysType} onChange={e => setCloneSysType(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+              <Select value={cloneSysType} onChange={e => setCloneSysType(e.target.value)}
+                className="w-full" selectSize="md">
                 {SYS_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              </Select>
             </div>
             {projects.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
-                <select value={cloneProjectId ?? ''} onChange={e => setCloneProjectId(e.target.value || null)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+                <Select value={cloneProjectId ?? ''} onChange={e => setCloneProjectId(e.target.value || null)}
+                  className="w-full" selectSize="md">
                   <option value="">Sin proyecto</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                </Select>
               </div>
             )}
           </div>

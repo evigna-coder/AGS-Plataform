@@ -7,6 +7,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { Modal } from '../ui/Modal';
 import type { MinikitRequeridoItem, Articulo } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   initialRequeridos: MinikitRequeridoItem[];
   initialSectores: string[];
@@ -92,7 +94,7 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
     try {
       await onSave(items, sectores);
     } catch {
-      alert('Error al guardar configuración');
+      notify.error('Error al guardar configuración');
     } finally {
       setSaving(false);
     }
@@ -220,11 +222,11 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
                     <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{item.articuloCodigo}</span>
                     <span className="text-xs text-slate-700 truncate flex-1">{item.articuloDescripcion}</span>
                     {sectores.length > 0 && (
-                      <select value={item.sector || ''} onChange={e => updateItem(idx, { sector: e.target.value || null })}
-                        className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 w-24">
+                      <Select value={item.sector || ''} onChange={e => updateItem(idx, { sector: e.target.value || null })}
+                        className="w-24" selectSize="xs">
                         <option value="">Sin sector</option>
                         {sectores.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                      </Select>
                     )}
                     <span className="text-[10px] text-slate-400 shrink-0">Min:</span>
                     {/* Uncontrolled + commit en blur (2026-08-06): permite tipear

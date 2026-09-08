@@ -3,6 +3,7 @@ import type { RemitoItem } from '@ags/shared';
 import { remitosService } from '../../services/stockService';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props {
   remitoId: string;
   item: RemitoItem;
@@ -28,7 +29,7 @@ export function LoanerRetornoButton({ remitoId, item }: Props) {
       await remitosService.marcarLoanerRetornado(remitoId, item.id);
     } catch (err) {
       console.error('[LoanerRetornoButton]', err);
-      alert(err instanceof Error ? err.message : 'No se pudo registrar la vuelta');
+      notify.error(err instanceof Error ? err.message : 'No se pudo registrar la vuelta');
     } finally {
       setActing(false);
     }

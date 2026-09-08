@@ -18,6 +18,7 @@ import type { ComponentePatron } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 
+import { notify } from '../../utils/notify';
 export interface PatronComponentesEditorProps {
   componentes: ComponentePatron[];
   onChange: (next: ComponentePatron[]) => void;
@@ -62,7 +63,7 @@ export function PatronComponentesEditor({
     (idx: number) => {
       const target = componentes[idx];
       if (target && locked.has(target.codigoComponente)) {
-        alert(
+        notify.warning(
           `No se puede eliminar el componente "${target.codigoComponente}" porque tiene consumos registrados en lotes.`,
         );
         return;

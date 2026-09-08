@@ -8,6 +8,7 @@ import { deepCleanForFirestore } from '../services/firebase';
 import { CONCEPTOS_GASTO_IMPORTACION, derivarEstadoImportacion } from '@ags/shared';
 import type { Importacion, OrdenCompra, ItemImportacion, GastoImportacion, Articulo, ItemOC } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 type Moneda = 'ARS' | 'USD' | 'EUR';
 
 export interface ImportacionPrefill {
@@ -248,7 +249,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const removeGasto = (id: string) => setGastos(prev => prev.filter(g => g.id !== id));
 
   const save = useCallback(async (costoTotalARS: number | null, factorEmbarque?: number | null): Promise<string | null> => {
-    if (!ordenCompraId) { alert('Seleccioná una orden de compra'); return null; }
+    if (!ordenCompraId) { notify.warning('Seleccioná una orden de compra'); return null; }
     setSaving(true);
     try {
       // Estado automático derivado de los datos cargados (embarque+guía → embarcada;
@@ -308,7 +309,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       return id;
     } catch (err) {
       console.error('Error guardando importación:', err);
-      alert('Error al guardar la importación');
+      notify.error('Error al guardar la importación');
       return null;
     } finally {
       setSaving(false);

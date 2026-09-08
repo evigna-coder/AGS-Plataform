@@ -5,7 +5,6 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateMovimientoLoteModal } from '../../components/stock/CreateMovimientoLoteModal';
@@ -17,6 +16,7 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { MOVIMIENTOS_EXPORT_COLUMNS, buildMovimientosFiltrosExport } from '../../utils/exports/exportMovimientos';
 import type { MovimientoStock } from '@ags/shared';
 
+import { EmptyState } from '../../components/ui/EmptyState';
 const formatDay = (d: Date) =>
   d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -232,11 +232,7 @@ export const MovimientosPage = () => {
             <p className="text-slate-500">Cargando movimientos...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron movimientos</p>
-            </div>
-          </Card>
+          <EmptyState message="No se encontraron movimientos" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
           <MovimientosTable
             items={filtered}

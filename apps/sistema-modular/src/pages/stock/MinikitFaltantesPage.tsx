@@ -13,6 +13,7 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Minikit, UnidadStock } from '@ags/shared';
 
+import { Select } from '../../components/ui/Select';
 interface FaltanteRow {
   /** unique key per (minikit × artículo) */
   key: string;
@@ -148,14 +149,14 @@ export const MinikitFaltantesPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">Minikit</label>
-            <select
+            <Select
               value={filters.minikitId}
               onChange={e => setFilter('minikitId', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-white"
+              className="w-full"
             >
               <option value="">Todos</option>
               {minikitOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            </Select>
           </div>
           <Input
             label="Asignado a"

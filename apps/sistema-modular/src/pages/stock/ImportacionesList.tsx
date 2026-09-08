@@ -17,6 +17,7 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { IMPORTACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportImportaciones';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
+import { Select } from '../../components/ui/Select';
 const ESTADOS: EstadoImportacion[] = [
   'preparacion', 'en_origen', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
 ];
@@ -112,16 +113,15 @@ export const ImportacionesList = () => {
         }
       >
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={filters.estado}
             onChange={e => setFilter('estado', e.target.value)}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
             {ESTADOS.map(e => (
               <option key={e} value={e}>{ESTADO_IMPORTACION_LABELS[e]}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </PageHeader>
 

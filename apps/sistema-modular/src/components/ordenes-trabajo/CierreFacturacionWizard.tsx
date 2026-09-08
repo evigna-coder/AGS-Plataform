@@ -7,6 +7,7 @@ import type { Presupuesto, SolicitudFacturacion } from '@ags/shared';
 import { MONEDA_SIMBOLO, presupuestoEstaAceptado, ESTADO_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Button } from '../ui/Button';
 
+import { notify } from '../../utils/notify';
 interface Props {
   otNumber: string;
   budgets: string[];
@@ -111,13 +112,13 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
       const fresh = await presupuestosService.getById(info.presupuesto.id);
       if (!fresh) throw new Error('Presupuesto no encontrado');
       if (!presupuestoEstaAceptado(fresh.estado)) {
-        alert(`El presupuesto está "${ESTADO_PRESUPUESTO_LABELS[fresh.estado] ?? fresh.estado}" — `
+        notify.warning(`El presupuesto está "${ESTADO_PRESUPUESTO_LABELS[fresh.estado] ?? fresh.estado}" — `
           + 'el aviso a facturación se genera recién con el presupuesto aceptado (cargá la OC del cliente o marcalo aceptado).');
         return;
       }
       const otsListas = fresh.otsListasParaFacturar ?? [];
       if (otsListas.length === 0) {
-        alert('El aviso a facturación se habilita al cerrar la última OT del presupuesto. '
+        notify.warning('El aviso a facturación se habilita al cerrar la última OT del presupuesto. '
           + 'Guardá primero el cierre administrativo de esta OT y volvé a intentar.');
         return;
       }
@@ -132,7 +133,7 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
       setSentIds(prev => new Set(prev).add(info.presupuesto.id));
     } catch (err) {
       console.error('Error creando solicitud facturacion:', err);
-      alert(err instanceof Error ? err.message : 'Error al enviar a facturacion');
+      notify.error(err instanceof Error ? err.message : 'Error al enviar a facturacion');
     } finally {
       setSendingId(null);
     }

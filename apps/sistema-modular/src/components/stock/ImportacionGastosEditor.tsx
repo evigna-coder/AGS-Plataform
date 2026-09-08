@@ -2,6 +2,7 @@ import type { GastoImportacion } from '@ags/shared';
 import { CONCEPTOS_GASTO_IMPORTACION } from '@ags/shared';
 import { MoneyInput } from '../ui/MoneyInput';
 
+import { Select } from '../ui/Select';
 interface Props {
   gastos: GastoImportacion[];
   onAdd: () => void;
@@ -46,11 +47,11 @@ function Row({ g, onUpdate, onRemove }: { g: GastoImportacion; onUpdate: Props['
       <input className={ctrl} value={g.descripcion ?? ''} placeholder="Detalle / comprobante..."
         onChange={e => onUpdate(g.id, { descripcion: e.target.value })} />
       <MoneyInput value={g.monto} onChange={v => onUpdate(g.id, { monto: v ?? 0 })} className={ctrl + ' text-right'} />
-      <select className={ctrl} value={g.moneda} onChange={e => onUpdate(g.id, { moneda: e.target.value as GastoImportacion['moneda'] })}>
+      <Select className="w-full" value={g.moneda} onChange={e => onUpdate(g.id, { moneda: e.target.value as GastoImportacion['moneda'] })}>
         <option value="ARS">ARS</option>
         <option value="USD">USD</option>
         <option value="EUR">EUR</option>
-      </select>
+      </Select>
       <button type="button" onClick={() => onRemove(g.id)} className="text-red-400 hover:text-red-600 text-sm">&times;</button>
     </>
   );

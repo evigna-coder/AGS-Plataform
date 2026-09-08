@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props {
   leadId: string;
   adjuntos: AdjuntoTicket[];
@@ -36,7 +37,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
     if (!files || files.length === 0) return;
 
     if (files.length > remaining) {
-      alert(`Podés adjuntar ${remaining} archivo(s) más (máximo ${TICKET_MAX_ADJUNTOS}).`);
+      notify.info(`Podés adjuntar ${remaining} archivo(s) más (máximo ${TICKET_MAX_ADJUNTOS}).`);
     }
 
     setUploading(true);
@@ -45,7 +46,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
       onUpdated();
     } catch (err) {
       console.error('Error subiendo adjuntos:', err);
-      alert('Error al subir archivos');
+      notify.error('Error al subir archivos');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -59,7 +60,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
       onUpdated();
     } catch (err) {
       console.error('Error eliminando adjunto:', err);
-      alert('Error al eliminar');
+      notify.error('Error al eliminar');
     }
   };
 

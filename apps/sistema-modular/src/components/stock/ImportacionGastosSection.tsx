@@ -6,6 +6,8 @@ import type { Importacion, GastoImportacion, ItemImportacion } from '@ags/shared
 import { calcularCostoConGastos } from '../../utils/calcularProrrateo';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   imp: Importacion;
   onUpdate: () => void;
@@ -113,7 +115,7 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
   };
 
   const handleSaveNew = async () => {
-    if (!newGasto?.concepto) { alert('Ingresa un concepto'); return; }
+    if (!newGasto?.concepto) { notify.warning('Ingresa un concepto'); return; }
     try {
       setSaving(true);
       const gasto: GastoImportacion = {
@@ -130,7 +132,7 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
       setNewGasto(null);
       onUpdate();
     } catch (err) {
-      alert('Error al agregar gasto');
+      notify.error('Error al agregar gasto');
     } finally {
       setSaving(false);
     }
@@ -145,7 +147,7 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
       });
       onUpdate();
     } catch (err) {
-      alert('Error al eliminar gasto');
+      notify.error('Error al eliminar gasto');
     } finally {
       setSaving(false);
     }
@@ -202,9 +204,9 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
                   <input type="number" step="0.01" className="w-full text-xs border border-slate-300 rounded px-2 py-1 text-right" value={newGasto.monto || ''} onChange={e => setNewGasto(p => ({ ...p, monto: parseFloat(e.target.value) || 0 }))} />
                 </td>
                 <td className="py-2 pr-2">
-                  <select className="text-xs border border-slate-300 rounded px-2 py-1" value={newGasto.moneda || 'USD'} onChange={e => setNewGasto(p => ({ ...p, moneda: e.target.value as any }))}>
+                  <Select  value={newGasto.moneda || 'USD'} onChange={e => setNewGasto(p => ({ ...p, moneda: e.target.value as any }))}>
                     {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  </Select>
                 </td>
                 <td className="py-2 pr-2">
                   <input type="date" className="text-xs border border-slate-300 rounded px-2 py-1" value={newGasto.fecha || ''} onChange={e => setNewGasto(p => ({ ...p, fecha: e.target.value }))} />

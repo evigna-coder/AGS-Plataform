@@ -15,6 +15,7 @@ import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { Select } from '../../components/ui/Select';
 const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 
 const SERVICIO_TYPES = [
@@ -231,24 +232,24 @@ export const TableCatalogEditorPage = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
-              <select value={entry.projectId ?? ''} onChange={e => setMeta('projectId', e.target.value || null)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={entry.projectId ?? ''} onChange={e => setMeta('projectId', e.target.value || null)}
+                className="w-full" selectSize="md">
                 <option value="">Sin proyecto</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema *</label>
-              <select value={entry.sysType} onChange={e => setMeta('sysType', e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={entry.sysType} onChange={e => setMeta('sysType', e.target.value)}
+                className="w-full" selectSize="md">
                 <option value="">Seleccionar...</option>
                 {SYS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de tabla</label>
-              <select value={entry.tableType} onChange={e => setMeta('tableType', e.target.value as TableCatalogEntry['tableType'])}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={entry.tableType} onChange={e => setMeta('tableType', e.target.value as TableCatalogEntry['tableType'])}
+                className="w-full" selectSize="md">
                 <option value="informational">Informacional</option>
                 <option value="validation">Validación</option>
                 <option value="instruments">Instrumentos</option>
@@ -256,7 +257,7 @@ export const TableCatalogEditorPage = () => {
                 <option value="text">Texto</option>
                 <option value="signatures">Firmas</option>
                 <option value="cover">Carátula</option>
-              </select>
+              </Select>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
@@ -325,8 +326,8 @@ export const TableCatalogEditorPage = () => {
               )}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tamaño de texto (contenido)</label>
-                <select
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                <Select
+                  className="w-full" selectSize="md"
                   value={entry.fontSize ?? ''}
                   onChange={e => setMeta('fontSize', e.target.value === '' ? null : Number(e.target.value))}
                 >
@@ -334,7 +335,7 @@ export const TableCatalogEditorPage = () => {
                   <option value="13">Mediano (13px)</option>
                   <option value="15">Grande (15px)</option>
                   <option value="17">Muy grande (17px)</option>
-                </select>
+                </Select>
               </div>
             </div>
 
@@ -532,16 +533,15 @@ export const TableCatalogEditorPage = () => {
                 </p>
                 <div className="flex items-center gap-1.5 shrink-0" title="Default: Justificada (retrocompat). Para textos cortos donde justify queda mal, elegí Izquierda.">
                   <label className="text-xs font-medium text-slate-600">Alineación</label>
-                  <select
+                  <Select
                     value={entry.textAlign ?? 'justify'}
                     onChange={e => setMeta('textAlign', e.target.value as 'justify' | 'left' | 'center' | 'right')}
-                    className="border border-slate-300 rounded-lg px-2 py-1 text-xs"
                   >
                     <option value="justify">Justificada</option>
                     <option value="left">Izquierda</option>
                     <option value="center">Centro</option>
                     <option value="right">Derecha</option>
-                  </select>
+                  </Select>
                 </div>
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer whitespace-nowrap shrink-0">
                   <input type="checkbox"

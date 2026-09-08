@@ -17,7 +17,6 @@ import { leadsService, usuariosService, sistemasService } from '../../services/f
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
@@ -31,6 +30,8 @@ import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { TICKETS_EXPORT_COLUMNS, buildTicketsExportRows, buildTicketsFiltrosExport } from '../../utils/exports/exportTickets';
 
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
 type SortKey = 'razonSocial' | 'contacto' | 'motivoLlamado' | 'prioridad' | 'estado' | 'areaActual' | 'asignadoA' | 'createdAt' | 'proximoContacto';
@@ -363,14 +364,9 @@ export const LeadsList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>
+          <LoadingState message="Cargando leads…" />
         ) : leadsFiltered.length === 0 ? (
-          <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron tickets</p>
-            <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-              Crear primer ticket
-            </button>
-          </div></Card>
+          <EmptyState message="No se encontraron tickets" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer ticket </button>} />
         ) : (
           <>
           {hiddenCols.length > 0 && (

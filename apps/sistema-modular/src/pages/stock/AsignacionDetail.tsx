@@ -14,6 +14,7 @@ import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shar
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { usePrompt } from '../../components/ui/PromptDialog';
 
+import { notify } from '../../utils/notify';
 const ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
   asignado: 'bg-blue-100 text-blue-700',
   devuelto: 'bg-green-100 text-green-700',
@@ -57,7 +58,7 @@ export const AsignacionDetail = () => {
     try {
       await asignacionesService.devolverItems(id, [{ itemId: item.id, cantidad: item.cantidad - item.cantidadDevuelta - item.cantidadConsumida }]);
       await loadData(true);
-    } catch { alert('Error al devolver'); }
+    } catch { notify.error('Error al devolver'); }
     finally { setSaving(false); }
   };
 
@@ -75,7 +76,7 @@ export const AsignacionDetail = () => {
     try {
       await asignacionesService.consumirItems(id, [{ itemId: item.id, cantidad: item.cantidad - item.cantidadDevuelta - item.cantidadConsumida, otNumber: ot || undefined }]);
       await loadData(true);
-    } catch { alert('Error al consumir'); }
+    } catch { notify.error('Error al consumir'); }
     finally { setSaving(false); }
   };
 

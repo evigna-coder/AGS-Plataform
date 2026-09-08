@@ -5,6 +5,7 @@ import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoConte
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { PromptDialogProvider } from './components/ui/PromptDialog';
+import { NotifyHost } from './components/ui/NotifyHost';
 import { Layout } from './components/Layout';
 import { UpdateBanner } from './components/UpdateBanner';
 import { LoginPage, PendingApprovalPage } from './pages/auth';
@@ -94,6 +95,7 @@ function AuthGate() {
       <TabsProvider>
         <Layout />
         <UpdateBanner />
+        <NotifyHost />
       </TabsProvider>
       </FloatingPresupuestoProvider>
       </BackgroundTasksProvider>

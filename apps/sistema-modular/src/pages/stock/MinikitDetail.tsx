@@ -17,6 +17,7 @@ import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { notify } from '../../utils/notify';
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En transito', en_revision: 'En revision',
 };
@@ -96,7 +97,7 @@ export const MinikitDetail = () => {
       setIngenieros(data);
       setSelectedIngenieroId('');
       setShowAsignar(true);
-    } catch { alert('Error al cargar ingenieros'); }
+    } catch { notify.error('Error al cargar ingenieros'); }
   };
 
   const handleAsignar = async () => {
@@ -110,7 +111,7 @@ export const MinikitDetail = () => {
         asignadoA: { tipo: 'ingeniero', id: ing.id, nombre: ing.nombre, desde: new Date().toISOString() },
       });
       setShowAsignar(false);
-    } catch { alert('Error al asignar minikit'); }
+    } catch { notify.error('Error al asignar minikit'); }
     finally { setSaving(false); }
   };
 
@@ -119,7 +120,7 @@ export const MinikitDetail = () => {
     setSaving(true);
     try {
       await minikitsService.update(id, { estado: 'en_revision', asignadoA: null });
-    } catch { alert('Error al devolver minikit'); }
+    } catch { notify.error('Error al devolver minikit'); }
     finally { setSaving(false); }
   };
 
@@ -139,7 +140,7 @@ export const MinikitDetail = () => {
         },
       });
     } catch {
-      alert('Error al cerrar verificación');
+      notify.error('Error al cerrar verificación');
     } finally {
       setSaving(false);
     }
@@ -156,7 +157,7 @@ export const MinikitDetail = () => {
     setSaving(true);
     try {
       await minikitsService.update(id, { estado: 'en_revision' });
-    } catch { alert('Error al iniciar control'); }
+    } catch { notify.error('Error al iniciar control'); }
     finally { setSaving(false); }
   };
 
@@ -355,8 +356,8 @@ export const MinikitDetail = () => {
           onClose={() => setConsumirUnidad(null)}
           onDone={async (res) => {
             setConsumirUnidad(null);
-            if (res.error) alert(`Unidad consumida, pero la reserva no se pudo saldar: ${res.error}. Reponé el kit a mano.`);
-            else if (res.reservaSaldada) alert('Unidad consumida y reserva saldada — el kit quedó repuesto con la unidad reservada.');
+            if (res.error) notify.error(`Unidad consumida, pero la reserva no se pudo saldar: ${res.error}. Reponé el kit a mano.`);
+            else if (res.reservaSaldada) notify.success('Unidad consumida y reserva saldada — el kit quedó repuesto con la unidad reservada.');
             if (minikit) await loadRelated(minikit);
           }}
         />

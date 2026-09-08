@@ -4,6 +4,7 @@ import type { RemitoFila } from '../../hooks/useRemitoForm';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { RemitoPresentacionCell } from './RemitoPresentacionCell';
 
+import { Select } from '../ui/Select';
 interface Props {
   /** Filas visibles: lo fungible viene agrupado en una fila por artículo (2026-08-25). */
   filas: RemitoFila[];
@@ -218,12 +219,12 @@ export function RemitoItemsEditor({
                           entrega puede llevar una lámpara que vuelve y un filtro
                           que no. Los labels nombran el desenlace posible, no el
                           movimiento físico (2026-08-18). */}
-                      <select value={it.tipoItem}
+                      <Select value={it.tipoItem}
                         onChange={e => onUpdateFila(fila.ids, { tipoItem: e.target.value as RemitoItem['tipoItem'] })}
-                        className={inp}>
+                        className="w-full" selectSize="xs">
                         <option value="sale_y_vuelve">Puede volver</option>
                         <option value="entrega">Queda en el cliente</option>
-                      </select>
+                      </Select>
                     </td>
                     <td className="px-2 py-1.5">
                       {fila.fungible && fila.ids.length > 1 ? (

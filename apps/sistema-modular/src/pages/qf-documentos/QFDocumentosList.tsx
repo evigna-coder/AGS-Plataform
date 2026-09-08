@@ -18,6 +18,7 @@ import { SincronizarBibliotecaButton } from '../../components/qf-documentos/Sinc
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { QF_DOCUMENTOS_EXPORT_COLUMNS, buildQFFiltrosExport } from '../../utils/exports/exportQFDocumentos';
 
+import { EmptyState } from '../../components/ui/EmptyState';
 const FILTER_SCHEMA = {
   search: { type: 'string', default: '' },
   tipo: { type: 'string', default: '' },
@@ -216,16 +217,7 @@ export function QFDocumentosList() {
         {loading && docs.length === 0 ? (
           <p className="text-center text-slate-400 text-sm py-12">Cargando QFs…</p>
         ) : sorted.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">
-                No hay documentos QF {filters.search || filters.tipo || filters.familia ? 'que coincidan con los filtros.' : 'registrados aún.'}
-              </p>
-              <button onClick={() => setShowCreate(true)} className="text-teal-700 hover:underline mt-2 inline-block text-xs">
-                Crear primer QF
-              </button>
-            </div>
-          </Card>
+          <EmptyState message={<>No hay documentos QF {filters.search || filters.tipo || filters.familia ? 'que coincidan con los filtros.' : 'registrados aún.'}</>} hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-700 hover:underline mt-2 text-xs"> Crear primer QF </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed min-w-[920px]">

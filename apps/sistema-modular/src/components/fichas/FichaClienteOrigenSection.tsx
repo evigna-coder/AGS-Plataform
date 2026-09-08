@@ -5,6 +5,7 @@ import { ordenesTrabajoService } from '../../services/firebaseService';
 import type { Cliente, Establecimiento, Ingeniero, ViaIngreso, WorkOrder } from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   clientes: Cliente[];
   establecimientos: Establecimiento[];
@@ -24,7 +25,6 @@ interface Props {
   errors: Record<string, string>;
 }
 
-const sel = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs';
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-1';
 
 /** Sección "Cliente y origen" compartida entre CreateFichaModal y EditFichaModal. */
@@ -74,32 +74,32 @@ export function FichaClienteOrigenSection({
         <div>
           <label className={lbl}>Cliente *</label>
           {/* El cliente actual se lista aunque esté inactivo — sin esto la ficha abre con el select vacío. */}
-          <select className={sel} value={clienteId} onChange={e => onClienteChange(e.target.value)}>
+          <Select className="w-full" value={clienteId} onChange={e => onClienteChange(e.target.value)}>
             <option value="">Seleccionar cliente</option>
             {clientes.filter(c => c.activo || c.id === clienteId).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-          </select>
+          </Select>
           {errors.clienteId && <p className="text-[10px] text-red-500 mt-0.5">{errors.clienteId}</p>}
         </div>
         <div>
           <label className={lbl}>Establecimiento</label>
-          <select className={sel} value={establecimientoId} onChange={e => onEstablecimientoChange(e.target.value)} disabled={!clienteId}>
+          <Select className="w-full" value={establecimientoId} onChange={e => onEstablecimientoChange(e.target.value)} disabled={!clienteId}>
             <option value="">Seleccionar</option>
             {establecimientos.filter(e => e.activo || e.id === establecimientoId).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className={lbl}>Via de ingreso</label>
-          <select className={sel} value={viaIngreso} onChange={e => onViaIngresoChange(e.target.value as ViaIngreso)}>
+          <Select className="w-full" value={viaIngreso} onChange={e => onViaIngresoChange(e.target.value as ViaIngreso)}>
             {(Object.keys(VIA_INGRESO_LABELS) as ViaIngreso[]).map(v => <option key={v} value={v}>{VIA_INGRESO_LABELS[v]}</option>)}
-          </select>
+          </Select>
         </div>
         {viaIngreso === 'ingeniero' ? (
           <div>
             <label className={lbl}>Traido por *</label>
-            <select className={sel} value={traidoPor} onChange={e => onTraidoPorChange(e.target.value)}>
+            <Select className="w-full" value={traidoPor} onChange={e => onTraidoPorChange(e.target.value)}>
               <option value="">Seleccionar ingeniero</option>
               {ingenieros.map(i => <option key={i.id} value={i.nombre}>{i.nombre}</option>)}
-            </select>
+            </Select>
             {errors.traidoPor && <p className="text-[10px] text-red-500 mt-0.5">{errors.traidoPor}</p>}
           </div>
         ) : (

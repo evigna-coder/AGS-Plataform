@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { Button } from '../ui/Button';
 
+import { Select } from '../ui/Select';
 interface Props {
   filters: { anio: string; ingenieroId: string; estado: string; busqueda: string };
   setFilter: (key: string, value: string) => void;
@@ -12,13 +13,12 @@ interface Props {
   ingenieros: Ingeniero[];
 }
 
-const selectClass = 'border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
 
 export const PrevisionesFiltersBar: React.FC<Props> = ({ filters, setFilter, resetFilters, anios, ingenieros }) => (
   <div className="flex flex-wrap gap-2 items-center">
-    <select className={selectClass} value={filters.anio} onChange={e => setFilter('anio', e.target.value)}>
+    <Select  value={filters.anio} onChange={e => setFilter('anio', e.target.value)}>
       {anios.map(a => <option key={a} value={String(a)}>{a}</option>)}
-    </select>
+    </Select>
 
     <div className="w-52">
       <SearchableSelect
@@ -30,12 +30,12 @@ export const PrevisionesFiltersBar: React.FC<Props> = ({ filters, setFilter, res
       />
     </div>
 
-    <select className={selectClass} value={filters.estado} onChange={e => setFilter('estado', e.target.value)}>
+    <Select  value={filters.estado} onChange={e => setFilter('estado', e.target.value)}>
       <option value="">Todos los estados</option>
       {Object.entries(ESTADO_PREVISION_LABELS).map(([k, label]) => (
         <option key={k} value={k}>{label}</option>
       ))}
-    </select>
+    </Select>
 
     <div className="w-60">
       <Input

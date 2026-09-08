@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { dispositivoFotoStorageService, type CaraFotoDispositivo } from '../../services/dispositivoFotoStorageService';
 
+import { notify } from '../../utils/notify';
 /**
  * Foto de frente y de dorso del dispositivo (2026-08-23).
  *
@@ -47,7 +48,7 @@ export const DispositivoFotos: React.FC<Props> = ({ dispositivoId, frente, dorso
       if (anterior) await dispositivoFotoStorageService.remove(anterior);
     } catch (err) {
       console.error('[DispositivoFotos] no se pudo subir la foto:', err);
-      alert('No se pudo subir la foto.');
+      notify.error('No se pudo subir la foto.');
     } finally {
       setSubiendo(null);
     }

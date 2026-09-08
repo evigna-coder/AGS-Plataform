@@ -9,13 +9,13 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { LeadClienteField } from './LeadClienteField';
 import { LeadAdjuntosField } from './LeadAdjuntosField';
 
+import { Select } from '../ui/Select';
 interface CrearLeadModalProps {
   onClose: () => void;
   onCreated?: (leadId?: string) => void;
   prefill?: LeadPrefill;
 }
 
-const selectClass = 'w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500';
 const labelClass = 'text-[11px] font-medium text-slate-400 mb-1 block';
 
 export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalProps) => {
@@ -80,18 +80,18 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Motivo *</label>
-            <select value={h.motivoLlamado} onChange={e => h.setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+            <Select value={h.motivoLlamado} onChange={e => h.setMotivoLlamado(e.target.value as MotivoLlamado)} className="w-full">
               {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={labelClass}>Área destino</label>
-            <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
+            <Select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className="w-full">
               <option value="">Sin área específica</option>
               {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         {h.motivoLlamado === 'otros' && (
@@ -103,7 +103,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Asignar a</label>
-            <select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className={selectClass}>
+            <Select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className="w-full">
               <option value="">Sin asignar</option>
               {h.usuarios
                 .filter(u => {
@@ -113,11 +113,11 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
                   return areas.includes(h.areaActual as TicketArea);
                 })
                 .map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className={labelClass}>Próximo contacto</label>
-            <select
+            <Select
               value={h.prioridad}
               onChange={e => {
                 const v = e.target.value;
@@ -128,13 +128,13 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
                   h.setFechaContactoCustom('');
                 }
               }}
-              className={selectClass}
+              className="w-full"
             >
               {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
                 <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
               <option value="custom">Elegir fecha específica...</option>
-            </select>
+            </Select>
             {(h.prioridad as string) === 'custom' && (
               <input type="date" value={h.fechaContactoCustom}
                 onChange={e => h.setFechaContactoCustom(e.target.value)}

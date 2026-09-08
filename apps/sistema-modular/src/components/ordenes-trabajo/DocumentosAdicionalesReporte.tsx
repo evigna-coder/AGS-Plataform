@@ -3,6 +3,7 @@ import type { DocumentoAdicionalReporte } from '@ags/shared';
 import { reportePdfService } from '../../services/reportePdfService';
 import { ordenesTrabajoService } from '../../services/otService';
 
+import { notify } from '../../utils/notify';
 interface Props {
   otNumber: string;
   /** Se llama tras anexar con éxito, para que el preview recargue el PDF. */
@@ -43,7 +44,7 @@ export const DocumentosAdicionalesReporte: React.FC<Props> = ({ otNumber, onAppe
       const { paginasAgregadas } = await reportePdfService.appendDocumentToReportPdf(otNumber, file);
       await refreshDocs();
       onAppended?.();
-      alert(`Documento anexado al reporte (${paginasAgregadas} página${paginasAgregadas === 1 ? '' : 's'}).`);
+      notify.error(`Documento anexado al reporte (${paginasAgregadas} página${paginasAgregadas === 1 ? '' : 's'}).`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'No se pudo anexar el documento.';
       setError(msg);

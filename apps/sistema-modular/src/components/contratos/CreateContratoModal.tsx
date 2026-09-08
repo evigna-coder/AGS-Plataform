@@ -6,6 +6,7 @@ import { useCreateContratoForm, type ContratoPrefill } from '../../hooks/useCrea
 import { TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import type { TipoLimiteContrato } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
 
@@ -55,9 +56,9 @@ export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated,
           </div>
           <div>
             <label className={lbl}>Tipo de limite</label>
-            <select value={h.form.tipoLimite} onChange={e => h.setForm(prev => ({ ...prev, tipoLimite: e.target.value as TipoLimiteContrato }))} className={inputClass}>
+            <Select value={h.form.tipoLimite} onChange={e => h.setForm(prev => ({ ...prev, tipoLimite: e.target.value as TipoLimiteContrato }))} className="w-full">
               {Object.entries(TIPO_LIMITE_CONTRATO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 

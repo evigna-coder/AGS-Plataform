@@ -14,6 +14,7 @@ import { reservasService } from '../../services/stockService';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { notify } from '../../utils/notify';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const chk = 'w-3.5 h-3.5 accent-teal-600';
 
@@ -63,12 +64,12 @@ export const CierreMaterialesBlock: React.FC<Props> = ({
         solicitadoPorNombre: usuario?.displayName ?? usuario?.email ?? 'Admin',
       });
       if (fallos.length > 0) {
-        alert(`Se liberaron ${liberadas} u.\n\nNo se pudieron liberar:\n${fallos.join('\n')}`);
+        notify.success(`Se liberaron ${liberadas} u.\n\nNo se pudieron liberar:\n${fallos.join('\n')}`);
       }
       refrescar();
     } catch (err) {
       console.error('[CierreMaterialesBlock] liberar reserva:', err);
-      alert('No se pudo liberar la reserva.');
+      notify.error('No se pudo liberar la reserva.');
     } finally {
       setLiberando(null);
     }

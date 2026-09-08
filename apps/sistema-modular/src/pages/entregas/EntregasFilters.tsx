@@ -5,6 +5,7 @@ import { SEMAFORO_LABELS } from '../../utils/entregasResolver';
 import type { EstadoImportacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_LABELS } from '@ags/shared';
 
+import { Select } from '../../components/ui/Select';
 interface Filters {
   clienteId: string;
   semaforo: string;
@@ -59,27 +60,25 @@ export const EntregasFilters: React.FC<Props> = ({ filters, setFilter, clienteOp
           size="sm"
         />
       </div>
-      <select
+      <Select
         value={filters.semaforo}
         onChange={(e) => setFilter('semaforo', e.target.value)}
-        className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
         <option value="__pendientes__">Semáforo: Pendientes</option>
         <option value="">Semáforo: Todos</option>
         {SEMAFOROS.map(s => (
           <option key={s} value={s}>{SEMAFORO_LABELS[s]}</option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         value={filters.estadoImp}
         onChange={(e) => setFilter('estadoImp', e.target.value)}
-        className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
       >
         <option value="">Estado IMP: Todos</option>
         {ESTADOS_IMP.map(e => (
           <option key={e} value={e}>{ESTADO_IMPORTACION_LABELS[e]}</option>
         ))}
-      </select>
+      </Select>
       {hasActive && (
         <button
           type="button"

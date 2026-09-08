@@ -9,6 +9,8 @@ import type { Articulo, Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, Tr
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
@@ -38,10 +40,10 @@ const SelectField = ({ label, value, onChange, options }: {
 }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-    <select value={value} onChange={e => onChange(e.target.value)}
-      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+    <Select value={value} onChange={e => onChange(e.target.value)}
+      className="w-full" selectSize="md">
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    </Select>
   </div>
 );
 
@@ -122,8 +124,8 @@ export const ArticuloEditor = () => {
     setTratamiento(prev => ({ ...prev, [key]: val ? Number(val) : null }));
 
   const handleSave = async () => {
-    if (!codigo.trim()) { alert('El codigo es obligatorio'); return; }
-    if (!descripcion.trim()) { alert('La descripcion es obligatoria'); return; }
+    if (!codigo.trim()) { notify.warning('El codigo es obligatorio'); return; }
+    if (!descripcion.trim()) { notify.warning('La descripcion es obligatoria'); return; }
     setSaving(true);
     try {
       const data: Omit<Articulo, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -141,7 +143,7 @@ export const ArticuloEditor = () => {
         await articulosService.update(id!, data);
         navigate(`/stock/articulos/${id}`);
       }
-    } catch (err) { alert('Error al guardar el articulo'); console.error(err); }
+    } catch (err) { notify.error('Error al guardar el articulo'); console.error(err); }
     finally { setSaving(false); }
   };
 

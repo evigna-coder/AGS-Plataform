@@ -9,6 +9,7 @@ import { useColumnas } from '../../hooks/useColumnas';
 import type { Marca, CategoriaPatron } from '@ags/shared';
 import { CATEGORIA_PATRON_LABELS } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -47,9 +48,9 @@ export const CreateColumnaModal: React.FC<Props> = ({ open, onClose, onCreated }
   };
 
   const handleSave = async () => {
-    if (!form.codigoArticulo.trim()) { alert('El código de artículo es obligatorio'); return; }
-    if (!form.descripcion.trim()) { alert('La descripción es obligatoria'); return; }
-    if (form.categorias.length === 0) { alert('Seleccione al menos una categoría'); return; }
+    if (!form.codigoArticulo.trim()) { notify.warning('El código de artículo es obligatorio'); return; }
+    if (!form.descripcion.trim()) { notify.warning('La descripción es obligatoria'); return; }
+    if (form.categorias.length === 0) { notify.warning('Seleccione al menos una categoría'); return; }
 
     setSaving(true);
     try {
@@ -64,7 +65,7 @@ export const CreateColumnaModal: React.FC<Props> = ({ open, onClose, onCreated }
       handleClose();
       onCreated();
       navigate(`/columnas/${id}/editar`);
-    } catch { alert('Error al crear la columna'); }
+    } catch { notify.error('Error al crear la columna'); }
     finally { setSaving(false); }
   };
 

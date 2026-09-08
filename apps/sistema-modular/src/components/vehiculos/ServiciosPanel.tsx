@@ -4,6 +4,8 @@ import { Button } from '../ui/Button';
 import type { ServicioVehiculo, CriterioServicioVehiculo } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   vehiculoId: string;
   servicios: ServicioVehiculo[];
@@ -35,7 +37,7 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
       onChanged();
     } catch (err) {
       console.error(err);
-      alert('Error al agregar servicio');
+      notify.error('Error al agregar servicio');
     } finally {
       setSaving(false);
     }
@@ -124,11 +126,11 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
           <div className="grid grid-cols-5 gap-3">
             <div>
               <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">Servicio</label>
-              <select value={form.servicio} onChange={e => setForm(f => ({ ...f, servicio: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-teal-500">
+              <Select value={form.servicio} onChange={e => setForm(f => ({ ...f, servicio: e.target.value }))} className="w-full">
                 <option value="">Seleccionar...</option>
                 {criterios.map(c => <option key={c.servicio} value={c.servicio}>{c.servicio}</option>)}
                 <option value="__custom">Otro...</option>
-              </select>
+              </Select>
               {form.servicio === '__custom' && (
                 <input value="" onChange={e => setForm(f => ({ ...f, servicio: e.target.value }))} placeholder="Nombre" className="mt-1 w-full px-2 py-1 border border-slate-200 rounded text-xs" />
               )}

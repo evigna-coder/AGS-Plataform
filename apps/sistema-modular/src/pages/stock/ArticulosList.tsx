@@ -7,7 +7,6 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateArticuloModal } from '../../components/stock/CreateArticuloModal';
 import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
@@ -25,6 +24,9 @@ import { ARTICULOS_EXPORT_COLUMNS, buildArticulosExportRows, buildArticulosFiltr
 import type { Articulo, Marca } from '@ags/shared';
 import type { ColAlign } from '../../hooks/useResizableColumns';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 // ── Column header (co-located, not worth its own file) ────────────────────────
 
 const TH_CLS = 'px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative';
@@ -128,11 +130,11 @@ export const ArticulosList = () => {
 
   const handleDeactivate = async (art: Articulo) => {
     if (!await confirm(`Desactivar el articulo "${art.codigo} - ${art.descripcion}"?`)) return;
-    try { await articulosService.deactivate(art.id); } catch (e) { console.error(e); alert('Error al desactivar el articulo'); }
+    try { await articulosService.deactivate(art.id); } catch (e) { console.error(e); notify.error('Error al desactivar el articulo'); }
   };
   const handleDelete = async (art: Articulo) => {
     if (!await confirm(`Eliminar permanentemente "${art.codigo}"?\n\nEsta accion no se puede deshacer.`)) return;
-    try { await articulosService.delete(art.id); } catch (e) { console.error(e); alert('Error al eliminar el articulo'); }
+    try { await articulosService.delete(art.id); } catch (e) { console.error(e); notify.error('Error al eliminar el articulo'); }
   };
 
   const getMarcaNombre = (art: Articulo) => art.marcaId ? (marcas.find(m => m.id === art.marcaId)?.nombre ?? '-') : ((art as any).marca || '-');
@@ -159,12 +161,12 @@ export const ArticulosList = () => {
   const handleBulkDeactivate = async () => {
     if (!selectedIds.size || !await confirm(`Desactivar ${selectedIds.size} articulo(s)?`)) return;
     try { setBulkLoading(true); await processBatched([...selectedIds], id => articulosService.deactivate(id)); setSelectedIds(new Set()); }
-    catch (e) { console.error(e); alert('Error al desactivar articulos'); } finally { setBulkLoading(false); }
+    catch (e) { console.error(e); notify.error('Error al desactivar articulos'); } finally { setBulkLoading(false); }
   };
   const handleBulkDelete = async () => {
     if (!selectedIds.size || !await confirm(`Eliminar permanentemente ${selectedIds.size} articulo(s)?\n\nEsta accion no se puede deshacer.`)) return;
     try { setBulkLoading(true); await processBatched([...selectedIds], id => articulosService.delete(id)); setSelectedIds(new Set()); }
-    catch (e) { console.error(e); alert('Error al eliminar articulos'); } finally { setBulkLoading(false); }
+    catch (e) { console.error(e); notify.error('Error al eliminar articulos'); } finally { setBulkLoading(false); }
   };
 
   const isInitialLoad = loading && articulos.length === 0;
@@ -222,12 +224,9 @@ export const ArticulosList = () => {
 
       <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando articulos...</p></div>
+          <LoadingState message="Cargando articulos…" />
         ) : filtered.length === 0 ? (
-          <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron articulos</p>
-            <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">Crear primer articulo</button>
-          </div></Card>
+          <EmptyState message="No se encontraron articulos" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs">Crear primer articulo</button>} />
         ) : (
           <div className="bg-white" data-testid="articulos-list">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">

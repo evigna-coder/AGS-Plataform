@@ -3,6 +3,7 @@ import { ordenesCompraService, proveedoresService } from '../services/firebaseSe
 import { importacionesService } from '../services/importacionesService';
 import type { ItemOC, TipoOC, Proveedor, OrdenCompra, Importacion } from '@ags/shared';
 
+import { notify } from '../utils/notify';
 type Moneda = 'ARS' | 'USD' | 'EUR';
 export interface OCPrefill { proveedorId?: string; proveedorNombre?: string; items?: ItemOC[]; }
 
@@ -128,8 +129,8 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
   const calcTotal = () => calcSubtotal() + calcIva();
 
   const save = useCallback(async (): Promise<string | null> => {
-    if (!proveedorId) { alert('Seleccione un proveedor'); return null; }
-    if (items.length === 0) { alert('Agregue al menos un item'); return null; }
+    if (!proveedorId) { notify.warning('Seleccione un proveedor'); return null; }
+    if (items.length === 0) { notify.warning('Agregue al menos un item'); return null; }
     // ALTA: se escribe solo la parte numérica y el prefijo del proveedor va
     // adelante. Vacío → el service asigna el correlativo.
     // EDICIÓN (2026-08-09): se escribe el número COMPLETO, sin anteponer nada —
@@ -143,7 +144,7 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
       if (numeroFinal && numeroFinal.toUpperCase() !== (oc?.numero || '').toUpperCase()) {
         const existentes = await ordenesCompraService.getAll();
         if (existentes.some(o => o.id !== ocId && (o.numero || '').toUpperCase() === numeroFinal.toUpperCase())) {
-          alert(`Ya existe una orden de compra con el número ${numeroFinal}.`);
+          notify.warning(`Ya existe una orden de compra con el número ${numeroFinal}.`);
           return null;
         }
       }
@@ -179,7 +180,7 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
       return await ordenesCompraService.create(numeroFinal ? { ...payload, numero: numeroFinal } : payload);
     } catch (err) {
       console.error('Error guardando OC:', err);
-      alert('Error al guardar la orden de compra');
+      notify.error('Error al guardar la orden de compra');
       return null;
     } finally {
       setSaving(false);

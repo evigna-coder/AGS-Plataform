@@ -5,6 +5,9 @@ import { Input } from '../ui/Input';
 import { pagosExteriorService } from '../../services/pagosExteriorService';
 import type { PagoExterior } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { confirmar } from '../ui/ConfirmDialog';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -14,7 +17,6 @@ interface Props {
 }
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-1';
-const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500';
 
 /**
  * Alta/edición de un pago al exterior cargado a mano (2026-08-06): giros al
@@ -81,7 +83,7 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
       onClose();
     } catch (err) {
       console.error('[PagoExteriorModal] guardar falló:', err);
-      alert('Error al guardar el pago');
+      notify.error('Error al guardar el pago');
     } finally {
       setSaving(false);
     }
@@ -98,21 +100,21 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
       onClose();
     } catch (err) {
       console.error('[PagoExteriorModal] confirmar pago falló:', err);
-      alert('Error al confirmar el pago');
+      notify.error('Error al confirmar el pago');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!pago || !confirm('¿Eliminar este pago del flujo?')) return;
+    if (!pago || !await confirmar('¿Eliminar este pago del flujo?')) return;
     setSaving(true);
     try {
       await pagosExteriorService.delete(pago.id);
       onSaved();
       onClose();
     } catch {
-      alert('Error al eliminar');
+      notify.error('Error al eliminar');
     } finally {
       setSaving(false);
     }
@@ -139,20 +141,20 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className={lbl}>Tipo *</label>
-            <select className={ctrl} value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as 'giro' | 'vep' }))}>
+            <Select className="w-full" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as 'giro' | 'vep' }))}>
               <option value="giro">Giro al proveedor</option>
               <option value="vep">VEP (aduana)</option>
-            </select>
+            </Select>
           </div>
           <Input inputSize="sm" label="Fecha de pago *" type="date" value={form.fecha}
             onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
           <div>
             <label className={lbl}>Moneda</label>
-            <select className={ctrl} value={form.moneda} onChange={e => setForm(f => ({ ...f, moneda: e.target.value as 'USD' | 'EUR' | 'ARS' }))}>
+            <Select className="w-full" value={form.moneda} onChange={e => setForm(f => ({ ...f, moneda: e.target.value as 'USD' | 'EUR' | 'ARS' }))}>
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
               <option value="ARS">ARS</option>
-            </select>
+            </Select>
           </div>
         </div>
 

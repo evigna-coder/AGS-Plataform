@@ -1,6 +1,7 @@
 import { Button } from '../ui/Button';
 import type { TableCatalogColumn, TableCatalogRow } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   columns: TableCatalogColumn[];
   rows: TableCatalogRow[];
@@ -113,24 +114,24 @@ export const HeaderTableEditor = ({ columns, rows, allowExtraRows, onChange }: P
               onChange={e => updColumn(i, { label: e.target.value })}
               className="flex-1 border border-slate-300 rounded px-2 py-1 text-xs"
             />
-            <select
+            <Select
               value={c.type}
               onChange={e => updColumn(i, { type: e.target.value as 'text_input' | 'number_input' })}
-              className="border border-slate-300 rounded px-1.5 py-1 text-xs bg-white"
+              selectSize="xs"
             >
               <option value="text_input">Texto</option>
               <option value="number_input">Número</option>
-            </select>
-            <select
+            </Select>
+            <Select
               value={c.align ?? 'left'}
               onChange={e => updColumn(i, { align: e.target.value as 'left' | 'center' | 'right' })}
-              className="border border-slate-300 rounded px-1.5 py-1 text-xs bg-white"
+              selectSize="xs"
               title="Alineación de header y celdas"
             >
               <option value="left">Izq</option>
               <option value="center">Centro</option>
               <option value="right">Der</option>
-            </select>
+            </Select>
             <button onClick={() => moveColumn(i, -1)} disabled={i === 0}
               className="text-slate-500 text-xs px-1 disabled:opacity-30">↑</button>
             <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1}

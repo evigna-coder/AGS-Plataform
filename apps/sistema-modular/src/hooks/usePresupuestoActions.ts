@@ -6,6 +6,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import type { PresupuestoFormState, PresupuestoTotals } from './usePresupuestoEdit';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 
+import { notify } from '../utils/notify';
 // NOTE: Lead sync is now handled automatically by presupuestosService.update()
 // via ticketsService.syncFromPresupuesto(). No manual posta needed here.
 
@@ -162,7 +163,7 @@ export function usePresupuestoActions({
       await downloadPresupuestoPDF(buildPDFParams());
     } catch (err) {
       console.error('Error generando PDF:', err);
-      alert('Error al generar el PDF');
+      notify.error('Error al generar el PDF');
     } finally {
       setGeneratingPDF(false);
     }
@@ -175,7 +176,7 @@ export function usePresupuestoActions({
       await previewPresupuestoPDF(buildPDFParams());
     } catch (err) {
       console.error('Error generando preview:', err);
-      alert('Error al generar la vista previa');
+      notify.error('Error al generar la vista previa');
     } finally {
       setGeneratingPDF(false);
     }
@@ -235,7 +236,7 @@ export function usePresupuestoActions({
       onUpdated?.();
     } catch (err) {
       console.error('Error eliminando presupuesto:', err);
-      alert('Error al eliminar el presupuesto');
+      notify.error('Error al eliminar el presupuesto');
     } finally {
       setDeleting(false);
     }

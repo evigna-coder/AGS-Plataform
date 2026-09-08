@@ -6,7 +6,6 @@ import { useOTBulkActions } from '../../hooks/useOTBulkActions';
 import { useModuloSearchTerms } from '../../hooks/useModuloSearchTerms';
 import type { WorkOrder } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
 import { buildOTCopyPrefill } from '../../hooks/useCreateOTForm';
@@ -29,6 +28,9 @@ import { ExportarButton } from '../../components/ui/ExportarButton';
 import { OT_EXPORT_COLUMNS, buildOTExportRows, buildOTFiltrosExport } from '../../utils/exports/exportOTs';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const FILTER_SCHEMA = {
   /** Solapa activa del módulo: 'ots' (default) | 'previsiones'. */
   tab: { type: 'string' as const, default: 'ots' },
@@ -125,13 +127,13 @@ export const OTList = () => {
       if (motivo === null) return;
       try {
         await ordenesTrabajoService.cancelarItem(ot.otNumber, motivo);
-      } catch (err) { alert(err instanceof Error ? err.message : 'Error al cancelar el item'); }
+      } catch (err) { notify.error(err instanceof Error ? err.message : 'Error al cancelar el item'); }
       return;
     }
     if (!await confirm(`¿Eliminar OT-${ot.otNumber}?`)) return;
     try {
       await ordenesTrabajoService.delete(ot.otNumber);
-    } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
+    } catch (err) { notify.error(err instanceof Error ? err.message : 'Error al eliminar'); }
   };
 
   /** Click en fila: items y padres sin items → editar; padres con items → no-op (usar botones) */
@@ -216,17 +218,9 @@ export const OTList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando órdenes de trabajo...</p></div>
+          <LoadingState message="Cargando órdenes de trabajo…" />
         ) : grouped.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron órdenes de trabajo</p>
-              <button onClick={() => setShowCreate(true)}
-                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primera orden de trabajo
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No se encontraron órdenes de trabajo" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primera orden de trabajo </button>} />
         ) : (
           <OTListTable
             grouped={grouped}

@@ -18,6 +18,8 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const EstablecimientoDetail = () => {
   const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
@@ -83,13 +85,13 @@ export const EstablecimientoDetail = () => {
           });
         }
       } else {
-        alert('Establecimiento no encontrado');
+        notify.error('Establecimiento no encontrado');
         navigate('/establecimientos');
       }
       setLoading(false);
     }, (err) => {
       console.error(err);
-      alert('Error al cargar');
+      notify.error('Error al cargar');
       setLoading(false);
     });
     return () => unsub();
@@ -198,7 +200,7 @@ export const EstablecimientoDetail = () => {
       setTimeout(() => setSaveMsg(''), 2000);
     } catch (e) {
       console.error(e);
-      alert('Error al guardar');
+      notify.error('Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -212,7 +214,7 @@ export const EstablecimientoDetail = () => {
       navigate('/establecimientos');
     } catch (e) {
       console.error('Error eliminando establecimiento:', e);
-      alert('Error al eliminar el establecimiento');
+      notify.error('Error al eliminar el establecimiento');
     }
   };
 
@@ -220,19 +222,19 @@ export const EstablecimientoDetail = () => {
 
   const handleSaveContacto = async () => {
     if (!id) return;
-    if (!contactoForm.nombre.trim() || !contactoForm.email.trim()) { alert('Complete Nombre y Email'); return; }
+    if (!contactoForm.nombre.trim() || !contactoForm.email.trim()) { notify.warning('Complete Nombre y Email'); return; }
     try {
       if (editingContacto) { await contactosEstablecimientoService.update(id, editingContacto.id, contactoForm); }
       else { await contactosEstablecimientoService.create(id, contactoForm); }
       closeContactoModal();
       setContactos(await contactosEstablecimientoService.getByEstablecimiento(id));
-    } catch (e) { console.error(e); alert('Error al guardar contacto'); }
+    } catch (e) { console.error(e); notify.error('Error al guardar contacto'); }
   };
 
   const handleDeleteContacto = async (contactoId: string) => {
     if (!id || !await confirm('Eliminar este contacto?')) return;
     try { await contactosEstablecimientoService.delete(id, contactoId); setContactos(prev => prev.filter(c => c.id !== contactoId)); }
-    catch (e) { console.error(e); alert('Error al eliminar'); }
+    catch (e) { console.error(e); notify.error('Error al eliminar'); }
   };
 
   const openEditContacto = (c: ContactoEstablecimiento) => {
@@ -241,7 +243,7 @@ export const EstablecimientoDetail = () => {
     setShowContactoModal(true);
   };
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
+  if (loading) return <LoadingState message="Cargando…" />;
   if (!est) return null;
 
   const tipoLabel = est.tipo ? String(est.tipo).charAt(0).toUpperCase() + String(est.tipo).slice(1) : '';
@@ -375,7 +377,7 @@ export const EstablecimientoDetail = () => {
                           }
                         } catch (e) {
                           console.error('Error eliminando sistemas:', e);
-                          alert('Error al eliminar');
+                          notify.error('Error al eliminar');
                         }
                         setSelectedSistemaIds(new Set());
                         load(true);

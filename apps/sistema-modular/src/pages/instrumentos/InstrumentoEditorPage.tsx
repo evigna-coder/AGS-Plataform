@@ -19,6 +19,8 @@ import {
   type Marca,
 } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../../components/ui/Select';
 const CATS_INSTRUMENTO = Object.entries(CATEGORIA_INSTRUMENTO_LABELS) as [CategoriaInstrumento, string][];
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
@@ -120,8 +122,8 @@ export const InstrumentoEditorPage = () => {
   };
 
   const handleSave = async () => {
-    if (!nombre.trim()) { alert('La identificación es obligatoria'); return; }
-    if (categorias.length === 0) { alert('Seleccione al menos una categoría'); return; }
+    if (!nombre.trim()) { notify.warning('La identificación es obligatoria'); return; }
+    if (categorias.length === 0) { notify.warning('Seleccione al menos una categoría'); return; }
     setSaving(true);
     try {
       const data: Omit<InstrumentoPatron, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -148,7 +150,7 @@ export const InstrumentoEditorPage = () => {
       await saveInstrumento(data, id);
       navigate('/instrumentos');
     } catch (err) {
-      alert('Error al guardar el instrumento');
+      notify.error('Error al guardar el instrumento');
       console.error(err);
     } finally {
       setSaving(false);
@@ -157,14 +159,14 @@ export const InstrumentoEditorPage = () => {
 
   const handleUploadCert = async (file: File) => {
     const targetId = id;
-    if (!targetId) { alert('Guarde el instrumento antes de subir el certificado'); return; }
+    if (!targetId) { notify.warning('Guarde el instrumento antes de subir el certificado'); return; }
     setUploadingCert(true);
     try {
       const { url } = await uploadCertificado(targetId, file);
       setCertificadoUrl(url);
       setCertificadoNombre(file.name);
     } catch (err) {
-      alert('Error al subir el certificado');
+      notify.error('Error al subir el certificado');
       console.error(err);
     } finally {
       setUploadingCert(false);
@@ -173,14 +175,14 @@ export const InstrumentoEditorPage = () => {
 
   const handleUploadTraz = async (file: File) => {
     const targetId = id;
-    if (!targetId) { alert('Guarde el instrumento antes de subir la trazabilidad'); return; }
+    if (!targetId) { notify.warning('Guarde el instrumento antes de subir la trazabilidad'); return; }
     setUploadingTraz(true);
     try {
       const { url } = await uploadTrazabilidad(targetId, file);
       setTrazabilidadUrl(url);
       setTrazabilidadNombre(file.name);
     } catch (err) {
-      alert('Error al subir la trazabilidad');
+      notify.error('Error al subir la trazabilidad');
       console.error(err);
     } finally {
       setUploadingTraz(false);
@@ -225,11 +227,11 @@ export const InstrumentoEditorPage = () => {
             <Input label="Identificación" value={nombre} onChange={e => setNombre(e.target.value)} required />
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-              <select value={tipo} onChange={e => handleTipoChange(e.target.value as 'instrumento' | 'patron')}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <Select value={tipo} onChange={e => handleTipoChange(e.target.value as 'instrumento' | 'patron')}
+                className="w-full" selectSize="md">
                 <option value="instrumento">Instrumento</option>
                 <option value="patron">Patrón</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>

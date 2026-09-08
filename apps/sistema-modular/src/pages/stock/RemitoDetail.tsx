@@ -16,6 +16,7 @@ import { LoanerRetornoButton } from '../../components/remitos/LoanerRetornoButto
 import { RemitoHistorialCard } from '../../components/remitos/RemitoHistorialCard';
 import { itemRemitoConEfectoAplicado } from '../../services/movimientosAplicar';
 
+import { LoadingState } from '../../components/ui/LoadingState';
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida', servicio: 'Servicio' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', en_proveedor: 'En proveedor externo', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
 const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', en_proveedor: 'bg-orange-100 text-orange-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
@@ -89,7 +90,7 @@ export const RemitoDetail = () => {
     return () => unsub();
   }, [id]);
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remito...</p></div>;
+  if (loading) return <LoadingState message="Cargando remito…" />;
 
   // Devolución desde el remito: items 'sale y vuelve' sin resolver, sea de stock
   // propio (efecto aplicado) o de una asignación vinculada. El CONSUMO no pasa

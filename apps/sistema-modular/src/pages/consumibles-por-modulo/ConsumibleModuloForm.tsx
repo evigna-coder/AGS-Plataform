@@ -9,6 +9,7 @@ import { categoriasModuloService } from '../../services/equiposService';
 import { articulosService } from '../../services/stockService';
 import { ConsumiblesTableEditor } from './ConsumiblesTableEditor';
 
+import { notify } from '../../utils/notify';
 interface FormState {
   codigoModulo: string;
   descripcion: string;
@@ -120,7 +121,7 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
     e.preventDefault();
     const codigoModulo = form.codigoModulo.trim().toUpperCase();
     if (!codigoModulo) {
-      alert('Seleccioná categoría y modelo del catálogo');
+      notify.warning('Seleccioná categoría y modelo del catálogo');
       return;
     }
     try {
@@ -129,7 +130,7 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
       if (!editingId) {
         const existing = await consumiblesPorModuloService.getByCodigoModulo(codigoModulo);
         if (existing) {
-          alert(`Ya existe una entrada para el módulo "${codigoModulo}".`);
+          notify.warning(`Ya existe una entrada para el módulo "${codigoModulo}".`);
           setSaving(false);
           return;
         }
@@ -154,7 +155,7 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
       onSaved();
     } catch (err) {
       console.error('Error guardando consumibles por módulo:', err);
-      alert('Error al guardar el módulo');
+      notify.error('Error al guardar el módulo');
     } finally {
       setSaving(false);
     }

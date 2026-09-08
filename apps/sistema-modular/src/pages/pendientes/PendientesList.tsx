@@ -24,6 +24,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { PENDIENTES_EXPORT_COLUMNS, buildPendientesFiltrosExport } from '../../utils/exports/exportPendientes';
 
+import { Select } from '../../components/ui/Select';
 const thClass =
   'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const tdClass = 'px-3 py-2 text-xs text-slate-600';
@@ -187,10 +188,9 @@ export const PendientesList = () => {
             />
           </div>
 
-          <select
+          <Select
             value={filters.tipo}
             onChange={e => setFilter('tipo', e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
           >
             <option value="">Tipo: Todos</option>
             {(Object.entries(PENDIENTE_TIPO_LABELS) as [PendienteTipo, string][]).map(([v, l]) => (
@@ -198,7 +198,7 @@ export const PendientesList = () => {
                 {l}
               </option>
             ))}
-          </select>
+          </Select>
 
           {hasFilters && (
             <button

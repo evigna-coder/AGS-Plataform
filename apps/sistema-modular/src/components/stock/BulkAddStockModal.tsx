@@ -6,6 +6,7 @@ import { useBulkAddStock } from '../../hooks/useBulkAddStock';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Articulo, CondicionUnidad, TipoUbicacionStock } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -91,24 +92,24 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
               </div>
               <div>
                 <label className={lbl}>Condición</label>
-                <select className={ctrl} value={h.condicion} onChange={e => h.setCondicion(e.target.value as CondicionUnidad)}>
+                <Select className="w-full" value={h.condicion} onChange={e => h.setCondicion(e.target.value as CondicionUnidad)}>
                   {CONDICIONES.map(c => <option key={c} value={c}>{CONDICION_LABELS[c]}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className={lbl}>Tipo ubicación</label>
-                <select className={ctrl} value={h.ubicacionTipo}
+                <Select className="w-full" value={h.ubicacionTipo}
                   onChange={e => { h.setUbicacionTipo(e.target.value as TipoUbicacionStock); h.setUbicacionRefId(''); h.setUbicacionRefNombre(''); }}>
                   {TIPOS_UBICACION.map(t => <option key={t} value={t}>{TIPO_UBICACION_LABELS[t]}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className={lbl}>Ubicación *</label>
                 {h.refOptions.length > 0 ? (
-                  <select className={ctrl} value={h.ubicacionRefId} onChange={e => h.setUbicacionRefId(e.target.value)}>
+                  <Select className="w-full" value={h.ubicacionRefId} onChange={e => h.setUbicacionRefId(e.target.value)}>
                     <option value="">Seleccionar...</option>
                     {h.refOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
+                  </Select>
                 ) : (
                   <input className={ctrl} value={h.ubicacionRefNombre} onChange={e => h.setUbicacionRefNombre(e.target.value)} placeholder="Nombre referencia" />
                 )}
@@ -117,9 +118,9 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
                 <label className={lbl}>Costo unitario</label>
                 <div className="flex gap-1">
                   <input type="number" className={ctrl} value={h.costoUnitario} onChange={e => h.setCostoUnitario(e.target.value)} />
-                  <select className="border border-[#E5E5E5] rounded-md px-1 text-xs bg-white" value={h.monedaCosto} onChange={e => h.setMonedaCosto(e.target.value as 'ARS' | 'USD')}>
+                  <Select selectSize="xs" value={h.monedaCosto} onChange={e => h.setMonedaCosto(e.target.value as 'ARS' | 'USD')}>
                     <option value="USD">USD</option><option value="ARS">ARS</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
             </div>

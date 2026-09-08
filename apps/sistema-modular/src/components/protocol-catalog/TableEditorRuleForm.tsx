@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { TableCatalogColumn, TableCatalogRow, TableCatalogRule } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   rule: TableCatalogRule;
   columns: TableCatalogColumn[];
@@ -72,10 +73,10 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
       <Input placeholder="Descripción de la regla" value={d.description}
         onChange={e => setD({ ...d, description: e.target.value })} />
       <div className="grid grid-cols-3 gap-2">
-        <select value={d.operator} onChange={e => handleOperatorChange(e.target.value as TableCatalogRule['operator'])}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-medium">
+        <Select value={d.operator} onChange={e => handleOperatorChange(e.target.value as TableCatalogRule['operator'])}
+          selectSize="md">
           {allOps.map(op => <option key={op} value={op}>{opLabels[op]}</option>)}
-        </select>
+        </Select>
       </div>
 
       {isCompute ? (
@@ -85,18 +86,18 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna A</label>
-              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.sourceColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+              <Select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className="w-full" selectSize="md" invalid={!d.sourceColumn}>
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operación</label>
-              <select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
-                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold">
+              <Select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
+                className="w-full text-center" selectSize="md">
                 {computeOps.map(op => <option key={op} value={op}>{op === '+' ? '+ (suma)' : op === '-' ? '− (resta)' : op === '*' ? '× (multiplica)' : op === '/' ? '÷ (divide)' : '|A−B| (desvío absoluto)'}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operando B</label>
@@ -111,10 +112,10 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
                 </button>
               </div>
               {d.operandColumn ? (
-                <select value={d.operandColumn} onChange={e => setD({ ...d, operandColumn: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                <Select value={d.operandColumn} onChange={e => setD({ ...d, operandColumn: e.target.value })}
+                  className="w-full" selectSize="md">
                   {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
+                </Select>
               ) : (
                 <Input placeholder="ej: 40" value={String(d.factoryThreshold ?? '')}
                   onChange={e => setD({ ...d, factoryThreshold: e.target.value, operandColumn: null })} />
@@ -124,11 +125,11 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna donde se escribe el resultado</label>
-              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.targetColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+              <Select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className="w-full" selectSize="md" invalid={!d.targetColumn}>
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Unidad (opcional)</label>
@@ -203,37 +204,37 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Valor medido</label>
-              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.sourceColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+              <Select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className="w-full" selectSize="md" invalid={!d.sourceColumn}>
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Especificación</label>
-              <select value={d.specColumn ?? ''} onChange={e => setD({ ...d, specColumn: e.target.value || null, factoryThreshold: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.specColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+              <Select value={d.specColumn ?? ''} onChange={e => setD({ ...d, specColumn: e.target.value || null, factoryThreshold: e.target.value })}
+                className="w-full" selectSize="md" invalid={!d.specColumn}>
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Donde escribir resultado</label>
-              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.targetColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+              <Select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className="w-full" selectSize="md" invalid={!d.targetColumn}>
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Valor nominal / referencia (solo para specs ±)</label>
             <p className="text-[9px] text-slate-400 mb-1">Si la spec es "±1.2", se evalúa |medido - nominal| {'<='} 1.2. Si no hay nominal, se asume que el valor medido ya es un delta.</p>
-            <select value={d.referenceColumn ?? ''} onChange={e => setD({ ...d, referenceColumn: e.target.value || null })}
-              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+            <Select value={d.referenceColumn ?? ''} onChange={e => setD({ ...d, referenceColumn: e.target.value || null })}
+              className="w-full" selectSize="md">
               <option value="">(ninguna — el valor medido ya es la diferencia)</option>
               {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
+            </Select>
           </div>
           {(!d.sourceColumn || !d.specColumn || !d.targetColumn) && (
             <p className="text-[9px] text-slate-400">
@@ -248,11 +249,11 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna a evaluar</label>
-              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <Select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className="w-full" selectSize="md">
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operador</label>
@@ -267,11 +268,11 @@ export const TableEditorRuleForm = ({ rule, columns, rows = [], onSave, onCancel
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna resultado</label>
-              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <Select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className="w-full" selectSize="md">
                 <option value="">Seleccionar…</option>
                 {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Texto si cumple</label>

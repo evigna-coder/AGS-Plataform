@@ -21,6 +21,8 @@ import { TicketFacturaCard } from '../../components/control-facturas/TicketFactu
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 export const LeadDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -66,7 +68,7 @@ export const LeadDetail = () => {
     unsubRef.current?.();
     unsubRef.current = leadsService.subscribeById(id, (data) => {
       if (!data) {
-        alert('Ticket no encontrado');
+        notify.error('Ticket no encontrado');
         navigate('/leads');
         return;
       }
@@ -208,13 +210,13 @@ export const LeadDetail = () => {
       });
       setComentario('');
     } catch {
-      alert('Error al agregar observación');
+      notify.error('Error al agregar observación');
     } finally {
       setEnviandoComentario(false);
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando ticket...</p></div>;
+  if (loading) return <LoadingState message="Cargando ticket…" />;
   if (!lead) return null;
 
   const isActive = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';

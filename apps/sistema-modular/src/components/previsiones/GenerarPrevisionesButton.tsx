@@ -4,6 +4,7 @@ import { previsionesService } from '../../services/previsionesService';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
+import { notify } from '../../utils/notify';
 const Stat = ({ n, label, color }: { n: number; label: string; color: string }) => (
   <div className="rounded-lg border border-slate-200 py-2">
     <div className={`text-lg font-semibold ${color}`}>{n}</div>
@@ -33,7 +34,7 @@ export const GenerarPrevisionesButton: React.FC<Props> = ({ anioOrigen, onDone }
       onDone?.();
     } catch (err) {
       console.error('[GenerarPrevisiones]', err);
-      alert('Error al generar las previsiones');
+      notify.error('Error al generar las previsiones');
     } finally {
       setRunning(false);
     }

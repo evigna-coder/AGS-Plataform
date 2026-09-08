@@ -18,6 +18,8 @@ import { PresupuestosControlSection } from '../../components/control-semanal/Pre
 import { FacturacionControlSection } from '../../components/control-semanal/FacturacionControlSection';
 import { facturacionService } from '../../services/firebaseService';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 const FILTER_SCHEMA = {
   /** Lunes de la semana bajo control (YYYY-MM-DD). '' = semana actual. */
   semana:          { type: 'string' as const,  default: '' },
@@ -60,11 +62,11 @@ export const ControlSemanal = () => {
   // en la solicitud. Se guardan en el doc — no dependen de la semana.
   const saveComentarioPresupuesto = async (presupuestoId: string, comentario: string) => {
     try { await presupuestosService.update(presupuestoId, { comentarioControlSemanal: comentario || null }); }
-    catch (err) { console.error('[ControlSemanal] comentario ppto:', err); alert('No se pudo guardar el comentario'); }
+    catch (err) { console.error('[ControlSemanal] comentario ppto:', err); notify.error('No se pudo guardar el comentario'); }
   };
   const saveComentarioSolicitud = async (solicitudId: string, comentario: string) => {
     try { await facturacionService.update(solicitudId, { comentarioControl: comentario || null }); }
-    catch (err) { console.error('[ControlSemanal] comentario solicitud:', err); alert('No se pudo guardar el comentario'); }
+    catch (err) { console.error('[ControlSemanal] comentario solicitud:', err); notify.error('No se pudo guardar el comentario'); }
   };
 
   const goSemana = (d: Date) => {
@@ -74,7 +76,7 @@ export const ControlSemanal = () => {
 
   const handleGenerarAviso = async (p: Presupuesto) => {
     const ots = p.otsListasParaFacturar ?? [];
-    if (ots.length === 0) { alert('El presupuesto no tiene OTs listas para facturar.'); return; }
+    if (ots.length === 0) { notify.warning('El presupuesto no tiene OTs listas para facturar.'); return; }
     const detalle = ots.length === 1 ? `la OT ${ots[0]}` : `las OTs ${ots.join(', ')}`;
     if (!await confirm(`¿Generar el aviso a facturación de ${p.numero} por ${detalle}?`)) return;
     try {
@@ -87,7 +89,7 @@ export const ControlSemanal = () => {
       refetch();
     } catch (err) {
       console.error('Error generando aviso a facturación:', err);
-      alert(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
+      notify.error(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
     } finally {
       setGenerandoId(null);
     }
@@ -149,9 +151,7 @@ export const ControlSemanal = () => {
           </div>
         )}
         {!error && loading && agendaRows.length === 0 && presupuestoRows.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-slate-400">Cargando control semanal…</p>
-          </div>
+          <LoadingState message="Cargando control semanal…" />
         ) : !error && (
           filters.tab === 'tareas' ? (
             <TareasSinOTSection tareas={tareasSinOT} />

@@ -8,6 +8,7 @@ import { RemitoItemsEditor } from './RemitoItemsEditor';
 import { useRemitoForm } from '../../hooks/useRemitoForm';
 import { imprimirRemitoStock } from '../../utils/remitoImprimir';
 
+import { notify } from '../../utils/notify';
 const TIPOS: { value: TipoRemito; label: string }[] = [
   { value: 'entrega_cliente', label: 'Entrega a cliente' },
   { value: 'salida_campo', label: 'Salida a campo' },
@@ -48,7 +49,7 @@ export function RemitoFormModal({ open, remito, onClose, onSaved }: Props) {
         // puede entregar — y el cartel genérico "la impresión falló" mandaba a
         // reintentar desde la lista, donde vuelve a fallar por lo mismo.
         const motivo = err instanceof Error ? err.message : String(err);
-        alert(`El remito se guardó como borrador pero NO se pudo emitir:\n\n${motivo}`);
+        notify.warning(`El remito se guardó como borrador pero NO se pudo emitir:\n\n${motivo}`);
       });
     }
     onSaved();

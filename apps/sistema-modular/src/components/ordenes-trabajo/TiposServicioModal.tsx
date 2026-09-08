@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { TIPOS_SERVICIO_ESTANDAR } from '../../utils/tiposServicioEstandar';
 
+import { notify } from '../../utils/notify';
 const normalizar = (s: string) => s.trim().toLowerCase();
 
 interface Props { open: boolean; onClose: () => void; }
@@ -51,7 +52,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
       if (editingId) await tiposServicioService.update(editingId, form);
       else await tiposServicioService.create(form);
       resetForm(); await loadData();
-    } catch { alert('Error al guardar'); }
+    } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
 
@@ -65,7 +66,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const handleSeedDefaults = async () => {
     const existentes = new Set(tipos.map(t => normalizar(t.nombre)));
     const faltantes = TIPOS_SERVICIO_ESTANDAR.filter(n => !existentes.has(normalizar(n)));
-    if (faltantes.length === 0) { alert('Ya están cargados todos los tipos estándar.'); return; }
+    if (faltantes.length === 0) { notify.warning('Ya están cargados todos los tipos estándar.'); return; }
     if (!await confirm(`Se crearán ${faltantes.length} tipo(s) de servicio faltante(s):\n\n${faltantes.join('\n')}`)) return;
     try {
       setSeeding(true);
@@ -75,7 +76,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
       await loadData();
     } catch (error) {
       console.error('Error cargando tipos estándar:', error);
-      alert('Error al cargar los tipos estándar');
+      notify.error('Error al cargar los tipos estándar');
     } finally {
       setSeeding(false);
     }

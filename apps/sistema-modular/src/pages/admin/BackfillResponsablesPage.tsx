@@ -5,6 +5,7 @@ import { leadsService } from '../../services/leadsService';
 import { TICKET_AREA_LABELS } from '@ags/shared';
 import type { TicketArea } from '@ags/shared';
 
+import { confirmar } from '../../components/ui/ConfirmDialog';
 type Result = Awaited<ReturnType<typeof leadsService.backfillResponsablesPorArea>>;
 
 export default function BackfillResponsablesPage() {
@@ -13,7 +14,7 @@ export default function BackfillResponsablesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
-    if (!confirm(
+    if (!await confirmar(
       'Asignar responsable por defecto a tickets abiertos con área pero sin asignado, ' +
       'según la config de /admin/config-flujos. ¿Continuar?'
     )) return;

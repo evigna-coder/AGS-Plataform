@@ -17,6 +17,7 @@ import { CreateContratoModal } from '../../components/contratos/CreateContratoMo
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { CONTRATOS_EXPORT_COLUMNS, buildContratosFiltrosExport } from '../../utils/exports/exportContratos';
 
+import { Select } from '../../components/ui/Select';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export const ContratosList = () => {
@@ -92,10 +93,10 @@ export const ContratosList = () => {
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}
               options={clienteOptions} placeholder="Cliente" />
           </div>
-          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+          <Select value={filters.estado} onChange={e => setFilter('estado', e.target.value)} >
             <option value="">Estado: Todos</option>
             {(Object.entries(ESTADO_CONTRATO_LABELS) as [EstadoContrato, string][]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
           {hasFilters && <button onClick={resetFilters} className="text-[11px] text-teal-600 hover:text-teal-700 font-medium">Limpiar</button>}
         </div>
       </PageHeader>

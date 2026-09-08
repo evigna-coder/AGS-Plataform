@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { Minikit } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   source: Minikit;
   onClose: () => void;
@@ -33,7 +34,7 @@ export const DuplicateMinikitModal = ({ source, onClose, onCreated }: Props) => 
       });
       onCreated(newId);
     } catch {
-      alert('Error al duplicar minikit');
+      notify.error('Error al duplicar minikit');
     } finally {
       setCreating(false);
     }
