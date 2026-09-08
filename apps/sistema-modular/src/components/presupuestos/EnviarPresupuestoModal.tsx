@@ -7,6 +7,7 @@ import { EnviarAnexosSection } from './EnviarAnexosSection';
 import type { GeneratePDFParams } from './pdf';
 import type { PresupuestoEstado } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
 
@@ -77,7 +78,7 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
   }, [open, defaultTo, defaultContactoNombre, presupuestoNumero]);
 
   const handleSend = () => {
-    if (!to.trim()) { alert('Ingrese al menos un destinatario'); return; }
+    if (!to.trim()) { notify.warning('Ingrese al menos un destinatario'); return; }
     const toList = to.split(',').map(e => e.trim()).filter(Boolean);
     const ccList = cc ? cc.split(',').map(e => e.trim()).filter(Boolean) : [];
     send({ to: toList, cc: ccList, subject, htmlBody: body, includeAnexos });

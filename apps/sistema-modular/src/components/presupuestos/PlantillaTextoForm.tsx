@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { RichTextEditor } from '../ui/RichTextEditor';
 
+import { Select } from '../ui/Select';
 type SeccionKey = keyof PresupuestoSeccionesVisibles;
 
 const SECCION_KEYS: SeccionKey[] = [
@@ -87,15 +88,15 @@ export const PlantillaTextoForm: React.FC<Props> = ({ plantilla, onSave, onCance
         </div>
         <div>
           <label className={lbl}>Sección *</label>
-          <select
+          <Select
             value={form.tipo}
             onChange={e => setForm({ ...form, tipo: e.target.value as SeccionKey })}
-            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
+            className="w-full"
           >
             {SECCION_KEYS.map(k => (
               <option key={k} value={k}>{PRESUPUESTO_SECCIONES_LABELS[k]}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

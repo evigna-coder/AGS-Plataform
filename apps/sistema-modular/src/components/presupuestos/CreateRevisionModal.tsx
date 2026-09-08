@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { presupuestosService } from '../../services/presupuestosService';
 import type { Presupuesto } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   presupuesto: Presupuesto | null;
@@ -26,7 +27,7 @@ export const CreateRevisionModal: React.FC<Props> = ({ open, presupuesto, onClos
       onCreated(result.id);
     } catch (e) {
       console.error('Error creando revisión:', e);
-      alert('Error al crear la revisión');
+      notify.error('Error al crear la revisión');
     } finally {
       setSaving(false);
     }

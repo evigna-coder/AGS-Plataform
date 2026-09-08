@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
-import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
+import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, RespaldoFacturacion } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente, monedasDeItems } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 import { renumerarGrupos } from '../components/presupuestos/contrato/contratoItemHelpers';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
+import { notify } from '../utils/notify';
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], TicketEstado>> = {
   borrador: 'presupuesto_pendiente',
@@ -57,6 +58,7 @@ export interface PresupuestoFormState {
   cantidadCuotas: number | null;
   // OC
   ordenCompraNumero: string | null;
+  respaldoFacturacion: RespaldoFacturacion | null;
   // OT vinculadas (bidireccional)
   otVinculadaNumber: string | null;
   otsVinculadasNumbers: string[] | null;
@@ -103,6 +105,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   version: undefined, presupuestoOrigenId: null, motivoAnulacion: null, anuladoPorId: null,
   cuotas: null, cantidadCuotas: null,
   ordenCompraNumero: null,
+  respaldoFacturacion: null,
   otVinculadaNumber: null, otsVinculadasNumbers: null,
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
   ocultarPreciosItems: false,
@@ -141,6 +144,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     motivoAnulacion: p.motivoAnulacion || null, anuladoPorId: p.anuladoPorId || null,
     cuotas: p.cuotas || null, cantidadCuotas: p.cantidadCuotas || null,
     ordenCompraNumero: p.ordenCompraNumero || null,
+    respaldoFacturacion: p.respaldoFacturacion ?? null,
     otVinculadaNumber: p.otVinculadaNumber || null,
     otsVinculadasNumbers: p.otsVinculadasNumbers || null,
     contratoFechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : null,
@@ -363,6 +367,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         fechaEnvio: fechaEnvioToSave || undefined,
         adjuntos: form.adjuntos,
         ordenCompraNumero: form.ordenCompraNumero,
+        respaldoFacturacion: form.respaldoFacturacion,
         proximoContacto: form.proximoContacto || null,
         responsableId: form.responsableId || null,
         responsableNombre: form.responsableNombre || null,
@@ -403,7 +408,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
       dirty.current = false;
     } catch (error) {
       console.error('Error guardando presupuesto:', error);
-      alert('Error al guardar los cambios');
+      notify.error('Error al guardar los cambios');
     } finally {
       setSaving(false);
     }

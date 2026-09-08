@@ -7,6 +7,8 @@ import { Button } from '../ui/Button';
 import type { AdjuntoPresupuesto, TipoAdjuntoPresupuesto } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   presupuestoId: string;
   adjuntos: AdjuntoPresupuesto[];
@@ -59,7 +61,7 @@ export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onR
       }
     } catch (err) {
       console.error('Error subiendo adjunto:', err);
-      alert('Error al subir el archivo');
+      notify.error('Error al subir el archivo');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -95,12 +97,12 @@ export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onR
       <div className="flex items-end gap-2 flex-wrap">
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Tipo</label>
-          <select value={selectedTipo} onChange={e => setSelectedTipo(e.target.value as TipoAdjuntoPresupuesto)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+          <Select value={selectedTipo} onChange={e => setSelectedTipo(e.target.value as TipoAdjuntoPresupuesto)}
+            >
             <option value="orden_compra">Orden de compra</option>
             <option value="autorizacion_mail">Mail autorizacion</option>
             <option value="otro">Otro</option>
-          </select>
+          </Select>
         </div>
         {selectedTipo === 'orden_compra' && onOCNumeroChange && (
           <div className="min-w-[140px]">

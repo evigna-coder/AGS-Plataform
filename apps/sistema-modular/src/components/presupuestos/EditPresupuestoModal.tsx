@@ -12,6 +12,8 @@ import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSection';
 import { PresupuestoReservasSection } from './PresupuestoReservasSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
+import { PresupuestoCertificacionesSection } from './PresupuestoCertificacionesSection';
+import { respaldoEfectivo } from '@ags/shared';
 import { FactorHistoryButton } from './FactorHistoryButton';
 import { NotasPrecioButton } from './NotasPrecioButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
@@ -37,6 +39,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
 import { presupuestoEstaAceptado, MONEDA_SIMBOLO } from '@ags/shared';
 
+import { confirmar } from '../ui/ConfirmDialog';
 interface Props {
   presupuestoId: string;
   open: boolean;
@@ -105,7 +108,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
       }
     }
     if (warnings.length > 0) {
-      const ok = window.confirm(
+      const ok = await confirmar(
         `Advertencia — ATP insuficiente para:\n\n${warnings.join('\n')}\n\n` +
         `Al aceptar, FLOW-03 creará requerimientos condicionales automáticos.\n\n¿Continuar?`,
       );
@@ -557,6 +560,14 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               />
             </div>
           </CollapsibleSection>
+
+          {/* Certificaciones (2026-09-08): el respaldo de facturación cuando el
+              cliente no emite OC. Siempre visible para esos; para los demás,
+              solo si alguna OT del presupuesto entró en un lote. */}
+          <PresupuestoCertificacionesSection
+            presupuesto={{ numero: form.numero, otsVinculadasNumbers: form.otsVinculadasNumbers, otVinculadaNumber: form.otVinculadaNumber, clienteId: form.clienteId }}
+            mostrarSiVacia={respaldoEfectivo(form, cliente) === 'certificacion'}
+          />
 
           {((form.esquemaFacturacion?.length ?? 0) > 0 || (form.otsListasParaFacturar?.length ?? 0) > 0) && (
             <CollapsibleSection

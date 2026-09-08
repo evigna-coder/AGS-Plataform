@@ -13,6 +13,7 @@ import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpFromStockAmplio } from '../../services/atpHelpers';
 import { articulosService } from '../../services/firebaseService';
 
+import { Select } from '../ui/Select';
 interface Props {
   conceptosServicio: ConceptoServicio[];
   categoriasPresupuesto: CategoriaPresupuesto[];
@@ -260,8 +261,8 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
             {presentaciones.length > 0 && (
               <div className="mt-3">
                 <label className={lbl}>Presentación (se cotiza por)</label>
-                <select
-                  className={ctrl}
+                <Select
+                  className="w-full" selectSize="md"
                   value={presentacion?.codigoParte ?? ''}
                   onChange={e => {
                     const p = presentaciones.find(x => x.codigoParte === e.target.value);
@@ -274,7 +275,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
                       {p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})
                     </option>
                   ))}
-                </select>
+                </Select>
                 {presentacion && (
                   <p className="text-[11px] text-teal-700 mt-1">
                     Compromete <span className="font-semibold">{cantidadEnUnidadBase(cantidad || 1, presentacion)}</span>

@@ -4,6 +4,7 @@ import { notasPrecioService } from '../../services/notasPrecioService';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { pareceTabular, alinearTsv, insertarEnCursor } from '../../utils/pegadoTabular';
 
+import { notify } from '../../utils/notify';
 const fmtFecha = (iso: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -35,7 +36,7 @@ export const NotasPrecioLista: React.FC<Props> = ({ notas, loading, error, usuar
       await onChanged();
     } catch (err) {
       console.error('[NotasPrecioLista] update:', err);
-      alert('No se pudo guardar el cambio');
+      notify.error('No se pudo guardar el cambio');
     } finally { setActing(false); }
   };
 
@@ -47,7 +48,7 @@ export const NotasPrecioLista: React.FC<Props> = ({ notas, loading, error, usuar
       await onChanged();
     } catch (err) {
       console.error('[NotasPrecioLista] remove:', err);
-      alert('No se pudo borrar la nota');
+      notify.error('No se pudo borrar la nota');
     } finally { setActing(false); }
   };
 

@@ -7,6 +7,7 @@ import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presup
 import { establecimientoUnicoId, computePresupuestoItemSubtotal, categoriaFromTipoPresupuesto, monedasDeItems } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
+import { notify } from '../utils/notify';
 export interface PresupuestoFormState {
   clienteId: string;
   establecimientoId: string;
@@ -293,8 +294,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); setAutoAppliedOnce(false); setSistemasPlan([]); };
 
   const handleSave = async () => {
-    if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
-    if (items.length === 0) { alert('Agregue al menos un item'); return; }
+    if (!form.clienteId) { notify.warning('Debe seleccionar un cliente'); return; }
+    if (items.length === 0) { notify.warning('Agregue al menos un item'); return; }
 
     // Phase 12 BILL-01: validate esquema before saving for non-contrato types
     if (form.tipo !== 'contrato' && esquemaFacturacion.length > 0) {
@@ -310,14 +311,14 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       const emptyCuotas = findEmptyCuotas(esquemaFacturacion);
       if (emptyCuotas.length > 0) {
         const nums = emptyCuotas.map(c => c.numero).join(', ');
-        alert(`Cuota(s) N° ${nums} no factura ninguna moneda. Agregá un porcentaje o eliminala.`);
+        notify.warning(`Cuota(s) N° ${nums} no factura ninguna moneda. Agregá un porcentaje o eliminala.`);
         return;
       }
 
       const errors = validateEsquemaSum(esquemaFacturacion, monedasActivas);
       if (errors.length > 0) {
         const msgs = errors.map(e => `Cuotas en ${e.moneda} suman ${e.sum.toFixed(2)}%, deben sumar 100.00%`);
-        alert(msgs.join('\n'));
+        notify.info(msgs.join('\n'));
         return;
       }
     }
@@ -356,6 +357,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         origenId: form.origenId || null, origenRef: form.origenRef || null,
         estado: 'borrador', items: finalItems, subtotal, total: subtotal,
         ordenesCompraIds: [], adjuntos: [], validezDias: form.validezDias,
+        // Respaldo (2026-09-08): el cliente que certifica no emite OC.
+        respaldoFacturacion: clientes.find(c => c.id === form.clienteId)?.requisitoFacturacion === 'certificacion' ? 'certificacion' : 'orden_compra',
         condicionPagoId: form.condicionPagoId || undefined,
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : undefined,
         notasTecnicas: form.notasTecnicas || undefined,
@@ -442,7 +445,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       }
       handleClose();
       onCreated?.(presupuestoId);
-    } catch { alert('Error al crear el presupuesto'); }
+    } catch { notify.error('Error al crear el presupuesto'); }
     finally { setSaving(false); }
   };
 

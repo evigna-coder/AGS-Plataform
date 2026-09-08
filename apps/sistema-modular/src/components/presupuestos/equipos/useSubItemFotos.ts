@@ -4,6 +4,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 // nunca importar uploadBytes del SDK directo. Ver services/firebase.ts.
 import { storage, uploadBytes } from '../../../services/firebase';
 
+import { notify } from '../../../utils/notify';
 /** Límite de tamaño por foto — rechazamos archivos más grandes con aviso. */
 const MAX_FOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -26,11 +27,11 @@ export function useSubItemFotos(presupuestoId?: string | null) {
 
   const uploadOne = async (file: File): Promise<string | null> => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      alert(`"${file.name}": formato no soportado (usar PNG o JPG).`);
+      notify.warning(`"${file.name}": formato no soportado (usar PNG o JPG).`);
       return null;
     }
     if (file.size > MAX_FOTO_BYTES) {
-      alert(`"${file.name}" pesa más de 5 MB. Reducí la imagen antes de subirla.`);
+      notify.warning(`"${file.name}" pesa más de 5 MB. Reducí la imagen antes de subirla.`);
       return null;
     }
     const base = presupuestoId
@@ -53,7 +54,7 @@ export function useSubItemFotos(presupuestoId?: string | null) {
           if (url) urls.push(url);
         } catch (err) {
           console.error('[useSubItemFotos] Error subiendo foto:', err);
-          alert(`Error al subir "${file.name}". Reintentá.`);
+          notify.error(`Error al subir "${file.name}". Reintentá.`);
         }
       }
     } finally {

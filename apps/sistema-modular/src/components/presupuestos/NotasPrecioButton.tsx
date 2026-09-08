@@ -7,6 +7,7 @@ import { pareceTabular, alinearTsv, insertarEnCursor } from '../../utils/pegadoT
 import { useAuth } from '../../contexts/AuthContext';
 import { NotasPrecioLista } from './NotasPrecioLista';
 
+import { notify } from '../../utils/notify';
 interface Props {
   clienteId: string | null | undefined;
   clienteNombre?: string;
@@ -68,7 +69,7 @@ export const NotasPrecioButton: React.FC<Props> = ({
       await recargar();
     } catch (err) {
       console.error('[NotasPrecioButton] agregar:', err);
-      alert('No se pudo guardar la nota');
+      notify.error('No se pudo guardar la nota');
     } finally { setSaving(false); }
   };
 

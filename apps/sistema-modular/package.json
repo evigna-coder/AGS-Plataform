@@ -48,6 +48,7 @@
     "test:permisos-modulos": "tsx src/utils/__tests__/permisosModulos.test.ts",
     "test:certificacion-lote": "tsx src/utils/__tests__/certificacionLote.test.ts",
     "test:entregas-por-oc": "tsx src/utils/__tests__/entregasPorOC.test.ts",
+    "test:por-cobrar": "tsx src/utils/__tests__/porCobrar.test.ts",
     "test:montos-mixta": "tsx src/utils/__tests__/montosMixta.test.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",

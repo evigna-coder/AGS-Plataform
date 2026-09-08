@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import type { AnexoBuildResult, AnexoBuildWarning } from './pdf';
 import { generateAnexoConsumiblesPDF } from './pdf';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 /**
  * Sub-componente del EnviarPresupuestoModal — gestiona el toggle de anexos de
  * consumibles + preview en nueva pestaña + banners de warnings (no bloqueantes).
@@ -65,7 +67,7 @@ export const EnviarAnexosSection: React.FC<Props> = ({
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (err) {
       console.error('Error generando preview anexo:', err);
-      alert('No se pudo generar el preview del anexo');
+      notify.error('No se pudo generar el preview del anexo');
     } finally {
       setPreviewing(false);
     }
@@ -92,8 +94,8 @@ export const EnviarAnexosSection: React.FC<Props> = ({
         {includeAnexos && anexos.length > 0 && (
           <div className="flex items-center gap-2">
             {anexos.length > 1 && (
-              <select
-                className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white"
+              <Select
+                selectSize="xs"
                 value={previewIdx}
                 onChange={(e) => setPreviewIdx(parseInt(e.target.value, 10))}
                 disabled={previewing || disabled}
@@ -103,7 +105,7 @@ export const EnviarAnexosSection: React.FC<Props> = ({
                     Anexo {i + 1} — {a.data.sistemaNombre}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
             <button
               type="button"

@@ -8,6 +8,8 @@ import { useConfirm } from '../ui/ConfirmDialog';
 import { PlantillaTextoForm } from './PlantillaTextoForm';
 import { PlantillaRow } from './PlantillaRow';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props { open: boolean; onClose: () => void; }
 
 type SeccionKey = keyof PresupuestoSeccionesVisibles;
@@ -65,7 +67,7 @@ export const PlantillasTextoModal: React.FC<Props> = ({ open, onClose }) => {
       await loadData();
     } catch (e) {
       console.error('Error saving plantilla:', e);
-      alert('Error al guardar la plantilla');
+      notify.error('Error al guardar la plantilla');
     } finally { setSaving(false); }
   };
 
@@ -76,7 +78,7 @@ export const PlantillasTextoModal: React.FC<Props> = ({ open, onClose }) => {
       await loadData();
     } catch (e) {
       console.error('Error deleting plantilla:', e);
-      alert('Error al eliminar');
+      notify.error('Error al eliminar');
     }
   };
 
@@ -104,29 +106,27 @@ export const PlantillasTextoModal: React.FC<Props> = ({ open, onClose }) => {
             <div className="flex items-end gap-3 flex-wrap">
               <div>
                 <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wide mb-0.5">Sección</label>
-                <select
+                <Select
                   value={filters.plantilla_seccion}
                   onChange={e => setFilter('plantilla_seccion', e.target.value)}
-                  className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white"
                 >
                   <option value="">Todas</option>
                   {(Object.keys(PRESUPUESTO_SECCIONES_LABELS) as SeccionKey[]).map(k => (
                     <option key={k} value={k}>{PRESUPUESTO_SECCIONES_LABELS[k]}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wide mb-0.5">Tipo de presupuesto</label>
-                <select
+                <Select
                   value={filters.plantilla_tipo}
                   onChange={e => setFilter('plantilla_tipo', e.target.value)}
-                  className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white"
                 >
                   <option value="">Todos</option>
                   {(Object.keys(TIPO_PRESUPUESTO_LABELS) as TipoPresupuesto[]).map(t => (
                     <option key={t} value={t}>{TIPO_PRESUPUESTO_LABELS[t]}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer ml-auto">
                 <input

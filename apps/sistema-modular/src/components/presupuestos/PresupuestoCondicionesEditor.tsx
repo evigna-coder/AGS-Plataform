@@ -7,6 +7,7 @@ import { RichTextEditor } from '../ui/RichTextEditor';
 import { plantillasTextoPresupuestoService } from '../../services/firebaseService';
 import { PlantillasTextoModal } from './PlantillasTextoModal';
 
+import { Select } from '../ui/Select';
 type SeccionKey = keyof PresupuestoSeccionesVisibles;
 
 const SECCION_KEYS: SeccionKey[] = [
@@ -144,11 +145,11 @@ export const PresupuestoCondicionesEditor = ({
 
                 {/* Per-section plantilla dropdown */}
                 {opts.length > 0 && (
-                  <select
+                  <Select
                     value=""
                     onChange={(e) => { handleLoadPlantilla(key, e.target.value); e.target.value = ''; }}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-teal-700 max-w-[180px]"
+                    className="max-w-[180px]" selectSize="xs"
                     title="Cargar plantilla"
                   >
                     <option value="">Cargar plantilla…</option>
@@ -157,7 +158,7 @@ export const PresupuestoCondicionesEditor = ({
                         {p.esDefault ? '★ ' : ''}{p.nombre}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
               </div>
 

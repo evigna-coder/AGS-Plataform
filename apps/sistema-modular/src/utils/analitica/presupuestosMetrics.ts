@@ -22,7 +22,7 @@ export type PresupuestoMetricas = Pick<
   Presupuesto,
   | 'id' | 'numero' | 'estado' | 'tipo' | 'moneda' | 'total' | 'items' | 'clienteId'
   | 'responsableId' | 'responsableNombre' | 'fechaEnvio' | 'fechaAceptacion'
-  | 'ordenesCompraIds' | 'otsVinculadasNumbers' | 'anuladoPorId'
+  | 'ordenesCompraIds' | 'otsVinculadasNumbers' | 'anuladoPorId' | 'respaldoFacturacion'
   | 'validUntil' | 'validezDias'
 > & Partial<Pick<Presupuesto, 'ordenCompraNumero' | 'adjuntos'>>;
 
@@ -327,6 +327,7 @@ export function computeOCAdeudada(
     // (anulado por revisión ⇒ estado 'anulado' ⇒ queda afuera por el mismo check).
     if (!OC_ADEUDADA_ESTADOS.has(p.estado)) continue;
     if (tieneOCDelCliente(p)) continue;
+    if (p.respaldoFacturacion === 'certificacion') continue; // no emite OC, certifica (2026-09-08)
 
     // Servicio realizado: OT cerrada con budgets conteniendo el número del ppto,
     // o rescate por otsVinculadasNumbers (budgets mal cargado en la OT).

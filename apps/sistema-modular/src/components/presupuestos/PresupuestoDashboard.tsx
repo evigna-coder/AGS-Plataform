@@ -1,17 +1,20 @@
 import { useMemo } from 'react';
+import { sumarPorMoneda, fmtPorMoneda } from '../../utils/montosPorMoneda';
 import type { Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
-import { presupuestoAceptadoVigente, MONEDA_SIMBOLO } from '@ags/shared';
-import { getDaysSinceEnvio, isExpired } from '../../utils/presupuestoHelpers';
-import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
+import { MONEDA_SIMBOLO } from '@ags/shared';
+import { usePresupuestoDashboardMetrics } from '../../hooks/usePresupuestoDashboardMetrics';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
-export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso' | 'vencidos';
+export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'a_certificar' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso' | 'vencidos';
 
 interface Props {
   presupuestos: Presupuesto[];
   solicitudes: SolicitudFacturacion[];
   /** TODAS las OTs (2026-08-06): necesarias para saber si un ppto ya tiene OT. */
   ots?: WorkOrder[];
+  /** Universo completo, sin filtro de solapa, para el total "Por cobrar" (2026-09-08). */
+  presupuestosTodos?: Presupuesto[];
+  solicitudesTodas?: SolicitudFacturacion[];
   /** KPI activo como filtro de la lista ('' = ninguno). */
   activeKpi?: KpiFilter;
   /** Click en una tarjeta/indicador — el padre togglea el filtro. */
@@ -21,129 +24,11 @@ interface Props {
   verTodosActivo?: boolean;
 }
 
-const OT_CERRADA_SET = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-
-export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
-  const metrics = useMemo(() => {
-    // Borradores (2026-08-19): sin card no se veían en ningún lado. Es el
-    // primer eslabón del circuito y donde caen los pedidos del portal que
-    // todavía nadie cotizó.
-    const borradores = presupuestos.filter(p => p.estado === 'borrador');
-    // Los que NO se pueden descartar: su OT ya cerró, la parte quedó instalada.
-    const borradoresConTrabajo = borradores.filter(p => {
-      const vinculadas = new Set(p.otsVinculadasNumbers ?? []);
-      return ots.some(ot => OT_CERRADA_SET.has(ot.estadoAdmin ?? '')
-        && ((ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber)));
-    });
-    const enviados = presupuestos.filter(p => p.estado === 'enviado');
-    // Solo los que siguen EN la etapa aceptado: los que ya arrancaron van a la
-    // card "En ejecución" y contarlos acá duplicaba (2026-08-09).
-    const aceptados = presupuestos.filter(p => presupuestoAceptadoVigente(p.estado));
-
-    // En ejecución (2026-08-18). Antes no tenía card: un ppto que arrancaba
-    // desaparecía de "Aceptados" y no aparecía en ningún otro lado, así que
-    // para encontrarlo había que pelear con el desplegable de estado. Son
-    // aceptados igual — lo que cambia es que el trabajo ya empezó.
-    const enEjecucion = presupuestos.filter(p => p.estado === 'en_ejecucion');
-    // Monto POR MONEDA, igual que el pipeline de enviados: sumar USD y ARS en un
-    // solo número daría un total que no existe (2026-08-19).
-    const montoEnEjecucion: Record<string, number> = {};
-    enEjecucion.forEach(p => {
-      const m = p.moneda || 'USD';
-      montoEnEjecucion[m] = (montoEnEjecucion[m] || 0) + (p.total || 0);
-    });
-
-    // Enviados sin respuesta (> 7 días)
-    const enviadosSinRespuesta = enviados.filter(p => {
-      const days = getDaysSinceEnvio(p.fechaEnvio);
-      return days !== null && days > 7;
-    });
-
-    // Vencidos: pasó la validez y todavía es pre-aceptación (2026-08-21).
-    //
-    // Antes contaba solo entre los ENVIADOS, pero el filtro de la lista usa
-    // `isExpired`, que abarca también `pendiente_oc`. Con dos universos
-    // distintos el contador decía 1 y el filtro mostraba otra cantidad.
-    // Se usa el mismo helper que la lista para que número y filtro coincidan.
-    const enviadosVencidos = presupuestos.filter(isExpired);
-
-    // Aceptados sin OT creada. Antes miraba SOLO el campo legacy
-    // `otVinculadaNumber` (2026-08-06): un ppto con OTs creadas desde el propio
-    // presupuesto — que se vinculan por `budgets` — figuraba "sin OT creada"
-    // para siempre (P1-005046-01 con 4 OTs). Ahora usa el mismo join que el
-    // control semanal y el KPI de OTs, con herencia padre→hijas.
-    const aceptadosSinOT = aceptados.filter(p => otsDelPresupuesto(p, ots).size === 0);
-
-    // Aceptados CON TRABAJO REALIZADO y sin aviso a facturación (2026-08-06).
-    // Antes contaba todo aceptado sin solicitud: un ppto recién aceptado, con
-    // las OTs sin hacer, figuraba "sin facturar" — ruido, no acción. Ahora pide
-    // al menos una OT cerrada técnicamente: ahí sí falta facturar.
-    const solicitadoIds = new Set(solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));
-    const estadoPorOt = new Map(ots.map(o => [o.otNumber, o.estadoAdmin ?? '']));
-    const OT_CERRADA = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-    const aceptadosSinFacturar = aceptados.filter(p => {
-      if (solicitadoIds.has(p.id)) return false;
-      return [...otsDelPresupuesto(p, ots)].some(n => OT_CERRADA.has(estadoPorOt.get(n) ?? ''));
-    });
-
-    // OT cerradas SIN aviso a facturación (ampliado 2026-08-27, caso
-    // P2-005103-01): además de los que ya están en 'pendiente_facturacion',
-    // cuenta los aceptados (pendiente_oc / aceptado / en_ejecucion) cuyas OTs
-    // están TODAS cerradas administrativamente — el trabajo terminó y nadie
-    // avisó. Antes esos quedaban invisibles salvo mirando "todos".
-    const ACEPTADO_FAM = new Set(['pendiente_oc', 'aceptado', 'en_ejecucion']);
-    const OT_CERRADA_ADMIN = new Set(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-    const pendientesAviso = presupuestos.filter(p => {
-      if (solicitadoIds.has(p.id)) return false;
-      if (p.estado === 'pendiente_facturacion') return true;
-      if (!ACEPTADO_FAM.has(p.estado)) return false;
-      const estados = [...otsDelPresupuesto(p, ots)]
-        .map(n => estadoPorOt.get(n))
-        .filter((e): e is string => e !== undefined);
-      return estados.length > 0 && estados.every(e => OT_CERRADA_ADMIN.has(e));
-    });
-
-    // Solicitudes pendientes de facturación
-    const solicitudesPendientes = solicitudes.filter(s => s.estado === 'pendiente');
-
-    // Pendientes de cobro (2026-08-18): PRESUPUESTOS con al menos una factura
-    // emitida y sin cobrar. Es una pregunta de PLATA, no de trabajo.
-    //
-    // Dos intentos previos fallaron por mirar el eje equivocado: contar
-    // solicitudes duplicaba el módulo Facturación dentro del listado; contar
-    // presupuestos en estado 'facturado' dejaba afuera los ANTICIPOS —
-    // facturados con el trabajo todavía en curso, así que su presupuesto sigue
-    // 'en_ejecucion'— que son justamente los que hay que perseguir.
-    const facturadasSinCobrar = solicitudes.filter(s => s.estado === 'facturada');
-    const idsConFacturaAbierta = new Set(facturadasSinCobrar.map(s => s.presupuestoId));
-    const facturadosSinCobrar = presupuestos.filter(p => idsConFacturaAbierta.has(p.id));
-    const montoSinCobrar = facturadasSinCobrar.reduce((acc, s) => acc + (s.montoTotal ?? 0), 0);
-
-    // Monto pipeline por moneda
-    const pipeline: Record<string, number> = {};
-    enviados.forEach(p => {
-      const m = p.moneda || 'USD';
-      pipeline[m] = (pipeline[m] || 0) + (p.total || 0);
-    });
-
-    return {
-      enviadosTotal: enviados.length,
-      enviadosSinRespuesta,
-      enviadosVencidos,
-      aceptadosTotal: aceptados.length,
-      aceptadosSinOT,
-      aceptadosSinFacturar,
-      pendientesAviso,
-      solicitudesPendientes,
-      facturadosSinCobrar,
-      montoSinCobrar,
-      pipeline,
-      enEjecucion,
-      montoEnEjecucion,
-      borradores,
-      borradoresConTrabajo,
-    };
-  }, [presupuestos, solicitudes, ots]);
+export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, ots = [], presupuestosTodos, solicitudesTodas, activeKpi = '', onKpiClick, onVerTodos, verTodosActivo = false }) => {
+  const todos = useMemo(
+    () => (presupuestosTodos && solicitudesTodas ? { presupuestos: presupuestosTodos, solicitudes: solicitudesTodas } : undefined),
+    [presupuestosTodos, solicitudesTodas]);
+  const metrics = usePresupuestoDashboardMetrics(presupuestos, solicitudes, ots, todos);
 
   const fmtPipeline = (map: Record<string, number>) =>
     Object.entries(map).filter(([, v]) => v > 0)
@@ -164,7 +49,8 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // Compactas (UAT 2026-07-18): label y número en una línea; el detalle solo
   // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
-    <div className="grid grid-cols-[0.42fr_repeat(6,minmax(0,1fr))] gap-1.5 px-5 pb-3">
+    <div className="px-5 pb-3">
+    <div className="grid grid-cols-[0.42fr_repeat(6,minmax(0,1fr))] gap-1.5">
       {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
           estado — las cards "tapaban" al desplegable y no había cómo salir. */}
       <button type="button" onClick={onVerTodos}
@@ -268,8 +154,29 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
         {metrics.solicitudesPendientes.length > 0 && (
           <p className="text-[9px] text-slate-400 mt-0.5 truncate"
             title="Esperando que Administración cargue la factura">
-            {metrics.solicitudesPendientes.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+            {fmtPorMoneda(sumarPorMoneda(metrics.solicitudesPendientes), 0)}
             {' '}esperando factura
+          </p>
+        )}
+        {/* Certificaciones (2026-09-08): esperando papel del cliente, y papel
+            recibido sin aviso. Van acá y no en una card propia — pedido del
+            user: menos cards, y el monto se lee en la franja de abajo. */}
+        {metrics.aCertificar.presupuestos.length > 0 && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); toggle('a_certificar'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggle('a_certificar'); } }}
+            className={`block text-[9px] mt-0.5 text-sky-700 hover:underline truncate ${activeKpi === 'a_certificar' ? 'font-semibold underline' : ''}`}
+            title={`${metrics.aCertificar.otsRetenidas} OT cerradas esperando la certificación del cliente · ${fmtPorMoneda(metrics.aCertificar.monto, 0)} — click para filtrar`}
+          >
+            ⏳ {metrics.aCertificar.presupuestos.length} a certificar
+          </span>
+        )}
+        {metrics.certificadasSinAviso.otsRetenidas > 0 && (
+          <p className="text-[9px] mt-0.5 text-orange-600 truncate"
+            title={`Papel del cliente recibido, aviso a facturación sin generar · ${fmtPorMoneda(metrics.certificadasSinAviso.monto, 0)}`}>
+            ✓ {metrics.certificadasSinAviso.otsRetenidas} certificadas sin aviso
           </p>
         )}
         {metrics.pendientesAviso.length > 0 && (
@@ -294,11 +201,23 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
           <p className="text-sm font-black text-purple-600 leading-none">{metrics.facturadosSinCobrar.length}</p>
         </div>
         {metrics.facturadosSinCobrar.length > 0 && (
-          <p className="text-[9px] text-slate-400 mt-0.5 truncate">
-            {metrics.montoSinCobrar.toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+          <p className="text-[9px] text-slate-400 mt-0.5 truncate" title={`Facturado sin cobrar: ${fmtPorMoneda(metrics.montoSinCobrar)}`}>
+            {fmtPorMoneda(metrics.montoSinCobrar, 0)} facturado
+          </p>
+        )}
+        {/* Por cobrar (2026-09-08): TODO lo hecho y no cobrado — a certificar +
+            certificado sin aviso + a facturar + facturado sin cobrar —, de la
+            empresa entera (contratos + comercial), por moneda. Va dentro de la
+            card, a pedido del user: sin franja aparte. */}
+        {fmtPorMoneda(metrics.porCobrarTotal, 0) && (
+          <p className="text-[9px] text-purple-700 mt-0.5 truncate"
+            title={`Por cobrar en total (contratos + comercial): a certificar ${fmtPorMoneda(metrics.aCertificar.monto, 0) || '—'} · certificado sin aviso ${fmtPorMoneda(metrics.certificadasSinAviso.monto, 0) || '—'} · a facturar ${fmtPorMoneda(sumarPorMoneda(metrics.solicitudesPendientes), 0) || '—'} · facturado sin cobrar ${fmtPorMoneda(metrics.montoSinCobrar, 0) || '—'}${fmtPorMoneda(metrics.porCobrar, 0) !== fmtPorMoneda(metrics.porCobrarTotal, 0) ? ` · esta solapa: ${fmtPorMoneda(metrics.porCobrar, 0) || '—'}` : ''}`}>
+            Σ por cobrar {fmtPorMoneda(metrics.porCobrarTotal, 0)}
           </p>
         )}
       </button>
     </div>
+    </div>
   );
 };
+

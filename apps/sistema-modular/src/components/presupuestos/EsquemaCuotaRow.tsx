@@ -16,6 +16,7 @@ import type { PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 
+import { Select } from '../ui/Select';
 const HITO_LABELS: Record<PresupuestoCuotaFacturacion['hito'], string> = {
   ppto_aceptado:     'Aceptación',
   oc_recibida:       'OC recibida',
@@ -82,16 +83,16 @@ export const EsquemaCuotaRow: React.FC<Props> = ({
         <label className="block font-mono text-[10px] uppercase tracking-wide text-slate-400 mb-0.5">
           Hito
         </label>
-        <select
+        <Select
           value={cuota.hito}
           disabled={readOnly}
           onChange={e => onChange({ ...cuota, hito: e.target.value as PresupuestoCuotaFacturacion['hito'] })}
-          className="w-full border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 disabled:bg-slate-50 disabled:text-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-700"
+          className="w-full"
         >
           {HITO_OPTIONS.map(([val, label]) => (
             <option key={val} value={val}>{label}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* % por moneda + monto preview */}

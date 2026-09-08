@@ -3,6 +3,7 @@ import { presupuestosService, clientesService, usuariosService, facturacionServi
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { computeACertificar } from '../../utils/analitica/porCobrar';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,7 +15,6 @@ import { OCS_PENDIENTES_EXPORT_COLUMNS, buildOCPendienteRows } from '../../utils
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { Button } from '../../components/ui/Button';
 import { MenuButton } from '../../components/ui/MenuButton';
-import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
@@ -46,6 +46,10 @@ import { hoyLocalISODate } from '../../utils/formatFecha';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
 import { sweepPresupuestosVencidos } from '../../utils/sweepPresupuestosVencidos';
 
+import { notify } from '../../utils/notify';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { Select } from '../../components/ui/Select';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion'];
 
@@ -93,7 +97,7 @@ export const PresupuestosList = () => {
   // OTs cerradas pendientes del ppto en una solicitud, sin pasar por la OT.
   const handleQuickAviso = async (p: Presupuesto) => {
     const ots = p.otsListasParaFacturar ?? [];
-    if (ots.length === 0) { alert('El presupuesto no tiene OTs listas para facturar.'); return; }
+    if (ots.length === 0) { notify.warning('El presupuesto no tiene OTs listas para facturar.'); return; }
     const detalle = ots.length === 1 ? `la OT ${ots[0]}` : `las OTs ${ots.join(', ')}`;
     if (!await confirm(`¿Generar el aviso a facturación de ${p.numero} por ${detalle}?`)) return;
     try {
@@ -103,7 +107,7 @@ export const PresupuestosList = () => {
       );
     } catch (err) {
       console.error('Error generando aviso a facturación:', err);
-      alert(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
+      notify.error(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
     }
   };
 
@@ -113,7 +117,7 @@ export const PresupuestosList = () => {
       await descargarPresupuestoPdfDirecto(p);
     } catch (err) {
       console.error('Error descargando PDF del presupuesto:', err);
-      alert('Error al generar el PDF');
+      notify.error('Error al generar el PDF');
     } finally {
       setDescargandoPdfId(null);
     }
@@ -142,7 +146,7 @@ export const PresupuestosList = () => {
     }
 
     if (nuevoEstado === 'enviado' && !p.fechaEnvio) updates.fechaEnvio = hoyLocalISODate();
-    await presupuestosService.update(p.id, updates).catch(() => alert('Error al cambiar estado'));
+    await presupuestosService.update(p.id, updates).catch(() => notify.error('Error al cambiar estado'));
   };
 
   const FILTER_SCHEMA = useMemo(() => ({
@@ -350,6 +354,8 @@ export const PresupuestosList = () => {
     return ids;
   }, [presupuestos, otsCerradas]);
 
+  // Card 'A certificar' (2026-09-08): mismo cálculo que el dashboard, así número y filtro coinciden.
+  const aCertificarIds = useMemo(() => computeACertificar(presupuestos, todasOts).ids, [presupuestos, todasOts]);
   const presupuestosFiltrados = useMemo(() => {
     // Vista básica (sin estado/KPI/filtros de OC elegidos): ocultar los que ya no
     // requieren acción comercial — finalizados y los enviados a facturación (aviso
@@ -411,6 +417,9 @@ export const PresupuestosList = () => {
       // drill-down que navega con ?ocPendiente=true.
       if (filters.ocPendiente) {
         if (!OC_ADEUDADA_ESTADOS.has(p.estado)) return false;
+        // Respaldo por certificación (2026-09-08): el cliente no emite OC, no
+        // se la debe. Se sigue desde Pend. documentación.
+        if (p.respaldoFacturacion === 'certificacion') return false;
         // tieneOCDelCliente (2026-08-06): cualquier camino de carga de OC
         // (formal, número a mano o adjunto) saca al ppto de "OC pendiente".
         if (tieneOCDelCliente(p)) return false;
@@ -425,6 +434,7 @@ export const PresupuestosList = () => {
       // Mismo bucket que la card, o el numero no coincide con lo listado.
       if (filters.kpi === 'aceptados' && !presupuestoAceptadoVigente(p.estado)) return false;
       if (filters.kpi === 'en_ejecucion' && p.estado !== 'en_ejecucion') return false;
+      if (filters.kpi === 'a_certificar' && !aCertificarIds.has(p.id)) return false;
       if (filters.kpi === 'fact_pendientes' && !solicitudSets.pendientes.has(p.id)) return false;
       if (filters.kpi === 'pend_cobro' && !solicitudSets.facturadas.has(p.id)) return false;
       if (filters.kpi === 'pendiente_aviso' && !faltaAviso(p)) return false;
@@ -625,6 +635,8 @@ export const PresupuestosList = () => {
         // solapas — con contratos abiertos con números ficticios, el monto de
         // las cards comerciales no cerraba con nada.
         solicitudes={solicitudes.filter(s => idsDeLaVista.has(s.presupuestoId))}
+        presupuestosTodos={presupuestos}
+        solicitudesTodas={solicitudes}
         ots={todasOts}
         activeKpi={filters.kpi as any}
         // Exclusión mutua (2026-08-05): activar una card resetea el estado del
@@ -648,12 +660,9 @@ export const PresupuestosList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando presupuestos...</p></div>
+          <LoadingState message="Cargando presupuestos…" />
         ) : presupuestosFiltrados.length === 0 ? (
-          <Card><div className="text-center py-12">
-            <p className="text-slate-400">No hay presupuestos para mostrar</p>
-            <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">Crear primer presupuesto</button>
-          </div></Card>
+          <EmptyState message="No hay presupuestos para mostrar" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs">Crear primer presupuesto</button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">
@@ -800,16 +809,16 @@ export const PresupuestosList = () => {
                         <div className="flex items-center justify-end gap-0.5">
                           {!isAnulado(p) && (
                             <>
-                              <select
+                              <Select
                                 value={p.estado}
                                 onChange={e => handleQuickEstado(p, e.target.value as PresupuestoEstado)}
-                                className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-slate-600 cursor-pointer hover:border-slate-400"
+                                className="cursor-pointer" selectSize="xs"
                                 title="Cambiar estado"
                               >
                                 {Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([k, v]) => (
                                   <option key={k} value={k}>{v}</option>
                                 ))}
-                              </select>
+                              </Select>
                               <button onClick={() => setOcTarget(p)} title="Adjuntar OC"
                                 className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

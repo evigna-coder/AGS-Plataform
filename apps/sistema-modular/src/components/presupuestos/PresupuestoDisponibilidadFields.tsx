@@ -2,6 +2,7 @@ import React from 'react';
 import type { Disponibilidad } from '@ags/shared';
 import { DISPONIBILIDAD_LABELS } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface PresupuestoDisponibilidadFieldsProps {
   disponibilidad: Disponibilidad | null | undefined;
   etaDiasEstimados: number | null | undefined;
@@ -54,10 +55,10 @@ export const PresupuestoDisponibilidadFields: React.FC<PresupuestoDisponibilidad
     <div className={layoutCls}>
       <div>
         <label className={LABEL_CLS}>Disponibilidad</label>
-        <select
+        <Select
           value={disponibilidad ?? ''}
           onChange={(e) => handleDispChange(e.target.value)}
-          className={INPUT_CLS}
+          className="w-full"
           disabled={disabled}
           data-testid="disp-select"
         >
@@ -66,7 +67,7 @@ export const PresupuestoDisponibilidadFields: React.FC<PresupuestoDisponibilidad
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
         {atpHint != null && (
           <span className="block text-[10px] text-slate-400 mt-1 font-mono">
             ATP: {atpHint.atp}

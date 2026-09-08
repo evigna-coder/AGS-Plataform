@@ -5,6 +5,7 @@ import { MonedasMixtaPicker } from './MonedasMixtaPicker';
 import { TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
 
+import { Select } from '../ui/Select';
 // Creación: solo tipos activos (mixto es legado, no seleccionable).
 const TIPOS = TIPOS_PRESUPUESTO_ACTIVOS.map(t => [t, TIPO_PRESUPUESTO_LABELS[t]]) as [TipoPresupuesto, string][];
 const MONEDAS = Object.entries(MONEDA_PRESUPUESTO_LABELS) as [MonedaPresupuesto, string][];
@@ -26,28 +27,28 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
     <div className="grid grid-cols-[1fr_1fr_1fr_70px_70px_1.5fr] gap-2.5">
       <div>
         <label className={lbl}>Tipo *</label>
-        <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs" value={form.tipo} onChange={e => setForm(prev => ({ ...prev, tipo: e.target.value as TipoPresupuesto }))}>
+        <Select className="w-full" value={form.tipo} onChange={e => setForm(prev => ({ ...prev, tipo: e.target.value as TipoPresupuesto }))}>
           {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
         {/* Numeración P1–P5: 'partes' es el único tipo ambiguo — P2 (partes para un
             servicio) vs P3 (venta de insumos). El resto se deriva solo. */}
         {form.tipo === 'partes' && (
-          <select
-            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1 text-[11px] mt-1 text-slate-600"
+          <Select
+            className="w-full mt-1" selectSize="xs"
             value={form.destinoPartes}
             onChange={e => setForm(prev => ({ ...prev, destinoPartes: e.target.value as 'servicio' | 'venta' }))}
             title="Define la categoría del número: P2 (partes en servicio) o P3 (venta de insumos)"
           >
             <option value="servicio">Para servicio (P2)</option>
             <option value="venta">Venta de insumos (P3)</option>
-          </select>
+          </Select>
         )}
       </div>
       <div>
         <label className={lbl}>Moneda</label>
-        <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs" value={form.moneda} onChange={e => setForm(prev => ({ ...prev, moneda: e.target.value as MonedaPresupuesto }))}>
+        <Select className="w-full" value={form.moneda} onChange={e => setForm(prev => ({ ...prev, moneda: e.target.value as MonedaPresupuesto }))}>
           {MONEDAS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
         {/* Contrato mixto (2026-09-04): qué monedas entran. Cada ítem lleva una
             porción en cada una, en la misma línea. */}
         {form.tipo === 'contrato' && form.moneda === 'MIXTA' && (
@@ -56,10 +57,10 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
       </div>
       <div>
         <label className={lbl}>Origen</label>
-        <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs" value={form.origenTipo} onChange={e => setForm(prev => ({ ...prev, origenTipo: e.target.value as OrigenPresupuesto | '', origenId: '', origenRef: '' }))}>
+        <Select className="w-full" value={form.origenTipo} onChange={e => setForm(prev => ({ ...prev, origenTipo: e.target.value as OrigenPresupuesto | '', origenId: '', origenRef: '' }))}>
           <option value="">Sin origen</option>
           {ORIGENES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
       </div>
       <div>
         <label className={lbl}>Validez</label>

@@ -7,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   presupuestoId: string;
@@ -49,7 +50,7 @@ export const AdjuntarOCModal: React.FC<Props> = ({
       }
     } catch (err) {
       console.error('Error subiendo archivo:', err);
-      alert('Error al subir el archivo');
+      notify.error('Error al subir el archivo');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -84,7 +85,7 @@ export const AdjuntarOCModal: React.FC<Props> = ({
           await presupuestosService.aceptarConRequerimientos(presupuestoId);
         } catch (err) {
           const causa = err instanceof Error ? err.message : String(err);
-          alert(`La orden de compra quedo adjunta, pero el presupuesto NO se pudo aceptar:
+          notify.error(`La orden de compra quedo adjunta, pero el presupuesto NO se pudo aceptar:
 
 ${causa}
 
@@ -98,7 +99,7 @@ Corregi eso y volve a aceptarlo desde el presupuesto.`);
       onClose();
     } catch (err) {
       const causa = err instanceof Error ? err.message : String(err);
-      alert(`No se pudo guardar la orden de compra:
+      notify.error(`No se pudo guardar la orden de compra:
 
 ${causa}`);
     } finally {

@@ -3,6 +3,7 @@ import type { PlantillaTextoPresupuesto, TipoPresupuesto } from '@ags/shared';
 import { plantillasTextoPresupuestoService } from '../../services/firebaseService';
 import { PlantillasTextoModal } from './PlantillasTextoModal';
 
+import { Select } from '../ui/Select';
 interface Props {
   /** Tipo del presupuesto — filtra qué plantillas aplican. */
   tipo?: TipoPresupuesto;
@@ -64,17 +65,17 @@ export function NotasTecnicasPlantillas({ tipo, value, onChange }: Props) {
     <>
       <div className="flex items-center gap-2 mb-2">
         {opciones.length > 0 ? (
-          <select
+          <Select
             value=""
             onChange={e => { agregar(e.target.value); e.target.value = ''; }}
-            className="text-[11px] border border-slate-200 rounded px-1.5 py-1 bg-white text-teal-700 max-w-[260px]"
+            className="max-w-[260px]" selectSize="xs"
             title="Agregar una nota técnica estandarizada al final del texto"
           >
             <option value="">Agregar nota estándar…</option>
             {opciones.map(p => (
               <option key={p.id} value={p.id}>{p.esDefault ? '★ ' : ''}{p.nombre}</option>
             ))}
-          </select>
+          </Select>
         ) : (
           <span className="text-[11px] text-slate-400">Sin notas estándar cargadas.</span>
         )}

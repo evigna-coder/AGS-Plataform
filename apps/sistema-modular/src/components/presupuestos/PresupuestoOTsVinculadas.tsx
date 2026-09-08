@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTabs } from '../../contexts/TabsContext';
-import { ordenesTrabajoService } from '../../services/firebaseService';
+import { cargarOTsDelPresupuesto } from '../../utils/otsDelPresupuestoFetch';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, type OTEstadoAdmin, type Presupuesto, type WorkOrder } from '@ags/shared';
 
@@ -50,25 +50,15 @@ export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers
     // declaran el presupuesto + las que el presupuesto declara + las hijas de
     // los padres que aparezcan (el vínculo puede estar en el padre y el trabajo
     // en la hija).
-    const numerosPropios = [
-      ...(otsVinculadasNumbers ?? []),
-      ...(otVinculadaNumber ? [otVinculadaNumber] : []),
-    ];
     setCargando(true);
     (async () => {
-      const porBudget = presupuestoNumero
-        ? await ordenesTrabajoService.queryByBudget(presupuestoNumero).catch(() => [])
-        : [];
-      const porNumero = await Promise.all(
-        numerosPropios.map(n => ordenesTrabajoService.getByOtNumber(n).catch(() => null)),
-      );
-      const encontradas = new Map<string, WorkOrder>();
-      for (const ot of [...porBudget, ...porNumero]) if (ot) encontradas.set(ot.otNumber, ot);
-      const padres = [...encontradas.keys()].filter(n => !n.includes('.'));
-      const hijas = await Promise.all(padres.map(p => ordenesTrabajoService.getHijas(p).catch(() => [])));
-      for (const ot of hijas.flat()) encontradas.set(ot.otNumber, ot);
+      const { ots: encontradas } = await cargarOTsDelPresupuesto({
+        numero: presupuestoNumero ?? '',
+        otsVinculadasNumbers: otsVinculadasNumbers ?? null,
+        otVinculadaNumber: otVinculadaNumber ?? null,
+      });
       if (cancelled) return;
-      setOts([...encontradas.values()]);
+      setOts(encontradas);
       setCargando(false);
     })();
     return () => { cancelled = true; };

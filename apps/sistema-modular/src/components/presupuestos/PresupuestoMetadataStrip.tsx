@@ -1,6 +1,6 @@
 import React from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import type { Presupuesto, TipoPresupuesto, MonedaPresupuesto, ContactoCliente, ContactoEstablecimiento, CondicionPago, UsuarioAGS } from '@ags/shared';
+import { Presupuesto, TipoPresupuesto, MonedaPresupuesto, ContactoCliente, ContactoEstablecimiento, CondicionPago, UsuarioAGS, RESPALDO_FACTURACION_LABELS, type RespaldoFacturacion } from '@ags/shared';
 import { MonedasMixtaPicker } from './MonedasMixtaPicker';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/usePresupuestoEdit';
@@ -40,7 +40,7 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
 }) => {
   return (
     <div className="bg-slate-50 -mx-5 px-5 py-3 mb-4 border-b border-slate-100 space-y-2">
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         <div>
           <label className={lbl}>Estado</label>
           {form.estado === 'anulado' ? (
@@ -89,6 +89,13 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
           <label className={lbl}>Condición pago</label>
           <SearchableSelect value={form.condicionPagoId || ''} onChange={(v) => setField('condicionPagoId', v || undefined)}
             options={[{ value: '', label: 'Sin condición' }, ...condicionesPago.filter(c => c.activo).map(c => ({ value: c.id, label: `${c.nombre}${c.dias > 0 ? ` (${c.dias}d)` : ''}` }))]}
+            size="sm" />
+        </div>
+        <div>
+          {/* Respaldo (2026-09-08): OC del cliente, o certificación para los que no la emiten. */}
+          <label className={lbl}>Respaldo</label>
+          <SearchableSelect value={form.respaldoFacturacion ?? ''} onChange={(v) => setField('respaldoFacturacion', (v || null) as RespaldoFacturacion | null)}
+            options={[{ value: '', label: 'Según cliente' }, ...(Object.keys(RESPALDO_FACTURACION_LABELS) as RespaldoFacturacion[]).map(k => ({ value: k, label: RESPALDO_FACTURACION_LABELS[k] }))]}
             size="sm" />
         </div>
         <div>

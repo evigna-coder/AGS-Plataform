@@ -9,6 +9,7 @@ import { materializarServiciosPorSistema, nextGrupoNumber } from './contratoItem
 import { SistemasMultiPicker } from './SistemasMultiPicker';
 import { ServiciosPlantillaTable } from './ServiciosPlantillaTable';
 
+import { notify } from '../../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -152,8 +153,8 @@ export const AgregarSistemaContratoModal: React.FC<Props> = ({
   };
 
   const handleConfirm = () => {
-    if (seleccionados.length === 0) { alert('Seleccione al menos un equipo'); return; }
-    if (servicios.length === 0) { alert('Carga al menos un servicio'); return; }
+    if (seleccionados.length === 0) { notify.warning('Seleccione al menos un equipo'); return; }
+    if (servicios.length === 0) { notify.warning('Carga al menos un servicio'); return; }
     onConfirm(materializarServiciosPorSistema({
       plantilla: servicios,
       sistemas: seleccionados,

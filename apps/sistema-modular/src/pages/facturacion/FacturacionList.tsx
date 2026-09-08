@@ -6,6 +6,7 @@ import { clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
+import { sumarPorMoneda, fmtPorMoneda } from '../../utils/montosPorMoneda';
 import { useAuth } from '../../contexts/AuthContext';
 import { SOLICITUDES_FACTURACION_EXPORT_COLUMNS, buildSolicitudesFiltrosExport } from '../../utils/exports/exportSolicitudesFacturacion';
 import { ExportarButton } from '../../components/ui/ExportarButton';
@@ -18,6 +19,8 @@ import { DateInput } from '../../components/ui/DateInput';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
+import { notify } from '../../utils/notify';
+import { LoadingState } from '../../components/ui/LoadingState';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 /**
@@ -84,13 +87,13 @@ export const FacturacionList = () => {
           navigate(`/facturacion/${deepLinkId}`);
         } else {
           console.warn('[FacturacionList] deep link: solicitud not found', deepLinkId);
-          alert('Solicitud no encontrada');
+          notify.error('Solicitud no encontrada');
         }
       })
       .catch(err => {
         if (cancelled) return;
         console.error('[FacturacionList] deep link resolve failed:', err);
-        alert('Error al abrir solicitud');
+        notify.error('Error al abrir solicitud');
       });
     return () => { cancelled = true; };
   }, [deepLinkId, navigate]);
@@ -125,8 +128,9 @@ export const FacturacionList = () => {
   // Summary cards
   const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
   const facturadas = solicitudes.filter(s => s.estado === 'facturada');
-  const montoPendiente = pendientes.reduce((s, x) => s + x.montoTotal, 0);
-  const montoFacturado = facturadas.reduce((s, x) => s + x.montoTotal, 0);
+  // Por moneda (2026-09-08): pesos y dólares se muestran separados, nunca sumados.
+  const montoPendiente = fmtPorMoneda(sumarPorMoneda(pendientes));
+  const montoFacturado = fmtPorMoneda(sumarPorMoneda(facturadas));
 
   const fmtDate = (iso: string) => {
     if (!iso) return '—';
@@ -204,12 +208,12 @@ export const FacturacionList = () => {
         <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pendientes</p>
           <p className="text-lg font-black text-amber-600">{pendientes.length}</p>
-          <p className="text-[10px] text-slate-400 mt-1">U$S {montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{montoPendiente || '—'}</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Facturadas</p>
           <p className="text-lg font-black text-blue-600">{facturadas.length}</p>
-          <p className="text-[10px] text-slate-400 mt-1">U$S {montoFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{montoFacturado || '—'}</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Total solicitudes</p>
@@ -219,7 +223,7 @@ export const FacturacionList = () => {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {loading ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+          <LoadingState message="Cargando…" />
         ) : filtradas.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <p className="text-center text-sm text-slate-400 py-12">No hay solicitudes de facturacion</p>

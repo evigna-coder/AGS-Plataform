@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props { open: boolean; onClose: () => void; }
 
 const INITIAL_FORM = {
@@ -55,7 +56,7 @@ export const CategoriasPresupuestoModal: React.FC<Props> = ({ open, onClose }) =
       if (editingId) await categoriasPresupuestoService.update(editingId, form);
       else await categoriasPresupuestoService.create(form);
       resetForm(); await loadData();
-    } catch { alert('Error al guardar'); }
+    } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
 

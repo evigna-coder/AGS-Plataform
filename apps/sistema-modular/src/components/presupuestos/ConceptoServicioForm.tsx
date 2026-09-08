@@ -4,6 +4,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
+import { Select } from '../ui/Select';
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide";
 
@@ -61,10 +62,10 @@ export function ConceptoServicioForm({ initial, categorias, saving, onSave, onCa
         </div>
         <div>
           <label className={lbl}>Moneda</label>
-          <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
+          <Select className="w-full"
             value={moneda} onChange={e => setMoneda(e.target.value as MonedaPresupuesto)}>
             {MONEDAS.map(m => <option key={m} value={m}>{m} ({MONEDA_SIMBOLO[m]})</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className={lbl}>Factor</label>
@@ -77,11 +78,11 @@ export function ConceptoServicioForm({ initial, categorias, saving, onSave, onCa
       </p>
       <div>
         <label className={lbl}>Categoría impositiva</label>
-        <select className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
+        <Select className="w-full"
           value={catId} onChange={e => setCatId(e.target.value)}>
           <option value="">Sin categoría</option>
           {categorias.filter(c => c.activo).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
+        </Select>
       </div>
       <label className="flex items-center gap-2 text-xs text-slate-600">
         <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} className="rounded border-slate-300" />

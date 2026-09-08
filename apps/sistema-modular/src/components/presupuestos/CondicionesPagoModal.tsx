@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 interface Props { open: boolean; onClose: () => void; }
 
 const getDiasTexto = (dias: number) => dias === 0 ? 'Contado' : dias === 1 ? '1 día' : `${dias} días`;
@@ -42,7 +43,7 @@ export const CondicionesPagoModal: React.FC<Props> = ({ open, onClose }) => {
       if (editingId) await condicionesPagoService.update(editingId, form);
       else await condicionesPagoService.create(form);
       resetForm(); await loadData();
-    } catch { alert('Error al guardar'); }
+    } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
 

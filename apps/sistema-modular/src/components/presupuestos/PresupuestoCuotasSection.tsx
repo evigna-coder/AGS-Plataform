@@ -3,6 +3,7 @@ import type { PresupuestoCuota, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 
+import { Select } from '../ui/Select';
 interface Props {
   cuotas: PresupuestoCuota[];
   onChange: (cuotas: PresupuestoCuota[]) => void;
@@ -156,12 +157,12 @@ export const PresupuestoCuotasSection: React.FC<Props> = ({
                     <tr key={idx}>
                       <td className="px-2 py-1 text-center text-xs text-slate-500">{c.numero}</td>
                       <td className="px-2 py-1 text-center">
-                        <select value={c.moneda} onChange={e => handleCuotaChange(idx, 'moneda', e.target.value)}
-                          className="border border-slate-200 rounded px-1 py-0.5 text-[10px] bg-white">
+                        <Select value={c.moneda} onChange={e => handleCuotaChange(idx, 'moneda', e.target.value)}
+                          selectSize="xs">
                           <option value="USD">USD</option>
                           <option value="ARS">ARS</option>
                           <option value="EUR">EUR</option>
-                        </select>
+                        </Select>
                       </td>
                       <td className="px-2 py-1 text-center">
                         <input type="number" min="0" step="any" value={c.monto}
