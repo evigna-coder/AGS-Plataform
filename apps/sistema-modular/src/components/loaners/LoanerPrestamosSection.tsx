@@ -1,20 +1,24 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
-import type { PrestamoLoaner } from '@ags/shared';
+import type { ParteLoanerPrestada, PrestamoLoaner } from '@ags/shared';
 import { esPrestamoDeParte } from '@ags/shared';
 import { diasDesde, semaforoPrestamoCls } from '../../utils/loanerSemaforo';
+import { LoanerPrestamoPartesCell } from './LoanerPrestamoPartesCell';
 
 interface Props {
   prestamos: PrestamoLoaner[];
   /**
-   * Retorno de una PARTE prestada (2026-09-04): la acción vive en la fila del
-   * historial, no en la cabecera — puede haber varias partes afuera a la vez
-   * y el módulo sigue en base.
+   * Partes prestadas (2026-09-04; dos pasos desde 2026-09-08): cada parte
+   * "vuelve a la base" y después "se reinstala". Las acciones viven en la
+   * fila del historial: puede haber varias partes afuera a la vez.
    */
-  onRetornoParte?: (prestamo: PrestamoLoaner) => void;
+  onVueltaBase?: (prestamo: PrestamoLoaner, parteId: string, parte: ParteLoanerPrestada) => void;
+  onReinstalar?: (prestamo: PrestamoLoaner, parteId: string, parte: ParteLoanerPrestada) => void;
 }
 
-export function LoanerPrestamosSection({ prestamos, onRetornoParte }: Props) {
+const th = 'px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider';
+
+export function LoanerPrestamosSection({ prestamos, onVueltaBase, onReinstalar }: Props) {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
   const formatDate = (iso?: string | null) => {
@@ -38,30 +42,47 @@ export function LoanerPrestamosSection({ prestamos, onRetornoParte }: Props) {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Qué</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Salida</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Retorno</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ficha</th>
-              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Remito</th>
+              <th className={th}>Destino</th>
+              <th className={th}>Qué</th>
+              <th className={th}>OT</th>
+              <th className={th}>Salida</th>
+              <th className={th}>Retorno</th>
+              <th className={th}>Estado</th>
+              <th className={th}>Ficha</th>
+              <th className={th}>Remito</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {sorted.map(p => (
               <tr key={p.id} className="hover:bg-slate-50">
                 <td className="px-3 py-2 text-sm text-slate-700">
-                  <Link to={`/clientes/${p.clienteId}`} state={fromState} className="text-teal-600 hover:underline">{p.clienteNombre}</Link>
-                  {p.establecimientoNombre && <span className="text-xs text-slate-400 block">{p.establecimientoNombre}</span>}
+                  {p.destino === 'ingeniero' ? (
+                    // Parte en poder de un IST (2026-09-08): está en su inventario.
+                    <>
+                      <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-sky-100 text-sky-800 mr-1">Ingeniero</span>
+                      {p.ingenieroNombre}
+                      {p.asignacionId && (
+                        <Link to={`/stock/asignaciones/${p.asignacionId}`} state={fromState} className="block text-xs text-teal-600 hover:underline">
+                          Asignación {p.asignacionNumero || 'ver'}
+                        </Link>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Link to={`/clientes/${p.clienteId}`} state={fromState} className="text-teal-600 hover:underline">{p.clienteNombre}</Link>
+                      {p.establecimientoNombre && <span className="text-xs text-slate-400 block">{p.establecimientoNombre}</span>}
+                    </>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-xs text-slate-600">
-                  {esPrestamoDeParte(p) ? (
-                    <>
-                      <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-violet-100 text-violet-800 mr-1">Parte</span>
-                      {p.parte?.descripcion}
-                      {p.parte?.serie && <span className="text-slate-400"> · S/N {p.parte.serie}</span>}
-                    </>
-                  ) : <span className="text-slate-400">Módulo</span>}
+                  {esPrestamoDeParte(p)
+                    ? <LoanerPrestamoPartesCell prestamo={p} onVueltaBase={onVueltaBase} onReinstalar={onReinstalar} />
+                    : <span className="text-slate-400">Módulo</span>}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {p.otNumber
+                    ? <Link to={`/ordenes-trabajo/${p.otNumber}`} state={fromState} className="font-mono text-teal-600 hover:underline">{p.otNumber}</Link>
+                    : p.motivo ? <span className="text-slate-400" title={p.motivo}>—</span> : '-'}
                 </td>
                 <td className="px-3 py-2 text-xs text-slate-500">{formatDate(p.fechaSalida)}</td>
                 <td className="px-3 py-2 text-xs text-slate-500">{formatDate(p.fechaRetornoReal)}</td>
@@ -73,11 +94,11 @@ export function LoanerPrestamosSection({ prestamos, onRetornoParte }: Props) {
                   }`}>
                     {p.estado === 'activo' ? 'Activo' : p.estado === 'devuelto' ? 'Devuelto' : 'Cancelado'}
                   </span>
-                  {/* Préstamo activo: días en cliente con semáforo (2026-08-27). */}
+                  {/* Préstamo activo: días afuera con semáforo (2026-08-27). */}
                   {p.estado === 'activo' && (() => {
                     const dias = diasDesde(p.fechaSalida);
                     return dias != null && (
-                      <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(dias)}`} title={`${dias} día(s) en cliente`}>
+                      <span className={`ml-1.5 text-[10px] font-bold ${semaforoPrestamoCls(dias)}`} title={`${dias} día(s) desde la salida`}>
                         {dias}d
                       </span>
                     );
@@ -88,15 +109,6 @@ export function LoanerPrestamosSection({ prestamos, onRetornoParte }: Props) {
                 </td>
                 <td className="px-3 py-2 text-xs">
                   {p.remitoSalidaId ? <Link to={`/stock/remitos/${p.remitoSalidaId}`} state={fromState} className="text-teal-600 hover:underline">{p.remitoSalidaNumero || 'Ver'}</Link> : '-'}
-                  {onRetornoParte && p.estado === 'activo' && esPrestamoDeParte(p) && (
-                    <button
-                      type="button"
-                      onClick={() => onRetornoParte(p)}
-                      className="ml-2 text-[10px] font-medium text-teal-700 hover:text-teal-900 underline underline-offset-2"
-                    >
-                      Registrar retorno
-                    </button>
-                  )}
                 </td>
               </tr>
             ))}

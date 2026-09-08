@@ -10,6 +10,7 @@ import type { Articulo } from '@ags/shared';
 import { loanersService } from '../../services/firebaseService';
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 
 const EMPTY_MODULO: ModuloSelection = {
@@ -114,7 +115,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
       navigate(`/loaners/${loanerId}`);
     } catch (err) {
       console.error('Error creando loaner:', err);
-      alert('Error al crear el loaner');
+      notify.error('Error al crear el loaner');
     } finally {
       setSaving(false);
     }

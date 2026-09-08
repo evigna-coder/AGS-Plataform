@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner, CondicionUnidad } from '@ags/shared';
-import { normalizarSerie, esPrestamoDeParte } from '@ags/shared';
+import { normalizarSerie, esPrestamoDeParte, partesDelPrestamo, idDeParte } from '@ags/shared';
 import type { MockVentaLoanerState } from './__tests__/fixtures/ventaLoaner';
 import {
   buildRegistrarVenta,
@@ -286,10 +286,12 @@ export const loanersService = {
   },
 
   /** Registra el préstamo y devuelve el id generado (necesario para vincular fotos de salida). */
-  async registrarPrestamo(id: string, prestamo: Omit<PrestamoLoaner, 'id'>): Promise<string> {
+  async registrarPrestamo(id: string, prestamo: Omit<PrestamoLoaner, 'id'> & { id?: string }): Promise<string> {
     const loaner = await this.getById(id);
     if (!loaner) throw new Error('Loaner no encontrado');
-    const newPrestamo: PrestamoLoaner = { ...prestamo, id: crypto.randomUUID() };
+    // El id puede venir de afuera (2026-09-08): la asignación al ingeniero se
+    // crea ANTES y sus líneas apuntan a este préstamo y a cada parte.
+    const newPrestamo: PrestamoLoaner = { ...prestamo, id: prestamo.id ?? crypto.randomUUID() };
     // Una PARTE prestada no mueve el módulo (2026-09-04): el loaner sigue en
     // base y, si la parte lo deja inoperativo, figura INCOMPLETO por derivación
     // (`loanerEstaIncompleto`). Solo el módulo entero pasa a `en_cliente`.
@@ -374,6 +376,84 @@ export const loanersService = {
         console.error('[registrarDevolucion] cierre del remito de salida falló (no bloquea):', err);
       }
     }
+  },
+
+  /**
+   * Una parte prestada VOLVIÓ a la base (2026-09-08). No la reinstala: el
+   * préstamo sigue activo y el módulo incompleto hasta
+   * `registrarReinstalacionParte` — pueden pasar semanas en el estante.
+   * Cuando volvieron todas cierra el remito de salida; si la parte estaba en
+   * poder de un ingeniero, devuelve su línea de la asignación. Idempotente.
+   */
+  async registrarVueltaBaseParte(loanerId: string, prestamoId: string, parteId: string, data: {
+    fecha: string; condicion?: string | null;
+  }): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const prestamo = loaner.prestamos.find(p => p.id === prestamoId);
+    if (!prestamo) throw new Error('Préstamo no encontrado');
+    const partes = partesDelPrestamo(prestamo);
+    const idx = partes.findIndex((x, i) => idDeParte(x, i) === parteId);
+    if (idx < 0) throw new Error('Parte no encontrada en el préstamo');
+    if (partes[idx].fechaVueltaBase) return;
+    const nuevas = partes.map((x, i) => i === idx
+      ? { ...x, id: idDeParte(x, i), fechaVueltaBase: data.fecha, condicionVuelta: data.condicion ?? null }
+      : { ...x, id: idDeParte(x, i) });
+    await this.update(loanerId, {
+      prestamos: loaner.prestamos.map(p => p.id === prestamoId ? { ...p, partes: nuevas, parte: nuevas[0] } : p),
+    });
+    if (nuevas.every(x => x.fechaVueltaBase) && prestamo.remitoSalidaId) {
+      await this.cerrarRemitoSalidaLoaner(prestamo.remitoSalidaId, loanerId)
+        .catch(err => console.error('[registrarVueltaBaseParte] cierre del remito falló (no bloquea):', err));
+    }
+    if (prestamo.destino === 'ingeniero' && prestamo.asignacionId) {
+      try {
+        const { asignacionesService } = await import('./asignacionesService');
+        const asg = await asignacionesService.getById(prestamo.asignacionId);
+        const item = asg?.items.find(it => it.loanerParteId === parteId && it.estado === 'asignado');
+        if (asg && item) await asignacionesService.devolverItems(asg.id, [{ itemId: item.id, cantidad: item.cantidad }]);
+      } catch (err) {
+        console.error('[registrarVueltaBaseParte] devolución en la asignación del ingeniero falló (no bloquea):', err);
+      }
+    }
+  },
+
+  /**
+   * La parte se REINSTALÓ en el módulo (2026-09-08), normalmente en la OT de
+   * reinstalación. Cierra el ciclo de esa parte; cuando están todas, el
+   * préstamo pasa a devuelto y el equipo deja de figurar incompleto.
+   */
+  async registrarReinstalacionParte(loanerId: string, prestamoId: string, parteId: string, data: {
+    fecha: string; otNumber?: string | null;
+  }): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const prestamo = loaner.prestamos.find(p => p.id === prestamoId);
+    if (!prestamo) throw new Error('Préstamo no encontrado');
+    const partes = partesDelPrestamo(prestamo);
+    const idx = partes.findIndex((x, i) => idDeParte(x, i) === parteId);
+    if (idx < 0) throw new Error('Parte no encontrada en el préstamo');
+    const nuevas = partes.map((x, i) => i === idx
+      ? { ...x, id: idDeParte(x, i), fechaVueltaBase: x.fechaVueltaBase ?? data.fecha, fechaReinstalacion: data.fecha, otReinstalacionNumber: data.otNumber ?? null }
+      : { ...x, id: idDeParte(x, i) });
+    const todas = nuevas.every(x => x.fechaReinstalacion);
+    await this.update(loanerId, {
+      prestamos: loaner.prestamos.map(p => p.id === prestamoId
+        ? {
+          ...p, partes: nuevas, parte: nuevas[0],
+          ...(todas ? {
+            estado: 'devuelto' as const,
+            fechaRetornoReal: data.fecha,
+            condicionRetorno: p.condicionRetorno ?? (nuevas.map(x => x.condicionVuelta).filter(Boolean).join(' · ') || null),
+          } : {}),
+        }
+        : p),
+    });
+    if (todas && prestamo.remitoSalidaId) {
+      await this.cerrarRemitoSalidaLoaner(prestamo.remitoSalidaId, loanerId)
+        .catch(err => console.error('[registrarReinstalacionParte] cierre del remito falló (no bloquea):', err));
+    }
+    if (data.otNumber) await this.vincularOT(loanerId, data.otNumber).catch(() => {});
   },
 
   /** Vincula un número de OT al loaner (dedup, no pisa los existentes). */

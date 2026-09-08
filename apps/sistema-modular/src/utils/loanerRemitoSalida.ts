@@ -10,8 +10,8 @@ export interface RemitoSalidaLoanerInput {
   establecimientoId: string | null;
   establecimientoNombre: string | null;
   otNumber: string | null;
-  /** Si se presta una PARTE, el papel describe la parte, no el módulo (2026-09-04). */
-  parte: ParteLoanerPrestada | null;
+  /** Si se prestan PARTES, el papel describe cada una, no el módulo (2026-09-04; varias 2026-09-08). Vacío = módulo entero. */
+  partes: ParteLoanerPrestada[];
 }
 
 /**
@@ -30,7 +30,7 @@ export interface RemitoSalidaLoanerInput {
 export async function crearEImprimirRemitoSalidaLoaner(
   input: RemitoSalidaLoanerInput,
 ): Promise<{ remitoId: string; remitoNumero: string | null }> {
-  const { loaner, parte } = input;
+  const { loaner, partes } = input;
   const remitoId = await remitosService.create({
     numero: input.numero.trim(),
     tipo: 'loaner_salida',
@@ -44,8 +44,8 @@ export async function crearEImprimirRemitoSalidaLoaner(
     otNumbers: input.otNumber ? [input.otNumber] : [],
     loanerId: loaner.id,
     loanerCodigo: loaner.codigo,
-    items: [parte
-      ? {
+    items: partes.length > 0
+      ? partes.map(parte => ({
         id: crypto.randomUUID(),
         cantidad: 1,
         tipoItem: 'sale_y_vuelve',
@@ -61,8 +61,8 @@ export async function crearEImprimirRemitoSalidaLoaner(
         articuloId: parte.articuloId ?? undefined,
         articuloCodigo: parte.codigoArticulo ?? undefined,
         serie: parte.serie ?? loaner.serie ?? null,
-      }
-      : {
+      }))
+      : [{
         id: crypto.randomUUID(),
         cantidad: 1,
         tipoItem: 'sale_y_vuelve',
@@ -79,7 +79,7 @@ export async function crearEImprimirRemitoSalidaLoaner(
     // En un préstamo el transporte lo hace AGS, siempre.
     transportistaNombre: TRANSPORTISTA_AGS.razonSocial,
     transportista: TRANSPORTISTA_AGS,
-    observaciones: `Loaner ${loaner.codigo}${parte ? ` · parte: ${parte.descripcion}` : ''}${input.otNumber ? ` · OT ${input.otNumber}` : ''}`,
+    observaciones: `Loaner ${loaner.codigo}${partes.length ? ` · partes: ${partes.map(p => p.descripcion).join(', ')}` : ''}${input.otNumber ? ` · OT ${input.otNumber}` : ''}`,
   });
 
   const remitoCreado = await remitosService.getById(remitoId);

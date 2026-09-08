@@ -454,6 +454,21 @@ export interface ContactoCliente {
 /** Documentación que el cliente exige para poder facturar un servicio. */
 export type RequisitoFacturacion = 'ninguno' | 'remito_firmado' | 'certificacion';
 
+/** Documento del cliente que respalda la facturación de un presupuesto (2026-09-08). */
+export type RespaldoFacturacion = 'orden_compra' | 'certificacion';
+export const RESPALDO_FACTURACION_LABELS: Record<RespaldoFacturacion, string> = {
+  orden_compra: 'Orden de compra',
+  certificacion: 'Certificación',
+};
+/** Respaldo efectivo: lo que dice el presupuesto o, si no dice, lo que exige el cliente. */
+export function respaldoEfectivo(
+  p: { respaldoFacturacion?: RespaldoFacturacion | null },
+  cliente?: { requisitoFacturacion?: RequisitoFacturacion } | null,
+): RespaldoFacturacion {
+  if (p.respaldoFacturacion) return p.respaldoFacturacion;
+  return cliente?.requisitoFacturacion === 'certificacion' ? 'certificacion' : 'orden_compra';
+}
+
 export const REQUISITO_FACTURACION_LABELS: Record<RequisitoFacturacion, string> = {
   ninguno: 'Ninguno',
   remito_firmado: 'Remito firmado',
@@ -1916,6 +1931,15 @@ export interface Presupuesto {
   condicionPagoId?: string;
   ordenesCompraIds: string[];
   ordenCompraNumero?: string | null; // Número de OC del cliente (ej: "O-000100445302")
+  /**
+   * Qué documento del cliente respalda la facturación de este presupuesto
+   * (2026-09-08). `orden_compra` es el circuito normal. `certificacion`: el
+   * cliente no emite OC, certifica el servicio hecho (YPF/Y-tec); vale tanto
+   * para el contrato como para presupuestos adicionales fuera de él. Con
+   * `certificacion` el presupuesto no entra en "OCs pendientes" y la card de
+   * certificaciones se muestra siempre. Ausente = según el cliente.
+   */
+  respaldoFacturacion?: RespaldoFacturacion | null;
   adjuntos: AdjuntoPresupuesto[];
   // --- Textos / Condiciones ---
   notasTecnicas?: string | null;
@@ -4144,6 +4168,9 @@ export interface ItemAsignacion {
   minikitCodigo?: string | null;
   loanerId?: string | null;
   loanerCodigo?: string | null;
+  /** Parte de loaner en poder del ingeniero (2026-09-08): al devolverla, el loaner registra la vuelta a base. */
+  loanerPrestamoId?: string | null;
+  loanerParteId?: string | null;
   instrumentoId?: string | null;
   /** Nombre interno del instrumento — en la práctica su código (TER-07, FLU-03). */
   instrumentoNombre?: string | null;
@@ -4686,6 +4713,26 @@ export interface ItemCertificacion {
   fechaServicio?: string | null;
   /** Qué documento del cliente la certificó (2026-09-04). */
   recibidaId?: string | null;
+  /**
+   * ID del equipo tal como lo conoce el CLIENTE (2026-09-07): el código
+   * interno de la carátula de la OT. Es lo que el cliente cruza con su
+   * inventario para dar conformidad; editable como el resto del texto.
+   */
+  equipoId?: string | null;
+  /**
+   * Partes involucradas en el servicio (2026-09-07). Se precargan con los
+   * consumos de stock de la OT y se pueden declarar a mano — el cliente
+   * certifica también el material que quedó instalado.
+   */
+  partes?: ParteCertificada[] | null;
+}
+
+/** Una parte declarada en el resumen de certificación (2026-09-07). */
+export interface ParteCertificada {
+  /** N° de parte (código de catálogo o escrito a mano). */
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
 }
 
 /** Un importe certificado, en su moneda. */
@@ -5212,11 +5259,29 @@ export interface PrestamoLoaner {
    * — y si la parte lo deja inoperativo, figura INCOMPLETO hasta que vuelva.
    */
   alcance?: 'modulo' | 'parte';
-  /** Datos de la parte prestada — solo cuando `alcance === 'parte'`. */
+  /** Legacy (una sola parte). Se mantiene sincronizado con `partes[0]`. */
   parte?: ParteLoanerPrestada | null;
+  /**
+   * Varias partes en el MISMO movimiento (2026-09-08): un remito de N
+   * renglones, y cada parte vuelve y se reinstala por separado. Si falta,
+   * vale `parte`. Leer siempre con `partesDelPrestamo()`.
+   */
+  partes?: ParteLoanerPrestada[] | null;
+  /**
+   * A dónde va la parte (2026-09-08). `cliente` (default) sale con remito;
+   * `ingeniero` se la lleva un IST en su inventario: se crea una asignación
+   * con una línea por parte y el equipo figura incompleto igual.
+   */
+  destino?: 'cliente' | 'ingeniero' | null;
+  ingenieroId?: string | null;
+  ingenieroNombre?: string | null;
+  asignacionId?: string | null;
+  asignacionNumero?: string | null;
 }
 
 export interface ParteLoanerPrestada {
+  /** Identidad de la parte dentro del préstamo (las legacy pueden no tenerlo: se usa el índice). */
+  id?: string | null;
   descripcion: string;
   /** N° de parte: del catálogo de stock (`articuloId`) o cargado a mano. */
   codigoArticulo?: string | null;
@@ -5224,10 +5289,50 @@ export interface ParteLoanerPrestada {
   serie?: string | null;
   /** La salida deja el módulo inoperativo hasta que la parte vuelva. */
   dejaInoperativo?: boolean;
+  /**
+   * La parte VOLVIÓ a la base (2026-09-08) pero todavía no se reinstaló en el
+   * módulo. Pueden pasar semanas en el estante: el préstamo sigue activo y el
+   * equipo incompleto hasta la reinstalación.
+   */
+  fechaVueltaBase?: string | null;
+  condicionVuelta?: string | null;
+  /** Reinstalada en el módulo: cierra el ciclo de esa parte. */
+  fechaReinstalacion?: string | null;
+  otReinstalacionNumber?: string | null;
 }
 
 export function esPrestamoDeParte(p: Pick<PrestamoLoaner, 'alcance'>): boolean {
   return p.alcance === 'parte';
+}
+
+/** Partes del préstamo, tolerando el formato viejo de una sola `parte`. */
+export function partesDelPrestamo(p: Pick<PrestamoLoaner, 'parte' | 'partes'>): ParteLoanerPrestada[] {
+  if (p.partes?.length) return p.partes;
+  return p.parte ? [p.parte] : [];
+}
+
+/** Id estable de una parte dentro de su préstamo (legacy sin id → índice). */
+export function idDeParte(parte: Pick<ParteLoanerPrestada, 'id'>, indice: number): string {
+  return parte.id ?? String(indice);
+}
+
+export type EstadoParteLoaner = 'afuera' | 'en_base' | 'instalada';
+export const ESTADO_PARTE_LOANER_LABELS: Record<EstadoParteLoaner, string> = {
+  afuera: 'Afuera',
+  en_base: 'En base, sin instalar',
+  instalada: 'Reinstalada',
+};
+
+/** Dónde está la parte hoy: afuera, en el estante sin instalar, o de vuelta en el módulo. */
+export function estadoParte(parte: Pick<ParteLoanerPrestada, 'fechaVueltaBase' | 'fechaReinstalacion'>): EstadoParteLoaner {
+  if (parte.fechaReinstalacion) return 'instalada';
+  if (parte.fechaVueltaBase) return 'en_base';
+  return 'afuera';
+}
+
+/** "ACME" o "Ing. Juan Pérez": quién tiene lo prestado. */
+export function quienTieneElPrestamo(p: Pick<PrestamoLoaner, 'destino' | 'ingenieroNombre' | 'clienteNombre'>): string {
+  return p.destino === 'ingeniero' ? `Ing. ${p.ingenieroNombre ?? ''}`.trim() : p.clienteNombre;
 }
 
 /** Préstamo activo del MÓDULO entero (el que manda el estado `en_cliente`). */
@@ -5303,7 +5408,10 @@ export function extraccionesQueFaltanReponer(
 export function partesPrestadasQueFaltan(
   loaner: { prestamos?: PrestamoLoaner[] | null },
 ): PrestamoLoaner[] {
-  return prestamosDeParteActivos(loaner).filter(p => p.parte?.dejaInoperativo === true);
+  // Una parte en base SIN instalar sigue faltando (2026-09-08): el módulo no
+  // funciona hasta que alguien la reinstale.
+  return prestamosDeParteActivos(loaner).filter(p =>
+    partesDelPrestamo(p).some(x => x.dejaInoperativo === true && !x.fechaReinstalacion));
 }
 
 type LoanerConPiezas = { extracciones?: ExtraccionLoaner[] | null; prestamos?: PrestamoLoaner[] | null };
@@ -5317,7 +5425,10 @@ export function loanerEstaIncompleto(loaner: LoanerConPiezas): boolean {
 export function loanerPartesFaltantes(loaner: LoanerConPiezas): string {
   return [
     ...extraccionesQueFaltanReponer(loaner).map(e => e.descripcion),
-    ...partesPrestadasQueFaltan(loaner).map(p => `${p.parte?.descripcion ?? 'Parte'} (prestado a ${p.clienteNombre})`),
+    ...partesPrestadasQueFaltan(loaner).flatMap(p =>
+      partesDelPrestamo(p)
+        .filter(x => x.dejaInoperativo === true && !x.fechaReinstalacion)
+        .map(x => `${x.descripcion || 'Parte'} (${estadoParte(x) === 'en_base' ? 'en base, sin instalar' : `prestado a ${quienTieneElPrestamo(p)}`})`)),
   ].join(' · ');
 }
 

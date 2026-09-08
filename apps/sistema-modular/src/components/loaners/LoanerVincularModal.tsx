@@ -7,6 +7,7 @@ import { fichasService } from '../../services/fichasService';
 import { loanersService } from '../../services/loanersService';
 import type { Loaner, PrestamoLoaner, WorkOrder, FichaPropiedad } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -68,7 +69,7 @@ export function LoanerVincularModal({ open, onClose, loaner, prestamo, onLinked 
       onLinked();
       onClose();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al vincular');
+      notify.error(e instanceof Error ? e.message : 'Error al vincular');
     } finally {
       setSaving(false);
     }

@@ -9,6 +9,7 @@ import { LoanerCategoriaModuloPicker, type ModuloSelection } from '../../compone
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
+import { notify } from '../../utils/notify';
 const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 
 const EMPTY_MODULO: ModuloSelection = {
@@ -113,7 +114,7 @@ export function LoanerEditor() {
       }
     } catch (err) {
       console.error('Error guardando loaner:', err);
-      alert('Error al guardar el loaner');
+      notify.error('Error al guardar el loaner');
     } finally {
       setSaving(false);
     }

@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos, quienTieneElPrestamo, partesDelPrestamo, estadoParte } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -24,6 +23,8 @@ import { LOANERS_EXPORT_COLUMNS, buildLoanerExportRows } from '../../utils/expor
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 import { diasDesde, semaforoPrestamoCls, semaforoProveedorCls } from '../../utils/loanerSemaforo';
 
+import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingState } from '../../components/ui/LoadingState';
 const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   /** CSV de estados (2026-09-01): antes era uno solo y no se podía exportar
@@ -110,7 +111,7 @@ export function LoanersList() {
           l.moduloCodigo, l.moduloDescripcion, l.serie,
           ESTADO_LOANER_LABELS[l.estado],
           prestamo?.clienteNombre,
-          ...partes.map(p => `${p.clienteNombre} ${p.parte?.descripcion ?? ''}`),
+          ...partes.map(p => `${quienTieneElPrestamo(p)} ${partesDelPrestamo(p).map(x => x.descripcion).join(' ')}`),
           l.enProveedor?.proveedorNombre, l.enProveedor?.remitoNumero,
         );
       });
@@ -171,17 +172,9 @@ export function LoanersList() {
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
-          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando loaners...</p></div>
+          <LoadingState message="Cargando loaners…" />
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No hay loaners registrados</p>
-              <button onClick={() => setShowCreate(true)}
-                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-                Crear primer loaner
-              </button>
-            </div>
-          </Card>
+          <EmptyState message="No hay loaners registrados" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer loaner </button>} />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">
@@ -288,7 +281,7 @@ export function LoanersList() {
                         title={l.enProveedor
                           ? `${l.enProveedor.proveedorNombre ?? 'Proveedor'} · Remito ${l.enProveedor.remitoNumero}${l.enProveedor.alcance === 'parte' ? ` — parte: ${l.enProveedor.parteDescripcion ?? ''}` : ''}`
                           : !prestamo && partes.length > 0
-                            ? partes.map(p => `${p.parte?.descripcion ?? 'Parte'} en ${p.clienteNombre}${p.remitoSalidaNumero ? ` · Remito ${p.remitoSalidaNumero}` : ''}`).join('\n')
+                            ? partes.flatMap(p => partesDelPrestamo(p).filter(x => !x.fechaReinstalacion).map(x => `${x.descripcion || 'Parte'}: ${estadoParte(x) === 'en_base' ? 'en base, sin instalar' : `con ${quienTieneElPrestamo(p)}`}${p.remitoSalidaNumero ? ` · Remito ${p.remitoSalidaNumero}` : ''}`)).join('\n')
                             : undefined}>
                         {/* En proveedor (2026-08-12): muestra QUIÉN lo tiene y el remito;
                             si viajó solo una parte, el módulo sigue en base y se aclara. */}

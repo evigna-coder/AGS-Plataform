@@ -5,6 +5,7 @@ import type { Loaner, FotoLoaner } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { pushEscape } from '../../utils/escapeStack';
 
+import { notify } from '../../utils/notify';
 const CONTEXTO_LABELS: Record<FotoLoaner['contexto'], string> = {
   general: 'gral',
   prestamo: 'prést',
@@ -61,7 +62,7 @@ export function LoanerFotosSection({ loaner }: Props) {
     setUploading(false);
     if (inputRef.current) inputRef.current.value = '';
     if (fallidas.length > 0) {
-      alert(`No se pudieron subir ${fallidas.length} de ${files.length} foto(s):\n- ${fallidas.join('\n- ')}\n\nError: ${ultimoError}\n\nReintentá solo con esas.`);
+      notify.error(`No se pudieron subir ${fallidas.length} de ${files.length} foto(s):\n- ${fallidas.join('\n- ')}\n\nError: ${ultimoError}\n\nReintentá solo con esas.`);
     }
   };
 
@@ -72,7 +73,7 @@ export function LoanerFotosSection({ loaner }: Props) {
       await loanersService.eliminarFoto(loaner.id, foto.id);
     } catch (err) {
       console.error('Error eliminando foto del loaner:', err);
-      alert('Error al eliminar la foto');
+      notify.error('Error al eliminar la foto');
     } finally {
       setDeleting(null);
     }

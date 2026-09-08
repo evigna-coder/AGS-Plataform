@@ -12,6 +12,7 @@ import { LoanerFotosSection } from '../../components/loaners/LoanerFotosSection'
 import { LoanerPrestamoModal } from '../../components/loaners/LoanerPrestamoModal';
 import { LoanerVincularModal } from '../../components/loaners/LoanerVincularModal';
 import { LoanerDevolucionModal } from '../../components/loaners/LoanerDevolucionModal';
+import { LoanerReinstalarModal } from '../../components/loaners/LoanerReinstalarModal';
 import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccionModal';
 import type { IngresoStockExtraccion } from '../../components/loaners/LoanerExtraccionIngresoStock';
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
@@ -20,7 +21,7 @@ import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRe
 import { liberarLoanersRecalificados, procesarRecalificacionesPendientes } from '../../utils/loanerRecalificacion';
 import { useLoanerPrestamos } from '../../hooks/useLoanerPrestamos';
 import type { Loaner, VentaLoaner } from '@ags/shared';
-import { loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
+import { loanerEstaIncompleto, loanerPartesFaltantes, quienTieneElPrestamo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -61,8 +62,8 @@ export function LoanerDetail() {
   // Préstamo del MÓDULO entero; las partes prestadas se manejan por fila del
   // historial (2026-09-04) y no mueven el estado del loaner.
   const {
-    prestamoActivo, retornoParte, setRetornoParte,
-    registrarPrestamo, registrarDevolucion, registrarRetornoParte,
+    prestamoActivo, vueltaBase, setVueltaBase, reinstalar, setReinstalar,
+    registrarPrestamo, registrarDevolucion, registrarVueltaBase, registrarReinstalacion,
   } = useLoanerPrestamos(loaner);
 
   // Sweep de recalificación en dos fases (mismo orden que LoanersList): si
@@ -208,7 +209,9 @@ export function LoanerDetail() {
             <LoanerFotosSection loaner={loaner} />
           </div>
           <div className="flex-1 space-y-4">
-            <LoanerPrestamosSection prestamos={loaner.prestamos} onRetornoParte={setRetornoParte} />
+            <LoanerPrestamosSection prestamos={loaner.prestamos}
+              onVueltaBase={(prestamo, parteId, parte) => setVueltaBase({ prestamo, parteId, parte })}
+              onReinstalar={(prestamo, parteId, parte) => setReinstalar({ prestamo, parteId, parte })} />
             <LoanerDerivacionesSection derivaciones={loaner.derivaciones ?? []} />
             <LoanerOTsSection otIds={loaner.otIds ?? []} />
             <LoanerExtraccionesSection extracciones={loaner.extracciones} onReponer={handleReponer} />
@@ -226,10 +229,18 @@ export function LoanerDetail() {
       {prestamoActivo && (
         <LoanerDevolucionModal open={devolucionOpen} onClose={() => setDevolucionOpen(false)} clienteNombre={prestamoActivo.clienteNombre} onConfirm={registrarDevolucion} />
       )}
-      {retornoParte && (
-        <LoanerDevolucionModal open onClose={() => setRetornoParte(null)}
-          clienteNombre={retornoParte.clienteNombre} parteDescripcion={retornoParte.parte?.descripcion ?? 'Parte'}
-          onConfirm={registrarRetornoParte} />
+      {/* Parte: dos hechos separados (2026-09-08) — volvió a la base, y se reinstaló. */}
+      {vueltaBase && (
+        <LoanerDevolucionModal open onClose={() => setVueltaBase(null)}
+          clienteNombre={quienTieneElPrestamo(vueltaBase.prestamo)} parteDescripcion={vueltaBase.parte.descripcion || 'Parte'}
+          onConfirm={registrarVueltaBase} />
+      )}
+      {reinstalar && (
+        <LoanerReinstalarModal open onClose={() => setReinstalar(null)}
+          parteDescripcion={reinstalar.parte.descripcion || 'Parte'}
+          yaEnBase={!!reinstalar.parte.fechaVueltaBase}
+          otsDelLoaner={loaner.otIds ?? []}
+          onConfirm={registrarReinstalacion} />
       )}
       <LoanerExtraccionModal open={extraccionOpen} onClose={() => setExtraccionOpen(false)} onConfirm={handleExtraccion} />
       {derivacionOpen && (

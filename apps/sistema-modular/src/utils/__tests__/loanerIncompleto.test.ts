@@ -6,6 +6,7 @@
 import {
   extraccionesQueFaltanReponer, loanerEstaIncompleto, loanerPartesFaltantes,
   prestamoModuloActivo, prestamosDeParteActivos, partesPrestadasQueFaltan,
+  partesDelPrestamo, estadoParte, quienTieneElPrestamo,
 } from '@ags/shared';
 import type { ExtraccionLoaner, PrestamoLoaner } from '@ags/shared';
 
@@ -80,5 +81,24 @@ check('resumen suma extracciones y partes',
     === 'Inyector · Detector FID (prestado a ACME)',
   `dio "${loanerPartesFaltantes({ extracciones: [ext({ dejaInoperativo: true, descripcion: 'Inyector' })], prestamos: [parteInop] })}"`);
 
-if (fallos === 0) console.log('✅ loanerIncompleto: 18 checks OK');
+// ── Varias partes, dos pasos (2026-09-08) ─────────────────────────────────
+const dosPartes = prestamo({ alcance: 'parte', partes: [
+  { id: 'a', descripcion: 'Motor', dejaInoperativo: true },
+  { id: 'b', descripcion: 'Cable', dejaInoperativo: false },
+] });
+check('partesDelPrestamo lee partes[]', partesDelPrestamo(dosPartes).length === 2);
+check('partesDelPrestamo cae a parte legacy', partesDelPrestamo(parteInop).length === 1);
+check('estado afuera', estadoParte({}) === 'afuera');
+check('estado en base', estadoParte({ fechaVueltaBase: '2026-09-08' }) === 'en_base');
+check('estado instalada', estadoParte({ fechaVueltaBase: '2026-09-08', fechaReinstalacion: '2026-09-20' }) === 'instalada');
+const enBase = prestamo({ alcance: 'parte', partes: [{ id: 'a', descripcion: 'Motor', dejaInoperativo: true, fechaVueltaBase: '2026-09-08' }] });
+check('en base sin instalar sigue incompleto', loanerEstaIncompleto({ prestamos: [enBase] }));
+check('texto en base', loanerPartesFaltantes({ prestamos: [enBase] }) === 'Motor (en base, sin instalar)', `dio "${loanerPartesFaltantes({ prestamos: [enBase] })}"`);
+const reinst = prestamo({ alcance: 'parte', partes: [{ id: 'a', descripcion: 'Motor', dejaInoperativo: true, fechaVueltaBase: '2026-09-08', fechaReinstalacion: '2026-09-20' }] });
+check('reinstalada ya no falta (aunque el préstamo siga activo)', !loanerEstaIncompleto({ prestamos: [reinst] }));
+const ing = prestamo({ alcance: 'parte', destino: 'ingeniero', ingenieroNombre: 'Juan Pérez', clienteNombre: '', partes: [{ id: 'a', descripcion: 'Motor', dejaInoperativo: true }] });
+check('quien tiene: ingeniero', quienTieneElPrestamo(ing) === 'Ing. Juan Pérez');
+check('texto con ingeniero', loanerPartesFaltantes({ prestamos: [ing] }) === 'Motor (prestado a Ing. Juan Pérez)', `dio "${loanerPartesFaltantes({ prestamos: [ing] })}"`);
+
+if (fallos === 0) console.log('✅ loanerIncompleto: 28 checks OK');
 else { console.error(`❌ ${fallos} fallos`); process.exit(1); }

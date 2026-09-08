@@ -4,6 +4,7 @@ import { useConfirm } from '../ui/ConfirmDialog';
 import { remitosService, loanersService } from '../../services/firebaseService';
 import type { Loaner } from '@ags/shared';
 
+import { notify } from '../../utils/notify';
 /**
  * Registrar desde el LOANER la vuelta del proveedor (2026-08-27). El remito de
  * derivación puede haber salido en lote (varios loaners/fichas/partes), pero la
@@ -46,7 +47,7 @@ export function LoanerRetornoProveedorButton({ loaner }: { loaner: Loaner }) {
       }
     } catch (err) {
       console.error('[LoanerRetornoProveedorButton] retorno falló:', err);
-      alert(err instanceof Error ? err.message : 'Error al registrar el retorno');
+      notify.error(err instanceof Error ? err.message : 'Error al registrar el retorno');
     } finally {
       setSaving(false);
     }

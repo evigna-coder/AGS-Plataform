@@ -7,6 +7,7 @@ import { LoanerArticuloPicker } from './LoanerArticuloPicker';
 import { clientesService } from '../../services/firebaseService';
 import type { Cliente, Articulo, Loaner, VentaLoaner } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -184,14 +185,14 @@ export function LoanerVentaModal({ open, onClose, loaner, onConfirm }: Props) {
           />
           <div>
             <label className={lbl}>Moneda venta</label>
-            <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            <Select
+              className="w-full" selectSize="md"
               value={moneda}
               onChange={e => setMoneda(e.target.value as 'ARS' | 'USD')}
             >
               <option value="USD">USD</option>
               <option value="ARS">ARS</option>
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -208,14 +209,14 @@ export function LoanerVentaModal({ open, onClose, loaner, onConfirm }: Props) {
           />
           <div>
             <label className={lbl}>Moneda costo *</label>
-            <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            <Select
+              className="w-full" selectSize="md"
               value={monedaCosto}
               onChange={e => setMonedaCosto(e.target.value as 'ARS' | 'USD')}
             >
               <option value="USD">USD</option>
               <option value="ARS">ARS</option>
-            </select>
+            </Select>
           </div>
         </div>
 

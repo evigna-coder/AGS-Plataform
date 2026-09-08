@@ -43,7 +43,9 @@ function itemLabel(it: ItemAsignacion): { label: string; detalle: string | null 
     case 'instrumento': return { label: it.instrumentoNombre || '—', detalle: it.instrumentoTipo === 'patron' ? 'Patrón' : 'Instrumento' };
     case 'articulo': return { label: it.articuloCodigo || '—', detalle: it.articuloDescripcion || null };
     case 'minikit': return { label: it.minikitCodigo || '—', detalle: 'Minikit' };
-    case 'loaner': return { label: it.loanerCodigo || '—', detalle: 'Loaner' };
+    case 'loaner': return it.loanerParteId
+      ? { label: it.articuloDescripcion || it.loanerCodigo || '—', detalle: `Parte del loaner ${it.loanerCodigo ?? ''}` }
+      : { label: it.loanerCodigo || '—', detalle: 'Loaner' };
     case 'dispositivo': return { label: it.dispositivoDescripcion || '—', detalle: 'Dispositivo' };
     case 'vehiculo': return { label: it.vehiculoPatente || '—', detalle: 'Vehículo' };
     default: return { label: '—', detalle: null };

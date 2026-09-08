@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { SearchableSelect } from '../ui/SearchableSelect';
-import { clientesService, establecimientosService, remitosService, ordenesTrabajoService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Loaner, ParteLoanerPrestada, WorkOrder } from '@ags/shared';
-import { establecimientoUnicoId, loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
+import { remitosService } from '../../services/firebaseService';
+import type { Loaner, ParteLoanerPrestada } from '@ags/shared';
+import { loanerEstaIncompleto, loanerPartesFaltantes } from '@ags/shared';
 import { NUMERO_REGEX } from '../../hooks/useGenerarRemito';
 import { TRANSPORTISTA_AGS } from '../../utils/remitoImprimir';
 import { crearEImprimirRemitoSalidaLoaner } from '../../utils/loanerRemitoSalida';
-import { LoanerPrestamoParteFields } from './LoanerPrestamoParteFields';
+import { LoanerPrestamoParteFields, PARTE_VACIA } from './LoanerPrestamoParteFields';
+import { LoanerPrestamoDestinoFields, DESTINO_VACIO, type DestinoPrestamo } from './LoanerPrestamoDestinoFields';
 
 export interface PrestamoLoanerDatos {
   clienteId: string;
@@ -20,9 +20,16 @@ export interface PrestamoLoanerDatos {
   fechaRetornoPrevista: string | null;
   remitoSalidaId: string | null;
   remitoSalidaNumero: string | null;
-  /** Módulo entero o una parte (2026-09-04). */
+  /** Módulo entero o partes (2026-09-04). */
   alcance: 'modulo' | 'parte';
+  /** Legacy: la primera parte. */
   parte: ParteLoanerPrestada | null;
+  /** Todas las partes del movimiento (2026-09-08). */
+  partes: ParteLoanerPrestada[];
+  /** A dónde va (2026-09-08): al cliente con remito, o al inventario de un ingeniero. */
+  destino: 'cliente' | 'ingeniero';
+  ingenieroId: string | null;
+  ingenieroNombre: string | null;
   /** Fotos del estado de salida (opcionales) — se suben con contexto 'prestamo'. */
   fotos: File[];
 }
@@ -36,24 +43,14 @@ interface Props {
 
 /** Fecha local (no UTC) a `YYYY-MM-DD` para el input date. */
 function toDateInput(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const PARTE_VACIA: ParteLoanerPrestada = { descripcion: '', codigoArticulo: null, articuloId: null, serie: null, dejaInoperativo: true };
-
 export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props) {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
-  const [ots, setOts] = useState<WorkOrder[]>([]);
-  const [clienteId, setClienteId] = useState('');
-  const [establecimientoId, setEstablecimientoId] = useState('');
-  const [otNumber, setOtNumber] = useState('');
+  const [destino, setDestino] = useState<DestinoPrestamo>(DESTINO_VACIO);
   const [fechaRetorno, setFechaRetorno] = useState('');
   const [alcance, setAlcance] = useState<'modulo' | 'parte'>('modulo');
-  const [parte, setParte] = useState<ParteLoanerPrestada>(PARTE_VACIA);
+  const [partes, setPartes] = useState<ParteLoanerPrestada[]>([PARTE_VACIA()]);
   const [generarRemito, setGenerarRemito] = useState(true);
   /**
    * N° del talonario preimpreso (2026-08-23). El préstamo era el ÚNICO flujo
@@ -68,7 +65,6 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
 
   useEffect(() => {
     if (!open) return;
-    clientesService.getAll().then(c => setClientes(c.filter(x => x.activo)));
     // Fecha de retorno probable por defecto: hoy + 20 días (editable).
     const d = new Date();
     d.setDate(d.getDate() + 20);
@@ -79,73 +75,55 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       .catch(() => {});
   }, [open]);
 
-  useEffect(() => {
-    if (!clienteId) { setEstablecimientos([]); setOts([]); return; }
-    establecimientosService.getByCliente(clienteId).then(ests => {
-      setEstablecimientos(ests);
-      // Regla del proyecto: cliente con un único establecimiento (activo) → autoseleccionarlo.
-      const unico = establecimientoUnicoId(ests.filter(e => e.activo));
-      if (unico) setEstablecimientoId(unico);
-    });
-    // OTs del cliente para el selector (reemplaza el "motivo" libre).
-    ordenesTrabajoService.getAll({ clienteId }).then(setOts).catch(() => setOts([]));
-  }, [clienteId]);
-
-  const selectedCliente = clientes.find(c => c.id === clienteId);
-  const selectedEstab = establecimientos.find(e => e.id === establecimientoId);
-
-  const clienteOptions = useMemo(
-    () => clientes.map(c => ({ value: c.id, label: c.razonSocial })),
-    [clientes],
-  );
-  const establecimientoOptions = useMemo(
-    () => establecimientos.filter(e => e.activo).map(e => ({ value: e.id, label: e.nombre })),
-    [establecimientos],
-  );
-  const otOptions = useMemo(
-    () => ots.map(ot => ({ value: ot.otNumber, label: ot.sistema ? `${ot.otNumber} · ${ot.sistema}` : ot.otNumber })),
-    [ots],
-  );
-
   const esParte = alcance === 'parte';
-  const parteValida = !esParte || parte.descripcion.trim().length > 0;
-  const puedeConfirmar = !!clienteId && parteValida && !saving && (!generarRemito || numeroValido);
+  const aIngeniero = esParte && destino.destino === 'ingeniero';
+  // El módulo entero siempre va a un cliente: si se vuelve a "módulo", el destino se corrige solo.
+  useEffect(() => { if (!esParte && destino.destino === 'ingeniero') setDestino(d => ({ ...d, destino: 'cliente' })); }, [esParte, destino.destino]);
+  const conRemito = generarRemito && !aIngeniero;
+
+  const partesValidas = !esParte || partes.every(p => p.descripcion.trim().length > 0);
+  const destinoValido = aIngeniero ? !!destino.ingenieroId : !!destino.clienteId;
+  const puedeConfirmar = destinoValido && partesValidas && !saving && (!conRemito || numeroValido);
 
   const handleConfirm = async () => {
     if (!puedeConfirmar) return;
     setSaving(true);
     try {
-      const parteFinal: ParteLoanerPrestada | null = esParte
-        ? { ...parte, descripcion: parte.descripcion.trim(), dejaInoperativo: parte.dejaInoperativo !== false }
-        : null;
+      const partesFinales: ParteLoanerPrestada[] = esParte
+        ? partes.map(p => ({ ...p, id: p.id ?? crypto.randomUUID(), descripcion: p.descripcion.trim(), dejaInoperativo: p.dejaInoperativo !== false }))
+        : [];
       let remitoSalidaId: string | null = null;
       let remitoSalidaNumero: string | null = null;
-      if (generarRemito) {
+      if (conRemito) {
         const r = await crearEImprimirRemitoSalidaLoaner({
           loaner,
           numero: numeroRemito,
-          clienteId,
-          clienteNombre: selectedCliente?.razonSocial || '',
-          establecimientoId: establecimientoId || null,
-          establecimientoNombre: selectedEstab?.nombre || null,
-          otNumber: otNumber || null,
-          parte: parteFinal,
+          clienteId: destino.clienteId,
+          clienteNombre: destino.clienteNombre,
+          establecimientoId: destino.establecimientoId || null,
+          establecimientoNombre: destino.establecimientoNombre || null,
+          otNumber: destino.otNumber || null,
+          partes: partesFinales,
         });
         remitoSalidaId = r.remitoId;
         remitoSalidaNumero = r.remitoNumero;
       }
 
       await onConfirm({
-        clienteId,
-        clienteNombre: selectedCliente?.razonSocial || '',
-        establecimientoId: establecimientoId || null,
-        establecimientoNombre: selectedEstab?.nombre || null,
-        otNumber: otNumber || null,
+        clienteId: aIngeniero ? '' : destino.clienteId,
+        clienteNombre: aIngeniero ? '' : destino.clienteNombre,
+        establecimientoId: aIngeniero ? null : destino.establecimientoId || null,
+        establecimientoNombre: aIngeniero ? null : destino.establecimientoNombre || null,
+        otNumber: aIngeniero ? null : destino.otNumber || null,
         fechaRetornoPrevista: fechaRetorno ? new Date(fechaRetorno).toISOString() : null,
         remitoSalidaId,
         remitoSalidaNumero,
         alcance,
-        parte: parteFinal,
+        parte: partesFinales[0] ?? null,
+        partes: partesFinales,
+        destino: aIngeniero ? 'ingeniero' : 'cliente',
+        ingenieroId: aIngeniero ? destino.ingenieroId : null,
+        ingenieroNombre: aIngeniero ? destino.ingenieroNombre : null,
         fotos,
       });
 
@@ -157,12 +135,10 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
   };
 
   const resetForm = () => {
-    setClienteId('');
-    setEstablecimientoId('');
-    setOtNumber('');
+    setDestino(DESTINO_VACIO);
     setFechaRetorno('');
     setAlcance('modulo');
-    setParte(PARTE_VACIA);
+    setPartes([PARTE_VACIA()]);
     setGenerarRemito(true);
     setFotos([]);
     if (fileRef.current) fileRef.current.value = '';
@@ -173,7 +149,7 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
         <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!puedeConfirmar}>
-          {saving ? 'Registrando...' : esParte ? 'Confirmar prestamo de la parte' : 'Confirmar prestamo'}
+          {saving ? 'Registrando...' : esParte ? `Confirmar prestamo de ${partes.length > 1 ? `${partes.length} partes` : 'la parte'}` : 'Confirmar prestamo'}
         </Button>
       </div>
     }>
@@ -189,27 +165,16 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
             </p>
           </div>
         )}
-        <LoanerPrestamoParteFields alcance={alcance} onAlcanceChange={setAlcance} parte={parte} onParteChange={setParte} />
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Cliente *</label>
-          <SearchableSelect value={clienteId} onChange={v => { setClienteId(v); setEstablecimientoId(''); setOtNumber(''); }} options={clienteOptions} placeholder="Seleccionar cliente" size="sm" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Establecimiento</label>
-          <SearchableSelect value={establecimientoId} onChange={v => setEstablecimientoId(v)} options={establecimientoOptions} placeholder="Seleccionar" size="sm" disabled={!clienteId} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Orden de Trabajo <span className="text-slate-400 font-normal">(opcional)</span></label>
-          <SearchableSelect value={otNumber} onChange={v => setOtNumber(v)} options={otOptions}
-            placeholder={!clienteId ? 'Seleccioná primero el cliente' : otOptions.length === 0 ? 'El cliente no tiene OTs' : 'Buscar OT...'}
-            size="sm" disabled={!clienteId} />
-        </div>
+        <LoanerPrestamoParteFields alcance={alcance} onAlcanceChange={setAlcance} partes={partes} onPartesChange={setPartes} />
+        <LoanerPrestamoDestinoFields value={destino} onChange={setDestino} permitirIngeniero={esParte} />
         <Input label="Fecha de retorno prevista" type="date" value={fechaRetorno} onChange={e => setFechaRetorno(e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" checked={generarRemito} onChange={e => setGenerarRemito(e.target.checked)} className="rounded border-slate-300" />
-          Generar remito de salida
-        </label>
-        {generarRemito && (
+        {!aIngeniero && (
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={generarRemito} onChange={e => setGenerarRemito(e.target.checked)} className="rounded border-slate-300" />
+            Generar remito de salida
+          </label>
+        )}
+        {conRemito && (
           <div className="border-l-2 border-teal-200 pl-3 space-y-2">
             <Input
               label="N° Remito (preimpreso) *"

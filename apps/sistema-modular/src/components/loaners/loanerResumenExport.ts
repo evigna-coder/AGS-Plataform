@@ -6,6 +6,7 @@ import {
   LOANERS_RESUMEN_COLUMNS, buildLoanerGrupos, type LoanerExportRow,
 } from '../../utils/exports/exportLoaners';
 
+import { notify } from '../../utils/notify';
 /**
  * Entradas extra del menú "Exportar" de Loaners: el resumen catalogado por
  * categoría de equipo y tipo de módulo (2026-09-01), en PDF y Excel.
@@ -36,7 +37,7 @@ export function buildLoanerResumenItems(opts: {
           orientacion: 'portrait',
         }).catch(err => {
           console.error('[loanerResumenExport] PDF:', err);
-          alert('Error al generar el resumen');
+          notify.error('Error al generar el resumen');
         });
       },
     },

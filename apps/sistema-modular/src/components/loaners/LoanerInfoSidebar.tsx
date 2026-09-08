@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, prestamoModuloActivo, prestamosDeParteActivos } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, ESTADO_PARTE_LOANER_LABELS, prestamoModuloActivo, prestamosDeParteActivos, partesDelPrestamo, estadoParte, idDeParte, quienTieneElPrestamo } from '@ags/shared';
 
 interface Props {
   loaner: Loaner;
@@ -76,20 +76,29 @@ export function LoanerInfoSidebar({ loaner }: Props) {
         </Card>
       )}
 
-      {/* Partes prestadas (2026-09-04): el módulo está en base, pero una parte
-          suya está en un cliente. Una tarjeta por parte. */}
-      {partesPrestadas.map(p => (
-        <Card key={p.id} title="Parte prestada" compact>
-          <dl className="space-y-1.5">
-            <LV label="Parte" value={`${p.parte?.descripcion ?? 'Parte'}${p.parte?.serie ? ` · S/N ${p.parte.serie}` : ''}`} />
-            <LV label="Cliente" value={p.clienteNombre} link={`/clientes/${p.clienteId}`} navState={fromState} />
-            <LV label="Establecimiento" value={p.establecimientoNombre} />
-            <LV label="Desde" value={formatDate(p.fechaSalida)} />
-            {p.fechaRetornoPrevista && <LV label="Retorno previsto" value={formatDate(p.fechaRetornoPrevista)} />}
-            {p.remitoSalidaId && <LV label="Remito" value={p.remitoSalidaNumero || 'Ver remito'} link={`/stock/remitos/${p.remitoSalidaId}`} navState={fromState} />}
-          </dl>
-        </Card>
-      ))}
+      {/* Partes prestadas (2026-09-04; por parte y con estado desde 2026-09-08):
+          el módulo está en base, pero una parte suya está afuera o en el
+          estante sin instalar. Una tarjeta por parte. */}
+      {partesPrestadas.flatMap(p => partesDelPrestamo(p).filter(x => !x.fechaReinstalacion).map((x, i) => {
+        const st = estadoParte(x);
+        return (
+          <Card key={`${p.id}:${idDeParte(x, i)}`} title={st === 'en_base' ? 'Parte en base, sin instalar' : 'Parte prestada'} compact>
+            <dl className="space-y-1.5">
+              <LV label="Parte" value={`${x.descripcion || 'Parte'}${x.serie ? ` · S/N ${x.serie}` : ''}`} />
+              {x.codigoArticulo && <LV label="N° de parte" value={x.codigoArticulo} />}
+              <LV label="Estado" value={ESTADO_PARTE_LOANER_LABELS[st]} />
+              {st === 'afuera' && (p.destino === 'ingeniero'
+                ? <LV label="Con" value={quienTieneElPrestamo(p)} link={p.asignacionId ? `/stock/asignaciones/${p.asignacionId}` : undefined} navState={fromState} />
+                : <LV label="Cliente" value={p.clienteNombre} link={`/clientes/${p.clienteId}`} navState={fromState} />)}
+              {st === 'afuera' && p.establecimientoNombre && <LV label="Establecimiento" value={p.establecimientoNombre} />}
+              <LV label="Salió" value={formatDate(p.fechaSalida)} />
+              {x.fechaVueltaBase && <LV label="Volvió" value={formatDate(x.fechaVueltaBase)} />}
+              {st === 'afuera' && p.fechaRetornoPrevista && <LV label="Retorno previsto" value={formatDate(p.fechaRetornoPrevista)} />}
+              {p.remitoSalidaId && <LV label="Remito" value={p.remitoSalidaNumero || 'Ver remito'} link={`/stock/remitos/${p.remitoSalidaId}`} navState={fromState} />}
+            </dl>
+          </Card>
+        );
+      }))}
 
       {/* Venta */}
       {loaner.venta && (

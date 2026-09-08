@@ -312,6 +312,22 @@ export const asignacionesService = {
     // ingeniero en el portal; UAT 2026-07-19, caso TER-04). Best-effort: un fallo
     // acá no revierte la devolución del comprobante. Import dinámico para evitar
     // ciclos con firebaseService.
+    // Parte de loaner en poder del ingeniero (2026-09-08): al devolverla desde
+    // la asignación, el loaner registra que la parte volvió a la base (queda
+    // pendiente de reinstalar). Idempotente del lado del loaner.
+    for (const { item } of reciénDevueltos) {
+      if (!item.loanerId || !item.loanerPrestamoId || !item.loanerParteId) continue;
+      try {
+        const { loanersService } = await import('./firebaseService');
+        await loanersService.registrarVueltaBaseParte(item.loanerId, item.loanerPrestamoId, item.loanerParteId, {
+          fecha: new Date().toISOString(),
+          condicion: `Devuelta por ${asg.ingenieroNombre} (asignación ${asg.numero})`,
+        });
+      } catch (err) {
+        console.error('[devolverItems] vuelta a base de parte de loaner falló (no bloquea):', err);
+      }
+    }
+
     if (reciénDevueltos.length > 0) {
       try {
         const { minikitsService, instrumentosService, dispositivosService, vehiculosService } =

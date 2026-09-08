@@ -5,6 +5,7 @@ import { articulosService } from '../../services/stockService';
 import { posicionesStockService } from '../../services/firebaseService';
 import type { Articulo, CondicionUnidad, PosicionStock } from '@ags/shared';
 
+import { Select } from '../ui/Select';
 /** Datos del alta en stock de la pieza extraída. `null` = no entra al inventario. */
 export interface IngresoStockExtraccion {
   articuloId: string;
@@ -22,7 +23,6 @@ interface Props {
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide';
-const selectClass = 'w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500';
 
 /**
  * Alta en stock de la pieza que se saca de un loaner (2026-08-20).
@@ -93,17 +93,17 @@ export function LoanerExtraccionIngresoStock({ value, onChange }: Props) {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className={lbl}>Condición</label>
-          <select
+          <Select
             value={value.condicion}
             onChange={e => set({ condicion: e.target.value as CondicionUnidad })}
-            className={selectClass}
+            className="w-full"
           >
             <option value="bien_de_uso">Bien de uso (usada)</option>
             <option value="nuevo">Nuevo</option>
             <option value="reacondicionado">Reacondicionado</option>
             <option value="vendible">Vendible</option>
             <option value="scrap">Scrap</option>
-          </select>
+          </Select>
         </div>
         <Input
           inputSize="sm"
