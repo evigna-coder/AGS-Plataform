@@ -52,11 +52,16 @@ export const AsignarItemsPanel = ({
         {tab === 'articulos' && (filteredUnits.length === 0 ? <Empty /> :
           filteredUnits.map(u => <DragRow key={u.id} onDragStart={startDrag(unitPayload(u))}
             code={u.articuloCodigo} label={u.articuloDescripcion}
-            extra={u.estado === 'reservado'
-              // Para quién está apartada: se puede asignar igual, pero quien
-              // arma el bolso tiene que ver que esa pieza tiene dueño.
-              ? `RESERVADO ${u.reservadoParaClienteNombre ?? ''}${u.reservadoParaPresupuestoNumero ? ` (${u.reservadoParaPresupuestoNumero})` : ''}`.trim()
-              : (u.nroSerie ? `S/N: ${u.nroSerie}` : u.ubicacion.referenciaNombre)}
+            // Serie (o ubicación) SIEMPRE visible, y además para quién está
+            // apartada (2026-09-08: el "RESERVADO …" tapaba el número de serie y
+            // no se sabía cuál era la pieza). Se puede asignar igual, pero quien
+            // arma el bolso tiene que ver que esa pieza tiene dueño.
+            extra={[
+              u.nroSerie ? `S/N: ${u.nroSerie}` : u.ubicacion.referenciaNombre,
+              u.estado === 'reservado'
+                ? `para ${u.reservadoParaClienteNombre ?? '—'}${u.reservadoParaPresupuestoNumero ? ` (${u.reservadoParaPresupuestoNumero})` : ''}`
+                : null,
+            ].filter(Boolean).join(' · ')}
             badge={u.estado === 'reservado' ? 'Reservado' : undefined}
             badgeColor="bg-amber-50 text-amber-700" />))}
         {tab === 'minikits' && (filteredMinikits.length === 0 ? <Empty /> :

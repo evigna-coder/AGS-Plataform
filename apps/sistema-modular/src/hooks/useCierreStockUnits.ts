@@ -123,6 +123,11 @@ export function remitoOrigenesDe(remitos: Remito[], articulo: Articulo | null, c
       // esto filtraba a 'sale_y_vuelve' y por eso una entrega al cliente nunca
       // aparecía como origen en el cierre: no había forma de imputarla.
       if (it.devuelto || it.consumido) continue;
+      // Lineas DOCUMENTALES de activos propios (parte de un loaner, instrumento,
+      // patron, columna...) no son stock: no tienen unidad atras y el activo
+      // vuelve a la oficina. Ofrecerlas como origen (2026-09-07, motor del
+      // LNR-0014) invitaba a "consumir" algo que no se puede consumir.
+      if (it.tipoEntidad) continue;
       const matchArticulo = (articulo && it.articuloId === articulo.id)
         || (!!cod && normCodigo(it.articuloCodigo) === cod);
       if (!matchArticulo) continue;

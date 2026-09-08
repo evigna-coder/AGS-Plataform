@@ -316,7 +316,39 @@ export const articulosService = {
           console.error('[articulosService.update] equivalencia denormalization recompute failed:', err);
         }
       })();
+      // Las unidades de stock guardan código y descripción desnormalizados
+      // (2026-09-08, caso EPCFID6890): al corregir el catálogo, la unidad
+      // seguía mostrando el nombre viejo. Se propaga a todas las unidades del
+      // artículo, activas o no, antes de devolver: el usuario vuelve a la
+      // lista y ya ve el nombre nuevo.
+      try {
+        await this.propagarAUnidades(id, {
+          ...(codigoChanged ? { articuloCodigo: data.codigo as string } : {}),
+          ...(descChanged ? { articuloDescripcion: data.descripcion as string } : {}),
+        });
+      } catch (err) {
+        console.error('[articulosService.update] no se pudo propagar código/descripción a las unidades:', err);
+      }
     }
+  },
+
+  /** Copia código/descripción nuevos a las unidades del artículo, en lotes. */
+  async propagarAUnidades(articuloId: string, patch: { articuloCodigo?: string; articuloDescripcion?: string }): Promise<number> {
+    if (!patch.articuloCodigo && !patch.articuloDescripcion) return 0;
+    const snap = await getDocs(query(collection(db, 'unidades'), where('articuloId', '==', articuloId)));
+    const pendientes = snap.docs.filter(d => {
+      const u = d.data();
+      return (patch.articuloCodigo && u.articuloCodigo !== patch.articuloCodigo)
+        || (patch.articuloDescripcion && u.articuloDescripcion !== patch.articuloDescripcion);
+    });
+    for (let i = 0; i < pendientes.length; i += 400) {
+      const batch = createBatch();
+      for (const d of pendientes.slice(i, i + 400)) {
+        batch.update(d.ref, { ...patch, updatedAt: Timestamp.now() });
+      }
+      await batch.commit();
+    }
+    return pendientes.length;
   },
 
   subscribeById(
@@ -2963,6 +2995,12 @@ async function consumirSeleccionDesdeRemito(params: {
   const item = remito.items.find(i => i.id === selection.remitoItemId);
   if (!item) throw new Error(`El item seleccionado ya no está en el remito ${remito.numero}`);
   if (item.devuelto || item.consumido) throw new Error(`El item del remito ${remito.numero} ya está resuelto`);
+  // Linea documental de un activo propio (2026-09-07): no hay stock que
+  // consumir y el activo vuelve. Para una parte de loaner, el retorno se
+  // registra desde el loaner.
+  if (item.tipoEntidad) {
+    throw new Error(`La línea del remito ${remito.numero} es de ${item.tipoEntidad === 'loaner' ? `una parte del loaner ${item.loanerCodigo ?? ''}` : `un ${item.tipoEntidad}`}: no se consume, se registra su retorno.`);
+  }
   const pendiente = item.cantidad - (item.cantidadConsumida ?? 0);
   const consumir = Math.min(selection.cantidad ?? 1, pendiente);
   if (consumir <= 0) return 0;
