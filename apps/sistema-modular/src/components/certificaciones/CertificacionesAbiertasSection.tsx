@@ -14,6 +14,7 @@ import { CERTIFICACION_EXPORT_COLUMNS } from '../../utils/exports/exportCertific
 import { usePrompt } from '../ui/PromptDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { notify } from '../../utils/notify';
 const CHIP: Record<EstadoOTCertificacion, string> = {
   pendiente: 'bg-slate-100 text-slate-600',
   certificada: 'bg-emerald-100 text-emerald-700',
@@ -89,7 +90,7 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
       await load();
       onResuelta();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo resolver');
+      notify.error(e instanceof Error ? e.message : 'No se pudo resolver');
     } finally { setActuando(false); }
   };
 
@@ -106,15 +107,15 @@ export function CertificacionesAbiertasSection({ onResuelta }: Props) {
         uid: firebaseUser?.uid || '', name: usuario?.displayName,
       });
       await load();
-      alert(`Se generaron ${ids.length} solicitud(es) de facturación con el importe certificado. El lote sigue acá mientras queden OTs o certificaciones por resolver.`);
+      notify.success(`Se generaron ${ids.length} solicitud(es) de facturación con el importe certificado. El lote sigue acá mientras queden OTs o certificaciones por resolver.`);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo pasar a facturación');
+      notify.error(e instanceof Error ? e.message : 'No se pudo pasar a facturación');
     } finally { setActuando(false); }
   };
 
   const abrirPdf = async (cert: Certificacion) => {
     try { await abrirPdfCertificacion(cert); }
-    catch (e) { console.error('[abrirPdfCertificacion]', e); alert('No se pudo generar el PDF'); }
+    catch (e) { console.error('[abrirPdfCertificacion]', e); notify.error('No se pudo generar el PDF'); }
   };
 
   if (cargando) return null;

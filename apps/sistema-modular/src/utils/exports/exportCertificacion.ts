@@ -16,6 +16,10 @@ export const CERTIFICACION_EXPORT_COLUMNS: ExportColumn<ItemCertificacion>[] = [
   { header: 'Establecimiento', get: i => i.establecimientoNombre || '—', width: 26 },
   { header: 'N° de OT', get: i => i.otNumber, width: 14 },
   { header: 'Equipo', get: i => i.equipo || '—', width: 30 },
+  { header: 'ID equipo', get: i => i.equipoId || '—', width: 14 },
   { header: 'Servicio realizado', get: i => i.descripcionServicio || '—', width: 44 },
+  // Partes involucradas (2026-09-07): "código – descripción × cant", una por línea.
+  { header: 'Partes', get: i => (i.partes ?? []).filter(p => p.codigo || p.descripcion)
+      .map(p => `${[p.codigo, p.descripcion].filter(Boolean).join(' – ')} × ${p.cantidad}`).join('\n') || '—', width: 40 },
   { header: 'Fecha', get: i => (i.fechaServicio || '').slice(0, 10) || '—', width: 12 },
 ];

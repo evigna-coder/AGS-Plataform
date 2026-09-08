@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { certificacionesService } from '../../services/certificacionesService';
 
+import { notify } from '../../utils/notify';
 const lbl = 'text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1 block';
 const inp = 'w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs';
 
@@ -69,7 +70,7 @@ export function AgregarRecibidaModal({ open, onClose, onAgregada, loteId, client
       });
       onAgregada();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo cargar la certificación');
+      notify.error(e instanceof Error ? e.message : 'No se pudo cargar la certificación');
     } finally { setGuardando(false); }
   };
 

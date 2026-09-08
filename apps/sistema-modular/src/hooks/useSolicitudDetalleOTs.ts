@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { SolicitudFacturacion } from '@ags/shared';
+import type { ParteCertificada, SolicitudFacturacion } from '@ags/shared';
 import { itemsDeCertificacion } from '@ags/shared';
 import { ordenesTrabajoService, establecimientosService } from '../services/firebaseService';
 import { certificacionesService } from '../services/certificacionesService';
@@ -8,7 +8,11 @@ export interface DetalleOTFila {
   otNumber: string;
   establecimiento: string;
   equipo: string;
+  /** ID del equipo para el cliente (código interno de la carátula). */
+  equipoId: string;
   servicio: string;
+  /** Partes declaradas en la certificación (2026-09-07). */
+  partes: ParteCertificada[];
   /** ISO o YYYY-MM-DD; se formatea al mostrar. */
   fecha: string | null;
 }
@@ -48,7 +52,9 @@ export function useSolicitudDetalleOTs(solicitud: SolicitudFacturacion | null) {
             otNumber: n,
             establecimiento: it?.establecimientoNombre || (ot?.establecimientoId ? nombreEst.get(ot.establecimientoId) ?? '' : ''),
             equipo: it?.equipo || [ot?.sistema, ot?.moduloSerie ? `S/N ${ot.moduloSerie}` : null].filter(Boolean).join(' · '),
+            equipoId: it?.equipoId || ot?.codigoInternoCliente || '',
             servicio: it?.descripcionServicio || ot?.tipoServicio || '',
+            partes: it?.partes ?? [],
             fecha: it?.fechaServicio || ot?.fechaInicio || ot?.fechaServicioAprox || null,
           };
         });

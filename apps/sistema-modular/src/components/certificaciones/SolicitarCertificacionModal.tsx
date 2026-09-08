@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Certificacion, Establecimiento, ItemCertificacion, WorkOrder } from '@ags/shared';
+import type { Certificacion, Establecimiento, ItemCertificacion, ParteCertificada, WorkOrder } from '@ags/shared';
 import { itemsDeCertificacion } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { establecimientosService } from '../../services/firebaseService';
 import { certificacionesService } from '../../services/certificacionesService';
+import { movimientosService } from '../../services/stockService';
+import { partesDeConsumos } from '../../utils/partesDeConsumosOT';
+import { CertificacionItemRow } from './CertificacionItemRow';
 import { ExportarButton } from '../ui/ExportarButton';
 import { CERTIFICACION_EXPORT_COLUMNS } from '../../utils/exports/exportCertificacion';
 
+import { notify } from '../../utils/notify';
+import { Select } from '../ui/Select';
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -30,7 +35,6 @@ function etiquetaLote(c: Certificacion): string {
 
 const lbl = 'text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1 block';
 const mesActual = () => new Date().toISOString().slice(0, 7);
-const celda = 'w-full border border-slate-200 rounded px-1.5 py-1 text-[11px] disabled:bg-slate-50 disabled:text-slate-400';
 
 /**
  * Arma el PEDIDO de certificación por lote (2026-08-17).
@@ -64,20 +68,25 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
     const delMes = lotesAbiertos.find(c => c.periodo === mesActual());
     setDestino(delMes?.id ?? NUEVO);
     establecimientosService.getAll()
-      .then(list => {
+      .then(async list => {
         setEstablecimientos(list);
         // Texto inicial tomado de la OT; a partir de acá se edita a mano.
+        // Partes (2026-09-07): lo que se consumió de stock contra la OT.
+        const consumos = await Promise.all(ots.map(o =>
+          movimientosService.getAll({ otNumber: o.otNumber }).catch(() => [])));
         const base: Record<string, ItemCertificacion> = {};
-        for (const o of ots) {
+        ots.forEach((o, i) => {
           base[o.otNumber] = {
             otNumber: o.otNumber,
             estado: 'pendiente',
             establecimientoNombre: list.find(e => e.id === o.establecimientoId)?.nombre ?? '',
             equipo: [o.sistema, o.moduloSerie ? `S/N ${o.moduloSerie}` : null].filter(Boolean).join(' · '),
+            equipoId: o.codigoInternoCliente || '',
             descripcionServicio: o.tipoServicio || '',
             fechaServicio: (o.fechaInicio || o.fechaServicioAprox || '').slice(0, 10) || null,
+            partes: partesDeConsumos(consumos[i]),
           };
-        }
+        });
         setLineas(base);
       })
       .catch(() => setEstablecimientos([]));
@@ -107,6 +116,8 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
   const itemsElegidos = elegidas.map(o => lineas[o.otNumber]).filter(Boolean);
   const editar = (n: string, campo: keyof ItemCertificacion, v: string) =>
     setLineas(prev => ({ ...prev, [n]: { ...prev[n], [campo]: v } }));
+  const editarPartes = (n: string, partes: ParteCertificada[]) =>
+    setLineas(prev => ({ ...prev, [n]: { ...prev[n], partes } }));
 
   const handleSubmit = async () => {
     if (elegidas.length === 0 || guardando) return;
@@ -114,7 +125,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
     try {
       if (loteDestino) {
         const { agregadas } = await certificacionesService.agregarItems(loteDestino.id, itemsElegidos);
-        alert(`Se sumaron ${agregadas.length} OT(s) al lote ${loteDestino.periodo ?? ''}. Volvé a mandar el resumen al cliente.`);
+        notify.success(`Se sumaron ${agregadas.length} OT(s) al lote ${loteDestino.periodo ?? ''}. Volvé a mandar el resumen al cliente.`);
         onCreated();
         return;
       }
@@ -130,7 +141,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
       });
       onCreated();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo armar el pedido');
+      notify.error(e instanceof Error ? e.message : 'No se pudo armar el pedido');
     } finally {
       setGuardando(false);
     }
@@ -161,13 +172,13 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
         {lotesAbiertos.length > 0 && (
           <div>
             <label className={lbl}>Destino</label>
-            <select value={destino} onChange={e => setDestino(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+            <Select value={destino} onChange={e => setDestino(e.target.value)}
+              className="w-full">
               <option value={NUEVO}>Lote nuevo</option>
               {lotesAbiertos.map(c => (
                 <option key={c.id} value={c.id}>Sumar a: {etiquetaLote(c)}</option>
               ))}
-            </select>
+            </Select>
             {loteDestino && (
               <p className="text-[10px] text-slate-400 mt-1">
                 Entran como pendientes junto a las {itemsDeCertificacion(loteDestino).length} que ya tiene. El resumen al cliente hay que reenviarlo.
@@ -207,39 +218,19 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
                   </span>
                   <span className="text-[10px] text-slate-400">{lista.length} OT{lista.length !== 1 ? 's' : ''}</span>
                 </div>
-                {lista.map(ot => {
-                  const l = lineas[ot.otNumber];
-                  const on = seleccion.has(ot.otNumber);
-                  return (
-                    <div key={ot.otNumber}
-                      className={`px-2.5 py-2 flex items-start gap-2.5 ${on ? '' : 'opacity-45'}`}>
-                      <input type="checkbox" checked={on} onChange={() => toggle(ot.otNumber)}
-                        className="w-3.5 h-3.5 accent-teal-600 shrink-0 mt-1.5" />
-                      <span className="font-mono text-[11px] font-semibold text-teal-700 shrink-0 w-20 mt-1.5">
-                        {ot.otNumber}
-                      </span>
-                      {/* Editable: lo que va en el resumen se redacta para quien
-                          lo firma, no se copia crudo del sistema. */}
-                      <div className="flex-1 grid grid-cols-2 gap-1.5">
-                        <input value={l?.equipo ?? ''} disabled={!on}
-                          onChange={e => editar(ot.otNumber, 'equipo', e.target.value)}
-                          placeholder="Equipo" className={celda} />
-                        <input value={l?.descripcionServicio ?? ''} disabled={!on}
-                          onChange={e => editar(ot.otNumber, 'descripcionServicio', e.target.value)}
-                          placeholder="Servicio realizado" className={celda} />
-                      </div>
-                      <input value={l?.fechaServicio ?? ''} disabled={!on} type="date"
-                        onChange={e => editar(ot.otNumber, 'fechaServicio', e.target.value)}
-                        className={`${celda} w-32 shrink-0`} />
-                    </div>
-                  );
-                })}
+                {lista.map(ot => (
+                  <CertificacionItemRow key={ot.otNumber} ot={ot} linea={lineas[ot.otNumber]}
+                    on={seleccion.has(ot.otNumber)} onToggle={() => toggle(ot.otNumber)}
+                    onEditar={(campo, v) => editar(ot.otNumber, campo, v)}
+                    onPartes={p => editarPartes(ot.otNumber, p)} />
+                ))}
               </div>
             ))}
           </div>
           <p className="text-[10px] text-slate-400 mt-1.5">
             Las OTs quedan retenidas hasta que vuelva la certificación. Se resuelven de a una:
-            el cliente puede certificar algunas y objetar otras.
+            el cliente puede certificar algunas y objetar otras. Las partes vienen de los
+            consumos de stock de cada OT; se pueden corregir o declarar a mano.
           </p>
         </div>
       </div>

@@ -6,6 +6,8 @@ import { PDFHeader, PDFClienteInfo, type PDFCabeceraData } from '../../presupues
 import '../../presupuestos/pdf/pdfFonts';
 
 const C = COLORS;
+/* Sangría de las partes = establecimiento + N° de OT + padding de la fila. */
+const COLS_PARTES_INDENT = 96 + 52 + 4;
 
 const s = StyleSheet.create({
   k: { fontSize: 6.5, letterSpacing: .8, color: C.textMuted, marginBottom: 1 },
@@ -18,6 +20,9 @@ const s = StyleSheet.create({
   tr: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
     paddingVertical: 4, paddingHorizontal: 4 },
   td: { fontSize: 8 },
+  /* Partes involucradas: renglón secundario bajo el servicio (2026-09-07). */
+  partes: { paddingLeft: COLS_PARTES_INDENT, paddingBottom: 4, paddingTop: 0 },
+  parteTxt: { fontSize: 7, color: C.textMuted, lineHeight: 1.4 },
 
   totBox: { marginTop: 12, alignSelf: 'flex-end', minWidth: 230, borderWidth: 1, borderColor: C.primary, borderRadius: 3 },
   totHead: { backgroundColor: C.primary, paddingVertical: 3, paddingHorizontal: 8 },
@@ -40,12 +45,15 @@ const s = StyleSheet.create({
 });
 
 const COLS = [
-  { h: 'ESTABLECIMIENTO', w: 108 },
-  { h: 'N° DE OT', w: 56 },
+  { h: 'ESTABLECIMIENTO', w: 96 },
+  { h: 'N° DE OT', w: 52 },
   { h: 'EQUIPO', w: 0 },
+  { h: 'ID EQUIPO', w: 62 },
   { h: 'SERVICIO REALIZADO', w: 0 },
-  { h: 'FECHA', w: 48 },
+  { h: 'FECHA', w: 46 },
 ];
+
+const fmtCant = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
 const fmt = (i: ImporteCertificado) =>
   `${i.moneda} ${i.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
@@ -115,15 +123,29 @@ export function CertificacionLotePDF({ cert, items, totales, cliente, establecim
             <Text key={c.h} style={[s.thTxt, c.w ? { width: c.w } : { flex: 1 }]}>{c.h}</Text>
           ))}
         </View>
-        {items.map((it, i) => (
-          <View key={i} style={s.tr} wrap={false}>
-            <Text style={[s.td, { width: COLS[0].w }]}>{it.establecimientoNombre || '—'}</Text>
-            <Text style={[s.td, { width: COLS[1].w, fontWeight: 'bold' }]}>{it.otNumber}</Text>
-            <Text style={[s.td, { flex: 1, paddingRight: 6 }]}>{it.equipo || '—'}</Text>
-            <Text style={[s.td, { flex: 1, paddingRight: 6 }]}>{it.descripcionServicio || '—'}</Text>
-            <Text style={[s.td, { width: COLS[4].w }]}>{fechaCorta(it.fechaServicio || '')}</Text>
-          </View>
-        ))}
+        {items.map((it, i) => {
+          const partes = (it.partes ?? []).filter(p => p.codigo || p.descripcion);
+          return (
+            <View key={i} wrap={false}>
+              <View style={[s.tr, partes.length ? { borderBottomWidth: 0 } : {}]}>
+                <Text style={[s.td, { width: COLS[0].w, paddingRight: 4 }]}>{it.establecimientoNombre || '—'}</Text>
+                <Text style={[s.td, { width: COLS[1].w, fontWeight: 'bold' }]}>{it.otNumber}</Text>
+                <Text style={[s.td, { flex: 1, paddingRight: 6 }]}>{it.equipo || '—'}</Text>
+                <Text style={[s.td, { width: COLS[3].w, paddingRight: 4 }]}>{it.equipoId || '—'}</Text>
+                <Text style={[s.td, { flex: 1, paddingRight: 6 }]}>{it.descripcionServicio || '—'}</Text>
+                <Text style={[s.td, { width: COLS[5].w }]}>{fechaCorta(it.fechaServicio || '')}</Text>
+              </View>
+              {/* Partes involucradas: el cliente certifica también el material instalado. */}
+              {partes.length > 0 && (
+                <View style={[s.partes, { borderBottomWidth: 0.5, borderBottomColor: C.borderLight }]}>
+                  <Text style={s.parteTxt}>
+                    Partes: {partes.map(p => `${[p.codigo, p.descripcion].filter(Boolean).join(' – ')} × ${fmtCant(p.cantidad)}`).join(' · ')}
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
 
         {totales.length > 0 && (
           <View style={s.totBox} wrap={false}>

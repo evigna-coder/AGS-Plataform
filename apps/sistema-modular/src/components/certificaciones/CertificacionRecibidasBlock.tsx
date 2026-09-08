@@ -4,6 +4,7 @@ import { recibidasDeCertificacion, recibidasSinFacturar, totalesCertificados } f
 import { certificacionesService } from '../../services/certificacionesService';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { notify } from '../../utils/notify';
 const fmt = (moneda: string, monto: number) => `${moneda} ${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 
 interface Props {
@@ -31,7 +32,7 @@ export function CertificacionRecibidasBlock({ cert, actuando, onPasarAFacturacio
       await certificacionesService.quitarRecibida(cert.id, recId);
       onCambio();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo quitar la certificación');
+      notify.error(e instanceof Error ? e.message : 'No se pudo quitar la certificación');
     } finally { setQuitando(false); }
   };
   const recibidas = recibidasDeCertificacion(cert);
