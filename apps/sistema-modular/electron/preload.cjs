@@ -40,6 +40,9 @@ try {
       return ipcRenderer.invoke('print:html-silent', html);
     },
     // Guardar un archivo en una carpeta del escritorio (PDF del presupuesto).
+    saveToFolder: (dirPath, fileName, buffer) => {
+      return ipcRenderer.invoke('file:save-to-folder', dirPath, fileName, buffer);
+    },
     saveToDesktopFolder: (folderName, fileName, buffer) => {
       return ipcRenderer.invoke('file:save-to-desktop-folder', folderName, fileName, buffer);
     },

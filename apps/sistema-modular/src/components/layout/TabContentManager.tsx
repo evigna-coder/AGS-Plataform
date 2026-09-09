@@ -28,6 +28,7 @@ import { UsuariosList } from '../../pages/usuarios';
 import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage, BackfillVentasInsumosDerivadorPage, AuditoriaPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { ControlSemanal } from '../../pages/control-semanal';
+import { CierresSemanalesList } from '../../pages/control-semanal/CierresSemanalesList';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail, PendientesDocumentacionPage, CuotasPorFacturarPage } from '../../pages/facturacion';
 import { ControlFacturasList } from '../../pages/control-facturas';
@@ -203,6 +204,7 @@ function AppRoutes() {
           Operaciones sin `modulo`, así que no aparecía en el detalle de permisos
           y el acceso solo se podía mover cambiándole el rol a la persona. */}
       <Route path="/control-semanal" element={<ProtectedRoute modulo="control-semanal"><ControlSemanal /></ProtectedRoute>} />
+      <Route path="/control-semanal/cierres" element={<ProtectedRoute modulo="control-semanal"><CierresSemanalesList /></ProtectedRoute>} />
       <Route path="/pendientes" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><PendientesList /></ProtectedRoute>} />
       {/* Facturacion */}
       <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />

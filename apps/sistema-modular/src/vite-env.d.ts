@@ -13,6 +13,7 @@ interface ElectronAPI {
   openModuleWindow?: (route: string) => void;
   openPath?: (filePath: string) => Promise<string>;
   saveTempAndOpen?: (buffer: Uint8Array, filename: string) => Promise<string>;
+  saveToFolder?: (dirPath: string, fileName: string, buffer: Uint8Array) => Promise<{ success: boolean; path?: string; failureReason?: string }>;
 }
 
 // API de Google Drive expuesta desde preload

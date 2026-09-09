@@ -132,6 +132,7 @@ export default function ConfigFlujosPage() {
           usuarioRequerimientosPatronId: form.usuarioRequerimientosPatronId || null,
           responsablePorArea,
           mailFacturacion: form.mailFacturacion,
+          carpetaCierresSemanales: form.carpetaCierresSemanales?.trim() || null,
         },
         firebaseUser.uid,
         usuario?.displayName,
@@ -256,6 +257,17 @@ export default function ConfigFlujosPage() {
             placeholder="mbarrios@agsanalitica.com"
           />
           <p className="mt-1 text-[11px] text-slate-500">Destinatario del aviso automático al cerrar una OT administrativamente.</p>
+        </div>
+
+        {/* Cierre semanal (2026-09-09): copia local del PDF, p. ej. la carpeta de Dropbox de esta PC. */}
+        <div>
+          <label className={fieldLabel}>Carpeta para el PDF del cierre semanal</label>
+          <Input
+            value={form.carpetaCierresSemanales || ''}
+            onChange={e => setForm({ ...form, carpetaCierresSemanales: e.target.value })}
+            placeholder="%USERPROFILE%\Dropbox\ASTs\Reportes CM"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">Además de guardarse en el sistema, el PDF se copia a esta carpeta de la PC que lo genera. Usá <span className="font-mono">%USERPROFILE%</span> en vez del nombre de usuario para que sirva en cualquier PC (Evigna, AGS_C…). Si la carpeta madre no existe en esa PC, se avisa y el cierre queda solo en el sistema. Vacío = solo en el sistema.</p>
         </div>
 
         {error && (

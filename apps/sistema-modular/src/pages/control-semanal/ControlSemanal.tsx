@@ -20,6 +20,9 @@ import { facturacionService } from '../../services/firebaseService';
 
 import { notify } from '../../utils/notify';
 import { LoadingState } from '../../components/ui/LoadingState';
+import { useCierreSemanal } from '../../hooks/useCierreSemanal';
+import { useCierreSemanalPendiente } from '../../hooks/useCierreSemanalPendiente';
+import { CierreSemanalAutoGenerador } from '../../components/control-semanal/CierreSemanalAutoGenerador';
 const FILTER_SCHEMA = {
   /** Lunes de la semana bajo control (YYYY-MM-DD). '' = semana actual. */
   semana:          { type: 'string' as const,  default: '' },
@@ -95,6 +98,19 @@ export const ControlSemanal = () => {
     }
   };
 
+  // Cierre congelado (2026-09-09): botón manual sobre la semana visible, y
+  // generación automática de la semana ANTERIOR los miércoles o después.
+  const { congelar, generando } = useCierreSemanal();
+  const pendiente = useCierreSemanalPendiente();
+  const entradasCierre = {
+    agendaRows, otsArrastre, entregasPendientes, establecimientoPorOT, presupuestoPorNumero,
+    presupuestoRows, facturacionRows, agendaKpis, presupuestoKpis, facturacionKpis,
+  };
+  const handleCongelar = async () => {
+    if (!await confirm(`¿Congelar el control de la semana ${formatWeekRange(monday)} en un PDF? Si ya existía, se reemplaza.`)) return;
+    await congelar(weekStart, weekEnd, entradasCierre, { reemplazar: true });
+  };
+
   const {
     quitarDelControl, reponerExcluidas,
     quitarEntregaDelControl, reponerEntregas,
@@ -111,9 +127,16 @@ export const ControlSemanal = () => {
         title="Control semanal"
         subtitle="Cierre de coordinación: OTs agendadas realizadas y avisos a facturación pendientes"
         actions={
-          <Button size="sm" variant="secondary" onClick={refetch} disabled={loading}>
-            {loading ? 'Cargando…' : 'Refrescar'}
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/control-semanal/cierres')}>Cierres</Button>
+            <Button size="sm" variant="primary" onClick={() => void handleCongelar()} disabled={loading || generando}
+              title="Guarda la foto de esta semana y su PDF; se copia también a la carpeta configurada en Admin → Flujos">
+              {generando ? 'Congelando…' : 'Congelar semana'}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={refetch} disabled={loading}>
+              {loading ? 'Cargando…' : 'Refrescar'}
+            </Button>
+          </div>
         }
       >
         <div className="flex gap-2 mb-2">
@@ -142,6 +165,9 @@ export const ControlSemanal = () => {
         </div>
       </PageHeader>
 
+      {pendiente.semana && (
+        <CierreSemanalAutoGenerador semanaInicio={pendiente.semana.inicio} semanaFin={pendiente.semana.fin} onListo={pendiente.marcarHecho} />
+      )}
       <div className="flex-1 overflow-y-auto p-5 space-y-6">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">

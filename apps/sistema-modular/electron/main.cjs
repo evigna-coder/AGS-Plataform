@@ -676,6 +676,29 @@ function registerIpcHandlers() {
   // Guardar un archivo en una carpeta del ESCRITORIO (2026-08-04): auto-volcado
   // del PDF del presupuesto al crear/guardar, para enviarlo por mail sin
   // descargar a mano. Sobrescribe si existe (regeneración al editar).
+  // Copia en una carpeta ABSOLUTA (2026-09-09): la de Dropbox sincronizada de
+  // esta PC, configurada en Admin → Flujos. Crea la carpeta si no existe.
+  ipcMain.handle('file:save-to-folder', async (_event, dirPath, fileName, buffer) => {
+    try {
+      // La ruta se configura UNA vez para todas las PCs: se expanden %USERPROFILE%,
+      // %VAR% y ~ para que cada PC resuelva su propio usuario. Y solo se crea el
+      // ULTIMO nivel: si la carpeta madre (p. ej. ...\Dropbox\ASTs) no existe en
+      // esta PC, no se inventa un arbol fuera de Dropbox — se avisa y listo.
+      const home = process.env.USERPROFILE || app.getPath('home');
+      const dir = String(dirPath).trim()
+        .replace(/^~(?=[\\/]|$)/, home)
+        .replace(/%([^%]+)%/g, (m, v) => process.env[v] ?? (v.toUpperCase() === 'USERPROFILE' ? home : m));
+      const padre = join(dir, '..');
+      if (!existsSync(padre)) return { success: false, failureReason: `No existe la carpeta ${padre} en esta PC` };
+      if (!existsSync(dir)) mkdirSync(dir);
+      const filePath = join(dir, String(fileName));
+      writeFileSync(filePath, Buffer.from(buffer));
+      return { success: true, path: filePath };
+    } catch (err) {
+      return { success: false, failureReason: String(err) };
+    }
+  });
+
   ipcMain.handle('file:save-to-desktop-folder', async (_event, folderName, fileName, buffer) => {
     try {
       const dir = join(app.getPath('desktop'), String(folderName));
