@@ -63,6 +63,11 @@ export const AgendaAlmanaqueCard: FC<Props> = ({ entry }) => {
           {entry.problemaFallaInicial}
         </p>
       )}
+      {entry.reservaStock && (
+        <p className="text-[9px] text-teal-800 leading-tight mt-0.5 line-clamp-2" title={`Reservado en stock: ${entry.reservaStock}`}>
+          📦 {entry.reservaStock}
+        </p>
+      )}
     </>
   );
 

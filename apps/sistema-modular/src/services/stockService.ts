@@ -2136,6 +2136,7 @@ export const reservasService = {
     // Audit — post-tx best-effort (fire-and-forget, non-blocking).
     // Audit is observational; losing it is acceptable vs. rolling back the reservation.
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: reservadoUnidadId });
+    void refrescarAgendaReservas(params.presupuestoId);
   },
 
   /**
@@ -2216,6 +2217,7 @@ export const reservasService = {
     }
     if (reservadas > 0) {
       console.log(`[reservarPendientesParaPresupuesto] ${reservadas} u. reservadas para ppto ${pres.numero}`);
+      void refrescarAgendaReservas(params.presupuestoId);
 
       // Aviso a Materiales para la reserva FÍSICA (UAT 2026-07-17): en el circuito
       // de compra/importación la reserva ocurre recién al ingresar la mercadería,
@@ -3048,4 +3050,31 @@ async function consumirSeleccionDesdeRemito(params: {
     });
   }
   return consumir;
+}
+
+// ── Reservas → agenda (2026-09-09) ────────────────────────────────────────
+// La nota "reservado en stock" viaja a la entrada de agenda de la OT
+// portadora del presupuesto. Se recalcula al reservar y al liberar. Import
+// dinámico: agendaService importa de este módulo. Best-effort, nunca bloquea.
+async function refrescarAgendaReservas(presupuestoId: string | null | undefined): Promise<void> {
+  if (!presupuestoId) return;
+  try {
+    const [{ agendaService }, { presupuestosService }, { ordenesTrabajoService }] = await Promise.all([
+      import('./agendaService'), import('./presupuestosService'), import('./otService'),
+    ]);
+    const ppto = await presupuestosService.getById(presupuestoId);
+    if (!ppto) return;
+    const ots = await ordenesTrabajoService.queryByBudget(ppto.numero);
+    await agendaService.refrescarReservaStock(ots.map(o => o.otNumber));
+  } catch (err) {
+    console.warn('[stock] refrescar reserva en agenda falló (no bloquea):', err);
+  }
+}
+{
+  const liberarCore = reservasService.liberar;
+  reservasService.liberar = async function (this: typeof reservasService, ...args: Parameters<typeof liberarCore>) {
+    const r = await liberarCore.apply(this, args);
+    void refrescarAgendaReservas(args[0]?.unidad?.reservadoParaPresupuestoId ?? null);
+    return r;
+  } as typeof liberarCore;
 }

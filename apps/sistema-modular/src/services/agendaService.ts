@@ -39,6 +39,21 @@ async function _resolverIngenieroCatalogo(id: string, nombre: string): Promise<{
   return { id, nombre };
 }
 
+/** Texto de reserva para la OT, o null. Import dinámico: stockService/otService importan de acá. */
+async function _calcularReservaStock(otNumber: string | null | undefined): Promise<string | null> {
+  if (!otNumber) return null;
+  try {
+    const [{ textoReservaParaOT }, { ordenesTrabajoService }] = await Promise.all([
+      import('../utils/reservaStockOT'), import('./otService'),
+    ]);
+    const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
+    return ot ? await textoReservaParaOT(otNumber, ot.budgets) : null;
+  } catch (err) {
+    console.warn('[agendaService] reserva de stock no calculada (no bloquea):', err);
+    return null;
+  }
+}
+
 // ── Agenda Service ──
 
 function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): AgendaEntry {
@@ -59,6 +74,7 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     equipoModelo: data.equipoModelo ?? null,
     equipoAgsId: data.equipoAgsId ?? null,
     problemaFallaInicial: data.problemaFallaInicial ?? null,
+    reservaStock: data.reservaStock ?? null,
     excluidoDelControl: data.excluidoDelControl === true,
     pagoAdelantado: data.pagoAdelantado === true,
     // Estos dos FALTABAN acá (2026-08-09) y por eso "se destildaban solos": el
@@ -187,8 +203,12 @@ export const agendaService = {
     if (data.fechaInicio === data.fechaFin && data.quarterEnd < data.quarterStart) {
       data = { ...data, quarterEnd: data.quarterStart };
     }
+    // Reserva de stock (2026-09-09): si el caller no la trae, se calcula de las
+    // unidades reservadas para los presupuestos de la OT. Best-effort.
+    const reservaStock = data.reservaStock !== undefined ? data.reservaStock : await _calcularReservaStock(data.otNumber);
     const payload = deepCleanForFirestore({
       ...data,
+      reservaStock,
       ...getCreateTrace(),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -218,6 +238,26 @@ export const agendaService = {
     const docRef = doc(db, 'agendaEntries', id);
     await deleteDoc(docRef);
     logAudit({ action: 'delete', collection: 'agendaEntries', documentId: id });
+  },
+
+  /**
+   * Recalcula la nota de reserva en las entradas activas de estas OTs
+   * (2026-09-09). Lo llama stock al reservar/liberar: la entrada de agenda
+   * puede existir desde antes de que el presupuesto se acepte.
+   */
+  async refrescarReservaStock(otNumbers: string[]): Promise<void> {
+    for (const otNumber of [...new Set(otNumbers.filter(Boolean))]) {
+      try {
+        const entradas = (await this.getByOtNumber(otNumber)).filter(e => e.estadoAgenda !== 'cancelado');
+        if (entradas.length === 0) continue;
+        const texto = await _calcularReservaStock(otNumber);
+        for (const e of entradas) {
+          if ((e.reservaStock ?? null) !== texto) await this.update(e.id, { reservaStock: texto });
+        }
+      } catch (err) {
+        console.warn(`[agendaService] refrescar reserva de OT ${otNumber} falló (no bloquea):`, err);
+      }
+    }
   },
 
   /** Auto-create agenda entry from OT when engineer + date are assigned */

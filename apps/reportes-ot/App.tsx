@@ -3,6 +3,7 @@ import { useAppLogic } from './hooks/useAppLogic';
 import { CompanyHeader } from './components/CompanyHeader';
 import { MobileSignatureView } from './components/MobileSignatureView';
 import { OTFormSection } from './components/OTFormSection';
+import { ReservasStockCard } from './components/ReservasStockCard';
 import { SidebarPanel } from './components/SidebarPanel';
 import { ServiceReportSection, MOTIVO_SERVICIO_TIPOS } from './components/ServiceReportSection';
 import { SignaturesSection } from './components/SignaturesSection';
@@ -187,6 +188,8 @@ const App: React.FC = () => {
               setDestinatariosManuales={app.setDestinatariosManuales}
               markUserInteracted={app.markUserInteracted}
             />
+            {/* Reservado en stock (2026-09-09): lo apartado para esta OT, a la vista antes de salir. */}
+            <ReservasStockCard budgets={app.budgets} />
             <SidebarPanel
               readOnly={app.readOnly}
               otNumber={app.otNumber}
@@ -524,6 +527,8 @@ const App: React.FC = () => {
               setDestinatariosManuales={app.setDestinatariosManuales}
               markUserInteracted={app.markUserInteracted}
             />
+            {/* Reservado en stock (2026-09-09): lo apartado para esta OT, a la vista antes de salir. */}
+            <ReservasStockCard budgets={app.budgets} />
             <SidebarPanel
               readOnly={app.readOnly}
               otNumber={app.otNumber}

@@ -238,7 +238,9 @@ export const misOTService = {
     const q = query(
       collection(db, 'unidades'),
       where('reservadoParaPresupuestoId', '==', presupuestoId),
-      where('activo', '==', true),
+      // Por ESTADO (2026-09-09): las unidades no siempre tienen `activo`, y con
+      // ese filtro el ingeniero no veía lo reservado para su OT.
+      where('estado', '==', 'reservado'),
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as UnidadStock));

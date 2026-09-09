@@ -142,6 +142,12 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
                   {entry.notas}
                 </div>
               )}
+              {/* Reservado en stock (2026-09-09): qué hay apartado para esta visita. */}
+              {entry.reservaStock && (
+                <div className="mt-0.5 text-[10px] text-teal-900 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 whitespace-pre-wrap break-words">
+                  <span className="font-mono uppercase tracking-wide text-teal-700/80">Reservado en stock · </span>{entry.reservaStock}
+                </div>
+              )}
             </div>
             {/* Right: pago adelantado + estado */}
             {entry.pagoAdelantado && (
