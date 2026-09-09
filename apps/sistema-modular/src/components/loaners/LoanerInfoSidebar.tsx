@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, ESTADO_PARTE_LOANER_LABELS, prestamoModuloActivo, prestamosDeParteActivos, partesDelPrestamo, estadoParte, idDeParte, quienTieneElPrestamo } from '@ags/shared';
+import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, ESTADO_PARTE_LOANER_LABELS, TIPO_ORIGEN_LOANER_LABELS, prestamoModuloActivo, prestamosDeParteActivos, partesDelPrestamo, estadoParte, idDeParte, quienTieneElPrestamo } from '@ags/shared';
 
 interface Props {
   loaner: Loaner;
@@ -51,6 +51,23 @@ export function LoanerInfoSidebar({ loaner }: Props) {
           <LV label="Serie" value={loaner.serie} />
           <LV label="Condicion" value={loaner.condicion} />
         </dl>
+      </Card>
+
+      {/* Origen (2026-09-09) */}
+      <Card title="Origen" compact>
+        {loaner.origen ? (
+          <dl className="space-y-1.5">
+            <LV label="Tipo" value={TIPO_ORIGEN_LOANER_LABELS[loaner.origen.tipo]} />
+            {loaner.origen.proveedorNombre && <LV label="Proveedor" value={loaner.origen.proveedorNombre} />}
+            {loaner.origen.clienteNombre && <LV label="Cliente" value={loaner.origen.clienteNombre} link={loaner.origen.clienteId ? `/clientes/${loaner.origen.clienteId}` : undefined} navState={fromState} />}
+            {loaner.origen.fecha && <LV label="Fecha" value={loaner.origen.fecha.split('-').reverse().join('/')} />}
+            {loaner.origen.referencia && <LV label="Referencia" value={loaner.origen.referencia} />}
+            {loaner.origen.costo != null && <LV label="Costo" value={`${loaner.origen.moneda ?? 'USD'} ${loaner.origen.costo.toLocaleString('es-AR')}`} />}
+            {loaner.origen.observaciones && <LV label="Obs." value={loaner.origen.observaciones} />}
+          </dl>
+        ) : (
+          <p className="text-[11px] text-amber-700">Sin declarar. <Link to={`/loaners/${loaner.id}/editar`} state={fromState} className="underline">Completar</Link></p>
+        )}
       </Card>
 
       {/* Stock link */}

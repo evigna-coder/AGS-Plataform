@@ -1588,6 +1588,58 @@ export interface AdminConfigFlujos {
   updatedByName?: string | null;
   /** Phase 14 BOM-08 — usuario asignado a Requerimientos auto-generados de patrón (componente bajo stockMinimo). */
   usuarioRequerimientosPatronId?: string | null;
+  /**
+   * Carpeta local donde dejar una copia del PDF del cierre semanal
+   * (2026-09-09), por ejemplo la carpeta de Dropbox sincronizada de la PC que
+   * lo genera. Solo aplica en la app instalada. Vacío = solo en el sistema.
+   */
+  carpetaCierresSemanales?: string | null;
+}
+
+// =============================================
+// --- Cierre semanal congelado (dirección, 2026-09-09) ---
+// =============================================
+
+export interface CierreSemanalFilaOT {
+  otNumber: string; cliente: string; ingeniero: string; fecha: string; servicio: string;
+  estado: string; diasTrabado: number | null; motivos: string[];
+}
+export interface CierreSemanalFilaEntrega {
+  otNumber: string; cliente: string; servicio: string; presupuestos: string[]; valor: string; estado: string; creada: string;
+}
+export interface CierreSemanalFilaPresupuesto {
+  numero: string; cliente: string; total: string; estado: string; diasTrabado: number | null;
+  queFalta: string[]; comentario: string | null; arrastre: boolean;
+}
+export interface CierreSemanalFilaFacturacion {
+  pasadoEl: string; diasTrabado: number | null; presupuesto: string; cliente: string; monto: string;
+  ots: string[]; estado: string; nroFactura: string | null; comentario: string | null;
+}
+export interface CierreSemanalDatos {
+  ots: CierreSemanalFilaOT[];
+  otsArrastre: CierreSemanalFilaOT[];
+  entregas: CierreSemanalFilaEntrega[];
+  presupuestos: CierreSemanalFilaPresupuesto[];
+  facturacion: CierreSemanalFilaFacturacion[];
+}
+export interface CierreSemanalResumen {
+  agendadas: number; cerradas: number; sinCierreAdmin: number; sinRealizar: number; otsArrastre: number;
+  entregasPendientes: number; presupuestosEnControl: number; listosSinAviso: number; sinOC: number;
+  presupuestosArrastre: number; sinFacturar: number; facturadasSemana: number; montoSinFacturar: Record<string, number>;
+}
+/** Doc `cierresSemanales/{lunes}`: la foto del control de esa semana y su PDF en Storage. */
+export interface CierreSemanal {
+  id: string;
+  /** Lunes y domingo, YYYY-MM-DD. */
+  semanaInicio: string;
+  semanaFin: string;
+  generadoAt: string;
+  generadoPor?: string | null;
+  generadoPorNombre?: string | null;
+  pdfPath: string;
+  pdfUrl: string;
+  resumen: CierreSemanalResumen;
+  datos: CierreSemanalDatos;
 }
 
 // --- Orden de Compra (OC) ---
@@ -5200,6 +5252,30 @@ export const ESTADO_LOANER_COLORS: Record<EstadoLoaner, string> = {
  * lista mentía "En base" con el módulo viajando. `alcance: 'parte'` = el
  * módulo sigue en base pero una parte suya está en el proveedor.
  */
+/** De dónde salió el loaner (2026-09-09). */
+export type TipoOrigenLoaner = 'compra_proveedor' | 'compra_cliente' | 'canje' | 'propio' | 'otro';
+export const TIPO_ORIGEN_LOANER_LABELS: Record<TipoOrigenLoaner, string> = {
+  compra_proveedor: 'Compra a proveedor',
+  compra_cliente: 'Compra a cliente',
+  canje: 'Canje / parte de pago',
+  propio: 'Equipo propio (armado o reacondicionado)',
+  otro: 'Otro',
+};
+export interface OrigenLoaner {
+  tipo: TipoOrigenLoaner;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  /** YYYY-MM-DD. */
+  fecha?: string | null;
+  /** Factura, remito, OC… */
+  referencia?: string | null;
+  costo?: number | null;
+  moneda?: 'ARS' | 'USD' | null;
+  observaciones?: string | null;
+}
+
 export interface LoanerEnProveedor {
   proveedorId: string | null;
   proveedorNombre: string | null;
@@ -5471,6 +5547,8 @@ export interface Loaner {
   moduloDescripcion?: string | null;
   moduloMarca?: string | null;
   condicion: string;
+  /** Origen del equipo (2026-09-09): compra a proveedor/cliente, canje, propio. Ausente = sin declarar. */
+  origen?: OrigenLoaner | null;
   estado: EstadoLoaner;
   /** Derivación a proveedor vigente — se setea al derivar, se limpia al volver. */
   enProveedor?: LoanerEnProveedor | null;
@@ -6686,6 +6764,13 @@ export interface AgendaEntry {
    * el trabajo en bench ya muestra sus notas.
    */
   problemaFallaInicial?: string | null;
+  /**
+   * Partes reservadas en stock para esta OT (2026-09-09), denormalizado como
+   * `problemaFallaInicial`: quien mira la agenda ve qué hay apartado sin
+   * abrir la OT. Solo la OT portadora del presupuesto lo lleva (ver
+   * `otPortadoraDeReserva`).
+   */
+  reservaStock?: string | null;
   /**
    * Sacada del control semanal a mano (2026-08-19).
    *

@@ -409,3 +409,27 @@ export function espejoMonedaPrincipal(
   if (!principal) return { moneda: orden[0] ?? 'USD', precioUnitario: 0, subtotal: 0 };
   return { moneda: principal.moneda, precioUnitario: principal.precioUnitario, subtotal: principal.subtotal };
 }
+
+// ── Reservas de stock → OT / agenda (2026-09-09) ──────────────────────────
+
+/** "2× 5188-5367 Jeringa 100 µL (S/N 123) · 1× 01018-60025 Sello" — una línea legible por ingeniero. */
+export function resumenReservasStock(
+  unidades: { articuloCodigo?: string | null; articuloDescripcion?: string | null; nroSerie?: string | null; nroLote?: string | null; cantidad?: number | null }[],
+): string {
+  return unidades.map(u => {
+    const cant = u.cantidad ?? 1;
+    const id = u.nroSerie ? ` (S/N ${u.nroSerie})` : u.nroLote ? ` (lote ${u.nroLote})` : '';
+    return `${cant}× ${[u.articuloCodigo, u.articuloDescripcion].filter(Boolean).join(' ')}${id}`;
+  }).join(' · ');
+}
+
+/**
+ * Entre las OTs de un presupuesto, la que lleva la nota de reserva: la de
+ * número más bajo (primera visita / primer módulo). Una sola nota por
+ * presupuesto, no una por OT.
+ */
+export function otPortadoraDeReserva(otNumbers: string[]): string | null {
+  const validas = [...new Set(otNumbers.filter(Boolean))];
+  if (validas.length === 0) return null;
+  return validas.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))[0];
+}

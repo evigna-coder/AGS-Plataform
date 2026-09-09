@@ -32,6 +32,7 @@ const FILTER_SCHEMA = {
   estados: { type: 'string' as const, default: '' },
   /** Excluye los INCOMPLETO. Con estados='en_base' es el atajo "Disponibles". */
   soloCompletos: { type: 'boolean' as const, default: false },
+  sinOrigen: { type: 'boolean' as const, default: false },
   showInactivos: { type: 'boolean' as const, default: false },
 };
 
@@ -100,6 +101,7 @@ export function LoanersList() {
     const estadosSel = parseEstados(filters.estados);
     if (estadosSel.length > 0) result = result.filter(l => estadosSel.includes(l.estado));
     if (filters.soloCompletos) result = result.filter(l => !loanerEstaIncompleto(l));
+    if (filters.sinOrigen) result = result.filter(l => !l.origen);
     // Buscador unificado: código, descripción, categoría, tipo/modelo de módulo,
     // serie, estado, cliente del préstamo activo y proveedor de la derivación.
     if (filters.search.trim()) {
@@ -113,6 +115,7 @@ export function LoanersList() {
           prestamo?.clienteNombre,
           ...partes.map(p => `${quienTieneElPrestamo(p)} ${partesDelPrestamo(p).map(x => x.descripcion).join(' ')}`),
           l.enProveedor?.proveedorNombre, l.enProveedor?.remitoNumero,
+          l.origen?.proveedorNombre, l.origen?.clienteNombre, l.origen?.referencia,
         );
       });
     }
@@ -164,6 +167,7 @@ export function LoanersList() {
           onBusqChange={setBusq}
           estados={filters.estados}
           soloCompletos={filters.soloCompletos}
+          sinOrigen={filters.sinOrigen}
           showInactivos={filters.showInactivos}
           setFilter={setFilter as (key: string, value: string | boolean) => void}
           onReset={resetFilters}

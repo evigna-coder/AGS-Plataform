@@ -16,6 +16,7 @@ interface Props {
   /** CSV de estados; vacío = todos. */
   estados: string;
   soloCompletos: boolean;
+  sinOrigen: boolean;
   showInactivos: boolean;
   setFilter: (key: string, value: string | boolean) => void;
   onReset: () => void;
@@ -29,7 +30,7 @@ interface Props {
  * filtros distintos y "Disponibles" es el atajo que combina los dos.
  */
 export function LoanersFiltersBar({
-  busq, onBusqChange, estados, soloCompletos, showInactivos, setFilter, onReset,
+  busq, onBusqChange, estados, soloCompletos, sinOrigen, showInactivos, setFilter, onReset,
 }: Props) {
   const sel = parseEstados(estados);
 
@@ -80,6 +81,16 @@ export function LoanersFiltersBar({
           className="rounded border-slate-300"
         />
         Solo completos
+      </label>
+      <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer"
+        title="Loaners sin origen declarado (2026-09-09): para completar los que ya estaban cargados">
+        <input
+          type="checkbox"
+          checked={sinOrigen}
+          onChange={e => setFilter('sinOrigen', e.target.checked)}
+          className="rounded border-slate-300"
+        />
+        Sin origen
       </label>
       <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
         <input

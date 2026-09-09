@@ -4,9 +4,10 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { LoanerOrigenFields } from './LoanerOrigenFields';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from './LoanerCategoriaModuloPicker';
 import { LoanerArticuloPicker } from './LoanerArticuloPicker';
-import type { Articulo } from '@ags/shared';
+import type { Articulo, OrigenLoaner } from '@ags/shared';
 import { loanersService } from '../../services/firebaseService';
 import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 
@@ -34,6 +35,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
   const [serie, setSerie] = useState('');
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
+  const [origen, setOrigen] = useState<OrigenLoaner | null>(null);
   /**
    * Artículo del catálogo (2026-08-23). Se vinculaba recién AL VENDER, y por eso
    * el remito de préstamo salía sin número de parte: el loaner no tenía de dónde
@@ -60,7 +62,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
 
   const resetForm = () => {
     setDescripcion(''); setModulo(EMPTY_MODULO); setSerie('');
-    setCategoriaEquipo(''); setCondicion('Bueno'); setArticulo(null); setErrors({});
+    setCategoriaEquipo(''); setCondicion('Bueno'); setArticulo(null); setOrigen(null); setErrors({});
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -101,6 +103,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
         moduloDescripcion: modulo.moduloDescripcion,
         moduloMarca: modulo.moduloMarca,
         condicion: condicion.trim(),
+        origen,
         estado: 'en_base' as EstadoLoaner,
         prestamos: [],
         extracciones: [],
@@ -164,6 +167,11 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
             </div>
             <Input inputSize="sm" label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
           </div>
+        </div>
+        {/* Origen (2026-09-09): todo loaner viene de algún lado. */}
+        <div>
+          <h3 className="text-xs font-semibold text-slate-700 mb-3">Origen del equipo</h3>
+          <LoanerOrigenFields value={origen} onChange={setOrigen} size="sm" />
         </div>
       </div>
 

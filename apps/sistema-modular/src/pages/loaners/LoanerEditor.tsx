@@ -5,8 +5,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { LoanerOrigenFields } from '../../components/loaners/LoanerOrigenFields';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from '../../components/loaners/LoanerCategoriaModuloPicker';
-import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
+import type { Loaner, EstadoLoaner, CategoriaEquipoStock, OrigenLoaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 import { notify } from '../../utils/notify';
@@ -31,6 +32,7 @@ export function LoanerEditor() {
   const [serie, setSerie] = useState('');
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
+  const [origen, setOrigen] = useState<OrigenLoaner | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
@@ -51,6 +53,7 @@ export function LoanerEditor() {
       setSerie(l.serie || '');
       setCategoriaEquipo(l.categoriaEquipo || '');
       setCondicion(l.condicion);
+      setOrigen(l.origen ?? null);
     });
   }, [id, navigate]);
 
@@ -85,7 +88,10 @@ export function LoanerEditor() {
           return;
         }
       }
-      const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
+      // Solo identificación + origen. Al EDITAR no se tocan estado, préstamos,
+      // extracciones ni venta (2026-09-09): antes el editor los mandaba vacíos y
+      // guardar una corrección de serie borraba el historial y ponía "En base".
+      const identificacion = {
         descripcion: descripcionFinal.trim(),
         articuloId: articulo.id,
         articuloCodigo: articulo.codigo,
@@ -98,19 +104,25 @@ export function LoanerEditor() {
         moduloDescripcion: modulo.moduloDescripcion,
         moduloMarca: modulo.moduloMarca,
         condicion: condicion.trim(),
-        estado: 'en_base' as EstadoLoaner,
-        prestamos: [],
-        extracciones: [],
-        venta: null,
-        activo: true,
+        origen,
       };
 
       if (isEdit) {
-        await loanersService.update(id!, data);
-        navigate(`/loaners/${id}`);
+        await loanersService.update(id!, identificacion);
+        // replace: el editor no queda en el historial — "Volver" desde el
+        // detalle iba a parar a esta pantalla en vez de al listado (2026-09-09).
+        navigate(`/loaners/${id}`, { replace: true });
       } else {
+        const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
+          ...identificacion,
+          estado: 'en_base' as EstadoLoaner,
+          prestamos: [],
+          extracciones: [],
+          venta: null,
+          activo: true,
+        };
         const loanerId = await loanersService.create(data);
-        navigate(`/loaners/${loanerId}`);
+        navigate(`/loaners/${loanerId}`, { replace: true });
       }
     } catch (err) {
       console.error('Error guardando loaner:', err);
@@ -168,6 +180,10 @@ export function LoanerEditor() {
               </div>
               <Input label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
             </div>
+          </Card>
+          {/* Origen (2026-09-09): también para completar los loaners ya cargados. */}
+          <Card title="Origen del equipo" description="De dónde salió: compra a proveedor o cliente, canje, equipo propio.">
+            <LoanerOrigenFields value={origen} onChange={setOrigen} />
           </Card>
         </div>
       </div>
