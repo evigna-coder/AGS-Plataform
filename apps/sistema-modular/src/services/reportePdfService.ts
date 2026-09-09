@@ -22,7 +22,7 @@ import { PDFDocument } from 'pdf-lib';
 import { storage, uploadBytes } from './firebase';
 import { ordenesTrabajoService } from './otService';
 import { getCurrentUserTrace } from './currentUser';
-import type { DocumentoAdicionalReporte } from '@ags/shared';
+import type { DocumentoAdicionalReporte, WorkOrder } from '@ags/shared';
 
 // Candidatos donde puede vivir el PDF definitivo. El canónico (lo que escribe
 // reportes-ot) es `reports/${ot}/reporte.pdf`; el resto son fallbacks legacy.
@@ -199,7 +199,53 @@ async function appendDocumentToReportPdf(
   return { paginasAgregadas };
 }
 
+/**
+ * URL fresca del PDF del PROTOCOLO (2026-09-08), por el mismo motivo que el
+ * reporte: la guardada muere cuando el archivo se sobrescribe.
+ */
+async function resolveProtocoloPdf(ot: Pick<WorkOrder, 'protocolPdfUrl'>): Promise<ResolvedReportePdf | null> {
+  if (!ot.protocolPdfUrl) return null;
+  const path = storagePathFromDownloadUrl(ot.protocolPdfUrl);
+  if (!path) return { path: '', url: ot.protocolPdfUrl };
+  try {
+    return { path, url: await getDownloadURL(ref(storage, path)) };
+  } catch {
+    return { path, url: ot.protocolPdfUrl };
+  }
+}
+
+/**
+ * Reporte + protocolo en UN solo PDF (2026-09-08), para verlo o mandarlo de
+ * una. Se arma en memoria, no se guarda: los dos archivos siguen separados
+ * en Storage como los deja reportes-ot. Null si falta alguno de los dos.
+ */
+/** Bytes de un PDF resuelto: por Storage si hay path, si no por su URL. */
+async function bytesDePdf(r: ResolvedReportePdf): Promise<ArrayBuffer> {
+  return r.path ? getBytes(ref(storage, r.path), MAX_DOWNLOAD) : (await fetch(r.url)).arrayBuffer();
+}
+
+/** El PDF del reporte como Blob (para abrirlo con el visor del sistema en Electron). */
+async function blobDelReporte(otNumber: string): Promise<Blob | null> {
+  const r = await resolveReportePdf(otNumber);
+  if (!r) return null;
+  return new Blob([await bytesDePdf(r)], { type: 'application/pdf' });
+}
+
+async function mergeReporteYProtocolo(ot: Pick<WorkOrder, 'otNumber' | 'protocolPdfUrl'>): Promise<Blob | null> {
+  const [reporte, protocolo] = await Promise.all([resolveReportePdf(ot.otNumber), resolveProtocoloPdf(ot)]);
+  if (!reporte || !protocolo) return null;
+  const [a, b] = await Promise.all([bytesDePdf(reporte), bytesDePdf(protocolo)]);
+  const base = await PDFDocument.load(a);
+  const donor = await PDFDocument.load(b);
+  const pages = await base.copyPages(donor, donor.getPageIndices());
+  pages.forEach(pg => base.addPage(pg));
+  return new Blob([await base.save()], { type: 'application/pdf' });
+}
+
 export const reportePdfService = {
   resolveReportePdf,
+  resolveProtocoloPdf,
+  blobDelReporte,
+  mergeReporteYProtocolo,
   appendDocumentToReportPdf,
 };
