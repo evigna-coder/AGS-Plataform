@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTabs } from '../contexts/TabsContext';
 import { presupuestosService } from '../services/firebaseService';
-import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, PresupuestoSeccionesVisibles } from '@ags/shared';
+import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, PresupuestoSeccionesVisibles, Sistema } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import type { PresupuestoFormState, PresupuestoTotals } from './usePresupuestoEdit';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -19,6 +19,7 @@ interface UsePresupuestoActionsParams {
   calculateTotals: () => PresupuestoTotals;
   cliente: Cliente | null;
   establecimiento: Establecimiento | null;
+  sistema?: Sistema | null;
   contactos: (ContactoCliente | ContactoEstablecimiento)[];
   condicionesPago: CondicionPago[];
   categoriasPresupuesto: CategoriaPresupuesto[];
@@ -28,7 +29,7 @@ interface UsePresupuestoActionsParams {
 
 export function usePresupuestoActions({
   presupuestoId, form, setField, rawEstadoChange, save, calculateTotals,
-  cliente, establecimiento, contactos, condicionesPago, categoriasPresupuesto,
+  cliente, establecimiento, sistema, contactos, condicionesPago, categoriasPresupuesto,
   onClose, onUpdated,
 }: UsePresupuestoActionsParams) {
   const confirm = useConfirm();
@@ -147,6 +148,7 @@ export function usePresupuestoActions({
       updatedAt: new Date().toISOString(),
     };
     return {
+      sistema: sistema ?? null,
       presupuesto: presupuestoData,
       cliente,
       establecimiento,

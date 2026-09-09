@@ -70,7 +70,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const [requerimientosRefreshKey, setRequerimientosRefreshKey] = useState(0);
   const {
     form, setField, loading, saving,
-    cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
+    cliente, establecimiento, sistema, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
     clienteSistemas, clienteEstablecimientos, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
     save, load, updateItem, addItem, addItems, removeItem, removeItemsByGrupo, addAdjunto, removeAdjunto,
@@ -81,7 +81,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
 
   const actions = usePresupuestoActions({
     presupuestoId, form, setField, rawEstadoChange, save, calculateTotals,
-    cliente, establecimiento, contactos, condicionesPago, categoriasPresupuesto,
+    cliente, establecimiento, sistema, contactos, condicionesPago, categoriasPresupuesto,
     onClose, onUpdated,
   });
 

@@ -17,7 +17,7 @@ import { numberToWords, montosDeItem, totalesPorMonedaDeItems } from '@ags/share
 import { LOGO_SRC, ISO_LOGO_SRC } from './logos';
 import type {
   Presupuesto, Cliente, Establecimiento, ContactoEstablecimiento,
-  CondicionPago, CategoriaPresupuesto, ModuloSistema,
+  CondicionPago, CategoriaPresupuesto, ModuloSistema, Sistema,
 } from '@ags/shared';
 import type { PresupuestoPDFData } from './PresupuestoPDFEstandar';
 
@@ -28,6 +28,8 @@ export interface GeneratePDFParams {
   contacto: ContactoEstablecimiento | null;
   condicionPago: CondicionPago | null;
   categorias: CategoriaPresupuesto[];
+  /** Sistema de la cabecera (2026-09-09): respaldo del ID de equipo cuando los ítems no lo traen. */
+  sistema?: Sistema | null;
 }
 
 export interface BuildDataExtras {
@@ -123,6 +125,7 @@ export function buildPresupuestoPDFData(params: GeneratePDFParams, extras: Build
     cliente,
     establecimiento,
     contacto,
+    sistema: params.sistema ?? null,
     condicionPago,
     categorias,
     montoEnLetras,

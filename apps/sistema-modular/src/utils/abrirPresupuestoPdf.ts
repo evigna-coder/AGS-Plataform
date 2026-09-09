@@ -3,6 +3,7 @@ import {
   clientesService,
   contactosService,
   establecimientosService,
+  sistemasService,
   condicionesPagoService,
   categoriasPresupuestoService,
 } from '../services/firebaseService';
@@ -23,9 +24,10 @@ export async function abrirPresupuestoPdf(presupuestoId: string): Promise<void> 
   const p = await presupuestosService.getById(presupuestoId);
   if (!p) throw new Error('Presupuesto no encontrado');
 
-  const [cliente, establecimiento, contactos, condiciones, categorias] = await Promise.all([
+  const [cliente, establecimiento, sistema, contactos, condiciones, categorias] = await Promise.all([
     p.clienteId ? clientesService.getById(p.clienteId).catch(() => null) : Promise.resolve(null),
     p.establecimientoId ? establecimientosService.getById(p.establecimientoId).catch(() => null) : Promise.resolve(null),
+    p.sistemaId && !p.sistemaId.startsWith('__') ? sistemasService.getById(p.sistemaId).catch(() => null) : Promise.resolve(null),
     p.clienteId ? contactosService.getByCliente(p.clienteId).catch(() => []) : Promise.resolve([]),
     condicionesPagoService.getAll().catch(() => []),
     categoriasPresupuestoService.getAll().catch(() => []),
@@ -36,6 +38,7 @@ export async function abrirPresupuestoPdf(presupuestoId: string): Promise<void> 
     presupuesto: p,
     cliente,
     establecimiento,
+    sistema,
     contacto: (contactos.find((c: { id: string }) => c.id === p.contactoId) as any) || null,
     condicionPago: condiciones.find((c: { id: string }) => c.id === p.condicionPagoId) || null,
     categorias,

@@ -339,6 +339,10 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
       const itemsWithGrupos = form.items.map(item => ({
         ...item,
         grupo: item.sistemaId ? grupoMap.get(item.sistemaId) || 0 : 0,
+        // ID de equipo (2026-09-09): los ítems que llegaron sin código (portal,
+        // pptos viejos) lo toman del sistema del presupuesto al guardar.
+        sistemaCodigoInterno: item.sistemaCodigoInterno
+          || (item.sistemaId && sistema?.id === item.sistemaId ? sistema.codigoInternoCliente || null : null),
       }));
 
       await presupuestosService.update(presupuestoId, {
@@ -348,6 +352,10 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         // FALTABA (2026-08-11): estaba en el form pero no en el payload — el
         // establecimiento del presupuesto era inmutable de facto.
         establecimientoId: form.establecimientoId,
+        // FALTABAN también (2026-09-09): el contacto elegido en la cabecera y el
+        // sistema nunca se guardaban — el PDF desde la lista salía "Contacto: -".
+        contactoId: form.contactoId || null,
+        sistemaId: form.sistemaId || null,
         // `total` en Firestore = SIN impuestos (mismo criterio que la creación,
         // que guarda total: subtotal). El save del modal sumaba impuestos y los
         // contratos (items con categoría IVA) quedaban "con IVA" en la lista

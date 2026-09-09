@@ -16,6 +16,7 @@ import type {
   PresupuestoItem,
   ModuloSistema,
   VentasMetadata,
+  Sistema,
 } from '@ags/shared';
 
 export interface PresupuestoPDFData {
@@ -23,6 +24,8 @@ export interface PresupuestoPDFData {
   cliente: Cliente | null;
   establecimiento: Establecimiento | null;
   contacto: ContactoEstablecimiento | null;
+  /** Sistema de la cabecera del presupuesto (respaldo del ID de equipo). */
+  sistema?: Sistema | null;
   condicionPago: CondicionPago | null;
   categorias: CategoriaPresupuesto[];
   montoEnLetras: string;
@@ -230,7 +233,7 @@ export function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) 
  * la MISMA cabecera del presupuesto pasando esto en vez de todo el data:
  * antes cada uno dibujaba la suya y parecían de empresas distintas.
  */
-export type PDFCabeceraData = Pick<PresupuestoPDFData, 'cliente' | 'establecimiento' | 'contacto' | 'logoSrc' | 'isoLogoSrc'> & {
+export type PDFCabeceraData = Pick<PresupuestoPDFData, 'cliente' | 'establecimiento' | 'contacto' | 'sistema' | 'logoSrc' | 'isoLogoSrc'> & {
   presupuesto: Pick<Presupuesto, 'numero' | 'createdAt' | 'responsableNombre' | 'items'>;
 };
 
@@ -339,13 +342,21 @@ export function PDFClienteInfo({ data }: { data: PDFCabeceraData }) {
   // Equipo/Sistema vinculado: los items quedan estampados con sistemaNombre +
   // sistemaCodigoInterno al elegir el sistema en el header del presupuesto.
   // Deduplicamos por sistema para mostrarlo una sola vez en el encabezado.
+  // ID de equipo (2026-09-09): si el ítem no lo trae (portal, pptos viejos),
+  // sale del sistema de la cabecera cuando es el mismo. Y si ningún ítem
+  // nombra un sistema, se imprime el de la cabecera.
+  const sist = data.sistema ?? null;
   const sistemaMap = new Map<string, string>();
   for (const it of data.presupuesto.items) {
     if (!it.sistemaNombre) continue;
     const key = it.sistemaId || it.sistemaNombre;
+    const codigo = it.sistemaCodigoInterno || (sist && it.sistemaId === sist.id ? sist.codigoInternoCliente : null);
     if (!sistemaMap.has(key)) {
-      sistemaMap.set(key, `${it.sistemaNombre}${it.sistemaCodigoInterno ? ` (${it.sistemaCodigoInterno})` : ''}`);
+      sistemaMap.set(key, `${it.sistemaNombre}${codigo ? ` (${codigo})` : ''}`);
     }
+  }
+  if (sistemaMap.size === 0 && sist?.nombre) {
+    sistemaMap.set(sist.id, `${sist.nombre}${sist.codigoInternoCliente ? ` (${sist.codigoInternoCliente})` : ''}`);
   }
   const equipoStr = [...sistemaMap.values()].join('   ·   ');
 

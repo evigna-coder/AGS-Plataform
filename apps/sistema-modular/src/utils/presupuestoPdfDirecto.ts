@@ -2,6 +2,7 @@ import type { Presupuesto, PresupuestoItem, CategoriaPresupuesto, ContactoEstabl
 import {
   clientesService,
   establecimientosService,
+  sistemasService,
   contactosService,
   condicionesPagoService,
   categoriasPresupuestoService,
@@ -46,9 +47,10 @@ function computeTotalesConImpuestos(items: PresupuestoItem[], categorias: Catego
  * archivo "N° - Razón Social.pdf".
  */
 async function armarParamsPdf(p: Presupuesto) {
-  const [cliente, establecimiento, contactos, condiciones, categorias] = await Promise.all([
+  const [cliente, establecimiento, sistema, contactos, condiciones, categorias] = await Promise.all([
     p.clienteId ? clientesService.getById(p.clienteId).catch(() => null) : Promise.resolve(null),
     p.establecimientoId ? establecimientosService.getById(p.establecimientoId).catch(() => null) : Promise.resolve(null),
+    p.sistemaId && !p.sistemaId.startsWith('__') ? sistemasService.getById(p.sistemaId).catch(() => null) : Promise.resolve(null),
     p.clienteId ? contactosService.getByCliente(p.clienteId).catch(() => []) : Promise.resolve([]),
     condicionesPagoService.getAll().catch(() => []),
     categoriasPresupuestoService.getAll().catch(() => []),
@@ -68,6 +70,7 @@ async function armarParamsPdf(p: Presupuesto) {
     presupuesto: { ...p, subtotal, total },
     cliente,
     establecimiento,
+    sistema,
     contacto,
     condicionPago,
     categorias,
