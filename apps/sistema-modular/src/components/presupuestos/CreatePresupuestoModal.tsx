@@ -74,7 +74,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">Datos del presupuesto</p>
 
         <PresupuestoFormHeader form={h.form} setForm={h.setForm} condiciones={h.condiciones}
-          leadOptions={h.leadOptions} otOptions={h.otOptions}
+          leadOptions={h.leadOptions}
           onShowCrearLead={() => h.setShowCrearLead(true)} />
 
         <PresupuestoFormCliente form={h.form} setForm={h.setForm}

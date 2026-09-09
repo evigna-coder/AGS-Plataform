@@ -1,4 +1,5 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { VincularOTSelect } from './VincularOTSelect';
 import { BnaTipoCambioHint } from './BnaTipoCambioHint';
 import type { TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, CondicionPago, MonedaCuota } from '@ags/shared';
 import { MonedasMixtaPicker } from './MonedasMixtaPicker';
@@ -18,11 +19,10 @@ interface Props {
   setForm: React.Dispatch<React.SetStateAction<PresupuestoFormState>>;
   condiciones: CondicionPago[];
   leadOptions: { value: string; label: string }[];
-  otOptions: { value: string; label: string }[];
   onShowCrearLead: () => void;
 }
 
-export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condiciones, leadOptions, otOptions, onShowCrearLead }) => (
+export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condiciones, leadOptions, onShowCrearLead }) => (
   <>
     <div className="grid grid-cols-[1fr_1fr_1fr_70px_70px_1.5fr] gap-2.5">
       <div>
@@ -97,7 +97,25 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
       </div>
     )}
     {form.origenTipo === 'ot' && (
-      <div className="max-w-xs"><label className={lbl}>OT</label><SearchableSelect value={form.origenId} onChange={v => setForm(prev => ({ ...prev, origenId: v }))} options={otOptions} placeholder="Seleccionar OT..." /></div>
+      <div className="max-w-md">
+        {/* OTs ABIERTAS del cliente (2026-09-09): antes listaba las primeras 50 de
+            toda la base y el presupuesto quedaba sin ligar. Si todavía no hay
+            cliente, se puede elegir la OT y el cliente se completa desde ella. */}
+        <label className={lbl}>OT a vincular</label>
+        <VincularOTSelect
+          clienteId={form.clienteId || null}
+          value={form.origenId}
+          onChange={(v, ot) => setForm(prev => ({
+            ...prev,
+            origenId: v,
+            origenRef: ot ? `OT-${ot.otNumber}` : '',
+            clienteId: prev.clienteId || ot?.clienteId || prev.clienteId,
+            establecimientoId: prev.establecimientoId || ot?.establecimientoId || prev.establecimientoId,
+            sistemaId: prev.sistemaId || ot?.sistemaId || prev.sistemaId,
+          }))}
+        />
+        <p className="text-[10px] text-slate-400 mt-1">Al guardar, el presupuesto queda ligado a la OT y la OT lo levanta en el cierre.</p>
+      </div>
     )}
     {form.origenTipo === 'requerimiento_compra' && (
       <div className="max-w-xs"><label className={lbl}>Referencia</label><input className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs" value={form.origenRef} onChange={e => setForm(prev => ({ ...prev, origenRef: e.target.value }))} placeholder="Ej: SC-74001" /></div>

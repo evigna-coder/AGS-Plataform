@@ -106,6 +106,15 @@ const PIPELINE_ACTIVO = new Set(['enviado', 'pendiente_oc', 'aceptado', 'en_ejec
  *  2026-08-04: + pendiente_oc — es literalmente "el cliente nos debe la OC". */
 export const OC_ADEUDADA_ESTADOS = new Set(['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 
+/**
+ * Trabajo realizado sin respaldo (2026-09-09): cualquier estado ABIERTO, no
+ * solo los aceptados. Un pedido del portal nace en borrador y, si su OT ya
+ * cerró, la parte quedó instalada: hay que cotizarlo y mandarlo sí o sí. Antes
+ * ese caso no entraba en "Solo trabajo realizado" hasta que alguien lo
+ * aceptara (P2-005212-01).
+ */
+export const TRABAJO_REALIZADO_ESTADOS = new Set(['borrador', 'enviado', ...OC_ADEUDADA_ESTADOS]);
+
 /** OT con servicio realizado: cierre técnico o posterior. */
 const OT_CERRADA = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 
@@ -320,12 +329,30 @@ export function computeOCAdeudada(
   ots: OTMetricas[],
   now: Date,
 ): AgingResult<OCAdeudadaRow> {
+  return computeConTrabajo(pptos, ots, now, OC_ADEUDADA_ESTADOS);
+}
+
+/** Trabajo hecho sin respaldo, en cualquier estado abierto (ver `TRABAJO_REALIZADO_ESTADOS`). */
+export function computeTrabajoRealizado(
+  pptos: PresupuestoMetricas[],
+  ots: OTMetricas[],
+  now: Date,
+): AgingResult<OCAdeudadaRow> {
+  return computeConTrabajo(pptos, ots, now, TRABAJO_REALIZADO_ESTADOS);
+}
+
+function computeConTrabajo(
+  pptos: PresupuestoMetricas[],
+  ots: OTMetricas[],
+  now: Date,
+  estados: Set<string>,
+): AgingResult<OCAdeudadaRow> {
   const rows: OCAdeudadaRow[] = [];
 
   for (const p of pptos) {
-    // Candidatos: sin OC del cliente, estado aceptado o posterior, no anulados.
+    // Candidatos: sin OC del cliente, en uno de los estados pedidos, no anulados.
     // (anulado por revisión ⇒ estado 'anulado' ⇒ queda afuera por el mismo check).
-    if (!OC_ADEUDADA_ESTADOS.has(p.estado)) continue;
+    if (!estados.has(p.estado)) continue;
     if (tieneOCDelCliente(p)) continue;
     if (p.respaldoFacturacion === 'certificacion') continue; // no emite OC, certifica (2026-09-08)
 

@@ -32,6 +32,12 @@ export function usePresupuestoDashboardMetrics(
         && ((ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber)));
     });
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
+    // Enviados con la OT ya cerrada (2026-09-09): no se pueden dejar vencer.
+    const enviadosConTrabajo = enviados.filter(p => {
+      const vinculadas = new Set(p.otsVinculadasNumbers ?? []);
+      return ots.some(ot => OT_CERRADA_SET.has(ot.estadoAdmin ?? '')
+        && ((ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber)));
+    });
     // Solo los que siguen EN la etapa aceptado: los que ya arrancaron van a la
     // card "En ejecución" y contarlos acá duplicaba (2026-08-09).
     const aceptados = presupuestos.filter(p => presupuestoAceptadoVigente(p.estado));
@@ -159,6 +165,7 @@ export function usePresupuestoDashboardMetrics(
       montoEnEjecucion,
       borradores,
       borradoresConTrabajo,
+      enviadosConTrabajo,
     };
   }, [presupuestos, solicitudes, ots, todos]);
 }

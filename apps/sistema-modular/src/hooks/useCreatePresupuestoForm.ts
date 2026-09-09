@@ -111,7 +111,6 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [autoAppliedOnce, setAutoAppliedOnce] = useState(false);
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
   const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
-  const [otOptions, setOtOptions] = useState<{ value: string; label: string }[]>([]);
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [selectedPendienteIds, setSelectedPendienteIds] = useState<Set<string>>(new Set());
 
@@ -259,8 +258,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         const activos = leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
         setLeadsCache(activos);
       });
-    if (form.origenTipo === 'ot' && otOptions.length === 0)
-      ordenesTrabajoService.getAll().then(ots => setOtOptions(ots.slice(0, 50).map(ot => ({ value: ot.otNumber, label: `OT-${ot.otNumber} — ${ot.razonSocial || ''}` }))));
+    // Origen OT: el selector ahora es `VincularOTSelect` (OTs abiertas del
+    // cliente, 2026-09-09); acá ya no se carga la colección entera.
   }, [form.origenTipo]);
 
   // Build lead options filtered by selected cliente
@@ -481,7 +480,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     handleClose, handleSave, addItem, addItems, removeItem, removeItemsByGrupo, updateItem,
     sistemasPlan, setSistemasPlan,
     clientes, establecimientos, sistemasFiltrados, contactos,
-    categorias, condiciones, conceptos, leadOptions, otOptions,
+    categorias, condiciones, conceptos, leadOptions,
     showCrearLead, setShowCrearLead, reloadLeads,
     selectedPendienteIds, setSelectedPendienteIds,
   };

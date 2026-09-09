@@ -86,6 +86,12 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Enviados</p>
           <p className="text-sm font-black text-blue-600 leading-none">{metrics.enviadosTotal}</p>
         </div>
+        {metrics.enviadosConTrabajo.length > 0 && (
+          <p className="text-[9px] text-amber-700 font-semibold truncate"
+            title="Enviados cuya OT ya cerró: la parte quedó instalada, hay que conseguir la aceptación">
+            {metrics.enviadosConTrabajo.length} con trabajo hecho
+          </p>
+        )}
         {(metrics.enviadosSinRespuesta.length > 0 || metrics.enviadosVencidos.length > 0 || fmtPipeline(metrics.pipeline)) && (
           <div className="space-y-0 mt-0.5">
             {metrics.enviadosSinRespuesta.length > 0 && (

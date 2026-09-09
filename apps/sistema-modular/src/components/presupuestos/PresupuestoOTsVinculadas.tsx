@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTabs } from '../../contexts/TabsContext';
 import { cargarOTsDelPresupuesto } from '../../utils/otsDelPresupuestoFetch';
+import { ordenesTrabajoService } from '../../services/firebaseService';
+import { VincularOTSelect } from './VincularOTSelect';
+import { notify } from '../../utils/notify';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, type OTEstadoAdmin, type Presupuesto, type WorkOrder } from '@ags/shared';
 
@@ -11,6 +14,8 @@ interface Props {
   otVinculadaNumber?: string | null;
   /** Número del presupuesto — habilita el join por `budgets` de la OT. */
   presupuestoNumero?: string | null;
+  /** Cliente del presupuesto: habilita "Vincular OT" con sus OTs abiertas (2026-09-09). */
+  clienteId?: string | null;
 }
 
 /** dd/mm — la fecha en que se trabajó; si no hay, la coordinada; si no, el alta. */
@@ -36,7 +41,21 @@ function fechaCorta(ot: WorkOrder): string {
  * los PADRES que tienen hijas y heredando el vínculo a ellas — el padre es solo
  * un agrupador visual, el trabajo vive siempre en las `.NN`.
  */
-export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers, otVinculadaNumber, presupuestoNumero }) => {
+export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers, otVinculadaNumber, presupuestoNumero, clienteId }) => {
+  const [vinculando, setVinculando] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  /** Liga una OT abierta del cliente al presupuesto (las dos puntas, como desde la OT). */
+  const vincular = async (otNumber: string) => {
+    if (!otNumber || !presupuestoNumero) return;
+    setVinculando(true);
+    try {
+      await ordenesTrabajoService.vincularPresupuesto(otNumber, presupuestoNumero);
+      notify.success(`OT ${otNumber} vinculada al presupuesto ${presupuestoNumero}.`);
+      setReloadKey(k => k + 1);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'No se pudo vincular la OT');
+    } finally { setVinculando(false); }
+  };
   const { navigateInActiveTab } = useTabs();
   const [ots, setOts] = React.useState<WorkOrder[]>([]);
   const [cargando, setCargando] = React.useState(true);
@@ -62,7 +81,7 @@ export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers
       setCargando(false);
     })();
     return () => { cancelled = true; };
-  }, [presupuestoNumero, otVinculadaNumber, vinculadasKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [presupuestoNumero, otVinculadaNumber, vinculadasKey, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const numeros = React.useMemo(() => {
     const pres = {
@@ -79,9 +98,19 @@ export const PresupuestoOTsVinculadas: React.FC<Props> = ({ otsVinculadasNumbers
 
   return (
     <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/40">
-      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-mono">
-        Órdenes de trabajo{numeros.length > 0 && ` (${numeros.length})`}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[10px] uppercase tracking-wide text-slate-400 font-mono">
+          Órdenes de trabajo{numeros.length > 0 && ` (${numeros.length})`}
+        </span>
+        {/* Vincular a mano (2026-09-09): un presupuesto creado sin pasar por
+            la OT ni por el portal no quedaba ligado a nada. */}
+        {presupuestoNumero && (
+          <div className="w-72">
+            <VincularOTSelect clienteId={clienteId} excluir={numeros} value="" disabled={vinculando}
+              onChange={v => void vincular(v)} placeholder="Vincular una OT abierta…" />
+          </div>
+        )}
+      </div>
       {numeros.length === 0 ? (
         // Estado vacío EXPLÍCITO (2026-08-14): antes el bloque desaparecía y no
         // se distinguía "no tiene OT" de "todavía no cargó".

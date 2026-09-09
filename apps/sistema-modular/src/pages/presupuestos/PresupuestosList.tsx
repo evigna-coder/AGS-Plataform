@@ -40,7 +40,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { matchesSearch } from '../../utils/searchTerms';
-import { computeOCAdeudada, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
+import { computeTrabajoRealizado, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
 import { tieneOCAdjunta } from '../../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
@@ -324,35 +324,26 @@ export const PresupuestosList = () => {
 
   // Pptos SIN OC del cliente pero CON al menos una OT cerrada: el trabajo ya se
   // hizo y la OC se debe (UAT 2026-07-17 item 1). Mismo join que la analítica.
+  // Trabajo hecho sin respaldo, en CUALQUIER estado abierto (2026-09-09): el
+  // borrador del portal con la OT cerrada entra acá, no solo los aceptados.
   const trabajoRealizadoIds = useMemo(
-    () => new Set(computeOCAdeudada(presupuestos, otsCerradas, new Date()).rows.map(r => r.presupuesto.id)),
+    () => new Set(computeTrabajoRealizado(presupuestos, otsCerradas, new Date()).rows.map(r => r.presupuesto.id)),
     [presupuestos, otsCerradas],
   );
 
   /**
-   * Borradores que NO se pueden descartar (2026-08-19): el trabajo ya se hizo.
-   *
-   * Un pedido del portal nace en borrador, pero si su OT ya cerró significa que
-   * la parte quedó instalada — hay que cotizarlo y mandarlo sí o sí. Mezclado
-   * con los borradores descartables es indistinguible, y es plata que se pierde.
-   *
-   * Se DERIVA de la OT cerrada en vez de marcarse a mano: vale hacia atrás sin
-   * migrar nada y no se puede desincronizar. `computeOCAdeudada` hace este
-   * mismo join pero arranca en 'aceptado', asi que los borradores le quedan
-   * afuera.
+   * Sin enviar/aceptar pero con el trabajo hecho (2026-08-19; ampliado a
+   * 'enviado' 2026-09-09): NO se pueden descartar — la parte ya quedó
+   * instalada en el cliente. Es el mismo join que `trabajoRealizadoIds`,
+   * recortado a los estados previos a la aceptación, para el badge ámbar.
    */
-  const borradorConTrabajoIds = useMemo(() => {
-    const cerradasPorNumero = new Set(otsCerradas.map(o => o.otNumber));
+  const sinAceptarConTrabajoIds = useMemo(() => {
     const ids = new Set<string>();
     for (const p of presupuestos) {
-      if (p.estado !== 'borrador') continue;
-      const vinculadas = new Set(p.otsVinculadasNumbers ?? []);
-      const tieneCerrada = otsCerradas.some(ot =>
-        (ot.budgets ?? []).includes(p.numero) || vinculadas.has(ot.otNumber));
-      if (tieneCerrada || [...vinculadas].some(n => cerradasPorNumero.has(n))) ids.add(p.id);
+      if ((p.estado === 'borrador' || p.estado === 'enviado') && trabajoRealizadoIds.has(p.id)) ids.add(p.id);
     }
     return ids;
-  }, [presupuestos, otsCerradas]);
+  }, [presupuestos, trabajoRealizadoIds]);
 
   // Card 'A certificar' (2026-09-08): mismo cálculo que el dashboard, así número y filtro coinciden.
   const aCertificarIds = useMemo(() => computeACertificar(presupuestos, todasOts).ids, [presupuestos, todasOts]);
@@ -609,7 +600,7 @@ export const PresupuestosList = () => {
             OCs pendientes
           </label>
           <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer select-none"
-            title="Presupuestos sin OC del cliente pero con al menos una OT cerrada — el trabajo ya se realizó">
+            title="Presupuestos con al menos una OT cerrada y sin respaldo del cliente, en cualquier estado: borradores y enviados del portal incluidos — el trabajo ya se realizó">
             <input
               type="checkbox"
               checked={filters.ocTrabajoRealizado}
@@ -769,13 +760,15 @@ export const PresupuestosList = () => {
                               {ESTADO_PRESUPUESTO_LABELS[p.estado]}
                             </span>
                           )}
-                          {borradorConTrabajoIds.has(p.id) && (
+                          {sinAceptarConTrabajoIds.has(p.id) && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
-                              title="El trabajo ya se hizo (OT cerrada) y este presupuesto todavía no se cotizó ni se envió. NO se puede descartar: hay que cotizarlo y mandarlo.">
+                              title={p.estado === 'enviado'
+                                ? 'El trabajo ya se hizo (OT cerrada) y este presupuesto está enviado sin aceptar. NO se puede dejar vencer: hay que conseguir la aceptación.'
+                                : 'El trabajo ya se hizo (OT cerrada) y este presupuesto todavía no se cotizó ni se envió. NO se puede descartar: hay que cotizarlo y mandarlo.'}>
                               Trabajo hecho ⚠
                             </span>
                           )}
-                          {trabajoRealizadoIds.has(p.id) && (
+                          {trabajoRealizadoIds.has(p.id) && !sinAceptarConTrabajoIds.has(p.id) && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 cursor-help"
                               title="Pend. OC — trabajo realizado: el trabajo ya se hizo (OT cerrada) y el cliente todavía no mandó la orden de compra. Reclamar OC.">
                               OC ⚠

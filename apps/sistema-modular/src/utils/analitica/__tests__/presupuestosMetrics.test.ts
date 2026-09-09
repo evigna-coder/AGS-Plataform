@@ -20,6 +20,7 @@ import {
   computeSerieMensual,
   computeAgingEnviados,
   computeOCAdeudada,
+  computeTrabajoRealizado,
   getFechaCierreOT,
   type PresupuestoMetricas,
   type OTMetricas,
@@ -223,6 +224,18 @@ console.log('[M-10 fecha-cierre-fallbacks]');
   assert.equal(getFechaCierreOT(soloFechaCierre), '2026-06-01', 'fallback fechaCierre');
   assert.equal(getFechaCierreOT(ot({ otNumber: '30004' })), null, 'sin ninguna fecha → null');
   console.log('  ✓ M-10 fecha-cierre-fallbacks passed');
+}
+
+// ── computeTrabajoRealizado (2026-09-09) ─────────────────────────────────────
+{
+  const borrador = { id: 'b1', numero: 'P2-005212-01', estado: 'borrador', tipo: 'p2', moneda: 'USD', total: 100, items: [], clienteId: 'c',
+    responsableId: null, responsableNombre: null, fechaEnvio: null, fechaAceptacion: null, ordenesCompraIds: [], otsVinculadasNumbers: ['29936.01'], anuladoPorId: null } as any;
+  const otCerrada = { otNumber: '29936.01', budgets: ['P2-005212-01'], estadoAdmin: 'CIERRE_TECNICO', estadoHistorial: [], estadoAdminFecha: '2026-09-05', fechaCierre: '2026-09-05', cierreAdmin: undefined } as any;
+  const NOW2 = new Date('2026-09-09T12:00:00Z');
+  assert.equal(computeOCAdeudada([borrador], [otCerrada], NOW2).rows.length, 0, 'OC adeudada sigue sin contar borradores');
+  assert.equal(computeTrabajoRealizado([borrador], [otCerrada], NOW2).rows.length, 1, 'trabajo realizado cuenta el borrador con OT cerrada');
+  assert.equal(computeTrabajoRealizado([{ ...borrador, estado: 'anulado' }], [otCerrada], NOW2).rows.length, 0, 'anulado no cuenta');
+  assert.equal(computeTrabajoRealizado([borrador], [{ ...otCerrada, estadoAdmin: 'ASIGNADA' }], NOW2).rows.length, 0, 'OT abierta no cuenta');
 }
 
 // ── computeOCAdeudada ────────────────────────────────────────────────────────
