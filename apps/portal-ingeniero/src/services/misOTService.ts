@@ -433,12 +433,73 @@ export const misOTService = {
    *     se ocupa solo de equipos. leadsService.create auto-asigna al responsable
    *     configurado en adminConfig/flujos → responsablePorArea.admin_soporte.
    */
+  /**
+   * Sistema del cliente por su ID de equipo (código interno de la carátula)
+   * cuando la OT no lo tiene vinculado (2026-09-09). Sin esto el presupuesto
+   * salía sin ID de equipo.
+   */
+  async _resolverSistemaPorCodigo(ot: MisOTDoc): Promise<Sistema | null> {
+    const codigo = (ot.codigoInternoCliente ?? '').trim();
+    if (!codigo) return null;
+    const porDonde = ot.establecimientoId
+      ? where('establecimientoId', '==', ot.establecimientoId)
+      : ot.clienteId ? where('clienteId', '==', ot.clienteId) : null;
+    if (!porDonde) return null;
+    const snap = await getDocs(query(collection(db, 'sistemas'), porDonde, where('codigoInternoCliente', '==', codigo))).catch(() => null);
+    const d = snap?.docs[0];
+    return d ? ({ id: d.id, ...d.data() } as unknown as Sistema) : null;
+  },
+
+  /**
+   * Contacto de la OT → contacto del establecimiento o del cliente, por mail y
+   * si no por nombre; si no existe, se crea en el establecimiento (2026-09-09).
+   * El presupuesto nacía con `contactoId: null` y ventas tenía que buscar a
+   * mano nombre, mail y teléfono que el IST ya había cargado en la OT.
+   */
+  async _resolverContactoDeOT(ot: MisOTDoc): Promise<string | null> {
+    const nombre = (ot.contacto ?? '').trim();
+    const email = (ot.emailPrincipal ?? '').trim().toLowerCase();
+    if (!nombre && !email) return null;
+    const cols = [
+      ...(ot.establecimientoId ? [collection(db, 'establecimientos', ot.establecimientoId, 'contactos')] : []),
+      ...(ot.clienteId ? [collection(db, 'clientes', ot.clienteId, 'contactos')] : []),
+    ];
+    for (const col of cols) {
+      const snap = await getDocs(col).catch(() => null);
+      if (!snap) continue;
+      const porMail = email ? snap.docs.find(d => String(d.data().email ?? '').trim().toLowerCase() === email) : undefined;
+      const porNombre = nombre ? snap.docs.find(d => String(d.data().nombre ?? '').trim().toLowerCase() === nombre.toLowerCase()) : undefined;
+      const hit = porMail ?? porNombre;
+      if (hit) return hit.id;
+    }
+    if (cols.length === 0) return null;
+    const ref = await addDoc(cols[0], deepCleanForFirestore({
+      nombre: nombre || email,
+      cargo: '', sector: '', telefono: '', interno: '',
+      email: (ot.emailPrincipal ?? '').trim(),
+      esPrincipal: false,
+      ...(ot.establecimientoId ? { establecimientoId: ot.establecimientoId } : {}),
+      creadoDesde: `OT ${ot.otNumber} (portal)`,
+    }));
+    return ref.id;
+  },
+
   async solicitarPresupuesto(
     ot: MisOTDoc,
     sistema: Sistema | null,
     partes: ParteSolicitada[] = [],
   ): Promise<{ presupuestoId: string; numero: string }> {
     const numero = await this.getNextPresupuestoNumber();
+
+    // Contacto y equipo (2026-09-09): datos que el IST ya cargó en la OT y
+    // que ventas necesita para armar y mandar el presupuesto.
+    const sistemaResuelto = sistema ?? await this._resolverSistemaPorCodigo(ot);
+    const contactoId = await this._resolverContactoDeOT(ot).catch(err => {
+      console.warn('[solicitarPresupuesto] contacto no resuelto (no bloquea):', err);
+      return null;
+    });
+    const sistemaId = ot.sistemaId ?? sistemaResuelto?.id ?? null;
+    const sistemaCodigoInterno = sistemaResuelto?.codigoInternoCliente || ot.codigoInternoCliente || null;
 
     const items = partes.map(p => ({
       id: crypto.randomUUID(),
@@ -449,8 +510,9 @@ export const misOTService = {
       precioUnitario: 0,
       subtotal: 0,
       stockArticuloId: p.stockArticuloId ?? null,
-      sistemaId: ot.sistemaId ?? null,
-      sistemaNombre: sistema?.nombre || ot.sistema || null,
+      sistemaId,
+      sistemaNombre: sistemaResuelto?.nombre || ot.sistema || null,
+      sistemaCodigoInterno,
     }));
 
     // El IST siempre solicita partes para un servicio — el presupuesto nace
@@ -461,9 +523,9 @@ export const misOTService = {
       categoria: 'P2',
       moneda: 'USD',
       clienteId: ot.clienteId ?? null,
-      establecimientoId: ot.establecimientoId ?? sistema?.establecimientoId ?? null,
-      sistemaId: ot.sistemaId ?? null,
-      contactoId: null,
+      establecimientoId: ot.establecimientoId ?? sistemaResuelto?.establecimientoId ?? null,
+      sistemaId,
+      contactoId,
       origenTipo: 'ot',
       origenId: ot.otNumber,
       origenRef: `OT-${ot.otNumber}`,
