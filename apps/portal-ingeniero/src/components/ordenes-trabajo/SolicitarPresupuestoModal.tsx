@@ -1,33 +1,43 @@
 import { useEffect, useState } from 'react';
-import type { Sistema } from '@ags/shared';
+import type { Presupuesto, Sistema } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { SearchableSelect } from '../ui/SearchableSelect';
 import {
   misOTService,
   type MisOTDoc,
   type ParteSolicitada,
   type ArticuloStockOption,
 } from '../../services/misOTService';
+import { PartesSolicitadasEditor, ROW_VACIA, type ParteRow } from './PartesSolicitadasEditor';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   ot: MisOTDoc;
   sistema: Sistema | null;
+  /**
+   * Modo EDICIÓN (2026-09-10): presupuesto en borrador que nació de esta OT.
+   * Se precargan sus partes y al confirmar se actualizan los ítems en vez de
+   * crear uno nuevo. Null/ausente = alta.
+   */
+  presupuesto?: Presupuesto | null;
+  /** Edición guardada: el caller refresca lo vinculado a la OT. */
+  onSaved?: () => void;
 }
 
 type Step = 'confirm' | 'working' | 'done' | 'error';
 
-interface ParteRow {
-  /** id del artículo si vino del stock; null = número de parte tipeado a mano. */
-  articuloId: string | null;
-  numeroParte: string;
-  descripcion: string;
-  cantidad: string;
+/** Filas del editor a partir de los ítems de un presupuesto existente. */
+function rowsDePresupuesto(p: Presupuesto): ParteRow[] {
+  const rows = (p.items ?? []).map(it => ({
+    itemId: it.id,
+    articuloId: it.stockArticuloId ?? null,
+    numeroParte: it.codigoProducto || it.descripcion,
+    descripcion: it.descripcion,
+    cantidad: String(it.cantidad),
+  }));
+  return rows.length > 0 ? rows : [{ ...ROW_VACIA }];
 }
-
-const ROW_VACIA: ParteRow = { articuloId: null, numeroParte: '', descripcion: '', cantidad: '1' };
 
 /**
  * Flujo "Solicitar presupuesto" desde una OT:
@@ -35,8 +45,12 @@ const ROW_VACIA: ParteRow = { articuloId: null, numeroParte: '', descripcion: ''
  * cantidad → van como items sin precio al presupuesto, con descripción ya
  * cargada → confirma → número atómico + presupuesto borrador + ticket a
  * ventas → muestra el número PRE-XXXX.RR bien visible.
+ *
+ * Con `presupuesto` edita uno ya creado (mientras siga en borrador): agregar,
+ * quitar o cambiar cantidades. Los ítems que ventas ya cotizó conservan el precio.
  */
-export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }: Props) {
+export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema, presupuesto = null, onSaved }: Props) {
+  const editando = !!presupuesto;
   const [step, setStep] = useState<Step>('confirm');
   const [numero, setNumero] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -49,20 +63,14 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
       console.error('[SolicitarPresupuesto] articulos load failed:', err));
   }, [open, articulos.length]);
 
-  const reset = () => { setStep('confirm'); setNumero(''); setErrorMsg(''); setPartes([{ ...ROW_VACIA }]); };
-  const handleClose = () => { if (step !== 'working') { onClose(); reset(); } };
+  // Precarga al abrir en edición (o vuelve a una fila vacía en alta).
+  useEffect(() => {
+    if (!open) return;
+    setStep('confirm'); setNumero(''); setErrorMsg('');
+    setPartes(presupuesto ? rowsDePresupuesto(presupuesto) : [{ ...ROW_VACIA }]);
+  }, [open, presupuesto]);
 
-  const setParte = (idx: number, patch: Partial<ParteRow>) =>
-    setPartes(prev => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
-
-  // El buscador devuelve el id del artículo elegido, o el texto tipeado (creatable).
-  const handleParteChange = (idx: number, value: string) => {
-    const art = articulos.find(a => a.id === value);
-    if (art) setParte(idx, { articuloId: art.id, numeroParte: art.codigo, descripcion: art.descripcion });
-    else setParte(idx, { articuloId: null, numeroParte: value.trim(), descripcion: '' });
-  };
-
-  const articuloOptions = articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }));
+  const handleClose = () => { if (step !== 'working') onClose(); };
 
   // Cantidades FRACCIONARIAS (2026-08-13): se cotiza medio kit ("0,5") cuando
   // solo se usa una parte del contenido. Antes esto era `parseInt`, que
@@ -73,6 +81,7 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
   const partesLimpias: ParteSolicitada[] = partes
     .filter(p => p.numeroParte.trim())
     .map(p => ({
+      itemId: p.itemId,
       numeroParte: p.numeroParte.trim(),
       cantidad: aCantidad(p.cantidad),
       descripcion: p.descripcion || null,
@@ -83,8 +92,14 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
   async function handleConfirm() {
     setStep('working');
     try {
-      const res = await misOTService.solicitarPresupuesto(ot, sistema, partesLimpias);
-      setNumero(res.numero);
+      if (presupuesto) {
+        await misOTService.actualizarPartesPresupuesto(presupuesto, partesLimpias);
+        setNumero(presupuesto.numero);
+        onSaved?.();
+      } else {
+        const res = await misOTService.solicitarPresupuesto(ot, sistema, partesLimpias);
+        setNumero(res.numero);
+      }
       setStep('done');
     } catch (err) {
       console.error('[SolicitarPresupuesto] failed:', err);
@@ -94,19 +109,19 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
   }
 
   const equipoLabel = [sistema?.nombre || ot.sistema, sistema?.agsVisibleId].filter(Boolean).join(' · ');
-  const inputCls = 'border border-slate-300 rounded-lg px-2.5 py-2 text-sm bg-white text-slate-900 '
-    + 'placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500';
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Solicitar presupuesto"
+      title={editando ? `Editar presupuesto ${presupuesto!.numero}` : 'Solicitar presupuesto'}
       footer={
         step === 'confirm' ? (
           <>
             <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-            <Button onClick={handleConfirm} disabled={!partesValidas}>Generar presupuesto</Button>
+            <Button onClick={handleConfirm} disabled={!partesValidas}>
+              {editando ? 'Guardar cambios' : 'Generar presupuesto'}
+            </Button>
           </>
         ) : step === 'done' || step === 'error' ? (
           <Button onClick={handleClose}>Cerrar</Button>
@@ -115,95 +130,53 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
     >
       {step === 'confirm' && (
         <div className="space-y-3 text-sm text-slate-700">
-          <p>
-            Se va a crear un presupuesto <strong>en borrador</strong> vinculado a la
-            OT <span className="font-mono font-semibold">{ot.otNumber}</span> y un ticket
-            al encargado de presupuestos para ponerle precios y enviarlo.
-          </p>
+          {editando ? (
+            <p>
+              El presupuesto <span className="font-mono font-semibold">{presupuesto!.numero}</span> sigue
+              en borrador: podés agregar, quitar o cambiar cantidades. Las partes que ventas ya
+              cotizó conservan su precio.
+            </p>
+          ) : (
+            <p>
+              Se va a crear un presupuesto <strong>en borrador</strong> vinculado a la
+              OT <span className="font-mono font-semibold">{ot.otNumber}</span> y un ticket
+              al encargado de presupuestos para ponerle precios y enviarlo.
+            </p>
+          )}
           <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 space-y-1 text-xs">
             <p><span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 mr-2">Cliente</span>{ot.razonSocial || '—'}</p>
             <p><span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 mr-2">Equipo</span>{equipoLabel || '—'}</p>
             <p><span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 mr-2">Servicio</span>{ot.tipoServicio || '—'}</p>
           </div>
 
-          <div className="space-y-1.5">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Partes solicitadas</p>
-            {partes.map((p, idx) => {
-              // Fila con texto libre: opción sintética para que el select la muestre.
-              const rowOptions = !p.articuloId && p.numeroParte
-                ? [...articuloOptions, { value: p.numeroParte, label: `${p.numeroParte} (no está en stock)` }]
-                : articuloOptions;
-              return (
-                <div key={idx} className="flex items-center gap-1.5">
-                  <div className="flex-1 min-w-0">
-                    <SearchableSelect
-                      value={p.articuloId ?? p.numeroParte}
-                      onChange={v => handleParteChange(idx, v)}
-                      options={rowOptions}
-                      placeholder="Buscar por código o descripción…"
-                      emptyMessage="Sin resultados en stock"
-                      creatable
-                      createLabel="Usar N° de parte"
-                      inline
-                    />
-                  </div>
-                  <input
-                    className={`${inputCls} w-16 text-center`}
-                    type="number"
-                    // Fracciones de kit: 0,5 es una cantidad válida (2026-08-13).
-                    min={0}
-                    step="any"
-                    inputMode="decimal"
-                    placeholder="Cant."
-                    title="Se puede pedir una fracción, ej. 0,5 de un kit"
-                    value={p.cantidad}
-                    onChange={e => setParte(idx, { cantidad: e.target.value })}
-                  />
-                  {partes.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setPartes(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none"
-                      aria-label="Quitar parte"
-                    >×</button>
-                  )}
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setPartes(prev => [...prev, { ...ROW_VACIA }])}
-              className="text-teal-700 hover:text-teal-800 text-xs font-medium"
-            >+ Agregar otra parte</button>
-            <p className="text-[11px] text-slate-400">
-              Elegí del stock (queda código + descripción) o tipeá el N° de parte si no está.
-              Van al presupuesto como items sin precio; ventas los completa.
-            </p>
-          </div>
+          <PartesSolicitadasEditor partes={partes} onChange={setPartes} articulos={articulos} />
         </div>
       )}
 
       {step === 'working' && (
         <div className="py-6 text-center space-y-2">
           <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-slate-600">Generando presupuesto…</p>
+          <p className="text-sm text-slate-600">{editando ? 'Guardando cambios…' : 'Generando presupuesto…'}</p>
         </div>
       )}
 
       {step === 'done' && (
         <div className="py-4 text-center space-y-3">
-          <p className="text-sm text-slate-600">Se generó el presupuesto</p>
+          <p className="text-sm text-slate-600">{editando ? 'Se actualizó el presupuesto' : 'Se generó el presupuesto'}</p>
           <p className="font-mono text-3xl font-bold text-teal-800 tracking-tight">{numero}</p>
           <p className="text-xs text-slate-500">
-            Quedó en borrador, vinculado a la OT {ot.otNumber}. Se creó un ticket
-            al encargado de presupuestos para ponerle precios y enviarlo al cliente.
+            {editando
+              ? `Las partes quedaron actualizadas en el borrador vinculado a la OT ${ot.otNumber}. Ventas las ve al abrir el presupuesto.`
+              : `Quedó en borrador, vinculado a la OT ${ot.otNumber}. Se creó un ticket al encargado de presupuestos para ponerle precios y enviarlo al cliente.`}
           </p>
         </div>
       )}
 
       {step === 'error' && (
         <div className="py-3 space-y-2">
-          <p className="text-sm font-semibold text-red-700">No se pudo generar el presupuesto.</p>
+          <p className="text-sm font-semibold text-red-700">
+            {editando ? 'No se pudo guardar el presupuesto.' : 'No se pudo generar el presupuesto.'}
+          </p>
           <p className="text-xs text-slate-500 break-words">{errorMsg}</p>
           <p className="text-xs text-slate-500">Verificá la conexión y volvé a intentar.</p>
         </div>

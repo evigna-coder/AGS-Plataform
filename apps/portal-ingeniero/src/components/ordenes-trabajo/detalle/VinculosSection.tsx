@@ -2,8 +2,15 @@ import type { WorkOrder } from '@ags/shared';
 import type { PresupuestoVinculado, MaterialServicio, ReservaServicio } from '../../../hooks/useOTVinculos';
 import { GCard, FRow } from './atoms';
 
-/** Presupuestos vinculados (budgets[]) + OCs del cliente. */
-export function PresupuestoOCCard({ ot, presupuestos }: { ot: WorkOrder; presupuestos: PresupuestoVinculado[] }) {
+/**
+ * Presupuestos vinculados (budgets[]) + OCs del cliente. Con `onEditar`, los
+ * que siguen en borrador ofrecen editar sus partes desde el portal (2026-09-10).
+ */
+export function PresupuestoOCCard({ ot, presupuestos, onEditar }: {
+  ot: WorkOrder;
+  presupuestos: PresupuestoVinculado[];
+  onEditar?: (p: PresupuestoVinculado) => void;
+}) {
   // OCs cargadas directo en la OT (legacy + múltiples) que no estén ya via presupuesto
   const ocsPresupuestos = new Set(presupuestos.flatMap(p => p.ocNumeros));
   const ocsOT = [...(ot.ordenesCompra ?? []), ...(ot.ordenCompra ? [ot.ordenCompra] : [])]
@@ -18,6 +25,13 @@ export function PresupuestoOCCard({ ot, presupuestos }: { ot: WorkOrder; presupu
           <FRow k="Presupuesto">
             <span className="font-mono text-xs font-semibold text-teal-900">{p.numero}</span>
             {p.estado && <span className="ml-2 text-[11px] text-slate-500 capitalize">{p.estado.replace(/_/g, ' ')}</span>}
+            {onEditar && p.id && p.estado === 'borrador' && (
+              <button
+                type="button"
+                onClick={() => onEditar(p)}
+                className="ml-3 text-[11px] font-semibold text-teal-700 hover:text-teal-800 hover:underline"
+              >Editar partes</button>
+            )}
           </FRow>
           {p.ocNumeros.map(oc => <FRow key={oc} k="OC cliente" mono>{oc}</FRow>)}
         </div>

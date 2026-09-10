@@ -31,7 +31,7 @@ export interface ReservaServicio {
  * - materiales del servicio: items con stockArticuloId de esos presupuestos +
  *   unidades reservadas (reservadoParaPresupuestoId)
  */
-export function useOTVinculos(ot: (WorkOrder & { id?: string }) | null) {
+export function useOTVinculos(ot: (WorkOrder & { id?: string }) | null, refreshKey = 0) {
   const [pendientes, setPendientes] = useState<Pendiente[]>([]);
   const [presupuestos, setPresupuestos] = useState<PresupuestoVinculado[]>([]);
   const [materiales, setMateriales] = useState<MaterialServicio[]>([]);
@@ -106,7 +106,8 @@ export function useOTVinculos(ot: (WorkOrder & { id?: string }) | null) {
       console.warn('[useOTVinculos] failed:', err);
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [budgetsKey]);
+    // refreshKey: el caller lo incrementa cuando edita un presupuesto vinculado.
+  }, [budgetsKey, refreshKey]);
 
   return { pendientes, presupuestos, materiales, reservas, loading };
 }

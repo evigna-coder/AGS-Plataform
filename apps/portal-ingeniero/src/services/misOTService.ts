@@ -17,6 +17,8 @@ import type {
   WorkOrder,
   Pendiente,
   Presupuesto,
+  Posta,
+  TicketEstado,
   OrdenCompraCliente,
   UnidadStock,
   InstrumentoPatron,
@@ -26,7 +28,7 @@ import type {
 } from '@ags/shared';
 import { deepCleanForFirestore, findCategoriaIvaDefaultId } from '@ags/shared';
 import { db, leadsService, adminConfigService } from './firebaseService';
-import { getCreateTrace } from './currentUser';
+import { getCreateTrace, getUpdateTrace, getCurrentUser } from './currentUser';
 
 /** Estados administrativos terminales — una OT en estos estados no aparece en "Mis OT". */
 const ESTADOS_ADMIN_TERMINALES: OTEstadoAdmin[] = ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO'];
@@ -36,6 +38,8 @@ export type MisOTDoc = WorkOrder & { id: string };
 
 /** Parte declarada por el ingeniero al solicitar un presupuesto desde una OT. */
 export interface ParteSolicitada {
+  /** Ítem existente del presupuesto cuando se EDITA (conserva el precio cargado por ventas). */
+  itemId?: string | null;
   numeroParte: string;
   cantidad: number;
   /** Descripción del artículo cuando se eligió del stock (texto libre: null). */
@@ -625,5 +629,92 @@ export const misOTService = {
     } as unknown as Parameters<typeof leadsService.create>[0]);
 
     return { presupuestoId: presRef.id, numero };
+  },
+
+  /**
+   * Edición desde el portal (2026-09-10) de un presupuesto que nació de una OT
+   * y sigue en BORRADOR: el ingeniero agrega/quita partes o cambia cantidades.
+   *
+   * Los ítems que ya existen (por `itemId`) conservan lo que ventas cargó
+   * —precio, descuento, categoría— y solo cambian código, descripción,
+   * cantidad y artículo; el subtotal se recalcula. Los nuevos nacen sin precio
+   * como en el alta. Los que no vienen se quitan. Total = suma de subtotales,
+   * sin impuestos (criterio del sistema).
+   */
+  async actualizarPartesPresupuesto(presupuesto: Presupuesto, partes: ParteSolicitada[]): Promise<void> {
+    if (presupuesto.estado !== 'borrador') {
+      throw new Error(`El presupuesto ${presupuesto.numero} ya no está en borrador y no se puede editar desde el portal.`);
+    }
+    const existentes = new Map((presupuesto.items ?? []).map(it => [it.id, it]));
+    const base = presupuesto.items?.[0];
+    const items = partes.map(p => {
+      const prev = p.itemId ? existentes.get(p.itemId) : undefined;
+      const descripcion = p.descripcion || p.numeroParte;
+      if (prev) {
+        return {
+          ...prev,
+          codigoProducto: p.numeroParte,
+          descripcion,
+          cantidad: p.cantidad,
+          stockArticuloId: p.stockArticuloId ?? null,
+          subtotal: Math.round(p.cantidad * (prev.precioUnitario || 0) * (1 - (prev.descuento || 0) / 100) * 100) / 100,
+        };
+      }
+      return {
+        id: crypto.randomUUID(),
+        codigoProducto: p.numeroParte,
+        descripcion,
+        cantidad: p.cantidad,
+        unidad: 'unidad',
+        precioUnitario: 0,
+        subtotal: 0,
+        stockArticuloId: p.stockArticuloId ?? null,
+        // Mismo equipo y categoría (IVA) que el resto del presupuesto.
+        sistemaId: base?.sistemaId ?? presupuesto.sistemaId ?? null,
+        sistemaNombre: base?.sistemaNombre ?? null,
+        sistemaCodigoInterno: base?.sistemaCodigoInterno ?? null,
+        categoriaPresupuestoId: base?.categoriaPresupuestoId ?? null,
+      };
+    });
+    const subtotal = Math.round(items.reduce((s, it) => s + (it.subtotal || 0), 0) * 100) / 100;
+    await setDoc(doc(db, 'presupuestos', presupuesto.id), {
+      ...deepCleanForFirestore({ items, subtotal, total: subtotal, ...getUpdateTrace() }),
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+
+    // Constancia en el ticket de ventas (best-effort): quién editó y cómo
+    // quedaron las partes. Ventas lo ve en el historial del ticket sin tener
+    // que abrir el presupuesto y comparar.
+    try {
+      await this._avisarEdicionEnTicket(presupuesto, partes);
+    } catch (err) {
+      console.warn('[actualizarPartesPresupuesto] aviso al ticket falló (no bloquea):', err);
+    }
+  },
+
+  /** Posta de sistema en cada ticket que referencia al presupuesto editado. */
+  async _avisarEdicionEnTicket(presupuesto: Presupuesto, partes: ParteSolicitada[]): Promise<void> {
+    const snap = await getDocs(query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuesto.id)));
+    if (snap.empty) return;
+    const usuario = getCurrentUser();
+    const quien = usuario?.displayName || 'Un ingeniero';
+    const detalle = partes.map(p =>
+      `  · ${p.numeroParte}${p.descripcion ? ` (${p.descripcion})` : ''} × ${p.cantidad}`).join('\n');
+    await Promise.all(snap.docs.map(d => {
+      const lead = d.data() as { estado: TicketEstado; asignadoA?: string | null; asignadoNombre?: string | null };
+      const posta: Posta = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: usuario?.id ?? 'portal',
+        deUsuarioNombre: quien,
+        aUsuarioId: lead.asignadoA || usuario?.id || 'portal',
+        aUsuarioNombre: lead.asignadoNombre || quien,
+        estadoAnterior: lead.estado,
+        estadoNuevo: lead.estado,
+        evento: `${quien} editó las partes del presupuesto ${presupuesto.numero} desde el portal`,
+        comentario: `Partes actualizadas:\n${detalle}`,
+      };
+      return leadsService.agregarComentario(d.id, posta);
+    }));
   },
 };
