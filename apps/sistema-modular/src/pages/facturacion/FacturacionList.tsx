@@ -125,12 +125,26 @@ export const FacturacionList = () => {
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
 
-  // Summary cards
-  const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
-  const facturadas = solicitudes.filter(s => s.estado === 'facturada');
+  // Summary cards (2026-09-09): siguen a los filtros base (cliente, fechas,
+  // búsqueda) pero no al estado ni a "ver cerradas" — si no, Cobradas daría 0.
+  const baseCards = useMemo(() => solicitudes.filter(s => {
+    if (filters.cliente && s.clienteId !== filters.cliente) return false;
+    if (filters.fechaDesde && s.createdAt < filters.fechaDesde) return false;
+    if (filters.fechaHasta && s.createdAt > filters.fechaHasta + 'T23:59:59') return false;
+    if (filters.search.trim() && !matchesSearch(filters.search, s.presupuestoNumero, s.clienteNombre || clienteNombreById.get(s.clienteId), s.numeroFactura)) return false;
+    return true;
+  }), [solicitudes, filters.cliente, filters.fechaDesde, filters.fechaHasta, filters.search, clienteNombreById]);
+  const pendientes = baseCards.filter(s => s.estado === 'pendiente');
+  const facturadas = baseCards.filter(s => s.estado === 'facturada');
+  const cobradas = baseCards.filter(s => s.estado === 'cobrada');
   // Por moneda (2026-09-08): pesos y dólares se muestran separados, nunca sumados.
   const montoPendiente = fmtPorMoneda(sumarPorMoneda(pendientes));
   const montoFacturado = fmtPorMoneda(sumarPorMoneda(facturadas));
+  const montoCobrado = fmtPorMoneda(sumarPorMoneda(cobradas));
+  /** Click en una card = filtrar por ese estado (y volver con otro click). */
+  const toggleEstado = (estado: string) => setFilter('estado', filters.estado === estado ? '' : estado);
+  const cardCls = (estado: string) =>
+    `bg-white border rounded-lg px-3 py-2 text-left transition-colors ${filters.estado === estado ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'}`;
 
   const fmtDate = (iso: string) => {
     if (!iso) return '—';
@@ -204,20 +218,26 @@ export const FacturacionList = () => {
       </PageHeader>
 
       {/* KPI strip — mismo formato que PresupuestoDashboard */}
-      <div className="grid grid-cols-3 gap-2 px-5 pt-3 pb-3">
-        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+      <div className="grid grid-cols-4 gap-2 px-5 pt-3 pb-3">
+        <button type="button" className={cardCls('pendiente')} onClick={() => toggleEstado('pendiente')} title="Filtrar por pendientes de facturar">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pendientes</p>
           <p className="text-lg font-black text-amber-600">{pendientes.length}</p>
           <p className="text-[10px] text-slate-400 mt-1">{montoPendiente || '—'}</p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+        </button>
+        <button type="button" className={cardCls('facturada')} onClick={() => toggleEstado('facturada')} title="Filtrar por facturadas pendientes de cobro">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Facturadas</p>
           <p className="text-lg font-black text-blue-600">{facturadas.length}</p>
           <p className="text-[10px] text-slate-400 mt-1">{montoFacturado || '—'}</p>
-        </div>
+        </button>
+        {/* Cobradas (2026-09-09): faltaba la última etapa de la plata. */}
+        <button type="button" className={cardCls('cobrada')} onClick={() => toggleEstado('cobrada')} title="Filtrar por cobradas (están cerradas: se muestran igual al elegir la card)">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Cobradas</p>
+          <p className="text-lg font-black text-emerald-600">{cobradas.length}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{montoCobrado || '—'}</p>
+        </button>
         <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
           <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Total solicitudes</p>
-          <p className="text-lg font-black text-slate-700">{solicitudes.length}</p>
+          <p className="text-lg font-black text-slate-700">{baseCards.length}</p>
         </div>
       </div>
 

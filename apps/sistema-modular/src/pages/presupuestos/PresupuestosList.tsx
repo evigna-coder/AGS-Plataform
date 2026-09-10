@@ -272,7 +272,27 @@ export const PresupuestosList = () => {
       ? presupuestos.filter(p => p.tipo === 'contrato')
       : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')
   ), [presupuestos, filters.vista, filters.tipo]);
-  const idsDeLaVista = useMemo(() => new Set(pptosDeLaVista.map(p => p.id)), [pptosDeLaVista]);
+
+  /**
+   * Universo de las CARDS (2026-09-09): la solapa recortada por los filtros
+   * base —cliente, tipo, responsable, fechas, búsqueda—, pero NO por estado ni
+   * por la card activa (si no, la card elegida borraría a las demás). Antes las
+   * cards no cambiaban al filtrar por cliente, como pasaba en OTs.
+   */
+  const pptosDeLasCards = useMemo<Presupuesto[]>(() => {
+    const buscando = debouncedSearch.trim().length > 0;
+    return pptosDeLaVista.filter(p => {
+      if (filters.cliente && p.clienteId !== filters.cliente) return false;
+      if (filters.tipo && p.tipo !== filters.tipo) return false;
+      if (filters.responsable && p.responsableId !== filters.responsable) return false;
+      if (filters.fechaDesde && p.createdAt < filters.fechaDesde) return false;
+      if (filters.fechaHasta && p.createdAt > filters.fechaHasta + 'T23:59:59') return false;
+      if (buscando && !matchesSearch(debouncedSearch, p.numero, getClienteNombre(p.clienteId))) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pptosDeLaVista, filters.cliente, filters.tipo, filters.responsable, filters.fechaDesde, filters.fechaHasta, debouncedSearch, clientes]);
+  const idsDeLasCards = useMemo(() => new Set(pptosDeLasCards.map(p => p.id)), [pptosDeLasCards]);
 
   const otrosPresupuestosParaOC = useMemo<Presupuesto[]>(() => {
     if (!cargarOCTarget) return [];
@@ -619,13 +639,13 @@ export const PresupuestosList = () => {
           (2026-08-04): contratos (P5) viven en su solapa — la card decía "2
           aceptados" y la lista mostraba 1 porque el otro era un contrato. */}
       <PresupuestoDashboard
-        presupuestos={pptosDeLaVista}
+        presupuestos={pptosDeLasCards}
         // Las solicitudes TAMBIÉN se filtran por la pestaña (2026-08-11): iban
         // completas y las cards "Enviadas a facturación" / "Pend. cobro"
         // mezclaban la facturación de CONTRATOS con la comercial en ambas
         // solapas — con contratos abiertos con números ficticios, el monto de
         // las cards comerciales no cerraba con nada.
-        solicitudes={solicitudes.filter(s => idsDeLaVista.has(s.presupuestoId))}
+        solicitudes={solicitudes.filter(s => idsDeLasCards.has(s.presupuestoId))}
         presupuestosTodos={presupuestos}
         solicitudesTodas={solicitudes}
         ots={todasOts}
