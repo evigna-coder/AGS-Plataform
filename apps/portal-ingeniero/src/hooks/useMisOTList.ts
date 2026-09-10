@@ -42,6 +42,11 @@ export function useMisOTList(range: MisOTRange) {
   const isAdmin = hasRole('admin', 'admin_ing_soporte');
   const [showMine, setShowMine] = useState(false);
   const verTodas = isAdmin && !showMine;
+  // Finalizadas + buscador (2026-09-10): para encontrar una OT ya cerrada y
+  // reabrir el reporte desde el portal. Con "Finalizadas" activo el rango de
+  // fechas no aplica (se listan de la más reciente a la más vieja).
+  const [verFinalizadas, setVerFinalizadas] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const { ingenieroDocId, loaded: ingLoaded } = useIngenieroDocId(usuario?.id, usuario?.email);
   const [ots, setOts] = useState<MisOTDoc[]>([]);
   const [agenda, setAgenda] = useState<AgendaEntry[]>([]);
@@ -57,10 +62,15 @@ export function useMisOTList(range: MisOTRange) {
     setLoading(true);
     const onData = (data: MisOTDoc[]) => { setOts(data); setLoading(false); };
     const onErr = () => setLoading(false);
-    if (verTodas) return misOTService.subscribeTodasLasOTs(onData, onErr);
     const ids = [usuario.id, ingenieroDocId].filter((x): x is string => !!x);
+    if (verFinalizadas) {
+      return verTodas
+        ? misOTService.subscribeTodasFinalizadas(onData, onErr)
+        : misOTService.subscribeMisOTsFinalizadas(ids, onData, onErr);
+    }
+    if (verTodas) return misOTService.subscribeTodasLasOTs(onData, onErr);
     return misOTService.subscribeMisOTs(ids, onData, onErr);
-  }, [usuario?.id, ingenieroDocId, ingLoaded, verTodas]);
+  }, [usuario?.id, ingenieroDocId, ingLoaded, verTodas, verFinalizadas]);
 
   // Agenda: franjas horarias de las visitas (hoy → +60 días)
   useEffect(() => {
@@ -101,7 +111,13 @@ export function useMisOTList(range: MisOTRange) {
   // una OT de ayer titulada "Hoy" (UAT 2026-08-11).
   const groupedByDay = useMemo(() => {
     const weekEndStr = formatDate(addDays(today, 7));
+    const q = busqueda.trim().toLowerCase();
+    const coincide = (ot: MisOTDoc) => !q
+      || (ot.otNumber || '').toLowerCase().includes(q)
+      || (ot.razonSocial || '').toLowerCase().includes(q);
     const filtered = ots.filter(ot => {
+      if (!coincide(ot)) return false;
+      if (verFinalizadas) return true; // sin rango: se buscan por número o cliente
       const f = ot.fechaServicioAprox || '';
       if (range === 'hoy') return !!f && f <= todayStr;
       if (range === 'semana') return !!f && f <= weekEndStr;
@@ -116,12 +132,13 @@ export function useMisOTList(range: MisOTRange) {
       map.set(key, arr);
     }
     return Array.from(map.entries())
-      .sort((a, b) => (a[0] === 'sin-fecha' ? 1 : b[0] === 'sin-fecha' ? -1 : a[0].localeCompare(b[0])))
+      // Finalizadas: la más reciente primero.
+      .sort((a, b) => (a[0] === 'sin-fecha' ? 1 : b[0] === 'sin-fecha' ? -1 : verFinalizadas ? b[0].localeCompare(a[0]) : a[0].localeCompare(b[0])))
       .map(([day, items]) => ({
         day,
         items: items.sort((a, b) => (a.franja ?? 'ZZ').localeCompare(b.franja ?? 'ZZ') || a.ot.otNumber.localeCompare(b.ot.otNumber)),
       }));
-  }, [ots, range, todayStr, today, franjaByOt, pendCounts]);
+  }, [ots, range, todayStr, today, franjaByOt, pendCounts, verFinalizadas, busqueda]);
 
   const total = groupedByDay.reduce((s, g) => s + g.items.length, 0);
 
@@ -129,5 +146,7 @@ export function useMisOTList(range: MisOTRange) {
     groupedByDay, total, loading,
     isAdmin, showMine, verTodas,
     toggleShowMine: () => setShowMine(v => !v),
+    verFinalizadas, toggleFinalizadas: () => setVerFinalizadas(v => !v),
+    busqueda, setBusqueda,
   };
 }

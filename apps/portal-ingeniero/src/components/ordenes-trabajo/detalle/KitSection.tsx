@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { KitItem } from '../../../hooks/useKitIngeniero';
 import { GCard } from './atoms';
@@ -11,15 +12,30 @@ const TIPO_LABEL: Record<KitItem['tipo'], string> = {
   columna: 'Columna',
 };
 
+/**
+ * Lo que se ve de entrada (2026-09-10): instrumentos, patrones y minikits, que
+ * es lo que el ingeniero necesita chequear antes de ir al cliente (certificado,
+ * vencimiento, contenido del kit). Artículos sueltos, dispositivos y columnas
+ * quedan plegados detrás de "Ver más": la lista se hacía interminable.
+ */
+const TIPOS_VISIBLES: ReadonlySet<KitItem['tipo']> = new Set(['instrumento', 'patron', 'minikit']);
+
 /** "Asignado al ingeniero": instrumentos/patrones (con certificado), minikits, stock. */
 export function KitIngenieroCard({ items, loading }: { items: KitItem[]; loading: boolean }) {
+  const [verTodo, setVerTodo] = useState(false);
   if (!loading && items.length === 0) return null;
+  const principales = items.filter(i => TIPOS_VISIBLES.has(i.tipo));
+  const resto = items.filter(i => !TIPOS_VISIBLES.has(i.tipo));
+  const visibles = verTodo ? items : principales;
   return (
     <GCard label="Asignado al ingeniero">
       {loading && items.length === 0 && (
         <p className="text-xs text-slate-400 py-1">Cargando…</p>
       )}
-      {items.map((item, i) => (
+      {!loading && principales.length === 0 && !verTodo && (
+        <p className="text-xs text-slate-400 py-1">Sin instrumentos ni minikits asignados.</p>
+      )}
+      {visibles.map((item, i) => (
         <div key={i} className="flex items-center gap-2.5 py-1.5 border-b border-slate-200 last:border-b-0 min-h-[52px] text-[13.5px]">
           <div className="flex-1 min-w-0">
             <span className="text-slate-800">{item.nombre}</span>
@@ -57,6 +73,15 @@ export function KitIngenieroCard({ items, loading }: { items: KitItem[]; loading
           )}
         </div>
       ))}
+      {resto.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setVerTodo(v => !v)}
+          className="mt-1.5 min-h-[36px] w-full text-center font-mono text-[10px] font-semibold uppercase tracking-wider text-teal-700 hover:underline"
+        >
+          {verTodo ? 'Ver menos' : `Ver ${resto.length} más (artículos, dispositivos y columnas)`}
+        </button>
+      )}
     </GCard>
   );
 }

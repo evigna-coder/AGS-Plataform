@@ -28,7 +28,10 @@ function dayLabel(dayStr: string): string {
 export default function OTListPage() {
   const { usuario } = useAuth();
   const [range, setRange] = useState<MisOTRange>('hoy');
-  const { groupedByDay, loading, isAdmin, showMine, verTodas, toggleShowMine } = useMisOTList(range);
+  const {
+    groupedByDay, loading, isAdmin, showMine, verTodas, toggleShowMine,
+    verFinalizadas, toggleFinalizadas, busqueda, setBusqueda,
+  } = useMisOTList(range);
   const inicial = (usuario?.displayName || usuario?.email || '?').trim().charAt(0).toUpperCase();
   const fechaHoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 
@@ -61,15 +64,15 @@ export default function OTListPage() {
         </div>
       </div>
 
-      {/* Rango */}
-      <div className="shrink-0 bg-white border-b border-slate-100 px-4 py-2.5">
+      {/* Rango + finalizadas + buscador */}
+      <div className="shrink-0 bg-white border-b border-slate-100 px-4 py-2.5 space-y-2">
         <div className="flex gap-1.5 overflow-x-auto max-w-5xl mx-auto w-full">
           {RANGE_TABS.map(t => (
             <button
               key={t.value}
-              onClick={() => setRange(t.value)}
+              onClick={() => { if (verFinalizadas) toggleFinalizadas(); setRange(t.value); }}
               className={`shrink-0 px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-colors ${
-                range === t.value
+                !verFinalizadas && range === t.value
                   ? 'bg-teal-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -77,6 +80,24 @@ export default function OTListPage() {
               {t.label}
             </button>
           ))}
+          {/* Finalizadas (2026-09-10): para encontrar una OT cerrada y reabrir el reporte. */}
+          <button
+            onClick={toggleFinalizadas}
+            className={`shrink-0 px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-colors ${
+              verFinalizadas ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Finalizadas
+          </button>
+        </div>
+        <div className="max-w-5xl mx-auto w-full">
+          <input
+            type="search"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por N° de OT o cliente…"
+            className="w-full min-h-[36px] border border-slate-300 rounded-lg px-3 text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
         </div>
       </div>
 
@@ -87,7 +108,9 @@ export default function OTListPage() {
             <div className="flex justify-center py-12"><Spinner size="lg" /></div>
           ) : groupedByDay.length === 0 ? (
             <EmptyState message={
-              range === 'hoy'
+              verFinalizadas
+                ? (busqueda ? 'Ninguna OT finalizada coincide con la búsqueda' : 'No hay OTs finalizadas')
+                : range === 'hoy'
                 ? (verTodas ? 'No hay OTs para hoy' : 'No tenés OTs para hoy')
                 : range === 'semana'
                   ? 'Sin OTs esta semana'

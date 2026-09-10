@@ -9,6 +9,7 @@ import OTReporteTab from '../components/ordenes-trabajo/OTReporteTab';
 import OTFirmasTab from '../components/ordenes-trabajo/OTFirmasTab';
 import { PartesForm } from '../components/ordenes-trabajo/PartesForm';
 import SolicitarPresupuestoModal from '../components/ordenes-trabajo/SolicitarPresupuestoModal';
+import ReabrirReporteModal from '../components/ordenes-trabajo/ReabrirReporteModal';
 import { Spinner } from '../components/ui/Spinner';
 import { REPORTES_OT_URL } from '../utils/constants';
 import type { MisOTDoc } from '../services/misOTService';
@@ -28,6 +29,8 @@ export default function OTDetailPage() {
   const form = useOTForm(otNumber);
   const [tab, setTab] = useState<Tab>('detalle');
   const [solicitarOpen, setSolicitarOpen] = useState(false);
+  // Reabrir el reporte desde el portal (2026-09-10): el ingeniero en el cliente.
+  const [reabrirOpen, setReabrirOpen] = useState(false);
   const [accionesOpen, setAccionesOpen] = useState(false);
   const ot = form.ot as MisOTDoc & { problemaFallaInicial?: string; pdfUrl?: string | null } | null;
   const { sistema, modulos } = useSistemaContext(ot?.sistemaId);
@@ -106,6 +109,15 @@ export default function OTDetailPage() {
           >
             {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
           </a>
+          {form.readOnly && (
+            <button
+              onClick={() => setReabrirOpen(true)}
+              disabled={!ot}
+              className="min-h-[38px] px-4 rounded-xl border-[1.5px] border-amber-500 bg-white text-sm font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+            >
+              Reabrir reporte
+            </button>
+          )}
           <button
             onClick={() => setSolicitarOpen(true)}
             disabled={!ot}
@@ -127,6 +139,15 @@ export default function OTDetailPage() {
             >
               Solicitar presupuesto
             </button>
+            {form.readOnly && (
+              <button
+                onClick={() => { setReabrirOpen(true); setAccionesOpen(false); }}
+                disabled={!ot}
+                className="w-full min-h-[44px] px-3 rounded-xl border-[1.5px] border-amber-500 bg-white text-sm font-semibold text-amber-700 disabled:opacity-50"
+              >
+                Reabrir reporte
+              </button>
+            )}
             <a
               href={reporteHref}
               target="_blank"
@@ -164,6 +185,14 @@ export default function OTDetailPage() {
           onClose={() => setSolicitarOpen(false)}
           ot={ot}
           sistema={sistema}
+        />
+      )}
+      {ot && (
+        <ReabrirReporteModal
+          open={reabrirOpen}
+          ot={ot}
+          onClose={() => setReabrirOpen(false)}
+          onReabierto={() => { /* el form está suscripto: status vuelve a BORRADOR solo */ }}
         />
       )}
     </div>

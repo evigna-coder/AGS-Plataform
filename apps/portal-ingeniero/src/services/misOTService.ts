@@ -27,7 +27,9 @@ import type {
   OTEstadoAdmin,
 } from '@ags/shared';
 import { deepCleanForFirestore, findCategoriaIvaDefaultId } from '@ags/shared';
+import { reabrirOT, resguardarPdfsReapertura, anotarReaperturaEnTickets, buildTicketAvisoReaperturaTecnica } from '@ags/shared';
 import { db, leadsService, adminConfigService } from './firebaseService';
+import { storage } from './firebase';
 import { getCreateTrace, getUpdateTrace, getCurrentUser } from './currentUser';
 
 /** Estados administrativos terminales — una OT en estos estados no aparece en "Mis OT". */
@@ -35,6 +37,10 @@ const ESTADOS_ADMIN_TERMINALES: OTEstadoAdmin[] = ['CIERRE_TECNICO', 'CIERRE_ADM
 const ESTADOS_ADMIN_ACTIVOS: OTEstadoAdmin[] = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
 
 export type MisOTDoc = WorkOrder & { id: string };
+
+/** Reporte finalizado o con cierre posterior: lo que "Mis OT" oculta por defecto. */
+export const esFinalizada = (ot: MisOTDoc): boolean =>
+  ot.status === 'FINALIZADO' || (!!ot.estadoAdmin && ESTADOS_ADMIN_TERMINALES.includes(ot.estadoAdmin));
 
 /** Parte declarada por el ingeniero al solicitar un presupuesto desde una OT. */
 export interface ParteSolicitada {
@@ -191,6 +197,82 @@ export const misOTService = {
       console.error('[misOTService] reportes (todas) subscription error:', err);
       onError?.(err);
     });
+  },
+
+  /**
+   * OTs FINALIZADAS del ingeniero (2026-09-10): para buscar una ya cerrada y
+   * reabrir el reporte desde el portal. Misma query que las activas (por
+   * ingeniero, sin índice extra); el filtro es local.
+   */
+  subscribeMisOTsFinalizadas(
+    ids: string[],
+    callback: (ots: MisOTDoc[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    if (unique.length === 0) { callback([]); return () => {}; }
+    const q = unique.length === 1
+      ? query(collection(db, 'reportes'), where('ingenieroAsignadoId', '==', unique[0]))
+      : query(collection(db, 'reportes'), where('ingenieroAsignadoId', 'in', unique));
+    return onSnapshot(q, snap => {
+      const ots = snap.docs
+        .map(d => parseReporte(d.id, d.data() as Record<string, unknown>))
+        .filter(esFinalizada);
+      ots.sort((a, b) => (b.fechaServicioAprox || '').localeCompare(a.fechaServicioAprox || ''));
+      callback(sacarPadresConHijasLocal(ots));
+    }, err => {
+      console.error('[misOTService] reportes finalizadas subscription error:', err);
+      onError?.(err);
+    });
+  },
+
+  /**
+   * Vista admin: finalizadas de TODOS los ingenieros, acotadas a los últimos
+   * 120 días por `fechaServicioAprox` (rango de un solo campo: no requiere
+   * índice compuesto). El estado se filtra local.
+   */
+  subscribeTodasFinalizadas(
+    callback: (ots: MisOTDoc[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const desde = new Date(); desde.setDate(desde.getDate() - 120);
+    const p = (n: number) => String(n).padStart(2, '0');
+    const corte = `${desde.getFullYear()}-${p(desde.getMonth() + 1)}-${p(desde.getDate())}`;
+    const q = query(collection(db, 'reportes'), where('fechaServicioAprox', '>=', corte));
+    return onSnapshot(q, snap => {
+      const ots = snap.docs
+        .map(d => parseReporte(d.id, d.data() as Record<string, unknown>))
+        .filter(esFinalizada);
+      ots.sort((a, b) => (b.fechaServicioAprox || '').localeCompare(a.fechaServicioAprox || ''));
+      callback(sacarPadresConHijasLocal(ots));
+    }, err => {
+      console.error('[misOTService] reportes finalizadas (todas) subscription error:', err);
+      onError?.(err);
+    });
+  },
+
+  /**
+   * Reabrir el REPORTE TÉCNICO desde el portal (2026-09-10; diseño en
+   * .claude/plans/reapertura-ot.md). La transacción compartida vuelve la OT a
+   * En Curso / BORRADOR, borra la firma del cliente y resguarda el PDF. Después:
+   * ticket al ingeniero (avisar al cliente y volver a firmar) y postas en los
+   * tickets de la OT. El re-cierre administrativo lo hace sistema-modular.
+   */
+  async reabrirReporte(ot: MisOTDoc, motivo: string): Promise<void> {
+    const usuario = getCurrentUser();
+    const res = await reabrirOT(db, {
+      otNumber: ot.otNumber, nivel: 'tecnica', motivo,
+      actor: { uid: usuario?.id ?? '', nombre: usuario?.displayName ?? 'Ingeniero' },
+      origen: 'portal-ingeniero',
+    });
+    await resguardarPdfsReapertura(db, storage, ot.otNumber, res.pdfAnterior)
+      .catch(err => console.warn('[reabrirReporte] resguardo del PDF falló:', err));
+    if (res.ot.ingenieroAsignadoId) {
+      await leadsService.create(buildTicketAvisoReaperturaTecnica(res.ot, res.reapertura))
+        .catch(err => console.warn('[reabrirReporte] ticket al ingeniero falló:', err));
+    }
+    await anotarReaperturaEnTickets(db, ot.otNumber, res.reapertura)
+      .catch(err => console.warn('[reabrirReporte] postas en tickets fallaron:', err));
   },
 
   /** Tareas pendientes abiertas de un equipo (colección `pendientes`, equipoId = sistemaId). */
