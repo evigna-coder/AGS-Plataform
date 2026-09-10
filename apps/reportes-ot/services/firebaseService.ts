@@ -1158,6 +1158,14 @@ export class FirebaseService {
       const otSnap = await getDoc(doc(db, 'reportes', data.otNumber));
       if (otSnap.exists()) {
         const otData = otSnap.data();
+        // Idempotente por OT (2026-09-10): una OT REABIERTA vuelve a BORRADOR y
+        // al re-finalizar el guard `wasAlreadyFinalized` del hook no la reconoce
+        // → creaba un segundo ticket con las mismas acciones. El id del ticket
+        // queda estampado en el doc de la OT y no se crea otro.
+        if (typeof otData.ticketAccionesId === 'string' && otData.ticketAccionesId) {
+          console.log(`[createTicketFromAcciones] OT ${data.otNumber} ya tiene ticket ${otData.ticketAccionesId}; no se duplica`);
+          return otData.ticketAccionesId as string;
+        }
         clienteId = (otData.clienteId as string) || null;
         sistemaId = (otData.sistemaId as string) || null;
         // Fallback: si es item ("29397.01") sin clienteId/sistemaId propios, heredar del padre.
@@ -1258,6 +1266,9 @@ export class FirebaseService {
       createdAt: now,
       updatedAt: now,
     });
+    // Estampa para no duplicar en una re-finalización (ver guard de arriba). Best-effort.
+    await setDoc(doc(db, 'reportes', data.otNumber), { ticketAccionesId: docRef.id }, { merge: true })
+      .catch(err => console.warn('[createTicketFromAcciones] no se pudo estampar ticketAccionesId:', err));
     return docRef.id;
   }
 
