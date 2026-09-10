@@ -17,6 +17,8 @@ const TABS: { id: TabId; label: string }[] = [
 interface Props {
   h: ReturnType<typeof useEditOTForm>;
   otNumber: string;
+  /** La OT se reabrió desde el cierre: el modal se cierra y el listado refresca. */
+  onReabierta?: () => void;
 }
 
 /**
@@ -35,7 +37,7 @@ interface Props {
  * vive en useEditOTForm y desmontarlas re-dispararía los fetch de subcomponentes
  * (patrones consumidos, wizard de facturación).
  */
-export const EditOTCierreTabs: React.FC<Props> = ({ h, otNumber }) => {
+export const EditOTCierreTabs: React.FC<Props> = ({ h, otNumber, onReabierta }) => {
   const [tab, setTab] = useState<TabId>('cierre');
   const [reporteMounted, setReporteMounted] = useState(false);
 
@@ -67,7 +69,7 @@ export const EditOTCierreTabs: React.FC<Props> = ({ h, otNumber }) => {
           cierreAdmin={h.form.cierreAdmin}
           onChange={h.handleCierreChange}
           onConfirmarCierre={h.handleConfirmarCierre}
-          onReabrirOT={h.handleReabrirOT}
+          onReabierta={onReabierta}
           horasTrabajadas={h.form.horasTrabajadas}
           tiempoViaje={h.form.tiempoViaje}
           articulos={h.form.articulos}

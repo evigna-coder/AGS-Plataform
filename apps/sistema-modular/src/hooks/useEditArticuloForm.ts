@@ -101,6 +101,8 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     setForm(prev => ({ ...prev, kitComponentes: prev.kitComponentes.map((c, i) => i === idx ? { ...c, ...patch } : c) }));
   const removeKitComponente = (idx: number) =>
     setForm(prev => ({ ...prev, kitComponentes: prev.kitComponentes.filter((_, i) => i !== idx) }));
+  /** Reemplazo completo (rellenos automáticos de participación, 2026-09-10). */
+  const replaceKitComponentes = (kitComponentes: KitComponente[]) => setForm(prev => ({ ...prev, kitComponentes }));
 
   const handleClose = () => { onClose(); setForm(EMPTY_ARTICULO_FORM); setCodigoDupWarning(''); setComexOpen(false); };
 
@@ -116,7 +118,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     // Kit: descartar filas sin artículo o sin cantidad.
     const kitLimpio = form.kitComponentes
       .filter(c => c.articuloId && Number(c.cantidadPorKit) > 0)
-      .map(c => ({ ...c, cantidadPorKit: Number(c.cantidadPorKit) }));
+      .map(c => ({ ...c, cantidadPorKit: Number(c.cantidadPorKit), participacionPct: c.participacionPct == null ? null : Number(c.participacionPct) }));
     setSaving(true);
     try {
       await articulosService.update(articuloId, {
@@ -149,7 +151,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
     saving, loading, form, set, codigoDupWarning, comexOpen, setComexOpen,
     marcas, proveedores, toggleProveedor, updateTratamiento,
     addPresentacion, updatePresentacion, removePresentacion,
-    addKitComponente, updateKitComponente, removeKitComponente,
+    addKitComponente, updateKitComponente, removeKitComponente, replaceKitComponentes,
     handleClose, handleSave,
   };
 }

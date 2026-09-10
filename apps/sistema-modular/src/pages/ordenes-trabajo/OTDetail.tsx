@@ -5,6 +5,7 @@ import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
 import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection';
 import { OTCierreAdminSection } from '../../components/ordenes-trabajo/OTCierreAdminSection';
+import { ReabrirOTButton } from '../../components/ordenes-trabajo/ReabrirOTButton';
 import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { RemitoServicioModal } from '../../components/remitos/RemitoServicioModal';
@@ -200,6 +201,10 @@ export const OTDetail = () => {
                 </Button>
               </div>
             )}
+            {/* Cerrada técnicamente: reabrir el reporte con motivo (2026-09-10). */}
+            {ot.estadoAdmin === 'CIERRE_TECNICO' && (
+              <ReabrirOTButton otNumber={otNumber ?? ''} estadoAdmin={ot.estadoAdmin} variante="banner" />
+            )}
             <OTProtocolSection
               readOnly={ot.readOnlyTecnico}
               problemaFallaInicial={ot.problemaFallaInicial}
@@ -230,7 +235,6 @@ export const OTDetail = () => {
                 cierreAdmin={ot.cierreAdmin}
                 onChange={ot.handleCierreChange}
                 onConfirmarCierre={ot.handleConfirmarCierre}
-                onReabrirOT={ot.handleReabrirOT}
                 horasTrabajadas={ot.horasTrabajadas}
                 tiempoViaje={ot.tiempoViaje}
                 articulos={ot.articulos}

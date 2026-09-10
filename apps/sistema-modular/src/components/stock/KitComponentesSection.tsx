@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Articulo, KitComponente } from '@ags/shared';
 import { articulosService } from '../../services/firebaseService';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { rellenarParticipacion, validarParticipacion, type ModoRelleno } from '../../utils/kitProrrateo';
 
 interface Props {
   componentes: KitComponente[];
   onAdd: () => void;
   onUpdate: (idx: number, patch: Partial<KitComponente>) => void;
   onRemove: (idx: number) => void;
+  /** Reemplazo de toda la lista (rellenos automáticos de participación, 2026-09-10). */
+  onReplace?: (componentes: KitComponente[]) => void;
   /** Artículo que se está editando — se excluye del selector (un kit no se contiene a sí mismo). */
   articuloId?: string | null;
 }
@@ -22,7 +25,7 @@ const section = 'text-[9px] font-mono font-semibold text-teal-700/70 uppercase t
  * No confundir con Presentaciones (mismo producto en otro envase): acá son
  * artículos distintos, cada uno con su cantidad por kit.
  */
-export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onUpdate, onRemove, articuloId }) => {
+export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onUpdate, onRemove, onReplace, articuloId }) => {
   const [catalogo, setCatalogo] = useState<Articulo[]>([]);
   useEffect(() => {
     // Cacheado por serviceCache; el SearchableSelect capea el render a 50.
@@ -34,6 +37,14 @@ export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onU
       .filter(a => a.activo !== false && a.id !== articuloId)
       .map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
     [catalogo, articuloId]);
+
+  // Participación en el valor: suma 100. Los rellenos son un punto de partida
+  // que después se ajusta a mano.
+  const validez = validarParticipacion(componentes);
+  const ultimoCostoPorArticulo = useMemo(() =>
+    new Map(catalogo.filter(a => a.ultimoCostoImportacion != null).map(a => [a.id, a.ultimoCostoImportacion as number])),
+    [catalogo]);
+  const rellenar = (modo: ModoRelleno) => onReplace?.(rellenarParticipacion(componentes, modo, ultimoCostoPorArticulo));
 
   const selectArticulo = (idx: number, id: string) => {
     const art = catalogo.find(a => a.id === id);
@@ -47,13 +58,14 @@ export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onU
       <p className="text-[10px] text-slate-400">
         Artículos del catálogo en los que este kit se desarma. El kit ingresa y se compra como
         artículo normal; la explosión es la acción <span className="font-medium">"Explotar kit"</span> desde
-        la vista del artículo. Los componentes nacen sin costo (el costo queda en el kit).
+        la vista del artículo. Al explotar, cada componente hereda el factor del kit y recibe su
+        <span className="font-medium"> participación</span> del valor: la suma de los componentes es lo que costó el kit.
       </p>
 
       {componentes.length > 0 && (
         <div className="space-y-1.5">
           {componentes.map((c, idx) => (
-            <div key={idx} className="grid grid-cols-[2.6fr_0.7fr_auto] gap-2 items-end">
+            <div key={idx} className="grid grid-cols-[2.6fr_0.7fr_0.8fr_auto] gap-2 items-end">
               <div>
                 {idx === 0 && <label className={lbl}>Artículo componente</label>}
                 <SearchableSelect
@@ -71,6 +83,14 @@ export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onU
                   onChange={e => onUpdate(idx, { cantidadPorKit: Number(e.target.value) || 0 })}
                   className={`${inputCls} text-right tabular-nums`} />
               </div>
+              <div>
+                {idx === 0 && <label className={lbl}>% valor</label>}
+                <input type="number" min={0} max={100} step="0.01" value={c.participacionPct ?? ''}
+                  onFocus={e => e.currentTarget.select()}
+                  onChange={e => onUpdate(idx, { participacionPct: e.target.value === '' ? null : Number(e.target.value) })}
+                  placeholder="—"
+                  className={`${inputCls} text-right tabular-nums`} />
+              </div>
               <button type="button" onClick={() => onRemove(idx)}
                 className="text-slate-300 hover:text-red-500 text-base leading-none px-1 pb-1" title="Quitar">×</button>
             </div>
@@ -78,10 +98,26 @@ export const KitComponentesSection: React.FC<Props> = ({ componentes, onAdd, onU
         </div>
       )}
 
-      <button type="button" onClick={onAdd}
-        className="text-[11px] text-teal-700 font-medium hover:underline">
-        + Agregar componente
-      </button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button type="button" onClick={onAdd}
+          className="text-[11px] text-teal-700 font-medium hover:underline">
+          + Agregar componente
+        </button>
+        {componentes.length > 0 && onReplace && (
+          <span className="text-[10px] text-slate-500">
+            Repartir %:
+            <button type="button" onClick={() => rellenar('iguales')} className="ml-1.5 text-teal-700 hover:underline">iguales</button>
+            <button type="button" onClick={() => rellenar('por_cantidad')} className="ml-1.5 text-teal-700 hover:underline">por cantidad</button>
+            <button type="button" onClick={() => rellenar('por_costo')} className="ml-1.5 text-teal-700 hover:underline"
+              title="Proporcional al último costo de cada componente (precio suelto × cantidad). El total sigue siendo el del kit.">por costo</button>
+          </span>
+        )}
+        {componentes.length > 0 && (
+          validez.ok
+            ? <span className="text-[10px] text-slate-400">{validez.suma > 0 ? `Suma ${validez.suma}%` : 'Sin % cargado: se reparte por cantidad'}</span>
+            : <span className="text-[10px] text-red-600">{validez.motivo}</span>
+        )}
+      </div>
     </div>
   );
 };

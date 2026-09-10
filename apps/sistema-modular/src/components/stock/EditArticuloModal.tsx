@@ -205,6 +205,7 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           onAdd={h.addKitComponente}
           onUpdate={h.updateKitComponente}
           onRemove={h.removeKitComponente}
+          onReplace={h.replaceKitComponentes}
           articuloId={articuloId}
         />
 

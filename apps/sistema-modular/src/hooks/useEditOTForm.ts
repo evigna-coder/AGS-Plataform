@@ -329,36 +329,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     }
   };
 
-  // ── Reabrir OT (FINALIZADO → CIERRE_ADMINISTRATIVO) ──
-  const handleReabrirOT = async () => {
-    if (form.estadoAdmin !== 'FINALIZADO') return;
-    const ahora = new Date().toISOString();
-    const historialActualizado: OTEstadoHistorial[] = [
-      ...form.estadoHistorial,
-      { estado: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin, fecha: ahora },
-    ];
-    setSaving(true);
-    try {
-      await ordenesTrabajoService.update(otNumber, {
-        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
-        estadoAdminFecha: ahora,
-        estadoHistorial: historialActualizado,
-        status: 'BORRADOR',
-      } as Partial<WorkOrder>);
-      setForm(prev => ({
-        ...prev,
-        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
-        estadoAdminFecha: ahora,
-        estadoHistorial: historialActualizado,
-        status: 'BORRADOR',
-      }));
-    } catch (err) {
-      console.error('[useEditOTForm] handleReabrirOT failed:', err);
-      notify.error('Error al reabrir la OT');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Reabrir OT: vive en ReabrirOTButton/ReabrirOTModal → ordenesTrabajoService.reabrir (2026-09-10).
 
   const handleSave = async () => {
     if (!form.clienteId) { notify.warning('Seleccione un cliente'); return; }
@@ -578,6 +549,6 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
     establecimientosFiltrados, selectCliente,
     otOriginal, handleSave, openInReportesOT, handlePresupuestoChange,
-    handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre, handleReabrirOT,
+    handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre,
   };
 }

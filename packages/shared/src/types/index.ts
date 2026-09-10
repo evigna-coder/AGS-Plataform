@@ -92,12 +92,14 @@ export const OT_TRANSICIONES_VALIDAS: Record<OTEstadoAdmin, OTEstadoAdmin[]> = {
   COORDINADA: ['ASIGNADA', 'EN_CURSO', 'CANCELADA'],
   EN_CURSO: ['COORDINADA', 'CIERRE_TECNICO', 'CANCELADA'],
   CIERRE_TECNICO: ['EN_CURSO', 'CIERRE_ADMINISTRATIVO', 'CANCELADA'],
-  CIERRE_ADMINISTRATIVO: ['FINALIZADO'],
-  // Reabrir: FINALIZADO → CIERRE_ADMINISTRATIVO. Antes era terminal ([]) pero el botón
-  // "Reabrir OT" lo ofrecía igual y tiraba "transición inválida". Reabrir permite corregir
-  // el cierre (ej. materiales/stock que quedaron sin descontar). El re-finalizar re-corre la
-  // deducción, que es idempotente (guard stockDeducido).
-  FINALIZADO: ['CIERRE_ADMINISTRATIVO'],
+  // Reapertura (2026-09-10, ver services/reaperturaOT.ts): administrativa →
+  // CIERRE_TECNICO, técnica → EN_CURSO. Solo por `reabrirOT` (motivo obligatorio,
+  // registro en `reaperturas[]`, reglas de facturación). El re-cierre no
+  // duplica ticket/mail/presupuesto: se reconoce lo ya hecho por identidad.
+  CIERRE_ADMINISTRATIVO: ['FINALIZADO', 'CIERRE_TECNICO', 'EN_CURSO'],
+  // FINALIZADO → CIERRE_ADMINISTRATIVO era la reapertura vieja (sin registro ni
+  // reglas); se conserva para no romper cambios masivos, pero la UI usa reabrirOT.
+  FINALIZADO: ['CIERRE_ADMINISTRATIVO', 'CIERRE_TECNICO', 'EN_CURSO'],
   // Deshacer la baja: vuelve al principio del ciclo. No se restaura el estado
   // previo porque cancelar puede haber liberado agenda y vinculos.
   CANCELADA: ['CREADA'],
@@ -322,6 +324,19 @@ export interface WorkOrder {
   // del PDF previo (reversible). Ver reportePdfService.appendDocumentToReportPdf.
   documentosAdicionales?: DocumentoAdicionalReporte[];
   pdfActualizadoAt?: string;                // Última vez que se re-mergeó el PDF definitivo
+  /** Estampa de reportes-ot al subir el PDF; guard anti-pisado de esa app. Null tras reapertura técnica. */
+  pdfGeneratedAt?: string | null;
+  /** Firma del cliente desde el celular (Cloud Function onClientSignature). */
+  signedAt?: string | null;
+  signedFrom?: string | null;
+  clientSignatureNotified?: boolean | null;
+  // --- Reapertura (2026-09-10) — ver services/reaperturaOT.ts ---
+  /** Historial de reaperturas: quién, cuándo, por qué, nivel y avisos. */
+  reaperturas?: import('../services/reaperturaOT').ReaperturaOT[];
+  /** La OT ya estaba en una solicitud de facturación viva al reabrir: el re-cierre no la vuelve a ofrecer. */
+  facturacionBloqueada?: import('../services/reaperturaOT').FacturacionBloqueadaOT | null;
+  /** PDF del cierre anterior a una reapertura técnica (resguardado en Storage). */
+  pdfAnterior?: import('../services/reaperturaOT').PdfAnteriorOT | null;
 }
 
 /** Documento anexado al PDF definitivo de un reporte tras su finalización. */
@@ -387,6 +402,17 @@ export interface StockSelection {
   patronId?: string | null;
   /** Código natural del lote de patrón elegido (NO id). Driver de la deducción del lote. */
   patronLote?: string | null;
+  /**
+   * Deducción POR LÍNEA (2026-09-10, fase 2 de la reapertura de OT): cuándo
+   * salió del stock esta selección y con qué asientos. Sin `deducidoAt` la
+   * línea está pendiente y el cierre la descuenta; con él, no se toca (la
+   * reversión se hace por línea con contra-asiento). `deducidoLegacy` = OT
+   * cerrada antes de este registro, marcada como descontada por el flag global.
+   */
+  deducidoAt?: string | null;
+  cantidadDeducida?: number | null;
+  movimientoIds?: string[] | null;
+  deducidoLegacy?: boolean | null;
 }
 
 export interface CierreAdministrativo {
@@ -3836,6 +3862,13 @@ export interface KitComponente {
   articuloDescripcion: string;
   /** Unidades de este componente que contiene 1 kit (entero > 0). */
   cantidadPorKit: number;
+  /**
+   * Participación de este componente en el VALOR del kit, en % (2026-09-10).
+   * Todas suman 100. Al explotar, el costo de cada unidad componente = costo
+   * del kit × pct ÷ cantidadPorKit: la suma de los componentes es siempre lo
+   * que se pagó por el kit. Sin cargar, se reparte proporcional a la cantidad.
+   */
+  participacionPct?: number | null;
 }
 
 /**
@@ -4114,6 +4147,17 @@ export interface UnidadStock {
   costoUnitarioReal?: number | null;
   /** ISO del momento en que se confirmó el costeo definitivo. */
   costeoConfirmadoAt?: string | null;
+  /**
+   * Unidad nacida de la explosión de un kit (2026-09-10): de qué kit salió y
+   * con qué participación se le asignó el costo. Con esto la confirmación del
+   * costeo definitivo de la importación del kit también la alcanza.
+   */
+  origenKit?: {
+    articuloId: string;
+    articuloCodigo: string;
+    participacionPct: number;
+    cantidadPorKit: number;
+  } | null;
   observaciones?: string | null;
   /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
   ordenCompraNumero?: string | null;
@@ -4376,7 +4420,13 @@ export interface MovimientoStock {
    * el espejo contable de una venta de Loaner. Union widening puro: consumidores que sólo leen
    * `subtipo === 'conversion'` siguen funcionando (backwards-compat).
    */
-  subtipo?: 'conversion' | 'venta_loaner' | 'cierre_ot' | 'explosion_kit';
+  subtipo?: 'conversion' | 'venta_loaner' | 'cierre_ot' | 'explosion_kit' | 'reversion_cierre';
+  /**
+   * Contra-asiento de un consumo del cierre de OT (2026-09-10): id del
+   * movimiento que revierte. El libro es create-only, así que la reversión es
+   * un asiento nuevo; la vista de consumos netea por este campo.
+   */
+  revierteMovimientoId?: string | null;
   /**
    * Phase 15 — id del Loaner cuando subtipo='venta_loaner'.
    * Permite query "movimientos de venta de tal loaner". Null/omitido en movimientos no-venta-loaner.

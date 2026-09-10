@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { unidadesService } from '../../services/firebaseService';
+import { costeoKitConsumido, costoComponente, participacionEfectiva, validarParticipacion } from '../../utils/kitProrrateo';
 import { kitsService } from '../../services/kitsService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Articulo, UnidadStock, UbicacionStock } from '@ags/shared';
@@ -22,7 +23,8 @@ const inputCls = 'w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-x
 /**
  * Explotar kit (2026-08-25): consume N unidades del artículo-kit en una ubicación
  * y da de alta sus componentes (BOM del artículo) en la misma ubicación. Análogo
- * de DesagregarStockModal pero 1→N artículos distintos. Sin prorrateo de costo.
+ * de DesagregarStockModal pero 1→N artículos distintos. Los componentes heredan
+ * el factor del kit y reciben su participación del valor (utils/kitProrrateo).
  */
 export function ExplotarKitModal({ open, articulo, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
@@ -56,8 +58,18 @@ export function ExplotarKitModal({ open, articulo, onClose, onSuccess }: Props) 
 
   const seleccionada = posiciones.get(ubicacionKey) ?? null;
   const kits = Number(cantidad) || 0;
-  const bom = (articulo?.kitComponentes ?? []).filter(c => c.articuloId && c.cantidadPorKit > 0);
-  const canConfirm = !!seleccionada && Number.isInteger(kits) && kits >= 1 && kits <= (seleccionada?.cantidad ?? 0) && bom.length > 0;
+  const bomCrudo = (articulo?.kitComponentes ?? []).filter(c => c.articuloId && c.cantidadPorKit > 0);
+  const bom = participacionEfectiva(bomCrudo);
+  const validez = validarParticipacion(bomCrudo);
+  // Costo y factor promedio del kit disponible en la ubicación elegida: para
+  // mostrar cómo se reparte antes de confirmar (el service pondera lo que sale).
+  const costeoPreview = useMemo(() => {
+    if (!seleccionada) return null;
+    const enUbicacion = unidades.filter(u => u.estado === 'disponible' && u.activo !== false
+      && `${u.ubicacion.tipo}:${u.ubicacion.referenciaId}` === ubicacionKey);
+    return costeoKitConsumido(enUbicacion.map(u => [u, u.cantidad ?? 1]));
+  }, [unidades, seleccionada, ubicacionKey]);
+  const canConfirm = !!seleccionada && Number.isInteger(kits) && kits >= 1 && kits <= (seleccionada?.cantidad ?? 0) && bom.length > 0 && validez.ok;
 
   const confirmar = async () => {
     if (!articulo || !seleccionada || !canConfirm) return;
@@ -125,15 +137,22 @@ export function ExplotarKitModal({ open, articulo, onClose, onSuccess }: Props) 
               <p className="font-mono uppercase text-[10px] text-slate-500 mb-1">Resultado ({kits >= 1 ? kits : '…'} kit{kits !== 1 ? 's' : ''})</p>
               {bom.length === 0 ? (
                 <p className="text-amber-600">Este artículo no tiene componentes de kit cargados — editalos desde la ficha.</p>
-              ) : bom.map(c => (
-                <p key={c.articuloId}>
-                  <span className="font-mono font-semibold">{c.articuloCodigo}</span> ×{kits >= 1 ? c.cantidadPorKit * kits : c.cantidadPorKit}
-                  <span className="text-slate-400"> — {c.articuloDescripcion}</span>
-                </p>
-              ))}
+              ) : bom.map(c => {
+                const costo = costoComponente(costeoPreview?.costoUnitario, c.participacionPct, c.cantidadPorKit);
+                return (
+                  <p key={c.articuloId}>
+                    <span className="font-mono font-semibold">{c.articuloCodigo}</span> ×{kits >= 1 ? c.cantidadPorKit * kits : c.cantidadPorKit}
+                    <span className="text-slate-400"> — {c.articuloDescripcion}</span>
+                    <span className="text-slate-500"> · {c.participacionPct ?? 0}%{costo != null ? ` ≈ ${costeoPreview?.monedaCosto ?? 'USD'} ${costo.toLocaleString('es-AR')} c/u` : ''}</span>
+                  </p>
+                );
+              })}
+              {!validez.ok && <p className="text-red-600 mt-1">{validez.motivo} Corregilo en la ficha del artículo.</p>}
               <p className="text-[10px] text-slate-400 mt-1.5">
-                Los componentes nacen sin costo (el costo queda en el kit consumido). La acción no se deshace sola:
-                revisá cantidad y ubicación antes de confirmar.
+                {costeoPreview?.costoUnitario != null
+                  ? `Costo del kit ≈ ${costeoPreview.monedaCosto ?? 'USD'} ${costeoPreview.costoUnitario.toLocaleString('es-AR')}${costeoPreview.factorImportacion != null ? ` · factor ${costeoPreview.factorImportacion}` : ''}: los componentes heredan el factor y se reparten el valor según su %.`
+                  : 'El kit no tiene costo cargado: los componentes nacen sin costo.'}
+                {' '}La acción no se deshace sola: revisá cantidad y ubicación antes de confirmar.
               </p>
             </div>
           </>

@@ -1,6 +1,6 @@
 import type { RemitoItem, Minikit } from '@ags/shared';
 import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS } from '@ags/shared';
-import { minikitsService } from '../services/stockService';
+import { minikitsService, unidadesService } from '../services/stockService';
 import { instrumentosService } from '../services/catalogService';
 import { asignacionesService } from '../services/asignacionesService';
 import { esItemInstrumento } from './inventarioToRemitoItem';
@@ -51,14 +51,23 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
     items.filter(i => i.tipoEntidad === 'columna' && i.asignacionId && !i.columnaDescripcion)
       .map(i => i.asignacionId as string),
   )];
+  // Unidades de stock SIN serie en la línea (2026-09-10): los remitos armados
+  // desde el inventario del ingeniero se grabaron sin `serie` hasta hoy. Se
+  // completa desde el doc de la unidad para que las reimpresiones salgan bien.
+  const unidadIds = [...new Set(
+    items.filter(i => i.unidadId && !i.serie && !i.tipoEntidad?.match(/dispositivo|columna|minikit|instrumento/))
+      .map(i => i.unidadId as string),
+  )];
   if (minikitIds.length === 0 && minikitCodigos.length === 0
-    && instrumentoIds.length === 0 && columnaAsigIds.length === 0) return items;
+    && instrumentoIds.length === 0 && columnaAsigIds.length === 0 && unidadIds.length === 0) return items;
 
-  const [minikits, instrumentos, asignaciones] = await Promise.all([
+  const [minikits, instrumentos, asignaciones, unidadesDocs] = await Promise.all([
     Promise.all(minikitIds.map(id => minikitsService.getById(id).catch(() => null))),
     Promise.all(instrumentoIds.map(id => instrumentosService.getById(id).catch(() => null))),
     Promise.all(columnaAsigIds.map(id => asignacionesService.getById(id).catch(() => null))),
+    Promise.all(unidadIds.map(id => unidadesService.getById(id).catch(() => null))),
   ]);
+  const seriePorUnidad = new Map(unidadesDocs.filter(u => u?.nroSerie).map(u => [u!.id, u!.nroSerie as string]));
   /** asignacionItemId → datos de la columna, tomados de la asignación. */
   const columnaPorAsigItem = new Map<string, { codigo: string | null; descripcion: string | null; serie: string | null }>();
   for (const asg of asignaciones) {
@@ -83,6 +92,9 @@ export async function enriquecerItemsRemito(items: RemitoItem[]): Promise<Remito
   const instrumentoPorId = new Map(instrumentos.filter(Boolean).map(i => [i!.id, i!]));
 
   return items.map(item => {
+    if (item.unidadId && !item.serie && seriePorUnidad.has(item.unidadId)) {
+      item = { ...item, serie: seriePorUnidad.get(item.unidadId) ?? null };
+    }
     if (item.tipoEntidad === 'minikit' && !item.minikitDescripcion) {
       const mk = item.minikitId
         ? minikitPorId.get(item.minikitId)

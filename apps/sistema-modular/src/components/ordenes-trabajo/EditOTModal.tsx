@@ -9,6 +9,7 @@ import { OT_ESTADO_LABELS } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
 import { EditOTFormFields } from './EditOTFormFields';
 import { EditOTCierreTabs } from './EditOTCierreTabs';
+import { ReabrirOTButton } from './ReabrirOTButton';
 import { OTHistorialEstados } from './OTHistorialEstados';
 
 interface Props {
@@ -59,6 +60,10 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         >
           Remito servicio
         </Button>
+        {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.loading && (
+          <ReabrirOTButton otNumber={otNumber} estadoAdmin={h.form.estadoAdmin}
+            onReabierta={() => { onSaved?.(); onClose(); }} />
+        )}
         {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.readOnly && (
           <Button
             size="sm"
@@ -88,7 +93,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
           <p className="text-slate-400 text-sm">Cargando orden de trabajo...</p>
         </div>
       ) : showCierreAdmin ? (
-        <EditOTCierreTabs h={h} otNumber={otNumber} />
+        <EditOTCierreTabs h={h} otNumber={otNumber} onReabierta={() => { onSaved?.(); onClose(); }} />
       ) : (
         <div className="space-y-3">
           <EditOTEstadoBar form={h.form} set={h.set} readOnly={h.readOnly} />

@@ -58,7 +58,8 @@ const CostoFactorCell = ({ u }: { u: UnidadStock }) => {
 
 interface Props {
   units: UnidadStock[];
-  onAjustar: (u: UnidadStock) => void;
+  /** Una unidad o todas las tandas de la fila agrupada (el modal reparte el ajuste). */
+  onAjustar: (units: UnidadStock[]) => void;
   onMover?: (u: UnidadStock) => void;
   onLiberar?: (u: UnidadStock) => void;
   /** Liberar TODAS las unidades de un grupo unificado (una sola confirmación). */
@@ -114,8 +115,18 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
               {onLiberarGrupo && u.estado === 'reservado' && (
                 <button onClick={() => onLiberarGrupo(opts.grupo!.units)} className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-50">Liberar</button>
               )}
+              {/* Mover y Ajustar sobre la fila agrupada (2026-09-10): se opera
+                  el total y por debajo se reparte entre las tandas (mover toma
+                  FIFO del origen; ajustar reparte en el modal). Las tandas
+                  siguen existiendo con su costo — el chip es solo para verlas. */}
+              {onMover && u.estado === 'disponible' && (
+                <button onClick={() => onMover(u)} className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">Mover</button>
+              )}
+              {u.estado === 'disponible' && (
+                <button onClick={() => onAjustar(opts.grupo!.units)} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
+              )}
               <button onClick={() => toggle(opts.grupo!.key)}
-                title="Este renglón unifica varias tandas de ingreso idénticas — expandir para Mover/Ajustar una tanda puntual"
+                title="Este renglón unifica varias tandas de ingreso idénticas (cada una con su costo). Expandir para verlas u operar una puntual."
                 className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1.5 py-0.5 rounded hover:bg-slate-100">
                 {abiertos.has(opts.grupo!.key) ? '− tandas' : `×${opts.grupo!.units.length} tandas`}
               </button>
@@ -128,7 +139,7 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
               {onLiberar && u.estado === 'reservado' && (
                 <button onClick={() => onLiberar(u)} className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-50">Liberar</button>
               )}
-              <button onClick={() => onAjustar(u)} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
+              <button onClick={() => onAjustar([u])} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
             </>
           )}
         </td>

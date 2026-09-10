@@ -8,6 +8,8 @@ import { CierrePDFPreview } from './CierrePDFPreview';
 import { CierreFacturacionWizard } from './CierreFacturacionWizard';
 import { CierrePatronesConsumidosSection } from './CierrePatronesConsumidosSection';
 import { useOTFinalizable } from '../../hooks/useOTFinalizable';
+import { ReabrirOTButton } from './ReabrirOTButton';
+import { useRevertirConsumoCierre } from '../../hooks/useRevertirConsumoCierre';
 
 import { notify } from '../../utils/notify';
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
@@ -19,7 +21,8 @@ interface Props {
   cierreAdmin: CierreAdministrativo;
   onChange: (field: keyof CierreAdministrativo, value: any) => void;
   onConfirmarCierre: () => void;
-  onReabrirOT?: () => void;
+  /** Tras reabrir (modal propio): refrescar la OT si la vista no está suscripta. */
+  onReabierta?: () => void;
   horasTrabajadas: string;
   tiempoViaje: string;
   articulos: Part[];
@@ -42,7 +45,7 @@ interface Props {
 }
 
 export const OTCierreAdminSection: React.FC<Props> = ({
-  cierreAdmin, onChange, onConfirmarCierre, onReabrirOT,
+  cierreAdmin, onChange, onConfirmarCierre, onReabierta,
   horasTrabajadas, tiempoViaje, articulos, readOnly, estadoAdmin,
   razonSocial, tipoServicio, ingenieroNombre,
   otNumber, budgets, clienteId, clienteNombre,
@@ -51,6 +54,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
+  const handleRevertir = useRevertirConsumoCierre(otNumber, cierreAdmin, onChange); // reversión por línea (2026-09-10)
   const [showPreview, setShowPreview] = useState(false);
   const finalizable = useOTFinalizable(estadoAdmin, budgets);
 
@@ -157,7 +161,8 @@ export const OTCierreAdminSection: React.FC<Props> = ({
             selections={cierreAdmin.stockSelections || []}
             onChange={sels => onChange('stockSelections', sels)}
             disabled={disabled}
-          />
+              onRevertir={disabled ? undefined : handleRevertir}
+            />
         )}
 
         {/* PDF Preview */}
@@ -203,7 +208,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
               <p><span className="text-slate-400">Partes:</span> {articulos.length} items {cierreAdmin.stockDeducido ? '(stock deducido)' : '(stock NO deducido)'}</p>
               {cierreAdmin.notasCierre && <p><span className="text-slate-400">Notas:</span> {cierreAdmin.notasCierre}</p>}
             </div>
-            <p className="text-[10px] text-amber-700 italic">Esta acción es terminal — la OT no podrá editarse después de finalizar.</p>
+            <p className="text-[10px] text-amber-700 italic">Después de finalizar, la OT solo se puede volver a tocar reabriéndola con motivo (queda registrado).</p>
             <div className="flex gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={() => setShowPreview(false)} className="flex-1">Cancelar</Button>
               <Button size="sm" onClick={() => { setShowPreview(false); onConfirmarCierre(); }} className="flex-1">Sí, finalizar OT</Button>
@@ -237,14 +242,8 @@ export const OTCierreAdminSection: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Reabrir OT */}
-        {isClosed && onReabrirOT && (
-          <div className="border-t border-cyan-200 pt-3">
-            <Button size="sm" variant="outline" onClick={onReabrirOT} className="w-full text-amber-600 border-amber-300 hover:bg-amber-50">
-              Reabrir OT (volver a Cierre Administrativo)
-            </Button>
-          </div>
-        )}
+        {/* Reabrir OT (2026-09-10): motivo + nivel + registro — ver .claude/plans/reapertura-ot.md */}
+        {otNumber && <div className="border-t border-cyan-200 pt-3 flex justify-center"><ReabrirOTButton otNumber={otNumber} estadoAdmin={estadoAdmin} onReabierta={onReabierta} /></div>}
       </div>
     </Card>
   );

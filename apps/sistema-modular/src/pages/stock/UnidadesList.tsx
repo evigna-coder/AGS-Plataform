@@ -88,7 +88,8 @@ export const UnidadesList = () => {
       })
       .catch(err => console.error('Error cargando presentaciones:', err));
   }, []);
-  const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
+  // Una unidad o todas las tandas de una fila agrupada (2026-09-10).
+  const [ajustandoUnidades, setAjustandoUnidades] = useState<UnidadStock[] | null>(null);
   const [moverUnidad, setMoverUnidad] = useState<UnidadStock | null>(null);
   // El código del artículo abre el detalle en modal, no navega a la página
   // (2026-08-24): se consulta stock sin perder los filtros ni la fila abierta.
@@ -291,7 +292,7 @@ export const UnidadesList = () => {
         {isInitialLoad ? (
           <LoadingState message="Cargando unidades…" />
         ) : !vistaDetalle ? (
-          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} />
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidades} onMover={setMoverUnidad} onLiberar={u => void handleLiberar(u)} onLiberarGrupo={us => void handleLiberarGrupo(us)} onArticulo={setVerArticuloId} />
         ) : filtered.length === 0 ? (
           <EmptyState message="No se encontraron unidades" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
@@ -365,7 +366,7 @@ export const UnidadesList = () => {
                           {liberandoId === u.id ? 'Liberando…' : 'Liberar'}
                         </button>
                       )}
-                      <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
+                      <button onClick={e => { e.stopPropagation(); setAjustandoUnidades([u]); }}
                         className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
                     </td>
                   </tr>
@@ -375,8 +376,8 @@ export const UnidadesList = () => {
           </div>
         )}
       </div>
-      {ajustandoUnidad && (
-        <AjusteStockModal unidad={ajustandoUnidad} onClose={() => setAjustandoUnidad(null)} onSuccess={() => setAjustandoUnidad(null)} />
+      {ajustandoUnidades && (
+        <AjusteStockModal unidades={ajustandoUnidades} onClose={() => setAjustandoUnidades(null)} onSuccess={() => setAjustandoUnidades(null)} />
       )}
       <CreateMovimientoModal
         open={!!moverUnidad}

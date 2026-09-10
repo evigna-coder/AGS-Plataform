@@ -115,16 +115,23 @@ export function useConsumos(opts?: { enabled?: boolean }) {
     setLoading(true);
     (async () => {
       try {
-        const [consumos, egresos, asignaciones, cls, sis] = await Promise.all([
+        const [consumosCrudos, egresos, devoluciones, asignaciones, cls, sis] = await Promise.all([
           movimientosService.getAll({ tipo: 'consumo' }),
           movimientosService.getAll({ tipo: 'egreso' }),
+          movimientosService.getAll({ tipo: 'devolucion' }),
           asignacionesService.getAll(),
           clientesService.getAll(true),
           sistemasService.getAll(),
         ]);
         if (!alive) return;
 
-        const egresosOT = egresos.filter(m => !!m.otNumber && m.subtipo !== 'venta_loaner');
+        // Consumos REVERTIDOS (2026-09-10, reapertura de OT): el contra-asiento
+        // `reversion_cierre` apunta al consumo original; los dos salen de esta
+        // vista (el kardex los muestra igual — es el libro).
+        const revertidos = new Set(
+          devoluciones.filter(d => d.subtipo === 'reversion_cierre' && d.revierteMovimientoId).map(d => d.revierteMovimientoId as string));
+        const consumos = consumosCrudos.filter(m => !revertidos.has(m.id));
+        const egresosOT = egresos.filter(m => !!m.otNumber && m.subtipo !== 'venta_loaner' && !revertidos.has(m.id));
         const itemsConsumidos: ConsumoRow[] = [];
         for (const a of asignaciones) {
           if (a.estado === 'cancelada') continue;

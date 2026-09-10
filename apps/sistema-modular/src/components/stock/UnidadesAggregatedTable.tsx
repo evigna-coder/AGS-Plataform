@@ -25,7 +25,7 @@ const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider
 
 interface Props {
   rows: AggRow[];
-  onAjustar: (u: UnidadStock) => void;
+  onAjustar: (units: UnidadStock[]) => void;
   onMover?: (u: UnidadStock) => void;
   onLiberar?: (u: UnidadStock) => void;
   /** Liberar TODAS las unidades de un grupo unificado del desglose (una confirmación). */
@@ -104,7 +104,7 @@ const PromedioCell = ({ units }: { units: UnidadStock[] }) => {
   );
 };
 
-const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (u: UnidadStock) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void; onLiberarGrupo?: (units: UnidadStock[]) => void; onArticulo?: (articuloId: string) => void }) => (
+const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onLiberarGrupo, onArticulo }: { row: AggRow; isOpen: boolean; onToggle: () => void; onAjustar: (units: UnidadStock[]) => void; onMover?: (u: UnidadStock) => void; onLiberar?: (u: UnidadStock) => void; onLiberarGrupo?: (units: UnidadStock[]) => void; onArticulo?: (articuloId: string) => void }) => (
   <>
     <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={onToggle}>
       <td className="px-2 text-center text-slate-400">

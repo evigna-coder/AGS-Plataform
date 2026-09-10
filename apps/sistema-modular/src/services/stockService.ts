@@ -1,6 +1,8 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { runTransaction } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito } from '@ags/shared';
+import type { ResultadoDeduccionLinea } from '../utils/cierreStockLineas';
+import { costoComponente } from '../utils/kitProrrateo';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
@@ -502,7 +504,11 @@ export const unidadesService = {
     let actualizadas = 0, sinCosto = 0;
 
     for (const u of unidades) {
-      const costo = params.costoPorArticulo.get(u.articuloId);
+      // Unidad nacida de un kit de este embarque (2026-09-10): su costo real es
+      // el del kit × su participación ÷ cantidad por kit. Comparte el factor.
+      const costo = u.origenKit
+        ? costoComponente(params.costoPorArticulo.get(u.origenKit.articuloId), u.origenKit.participacionPct, u.origenKit.cantidadPorKit)
+        : params.costoPorArticulo.get(u.articuloId);
       if (costo == null) { sinCosto++; continue; }
       await this.update(u.id, {
         costoUnitarioReal: costo,
@@ -2743,7 +2749,20 @@ export const reservasService = {
      * stock intacto: nadie se enteraba hasta el inventario. Ahora suben al
      * cierre y terminan en las notas.
      */
-  }): Promise<{ deducidas: number; cubiertasPorReserva: number; fallos: string[] }> {
+  }): Promise<{ deducidas: number; cubiertasPorReserva: number; fallos: string[]; porSeleccion: ResultadoDeduccionLinea[] }> {
+    // Resultado POR SELECCIÓN (2026-09-10, fase 2 reapertura): los asientos que
+    // generó cada línea se detectan por diferencia de `movimientosStock` de la
+    // OT antes/después — los caminos de asignación y remito crean los
+    // movimientos varios niveles más abajo y no devuelven ids.
+    const porSeleccion: ResultadoDeduccionLinea[] = [];
+    const idsMovsOT = async () => new Set((await movimientosService.getAll({ otNumber: params.otNumber })).map(m => m.id));
+    let movsAntes = await idsMovsOT().catch(() => new Set<string>());
+    const cerrarLinea = async (indice: number, deducidasLinea: number, cubiertasLinea: number) => {
+      const ahora = await idsMovsOT().catch(() => movsAntes);
+      const nuevos = [...ahora].filter(id => !movsAntes.has(id));
+      movsAntes = ahora;
+      porSeleccion.push({ indice, deducidas: deducidasLinea, cubiertas: cubiertasLinea, movimientoIds: nuevos });
+    };
     // Pool de reservas de los pptos vinculados, para el dedupe I2. Best-effort: si la
     // lectura de un ppto falla, el dedupe queda parcial (peor caso = comportamiento previo).
     const unidadesReservadas = new Map<string, UnidadStock>();
@@ -2762,7 +2781,9 @@ export const reservasService = {
 
     let deducidas = 0;
     let cubiertasPorReserva = 0;
-    for (const selection of params.selections) {
+    for (const [indice, selection] of params.selections.entries()) {
+      const deducidasAntes = deducidas;
+      const cubiertasAntes = cubiertasPorReserva;
       // Caso 0a — origen ASIGNACIÓN en campo (2026-08-27): el material está en
       // poder de un ingeniero; se consume vía la asignación, que deja TODO
       // consistente de una: cantidadConsumida + OT en el ítem, unidad →
@@ -2781,6 +2802,7 @@ export const reservasService = {
           console.error(`[entregarSeleccionesCierre] consumo desde asignación ${selection.asignacionId} falló:`, err);
           fallos.push(`${selection.partCodigo ?? 'item'} desde asignación (${selection.origenNombre}): ${motivo}`);
         }
+        await cerrarLinea(indice, deducidas - deducidasAntes, cubiertasPorReserva - cubiertasAntes);
         continue;
       }
 
@@ -2799,6 +2821,7 @@ export const reservasService = {
           console.error(`[entregarSeleccionesCierre] consumo desde remito ${selection.remitoNumero ?? selection.remitoId} falló:`, err);
           fallos.push(`${selection.partCodigo ?? 'item'} desde remito ${selection.remitoNumero ?? selection.remitoId}: ${motivo}`);
         }
+        await cerrarLinea(indice, deducidas - deducidasAntes, cubiertasPorReserva - cubiertasAntes);
         continue;
       }
 
@@ -2824,6 +2847,7 @@ export const reservasService = {
         } catch (err) {
           console.error(`[entregarSeleccionesCierre] reserva ${reservada.id} no entregada:`, err);
         }
+        await cerrarLinea(indice, deducidas - deducidasAntes, cubiertasPorReserva - cubiertasAntes);
         continue;
       }
 
@@ -2837,7 +2861,7 @@ export const reservasService = {
           cubiertasPorReserva += cubiertas;
           const restante = (selection.cantidad ?? 1) - cubiertas;
           console.log(`[entregarSeleccionesCierre] ${selection.partCodigo}: ${cubiertas} u. ya reservadas por ppto vinculado — se deducen solo ${restante} adicionales`);
-          if (restante <= 0) continue;
+          if (restante <= 0) { await cerrarLinea(indice, 0, cubiertas); continue; }
           sel = { ...selection, cantidad: restante };
         }
       }
@@ -2857,8 +2881,9 @@ export const reservasService = {
       if (r.deducidas < pedidas) {
         fallos.push(`${selection.partCodigo ?? 'item'}: ${pedidas - r.deducidas} u. sin descontar — sin disponible en ${selection.origenNombre || 'la ubicación elegida'}`);
       }
+      await cerrarLinea(indice, deducidas - deducidasAntes, cubiertasPorReserva - cubiertasAntes);
     }
-    return { deducidas, cubiertasPorReserva, fallos };
+    return { deducidas, cubiertasPorReserva, fallos, porSeleccion };
   },
 
   /**

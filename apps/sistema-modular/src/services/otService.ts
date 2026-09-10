@@ -2,7 +2,11 @@ import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, ord
 import { updateDoc, runTransaction } from './firebase';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS, presupuestoEstaAceptado } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
+import {
+  reabrirOT, resguardarPdfsReapertura, anotarReaperturaEnTickets, buildTicketAvisoReaperturaTecnica, solicitudesVivasDeOT,
+  type NivelReapertura, type Posta,
+} from '@ags/shared';
+import { db, storage, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
@@ -14,6 +18,7 @@ import { fichasService } from './fichasService';
 import { reservasService, remitosService } from './stockService';
 import { loanersService } from './loanersService';
 import { OT_ESTADOS_CIERRE_TECNICO_PLUS } from '@ags/shared';
+import { seleccionesPendientesDeDeduccion, marcarSeleccionesDeducidas, todasDeducidas } from '../utils/cierreStockLineas';
 
 /**
  * FLOW-04: build a minimal plaintext body for the cierre_admin_ot mailQueue doc.
@@ -459,7 +464,7 @@ export const ordenesTrabajoService = {
    *
    * No hace nada si `otNumber` no es una hija o si el padre no existe.
    */
-  async sincronizarPadreConHijas(otNumber: string): Promise<OTEstadoAdmin | null> {
+  async sincronizarPadreConHijas(otNumber: string, opts?: { permitirRetroceso?: boolean }): Promise<OTEstadoAdmin | null> {
     if (!otNumber.includes('.')) return null;
     const padreNum = otNumber.split('.')[0];
     const padre = await this.getByOtNumber(padreNum);
@@ -483,7 +488,10 @@ export const ordenesTrabajoService = {
     const objetivo = ORDEN[menor];
     const actualIdx = ORDEN.indexOf((padre.estadoAdmin ?? 'CREADA') as OTEstadoAdmin);
     // Solo hacia adelante: si el padre ya está igual o más avanzado, no se toca.
-    if (actualIdx >= menor) return null;
+    // Excepción (2026-09-10): una REAPERTURA de hija pide retroceso explícito,
+    // si no el padre queda "finalizado" con una hija en curso.
+    if (actualIdx === menor) return null;
+    if (actualIdx > menor && !opts?.permitirRetroceso) return null;
 
     await updateDoc(docRef('reportes', padreNum), deepCleanForFirestore({
       estadoAdmin: objetivo,
@@ -1571,6 +1579,45 @@ export const ordenesTrabajoService = {
    * @returns `{ adminTicketId, mailQueueId, pptosNotificados }` — pptosNotificados
    *   son los IDs de presupuestos que recibieron el otNumber en otsListasParaFacturar.
    */
+  /**
+   * Reapertura de OT (2026-09-10) — diseño en .claude/plans/reapertura-ot.md;
+   * la transacción (estado, historial, presupuestos, PDF/firma en la técnica)
+   * vive en @ags/shared `reabrirOT` porque el portal también reabre. Acá van los
+   * efectos best-effort: resguardo del PDF, ticket al ingeniero (técnica), postas
+   * en los tickets de la OT, padre, esquema de cuotas y evento.
+   */
+  async reabrir(otNumber: string, opts: { nivel: NivelReapertura; motivo: string }): Promise<void> {
+    const trace = getCurrentUserTrace();
+    const res = await reabrirOT(db, {
+      otNumber, nivel: opts.nivel, motivo: opts.motivo,
+      actor: { uid: trace?.uid ?? '', nombre: trace?.name ?? 'Sistema' },
+      origen: 'sistema-modular',
+    });
+    if (opts.nivel === 'tecnica') {
+      await resguardarPdfsReapertura(db, storage, otNumber, res.pdfAnterior)
+        .catch(err => console.warn('[reabrir] resguardo del PDF falló:', err));
+      if (res.ot.ingenieroAsignadoId) {
+        await leadsService.create(buildTicketAvisoReaperturaTecnica(res.ot, res.reapertura))
+          .catch(err => console.warn('[reabrir] ticket al ingeniero falló:', err));
+      }
+    }
+    await anotarReaperturaEnTickets(db, otNumber, res.reapertura)
+      .catch(err => console.warn('[reabrir] postas en tickets fallaron:', err));
+    for (const pid of res.presupuestosTocados) {
+      await (presupuestosService as any)._recomputeAndPersistEsquema(pid)
+        .catch((err: unknown) => console.warn('[reabrir] esquema del ppto:', err));
+    }
+    await this.sincronizarPadreConHijas(otNumber, { permitirRetroceso: true })
+      .catch(err => console.error('[reabrir] sincronizarPadreConHijas:', err));
+    logBusinessEvent({
+      eventName: 'ot.reabierta',
+      collection: 'ordenes_trabajo',
+      documentId: otNumber,
+      details: { nivel: opts.nivel, motivo: opts.motivo, desde: res.reapertura.estadoDesde, hasta: res.reapertura.estadoHasta, avisos: res.reapertura.avisos },
+      entityLabel: `OT ${otNumber}`,
+    });
+  },
+
   async cerrarAdministrativamente(
     otNumber: string,
     cierreData: { notas?: string; fechaCierre?: string },
@@ -1588,6 +1635,33 @@ export const ordenesTrabajoService = {
     const yaCerrada = ot.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || ot.estadoAdmin === 'FINALIZADO';
     if (yaCerrada) {
       console.log(`[cerrarAdmin] OT ${otNumber} ya estaba en ${ot.estadoAdmin}; no se duplican ticket/mail (solo retry de stock si quedó pendiente).`);
+    }
+
+    // Re-cierre tras una REAPERTURA (2026-09-10): el estado bajó, así que
+    // `yaCerrada` no protege y este cierre volvería a crear el ticket "Revisar
+    // cierre", a encolar el mail y a ofrecer la OT al presupuesto. Se reconoce
+    // lo ya hecho por identidad: ticket abierto para esta OT, mail ya encolado,
+    // y OT dentro de una solicitud de facturación viva (`facturacionBloqueada`).
+    const reabierta = (ot.reaperturas?.length ?? 0) > 0;
+    let ticketRevisarExistente: { id: string; estado: TicketEstado } | null = null;
+    let mailQueueExistente = false;
+    let facturacionBloqueada = ot.facturacionBloqueada ?? null;
+    if (reabierta && !yaCerrada) {
+      try {
+        const tks = await getDocs(query(collection(db, 'leads'), where('otIds', 'array-contains', otNumber)));
+        const abierto = tks.docs.find(d =>
+          d.data().accionPendiente === 'Revisar cierre de OT' && !['finalizado', 'no_concretado'].includes(d.data().estado));
+        if (abierto) ticketRevisarExistente = { id: abierto.id, estado: abierto.data().estado as TicketEstado };
+        const mq = await getDocs(query(collection(db, 'mailQueue'), where('data.otNumber', '==', otNumber)));
+        mailQueueExistente = !mq.empty;
+        if (facturacionBloqueada) {
+          const vivas = await solicitudesVivasDeOT(db, otNumber);
+          const sigueViva = vivas.some(s => s.id === facturacionBloqueada!.solicitudId);
+          if (!sigueViva) facturacionBloqueada = null; // la anularon: la OT vuelve al circuito normal
+        }
+      } catch (err) {
+        console.warn('[cerrarAdmin] chequeo de re-cierre falló; se asume que no había nada previo:', err);
+      }
     }
 
     // Config con defaults (fallback hardcoded si adminConfig lectura falla).
@@ -1744,6 +1818,8 @@ export const ordenesTrabajoService = {
         fechaCierre: cierreData.fechaCierre ?? nowIso,
         retenidaFacturacion: retenerPorDoc,
         requisitoFacturacionPendiente: retenerPorDoc ? requisitoCliente : null,
+        // Re-cierre: se conserva el bloqueo mientras la solicitud siga viva.
+        facturacionBloqueada,
         updatedAt: nowIso,
         updatedBy: actor?.uid ?? null,
         updatedByName: actor?.name ?? null,
@@ -1790,11 +1866,11 @@ export const ordenesTrabajoService = {
         updatedAt: nowIso,
         createdBy: actor?.uid ?? undefined,
       };
-      tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
+      if (!ticketRevisarExistente) tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
 
       // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending').
       // OT de contrato sin presupuestos: sin aviso (ver suprimirAviso arriba).
-      if (!suprimirAviso) tx.set(newMailQueueRef, deepCleanForFirestore({
+      if (!suprimirAviso && !mailQueueExistente) tx.set(newMailQueueRef, deepCleanForFirestore({
         type: 'cierre_admin_ot',
         status: 'pending',
         data: {
@@ -1821,7 +1897,9 @@ export const ordenesTrabajoService = {
       // espera de que Administración confirme la factura). No se pisa anulado/finalizado.
       // Retenida por documentación (circuito B): no entra a otsListasParaFacturar ni
       // avanza el ppto acá — eso ocurre en liberarParaFacturacion cuando la doc esté.
-      if (!retenerPorDoc) for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
+      // Bloqueada por facturación (reapertura con aviso vivo): la OT ya está en
+      // una solicitud; no se vuelve a ofrecer ni se avanza el presupuesto.
+      if (!retenerPorDoc && !facturacionBloqueada) for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
         // Un presupuesto que todavía es BORRADOR (ni se envió al cliente) no
         // puede tener OTs "listas para facturar": no hay nada vendido todavía
         // (2026-08-08). Pasa cuando el ppto nace en un item, el trabajo sigue por
@@ -1848,11 +1926,26 @@ export const ordenesTrabajoService = {
         }
       }
 
-      return { adminTicketId: newAdminTicketRef.id, mailQueueId: suprimirAviso ? '' : newMailQueueRef.id };
+      return {
+        adminTicketId: ticketRevisarExistente?.id ?? newAdminTicketRef.id,
+        mailQueueId: suprimirAviso || mailQueueExistente ? '' : newMailQueueRef.id,
+      };
     });
 
     // ── Post-commit side-effects (best-effort, NO bloquea) ────────
     if (!yaCerrada) {
+      // Re-cierre: constancia en el ticket "Revisar cierre" que ya existía.
+      if (ticketRevisarExistente) {
+        const posta: Posta = {
+          id: crypto.randomUUID(), fecha: nowIso,
+          deUsuarioId: actor?.uid ?? 'sistema', deUsuarioNombre: actor?.name ?? 'Sistema',
+          aUsuarioId: revisorCierre?.id ?? actor?.uid ?? 'sistema', aUsuarioNombre: revisorCierre?.nombre ?? actor?.name ?? 'Sistema',
+          estadoAnterior: ticketRevisarExistente.estado, estadoNuevo: ticketRevisarExistente.estado,
+          evento: `OT ${otNumber} cerrada administrativamente de nuevo tras una reapertura`,
+        };
+        await leadsService.agregarComentario(ticketRevisarExistente.id, posta)
+          .catch(err => console.warn('[cerrarAdmin] posta de re-cierre falló:', err));
+      }
       try {
         if (ot.leadId) {
           await leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO');
@@ -1946,84 +2039,57 @@ export const ordenesTrabajoService = {
       console.error('[cerrarAdministrativamente] completarRemitosServicioDeOT failed (non-blocking):', err);
     }
 
-    // ── Deducción de stock al cierre (idempotente) ─────────────────────────────
-    // Guard de re-entrada: si la OT ya tuvo su stock deducido en un cierre previo,
-    // NO volver a descontar. Sin esto, reinvocar cerrarAdministrativamente sobre la
-    // misma OT generaba un segundo egreso (doble descuento). El flag existía pero no
-    // se chequeaba a la entrada — acá lo cableamos.
-    if (ot.cierreAdmin?.stockDeducido) {
-      console.log(`[cerrarAdmin] OT ${otNumber} ya tiene stock deducido; se omite la deducción.`);
-    } else {
-      // Total de unidades efectivamente descontadas. Auditoría B5: el flag
-      // stockDeducido se marca según este total real, NO por la mera existencia
-      // de selections/presupuestos vinculados.
+    // ── Deducción de stock al cierre — POR LÍNEA (2026-09-10, fase 2 reapertura) ──
+    // Cada StockSelection lleva `deducidoAt` + `movimientoIds`; se descuentan
+    // SOLO las pendientes, así una OT reabierta puede sumar materiales y
+    // re-cerrarse sin volver a descontar lo que ya salió. OTs cerradas antes de
+    // esto (flag global sin detalle) se toman como todas descontadas y se marcan
+    // legacy. Ver utils/cierreStockLineas.ts. Reversión por línea:
+    // reversionCierreService (contra-asiento, el libro es create-only).
+    {
+      const fechaCorrida = new Date().toISOString();
+      const { todas, pendientes, legacyMarcado } = seleccionesPendientesDeDeduccion(
+        ot.cierreAdmin, ot.cierreAdmin?.fechaCierreAdmin ?? ot.fechaCierre ?? fechaCorrida);
       let totalProcesadas = 0;
-      let seleccionesSinStock = 0;      // pedidas por selección manual y no descontadas
+      let seleccionesSinStock = 0;      // pedidas y no descontadas
       const fallosSeleccion: string[] = [];   // motivo por el que cada una no se descontó
+      let seleccionesFinales = todas;
+      const seleccionesSolicitadas = pendientes.reduce((acc, p) => acc + (p.sel.cantidad ?? 1), 0);
 
-      // ÚNICO camino de consumo: la SELECCIÓN manual del cierre.
-      //
-      // Hasta 2026-09-01 existía un segundo camino que, al cerrar la última OT
-      // del presupuesto, entregaba SOLO POR ESTAR RESERVADAS todas sus unidades.
-      // Se eliminó a pedido del usuario: la reserva expresa una intención de
-      // compra, no lo que el técnico terminó usando. En la práctica el material
-      // reservado a menudo no se usa —o se usa otro—, y el cierre descontaba
-      // igual, sin que nadie lo eligiera. Caso que lo destapó: una OT con cuatro
-      // materiales propios que iba a consumir tres unidades distintas de otro
-      // presupuesto.
-      //
-      // Ahora sale del inventario lo que el administrativo selecciona, y nada
-      // más. Las unidades reservadas que no se seleccionan SIGUEN reservadas: se
-      // liberan anulando el presupuesto o desde el módulo de stock.
-      // Las unidades/posiciones elegidas en cierreAdmin.stockSelections se descuentan
-      // (disponible→entregado). Auditoría I2: se pasan los presupuestoIds vinculados
-      // para que lo seleccionado que ya esté RESERVADO por esos pptos consuma la
-      // reserva (o se excluya de la cantidad) en vez de duplicar el egreso. Best-effort.
-      const stockSelections = ot.cierreAdmin?.stockSelections ?? [];
-      const seleccionesSolicitadas = stockSelections.reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
-      if (stockSelections.length > 0) {
+      // ÚNICO camino de consumo: la SELECCIÓN manual del cierre (desde 2026-09-01
+      // las reservas no se entregan solas). Auditoría I2: se pasan los pptos
+      // vinculados para que lo seleccionado que ya esté RESERVADO por ellos
+      // consuma la reserva en vez de duplicar el egreso.
+      if (pendientes.length === 0) {
+        console.log(`[cerrarAdmin] OT ${otNumber}: sin selecciones pendientes de descuento${legacyMarcado ? ' (cierre previo sin detalle: marcadas legacy)' : ''}.`);
+      } else {
         try {
-          const { deducidas, cubiertasPorReserva, fallos } = await reservasService.entregarSeleccionesCierre({
-            selections: stockSelections,
+          const r = await reservasService.entregarSeleccionesCierre({
+            selections: pendientes.map(p => p.sel),
             otNumber,
             clienteId: ot.clienteId ?? null,
             clienteNombre: ot.razonSocial ?? null,
             solicitadoPorNombre: actor?.name || 'Sistema',
             presupuestoIds,
           });
-          totalProcesadas += deducidas;
-          seleccionesSinStock = Math.max(0, seleccionesSolicitadas - deducidas - cubiertasPorReserva);
-          // El MOTIVO del fallo, no solo el conteo: "sin disponible o error" no
-          // alcanza para saber si falta stock, si la unidad cambió de estado o
-          // si el vínculo con la asignación se rompió (2026-08-19).
-          fallosSeleccion.push(...fallos);
-          if (deducidas > 0) {
-            console.log(`[cerrarAdmin] ${deducidas} unidad(es) descontada(s) por selección manual en OT ${otNumber}`);
-          }
-          if (cubiertasPorReserva > 0) {
-            console.log(`[cerrarAdmin] ${cubiertasPorReserva} u. de la selección ya estaban reservadas por ppto vinculado — las entrega el camino de reservas (sin doble descuento)`);
-          }
+          totalProcesadas += r.deducidas;
+          seleccionesSinStock = Math.max(0, seleccionesSolicitadas - r.deducidas - r.cubiertasPorReserva);
+          fallosSeleccion.push(...r.fallos);
+          seleccionesFinales = marcarSeleccionesDeducidas(todas, pendientes, r.porSeleccion, fechaCorrida);
+          if (r.deducidas > 0) console.log(`[cerrarAdmin] ${r.deducidas} unidad(es) descontada(s) por selección manual en OT ${otNumber}`);
+          if (r.cubiertasPorReserva > 0) console.log(`[cerrarAdmin] ${r.cubiertasPorReserva} u. de la selección ya estaban reservadas por ppto vinculado (sin doble descuento)`);
         } catch (err) {
           seleccionesSinStock = seleccionesSolicitadas;
           console.warn(`[cerrarAdmin.stockSelections] OT ${otNumber}:`, err);
         }
       }
 
-      // ── Auditoría B5: marcar stockDeducido SOLO si se procesó ≥1 unidad. Antes
-      // se marcaba por la sola existencia de pptos vinculados: una OT cerrada antes
-      // del ingreso de la mercadería quedaba con el flag prendido y 0 unidades
-      // descontadas, y el guard de re-entrada bloqueaba el retry para siempre.
-      // 2026-08-28 (caso 29960.01): también se marcaba con "nada que deducir"
-      // (0 selecciones, pptos sin items de stock) — pero si la OT se REABRÍA y el
-      // admin agregaba selecciones, el re-cierre veía el flag y salteaba la
-      // deducción entera. Con 0 procesadas el flag queda apagado SIEMPRE: re-correr
-      // la deducción sin nada que deducir es un no-op, no un doble descuento.
+      // Flag global = todas las líneas descontadas (derivado). Con 0 procesadas
+      // y líneas pendientes queda apagado para permitir el retry (B5).
+      const marcarDeducido = todasDeducidas(seleccionesFinales);
       const hayItemsDeStock = presupuestosPorNumero.some(p => (p?.items ?? []).some(i => i.stockArticuloId));
-      const marcarDeducido = totalProcesadas > 0;
 
-      // Rastro visible: unidades de ppto que quedaron adeudadas — el ppto las
-      // pidió y no hay ni una reservada ni entregada para cubrirlas. Best-effort:
-      // si el cálculo falla, no se agrega la nota (el warn de consola queda igual).
+      // Rastro visible: unidades de ppto que quedaron adeudadas. Best-effort.
       let pendientesPpto = 0;
       if (hayItemsDeStock) {
         for (const presupuestoId of presupuestoIds) {
@@ -2043,22 +2109,23 @@ export const ordenesTrabajoService = {
       if (pendientesPpto > 0) {
         lineasStock.push(`[stock] ${pendientesPpto} u. de presupuesto sin cubrir (no hay stock reservado ni entregado — ¿mercadería aún no ingresada?).`);
       }
-      if (!marcarDeducido && (seleccionesSinStock > 0 || pendientesPpto > 0)) {
-        console.warn(`[cerrarAdmin] OT ${otNumber}: la deducción de stock procesó 0 unidades con stock en juego — stockDeducido queda apagado para permitir el retry (B5).`);
+      if (pendientes.length > 0 && totalProcesadas === 0) {
+        console.warn(`[cerrarAdmin] OT ${otNumber}: la deducción procesó 0 unidades con líneas pendientes — quedan pendientes para el retry (B5).`);
       }
 
-      if (marcarDeducido || lineasStock.length > 0) {
+      const cambiaronSelecciones = legacyMarcado || seleccionesFinales !== todas;
+      if (cambiaronSelecciones || lineasStock.length > 0 || marcarDeducido !== !!ot.cierreAdmin?.stockDeducido) {
         try {
           // Las notas [stock] previas se reemplazan por las de esta corrida (un retry
           // exitoso las limpia); el resto de notasCierre del admin se preserva.
           const notasPrevias = (ot.cierreAdmin?.notasCierre ?? '')
-            .split('\n').filter(l => !l.trim().startsWith('[stock]')).join('\n').trim();
+            .split('\n').filter(l => !l.trim().startsWith('[stock]') || l.includes('Revertido')).join('\n').trim();
           const notas = [notasPrevias, ...lineasStock].filter(Boolean).join('\n');
           const cierreAdminActual: CierreAdministrativo = {
             horasConfirmadas: false, partesConfirmadas: false, avisoAdminEnviado: false,
-            stockDeducido: false,
             ...(ot.cierreAdmin ?? {}),
-            ...(marcarDeducido ? { stockDeducido: true } : {}),
+            stockSelections: seleccionesFinales,
+            stockDeducido: marcarDeducido,
             notasCierre: notas,
           };
           await this.update(otNumber, { cierreAdmin: cierreAdminActual });

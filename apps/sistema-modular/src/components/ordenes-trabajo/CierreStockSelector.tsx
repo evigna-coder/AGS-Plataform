@@ -7,9 +7,11 @@ interface Props {
   selections: StockSelection[];
   onChange: (selections: StockSelection[]) => void;
   disabled?: boolean;
+  /** Reversión por línea de una selección ya descontada (2026-09-10). */
+  onRevertir?: (sel: StockSelection) => void;
 }
 
-export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, onChange, disabled }) => {
+export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, onChange, disabled, onRevertir }) => {
   const { get, loading } = useCierreStockUnits(articulos);
 
   /**
@@ -53,6 +55,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                     selections={selections.filter(s => s.partId === part.id)}
                     onChange={next => replaceForPart(part.id, next)}
                     disabled={disabled}
+                    onRevertir={onRevertir}
                   />
                 </td>
               </tr>

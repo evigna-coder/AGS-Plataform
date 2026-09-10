@@ -13,7 +13,34 @@ interface Props {
   /** Devuelve la lista completa de selecciones de esta parte tras el cambio. */
   onChange: (next: StockSelection[]) => void;
   disabled?: boolean;
+  /** Reversión por línea de una selección ya descontada (2026-09-10). Sin esto la línea se muestra bloqueada. */
+  onRevertir?: (sel: StockSelection) => void;
 }
+
+const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+
+/**
+ * Línea ya DESCONTADA del stock: no se edita ni se re-elige; se muestra qué
+ * salió y cuándo, y se ofrece revertirla (contra-asiento) si el caller lo
+ * permite. Las líneas legacy (cierre viejo sin asientos) no se revierten acá.
+ */
+const LineaDescontada = ({ sel, onRevertir }: { sel: StockSelection; onRevertir?: (s: StockSelection) => void }) => (
+  <div className="flex items-center gap-1.5 text-[11px]">
+    <span className="flex-1 min-w-0 truncate text-slate-600">{selectionResumen(sel)}</span>
+    <span className="font-mono text-slate-500">×{sel.cantidadDeducida ?? sel.cantidad ?? 1}</span>
+    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 whitespace-nowrap"
+      title={sel.deducidoLegacy ? 'Descontado en un cierre anterior al registro por línea' : `Descontado el ${new Date(sel.deducidoAt!).toLocaleString('es-AR')}`}>
+      Descontado {sel.deducidoAt ? fechaCorta(sel.deducidoAt) : ''}
+    </span>
+    {onRevertir && !sel.deducidoLegacy && (sel.movimientoIds?.length ?? 0) > 0 && (
+      <button type="button" onClick={() => onRevertir(sel)}
+        className="text-[10px] font-medium text-amber-700 hover:underline whitespace-nowrap"
+        title="Genera el contra-asiento, repone la unidad y quita esta línea del cierre">
+        Revertir
+      </button>
+    )}
+  </div>
+);
 
 /**
  * Una fila del cuadro de origen de materiales. Un material puede necesitar VARIOS
@@ -22,7 +49,7 @@ interface Props {
  * veces. Ahora se muestra un selector por origen elegido más uno vacío mientras
  * falte cubrir cantidad, y las unidades ya tomadas no se vuelven a ofrecer.
  */
-export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selections, onChange, disabled }) => {
+export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selections, onChange, disabled, onRevertir }) => {
   const options = buildOptions(stock);
   // Cantidad a cubrir en unidades BASE: si la parte está expresada en un envase
   // (presentación), lo que se descuenta del stock es cantidad × factor.
@@ -78,6 +105,7 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
           <span key={i} className="block">
             {selectionResumen(sel)}
             {necesarias > 1 && <span className="text-slate-400"> ×{sel.cantidad ?? 1}</span>}
+            {sel.deducidoAt && <span className="ml-1.5 text-[10px] text-green-700">descontado {fechaCorta(sel.deducidoAt)}</span>}
             {/* La OT cerrada sigue diciendo que el repuesto salió de un loaner. */}
             {sel.origenLoanerCodigo && (
               <span className="block text-[10px] text-amber-700">de {sel.origenLoanerCodigo}</span>
@@ -120,7 +148,9 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
   return (
     <div className="space-y-1">
       {filas.map(i => (
-        <div key={i} className="flex items-center gap-1.5">
+        i < selections.length && selections[i].deducidoAt
+          ? <LineaDescontada key={i} sel={selections[i]} onRevertir={onRevertir} />
+          : <div key={i} className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             <SearchableSelect
               value={i < selections.length ? selectionValue(selections[i]) : ''}

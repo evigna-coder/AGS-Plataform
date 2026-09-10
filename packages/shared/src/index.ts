@@ -5,6 +5,7 @@ export * from './types';
 export * from './services/fcm';
 export * from './services/leads';
 export * from './services/qfDocumentos';
+export * from './services/reaperturaOT';
 
 // Exportar hooks compartidos
 export * from './hooks/useResizableColumns';

@@ -319,5 +319,8 @@ function getItemCodigo(item: InventarioItem): string {
 }
 
 function getItemDesc(item: InventarioItem): string {
-  return descripcionItemAsignacion(item);
+  const desc = descripcionItemAsignacion(item);
+  // Serie de la unidad de stock (2026-09-10); columna y dispositivo ya la
+  // traen en su propia descripción/código.
+  return item.serie ? `${desc} · S/N ${item.serie}` : desc;
 }

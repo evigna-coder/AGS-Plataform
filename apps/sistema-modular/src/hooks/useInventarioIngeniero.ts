@@ -14,6 +14,12 @@ import { notify } from '../utils/notify';
 export interface InventarioItem extends ItemAsignacion {
   asignacionId: string;
   asignacionNumero: string;
+  /**
+   * N° de serie de la unidad física (2026-09-10). La asignación guarda solo el
+   * id de la unidad; la serie vive en el doc de stock. Sin esto el remito que
+   * se arma desde el inventario salía sin serie, en pantalla y en el papel.
+   */
+  serie?: string | null;
 }
 
 /** Unidad parada en la posición provisoria de un remito del ingeniero. */
@@ -71,9 +77,11 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const seriePorUnidad = new Map(unidades.filter(u => u.nroSerie).map(u => [u.id, u.nroSerie as string]));
   const allItems: InventarioItem[] = asignaciones.flatMap(asg =>
     asg.items.filter(i => i.estado === 'asignado').map(i => ({
       ...i, asignacionId: asg.id, asignacionNumero: asg.numero,
+      serie: (i.unidadId && seriePorUnidad.get(i.unidadId)) || null,
     }))
   );
   const temporales = allItems.filter(i => !i.permanente);

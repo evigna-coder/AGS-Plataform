@@ -27,6 +27,19 @@ export function inventarioToRemitoItem(
     tipoItem: tipoRemitoItem,
     devuelto: false,
     fechaDevolucion: null,
+    // N° de serie (2026-09-10): el papel lo imprime desde `serie` y esta
+    // conversión nunca lo estampaba — el remito desde inventario salía sin él.
+    // La unidad de stock la trae el inventario; la columna, su propio campo.
+    // El dispositivo NO: su serie ya va como código (evita "S/N" repetido).
+    serie: item.serie ?? item.columnaSerie ?? null,
+    // Patrón y columna: sin estos vínculos la devolución no encuentra la línea
+    // (mismo criterio que el remito de la asignación rápida).
+    patronId: item.patronId ?? null,
+    patronLote: item.patronLote ?? null,
+    columnaId: item.columnaId ?? null,
+    columnaCodigo: item.columnaCodigo ?? null,
+    columnaDescripcion: item.columnaDescripcion ?? null,
+    columnaSerie: item.columnaSerie ?? null,
     // Multi-tipo
     minikitId: item.minikitId ?? null,
     minikitCodigo: item.minikitCodigo ?? null,

@@ -5,6 +5,7 @@ import {
   getCreateTrace, getUpdateTrace, logBusinessEvent,
 } from './firebase';
 import { unidadesService } from './stockService';
+import { costeoKitConsumido, participacionEfectiva, validarParticipacion, costoComponente } from '../utils/kitProrrateo';
 
 /**
  * Kits de compra 1→N (2026-08-25; diseño lockeado 2026-07-29, caso G1312-68730 /
@@ -15,9 +16,13 @@ import { unidadesService } from './stockService';
  * manual — el análogo de `equivalenciasService.desagregarUnidades` pero 1→N
  * artículos distintos, no una conversión de código.
  *
- * Decisiones lockeadas:
- * - SIN prorrateo de costo: el costo/importación queda en las unidades kit
- *   consumidas; los componentes nacen con `costoUnitario: null`.
+ * Decisiones:
+ * - Costo y factor (2026-09-10, reemplaza el "sin prorrateo" de julio): el
+ *   FACTOR se hereda del kit consumido (propiedad del embarque) y el VALOR se
+ *   reparte por `participacionPct` — la suma de los componentes es lo que costó
+ *   el kit. Ver utils/kitProrrateo.ts. Los componentes quedan vinculados a la
+ *   importación del kit (`importacionNumero` + `origenKit`) para que la
+ *   confirmación del costeo definitivo también los re-estampe.
  * - Componentes sin serie/lote: nace UNA unidad agrupada por componente
  *   (cantidad = cantidadPorKit × kits), en la MISMA ubicación del kit.
  * - Validar todo ANTES de escribir; el batch es atómico (patrón
@@ -33,8 +38,11 @@ export const kitsService = {
     solicitadoPorNombre: string;
   }): Promise<{ kitsConsumidos: number; componentesCreados: number }> {
     const kit = params.articuloKit;
-    const bom = (kit.kitComponentes ?? []).filter(c => c.articuloId && (c.cantidadPorKit ?? 0) > 0);
-    if (bom.length === 0) throw new Error(`El artículo ${kit.codigo} no tiene componentes de kit cargados`);
+    const bomCrudo = (kit.kitComponentes ?? []).filter(c => c.articuloId && (c.cantidadPorKit ?? 0) > 0);
+    if (bomCrudo.length === 0) throw new Error(`El artículo ${kit.codigo} no tiene componentes de kit cargados`);
+    const validez = validarParticipacion(bomCrudo);
+    if (!validez.ok) throw new Error(`${validez.motivo} Corregí los componentes del kit desde la ficha del artículo.`);
+    const bom = participacionEfectiva(bomCrudo);
     if (!Number.isInteger(params.cantidadKits) || params.cantidadKits < 1) {
       throw new Error('La cantidad de kits debe ser un entero mayor a 0');
     }
@@ -56,10 +64,12 @@ export const kitsService = {
 
     // ── Consumir las unidades kit (FIFO; doc completo → 'consumido', parcial → decrementa) ──
     let restante = params.cantidadKits;
+    const consumos: Array<[typeof candidatas[number], number]> = [];
     for (const u of candidatas) {
       if (restante <= 0) break;
       const qty = u.cantidad ?? 1;
       const aDeducir = Math.min(qty, restante);
+      consumos.push([u, aDeducir]);
       batch.update(docRef('unidades', u.id), deepCleanForFirestore(aDeducir >= qty
         ? { estado: 'consumido', ...getUpdateTrace(), updatedAt: nowIso }
         : { cantidad: qty - aDeducir, ...getUpdateTrace(), updatedAt: nowIso }));
@@ -91,10 +101,16 @@ export const kitsService = {
     }));
 
     // ── Alta de componentes: una unidad agrupada + un movimiento por componente ──
+    // Costo y factor del kit que sale, ponderados por lo que se toma de cada
+    // unidad; el componente hereda el factor y recibe su parte del valor.
+    const costeo = costeoKitConsumido(consumos);
     let componentesCreados = 0;
     for (const c of bom) {
       const cantidadTotal = c.cantidadPorKit * params.cantidadKits;
       const unidadId = crypto.randomUUID();
+      const pct = c.participacionPct ?? 0;
+      const costoUnitario = costoComponente(costeo.costoUnitario, pct, c.cantidadPorKit);
+      const costoUnitarioReal = costoComponente(costeo.costoUnitarioReal, pct, c.cantidadPorKit);
       const unidadPayload = deepCleanForFirestore({
         articuloId: c.articuloId,
         articuloCodigo: c.articuloCodigo,
@@ -105,9 +121,15 @@ export const kitsService = {
         condicion: 'nuevo' as const,
         estado: 'disponible' as const,
         ubicacion: params.ubicacion,
-        // Decisión lockeada: sin prorrateo — el costo queda en el kit consumido.
-        costoUnitario: null,
-        observaciones: `Alta por explosión de kit ${kit.codigo}`,
+        costoUnitario,
+        costoUnitarioReal,
+        monedaCosto: costoUnitario != null ? costeo.monedaCosto : null,
+        factorImportacion: costeo.factorImportacion,
+        factorImportacionReal: costeo.factorImportacionReal,
+        costeoConfirmadoAt: costoUnitarioReal != null ? costeo.costeoConfirmadoAt : null,
+        importacionNumero: costeo.importacionNumero,
+        origenKit: { articuloId: kit.id, articuloCodigo: kit.codigo, participacionPct: pct, cantidadPorKit: c.cantidadPorKit },
+        observaciones: `Alta por explosión de kit ${kit.codigo} (${pct}% del valor)`,
         activo: true,
         ...getCreateTrace(),
         createdAt: now,
@@ -115,6 +137,17 @@ export const kitsService = {
       });
       batch.set(docRef('unidades', unidadId), unidadPayload);
       batchAudit(batch, { action: 'create', collection: 'unidades_stock', documentId: unidadId, after: unidadPayload });
+      // Última referencia del artículo componente (last-wins, como el ingreso de
+      // importación): con esto el presupuesto y la reposición tienen número.
+      if (costoUnitario != null) {
+        batch.update(docRef('articulos', c.articuloId), deepCleanForFirestore({
+          ultimoCostoImportacion: costoUnitarioReal ?? costoUnitario,
+          ultimoFactorImportacion: costeo.factorImportacionReal ?? costeo.factorImportacion ?? null,
+          ultimoCostoMoneda: costeo.monedaCosto ?? 'USD',
+          ...getUpdateTrace(),
+          updatedAt: nowIso,
+        }));
+      }
 
       batch.set(docRef('movimientosStock', crypto.randomUUID()), deepCleanForFirestore({
         tipo: 'ingreso' as TipoMovimiento,
@@ -148,7 +181,8 @@ export const kitsService = {
         kit: kit.codigo,
         kits: params.cantidadKits,
         ubicacion: params.ubicacion.referenciaNombre,
-        componentes: bom.map(c => `${c.articuloCodigo} ×${c.cantidadPorKit * params.cantidadKits}`),
+        componentes: bom.map(c => `${c.articuloCodigo} ×${c.cantidadPorKit * params.cantidadKits} (${c.participacionPct ?? 0}%)`),
+        costoKit: costeo.costoUnitario, factorKit: costeo.factorImportacion, moneda: costeo.monedaCosto,
       },
     });
     return { kitsConsumidos: params.cantidadKits, componentesCreados };

@@ -2,7 +2,6 @@ import { useCallback, MutableRefObject } from 'react';
 import type { Cliente, Sistema, ModuloSistema, ContactoCliente, Part, OTEstadoAdmin, Ingeniero } from '@ags/shared';
 import { OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
-import { useConfirm } from '../components/ui/ConfirmDialog';
 
 import { notify } from '../utils/notify';
 interface Params {
@@ -20,7 +19,6 @@ interface Params {
 }
 
 export function useOTFieldHandlers({ form, setField, setFields, markInteracted, validate, dirtyRef, clientes, contactos, sistemasFiltrados, modulosFiltrados, ingenieros }: Params) {
-  const confirm = useConfirm();
   const dirty = () => { dirtyRef.current = true; };
 
   const handleFieldChange = useCallback((field: string, value: string) => {
@@ -106,20 +104,6 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
     dirty(); setField('cierreAdmin', { ...form.cierreAdmin, [field]: value }); markInteracted();
   }, [form.cierreAdmin, setField, markInteracted]);
 
-  // ── Reabrir OT ──────────────────────────────────────────────
-  const handleReabrirOT = useCallback(async () => {
-    if (!await confirm('Reabrir esta OT? Volvera al estado Cierre Administrativo.')) return;
-    const ahora = new Date().toISOString();
-    dirty();
-    setFields({
-      estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
-      estadoAdminFecha: ahora,
-      status: 'BORRADOR' as const,
-      estadoHistorial: [...form.estadoHistorial, { estado: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin, fecha: ahora, nota: 'Reabierta desde Finalizado' }],
-      cierreAdmin: { ...form.cierreAdmin, avisoAdminEnviado: false, fechaCierreAdmin: undefined },
-    });
-    markInteracted();
-  }, [form.estadoHistorial, form.cierreAdmin, setFields, markInteracted]);
 
   // ── Parts ─────────────────────────────────────────────────────
   const addPart = useCallback((prefill?: { codigo: string; descripcion: string }) => {
@@ -150,7 +134,7 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   return {
     handleFieldChange, handleCheckboxChange,
     handleClienteChange, handleContactoChange, handleSistemaChange, handleModuloChange, handleIngenieroChange,
-    handleEstadoAdminChange, handleCierreChange, handleReabrirOT,
+    handleEstadoAdminChange, handleCierreChange,
     addPart, updatePart, removePart,
     addBudget, updateBudget, removeBudget,
   };
