@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, RespaldoFacturacion } from '@ags/shared';
-import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente, monedasDeItems } from '@ags/shared';
+import { PRESUPUESTO_SECCIONES_DEFAULT, computePresupuestoItemSubtotal, establecimientoPerteneceACliente, monedasDeItems, findCategoriaIvaDefaultId } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 import { renumerarGrupos } from '../components/presupuestos/contrato/contratoItemHelpers';
 import { hoyLocalISODate } from '../utils/formatFecha';
@@ -495,6 +495,17 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
       }
     }
   }, [form.origenTipo, form.origenId]);
+
+  // Ítems sin categoría en un borrador nacido de una OT (portal, 2026-09-09):
+  // toman IVA 21% al abrir el presupuesto, igual que un ítem nuevo. Solo ahí,
+  // para no pisar un "Sin categoría" elegido a mano en otros presupuestos.
+  useEffect(() => {
+    if (categoriasPresupuesto.length === 0 || form.estado !== 'borrador' || form.origenTipo !== 'ot') return;
+    const def = findCategoriaIvaDefaultId(categoriasPresupuesto);
+    if (!def || !form.items.some(it => !it.categoriaPresupuestoId)) return;
+    setFormState(prev => ({ ...prev, items: prev.items.map(it => it.categoriaPresupuestoId ? it : { ...it, categoriaPresupuestoId: def }) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriasPresupuesto, form.items.length, form.estado, form.origenTipo]);
 
   const loadModulosBySistema = useCallback(async (sistemaId: string) => {
     return modulosService.getBySistema(sistemaId);

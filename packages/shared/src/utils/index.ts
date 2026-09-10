@@ -433,3 +433,21 @@ export function otPortadoraDeReserva(otNumbers: string[]): string | null {
   if (validas.length === 0) return null;
   return validas.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))[0];
 }
+
+// ── Categoría tributaria por defecto (IVA 21%) ───────────────────────────
+/**
+ * Categoría por defecto para ítems nuevos de presupuesto: IVA 21% estándar.
+ * Primero por porcentaje (robusto ante renombres), después por nombre.
+ * `undefined` si el catálogo no tiene una 21% activa. Compartido con el portal
+ * (2026-09-09): los presupuestos de partes pedidos desde la OT nacían sin
+ * categoría y salían sin IVA.
+ */
+export function findCategoriaIvaDefaultId(
+  cats: { id: string; activo: boolean; nombre: string; incluyeIva: boolean; porcentajeIva?: number; ivaReduccion?: boolean }[],
+): string | undefined {
+  const activas = cats.filter(c => c.activo);
+  const porPorcentaje = activas.find(c => c.incluyeIva && c.porcentajeIva === 21 && !c.ivaReduccion);
+  if (porPorcentaje) return porPorcentaje.id;
+  const porNombre = activas.find(c => c.nombre.trim().toLowerCase() === 'iva 21%');
+  return porNombre?.id;
+}

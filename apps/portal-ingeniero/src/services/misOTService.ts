@@ -24,8 +24,8 @@ import type {
   Sistema,
   OTEstadoAdmin,
 } from '@ags/shared';
-import { deepCleanForFirestore } from '@ags/shared';
-import { db, leadsService } from './firebaseService';
+import { deepCleanForFirestore, findCategoriaIvaDefaultId } from '@ags/shared';
+import { db, leadsService, adminConfigService } from './firebaseService';
 import { getCreateTrace } from './currentUser';
 
 /** Estados administrativos terminales — una OT en estos estados no aparece en "Mis OT". */
@@ -484,12 +484,33 @@ export const misOTService = {
     return ref.id;
   },
 
+  /**
+   * Responsable de los presupuestos que nacen del portal (2026-09-09): el
+   * usuario de seguimiento (Miguel Barrios, encargado de compras y de enviar
+   * los presupuestos de partes), o el responsable de compras si no está.
+   */
+  async _responsablePresupuestoPortal(): Promise<{ id: string; nombre: string } | null> {
+    try {
+      const cfg = await adminConfigService.get();
+      const candidatos = [cfg?.usuarioSeguimientoId, cfg?.responsablePorArea?.compras, cfg?.responsablePorArea?.admin_soporte]
+        .filter((x): x is string => !!x);
+      for (const id of candidatos) {
+        const snap = await getDoc(doc(db, 'usuarios', id));
+        if (snap.exists() && snap.data().status === 'activo') return { id: snap.id, nombre: (snap.data().displayName as string) ?? '' };
+      }
+    } catch (err) {
+      console.warn('[solicitarPresupuesto] responsable por defecto no resuelto:', err);
+    }
+    return null;
+  },
+
   async solicitarPresupuesto(
     ot: MisOTDoc,
     sistema: Sistema | null,
     partes: ParteSolicitada[] = [],
   ): Promise<{ presupuestoId: string; numero: string }> {
     const numero = await this.getNextPresupuestoNumber();
+    const responsable = await this._responsablePresupuestoPortal();
 
     // Contacto y equipo (2026-09-09): datos que el IST ya cargó en la OT y
     // que ventas necesita para armar y mandar el presupuesto.
@@ -500,6 +521,10 @@ export const misOTService = {
     });
     const sistemaId = ot.sistemaId ?? sistemaResuelto?.id ?? null;
     const sistemaCodigoInterno = sistemaResuelto?.codigoInternoCliente || ot.codigoInternoCliente || null;
+    // IVA 21% por defecto (2026-09-09): sin categoría, el presupuesto salía sin IVA.
+    const categoriaIvaId = await getDocs(collection(db, 'categorias_presupuesto'))
+      .then(snap => findCategoriaIvaDefaultId(snap.docs.map(d => ({ id: d.id, ...(d.data() as object) }) as Parameters<typeof findCategoriaIvaDefaultId>[0][number])))
+      .catch(() => undefined);
 
     const items = partes.map(p => ({
       id: crypto.randomUUID(),
@@ -513,6 +538,7 @@ export const misOTService = {
       sistemaId,
       sistemaNombre: sistemaResuelto?.nombre || ot.sistema || null,
       sistemaCodigoInterno,
+      categoriaPresupuestoId: categoriaIvaId ?? null,
     }));
 
     // El IST siempre solicita partes para un servicio — el presupuesto nace
@@ -536,8 +562,9 @@ export const misOTService = {
       ordenesCompraIds: [],
       adjuntos: [],
       validezDias: 15,
-      responsableId: null,
-      responsableNombre: null,
+      // Responsable (2026-09-09): sale en la cabecera del PDF y queda asignado.
+      responsableId: responsable?.id ?? null,
+      responsableNombre: responsable?.nombre ?? null,
       otVinculadaNumber: ot.otNumber,
       otsVinculadasNumbers: [ot.otNumber],
       ...getCreateTrace(),
