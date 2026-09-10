@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useEnviarOrdenCompra, type EnviarOCStatus } from '../../hooks/useEnviarOrdenCompra';
+import { ConciliarRequerimientosModal } from './ConciliarRequerimientosModal';
 
 import { notify } from '../../utils/notify';
 const STATUS_MSG: Record<EnviarOCStatus, string> = {
@@ -60,6 +61,9 @@ export const EnviarOrdenCompraModal: React.FC<Props> = ({ open, oc, proveedor, o
     `Estimados,\n\nAdjuntamos la orden de compra ${oc.numero}. Quedamos a la espera de su confirmacion.\n\nSaludos cordiales,\nAGS Analitica S.A.`,
   );
   const { send, status, error, sending } = useEnviarOrdenCompra(oc, onSent);
+  // Antes del primer envío se ofrece vincular los requerimientos abiertos de
+  // los mismos artículos (2026-09-10). El mail sale recién después.
+  const [conciliando, setConciliando] = useState(false);
 
   // Los checkboxes rellenan "Para": mantienen las direcciones ad-hoc (las que el
   // usuario tipeó a mano y no son opciones) y reemplazan el set de opciones tildadas.
@@ -72,10 +76,15 @@ export const EnviarOrdenCompraModal: React.FC<Props> = ({ open, oc, proveedor, o
     setTo([...next, ...adHoc].join(', '));
   };
 
-  const handleSend = () => {
-    if (!to.trim()) { notify.warning('Ingresá el email del proveedor'); return; }
+  const enviarMail = () => {
     const htmlBody = body.split('\n').map(l => l || '<br/>').join('<br/>');
     send({ to: splitEmails(to), cc: splitEmails(cc), subject, htmlBody });
+  };
+
+  const handleSend = () => {
+    if (!to.trim()) { notify.warning('Ingresá el email del proveedor'); return; }
+    if (oc.estado === 'borrador') { setConciliando(true); return; }
+    enviarMail();
   };
 
   return (
@@ -83,7 +92,7 @@ export const EnviarOrdenCompraModal: React.FC<Props> = ({ open, oc, proveedor, o
       subtitle="Por mail al proveedor (desde tu cuenta de Google)"
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose} disabled={sending}>Cancelar</Button>
-        <Button size="sm" onClick={handleSend} disabled={sending}>{sending ? STATUS_MSG[status] : 'Enviar'}</Button>
+        <Button size="sm" onClick={handleSend} disabled={sending || conciliando}>{sending ? STATUS_MSG[status] : 'Enviar'}</Button>
       </>}>
       <div className="space-y-3">
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">{error}</div>}
@@ -112,6 +121,12 @@ export const EnviarOrdenCompraModal: React.FC<Props> = ({ open, oc, proveedor, o
         </div>
         <p className="text-[10px] text-slate-400">Se adjunta automaticamente el PDF de la OC. El mail sale desde tu cuenta de Google (Gmail).</p>
       </div>
+      <ConciliarRequerimientosModal
+        open={conciliando}
+        oc={oc}
+        onResuelto={() => { setConciliando(false); enviarMail(); }}
+        onCancelar={() => setConciliando(false)}
+      />
     </Modal>
   );
 };

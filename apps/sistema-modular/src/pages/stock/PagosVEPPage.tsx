@@ -63,8 +63,11 @@ function MesCard({ mes, onOpen, hoy }: { mes: MesFlujo; onOpen: (e: EventoFlujo)
                     : `OC ${e.ocNumero}`}
                 </td>
                 <td className="py-1.5 pr-2 text-slate-600 truncate max-w-[220px]">{e.proveedor}</td>
-                <td className="py-1.5 pl-2 text-right font-mono text-slate-800 whitespace-nowrap">
+                <td className="py-1.5 pl-2 text-right font-mono text-slate-800 whitespace-nowrap"
+                  title={e.montoOriginal != null ? `${e.monedaOriginal} ${fmt(e.montoOriginal)} al pase ${e.paseEurUsd}` : undefined}>
                   {e.monto != null ? `${e.moneda} ${fmt(e.monto)}` : <span className="text-slate-300">arribo</span>}
+                  {/* Giro en euros unificado a dólares al pase de la impo (2026-09-10). */}
+                  {e.montoOriginal != null && <span className="text-[9px] text-slate-400 ml-1">(€)</span>}
                 </td>
               </tr>
             );
@@ -154,7 +157,9 @@ export const PagosVEPPage = () => {
                 value={prox ? TIPO_LABEL[prox.tipo] : '—'}
                 sub={prox ? `${proxFecha!.getDate()}-${MESES[proxFecha!.getMonth()]} · ${prox.moneda} ${fmt(prox.monto || 0)}` : 'sin pagos próximos'}
                 accent="text-teal-700" />
-              <Kpi label="Giros al exterior" value={`USD ${fmt(girosUSD)}`} sub={girosEUR > 0 ? `+ EUR ${fmt(girosEUR)}` : 'pendientes'} accent="text-teal-700" />
+              {/* Todo en USD: los giros en euros ya vienen convertidos al pase de la impo.
+                  Si queda uno en EUR es porque no tiene pase declarado. */}
+              <Kpi label="Giros al exterior" value={`USD ${fmt(girosUSD)}`} sub={girosEUR > 0 ? `+ EUR ${fmt(girosEUR)} sin pase declarado` : 'pendientes, unificados en USD'} accent="text-teal-700" />
               <Kpi label="VEP pendientes" value={`ARS ${fmt(vepARS)}`} sub="a pagar a aduana" accent="text-amber-700" />
               <Kpi label={vencidos.length > 0 ? 'Vencidos sin pagar' : 'Eventos pendientes'}
                 value={vencidos.length > 0 ? String(vencidos.length) : String(futurosCount)}

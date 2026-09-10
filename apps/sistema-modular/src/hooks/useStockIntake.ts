@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { requerimientosDeItem } from '../utils/conciliarRequerimientosOC';
 import {
   articulosService, unidadesService, movimientosService,
   posicionesStockService, minikitsService, ingenierosService, proveedoresService,
@@ -574,11 +575,13 @@ export function useStockIntake(
                 }).catch((e: unknown) => console.warn('[useStockIntake] calificación pendiente falló:', e));
               }
 
-              // Cerrar los requerimientos cuyos items de OC quedaron completos.
+              // Cerrar los requerimientos cuyos items de OC quedaron completos
+              // (todos los vinculados: principal + conciliación múltiple).
               await Promise.all(newItems
-                .filter((oi: any) => oi.requerimientoId && (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0))
-                .map((oi: any) => requerimientosService.update(oi.requerimientoId, { estado: 'comprado' })
-                  .catch((e: unknown) => console.warn(`[useStockIntake] no se pudo cerrar req ${oi.requerimientoId}:`, e))));
+                .filter((oi: any) => (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0))
+                .flatMap((oi: any) => requerimientosDeItem(oi))
+                .map((reqId: string) => requerimientosService.update(reqId, { estado: 'comprado' })
+                  .catch((e: unknown) => console.warn(`[useStockIntake] no se pudo cerrar req ${reqId}:`, e))));
             }
           }
         } catch (ocErr) {

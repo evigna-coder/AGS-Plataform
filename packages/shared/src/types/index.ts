@@ -1686,6 +1686,13 @@ export interface ItemOC {
   // En OC de importación va null/0 (sin IVA — el IVA de importación se liquida en aduana).
   porcentajeIva?: number | null;
   requerimientoId?: string | null;
+  /**
+   * Todos los requerimientos que cubre este ítem (2026-09-10), cuando la
+   * conciliación al enviar la OC vinculó más de uno al mismo artículo. Incluye
+   * a `requerimientoId`, que sigue siendo el principal. Los ingresos a stock
+   * cierran todos.
+   */
+  requerimientoIds?: string[] | null;
   notas?: string | null;
   /**
    * Envase que se le compra al proveedor (Fase 2 presentaciones, 2026-08-13).
@@ -5821,6 +5828,7 @@ export interface ItemImportacion {
   moneda?: 'ARS' | 'USD' | 'EUR' | null;        // ItemOC.moneda
   costoUnitarioConGastos?: number | null;        // calculado al ingresar stock
   requerimientoId?: string | null;               // ItemOC.requerimientoId para cierre automático
+  requerimientoIds?: string[] | null;            // ItemOC.requerimientoIds (conciliación múltiple)
 }
 
 export interface Importacion extends TandaFotos {

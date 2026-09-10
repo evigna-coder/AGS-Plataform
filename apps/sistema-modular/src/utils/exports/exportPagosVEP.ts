@@ -20,4 +20,6 @@ export const PAGOS_VEP_EXPORT_COLUMNS: ExportColumn<EventoFlujo>[] = [
   { header: 'Proveedor',       width: 30, get: e => e.proveedor },
   { header: 'Moneda',          width: 8,  get: e => e.moneda || '' },
   { header: 'Monto',           width: 14, get: e => e.monto ?? null, align: 'right' },
+  // Giros en euros unificados a USD (2026-09-10): se deja el original y el pase.
+  { header: 'Original',        width: 18, get: e => (e.montoOriginal != null ? `${e.monedaOriginal} ${e.montoOriginal.toLocaleString('es-AR', { maximumFractionDigits: 2 })} @ ${e.paseEurUsd}` : '') },
 ];

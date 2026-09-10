@@ -5,6 +5,7 @@ import { ordenesCompraService } from '../../services/firebaseService';
 import { calificacionesService } from '../../services/calificacionesService';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { ConciliarRequerimientosModal } from './ConciliarRequerimientosModal';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../ui/Select';
@@ -26,6 +27,9 @@ interface Props {
 export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdated }) => {
   const [newEstado, setNewEstado] = useState<EstadoOC | ''>('');
   const [saving, setSaving] = useState(false);
+  // Al pasar a enviada se ofrece vincular los requerimientos abiertos de los
+  // mismos artículos (2026-09-10), para que no queden vivos en la planilla.
+  const [conciliando, setConciliando] = useState(false);
 
   const allowedStates = VALID_TRANSITIONS[oc.estado] || [];
 
@@ -37,7 +41,13 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
   const faltaIngresar = (oc.items ?? []).reduce(
     (acc, it) => acc + Math.max(0, (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0)), 0);
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
+    if (!newEstado) return;
+    if (newEstado === 'enviada_proveedor' && oc.estado === 'borrador') { setConciliando(true); return; }
+    void aplicarTransicion();
+  };
+
+  const aplicarTransicion = async () => {
     if (!newEstado) return;
     setSaving(true);
     try {
@@ -72,7 +82,7 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleConfirm} disabled={!newEstado || saving}>
+          <Button size="sm" onClick={handleConfirm} disabled={!newEstado || saving || conciliando}>
             {saving ? 'Guardando...' : 'Confirmar'}
           </Button>
         </>
@@ -116,6 +126,12 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
           </p>
         </div>
       )}
+      <ConciliarRequerimientosModal
+        open={conciliando}
+        oc={oc}
+        onResuelto={() => { setConciliando(false); void aplicarTransicion(); }}
+        onCancelar={() => setConciliando(false)}
+      />
     </Modal>
   );
 };

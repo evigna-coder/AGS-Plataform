@@ -3,8 +3,10 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import type { MinikitRequeridoItem, UnidadStock } from '@ags/shared';
 import type { OrdenListadoMinikit } from '../../utils/minikitImprimir';
+import { matchesSearch } from '../../utils/searchTerms';
 
 import { Select } from '../ui/Select';
+import { Input } from '../ui/Input';
 interface Props {
   requeridos: MinikitRequeridoItem[];
   unidades: UnidadStock[];
@@ -29,6 +31,10 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
    * "+ Reponer" siga apareciendo solo donde falta y no ensucie la lista.
    */
   const [reponerTodos, setReponerTodos] = useState(false);
+  // Buscador del listado (2026-09-10): los kits grandes tienen decenas de
+  // requeridos y ubicar uno para reponerlo era a ojo. Filtra por código,
+  // descripción o sector; los contadores de arriba siguen siendo del total.
+  const [busqueda, setBusqueda] = useState('');
   const comparison = useMemo(() => {
     const filas = requeridos.map(req => {
       // Sumar `cantidad` (un doc puede valer N unidades), no contar docs
@@ -50,6 +56,9 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
   const statusLabels = { ok: 'Completo', warning: 'Casi', missing: 'Faltante' };
   const allOk = comparison.length > 0 && comparison.every(c => c.status === 'ok');
   const faltantes = comparison.filter(c => c.status !== 'ok').length;
+  const visibles = busqueda.trim()
+    ? comparison.filter(c => matchesSearch(busqueda, c.articuloCodigo, c.articuloDescripcion, c.sector ?? ''))
+    : comparison;
 
   if (requeridos.length === 0) {
     return (
@@ -100,6 +109,14 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
         </div>
       }
     >
+      <div className="mb-2 max-w-sm">
+        <Input
+          inputSize="sm"
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          placeholder="Buscar por código, descripción o sector…"
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -113,8 +130,11 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer,
             </tr>
           </thead>
           <tbody>
-            {comparison.map((c, i) => (
-              <tr key={i} className="border-b border-slate-50 last:border-0">
+            {visibles.length === 0 && (
+              <tr><td colSpan={onReponer ? 6 : 5} className="text-xs text-slate-400 text-center py-4">Ningún artículo coincide con la búsqueda.</td></tr>
+            )}
+            {visibles.map(c => (
+              <tr key={c.articuloId} className="border-b border-slate-50 last:border-0">
                 <td className="text-xs py-2 pr-3">
                   <span className="font-mono text-teal-600 font-semibold">{c.articuloCodigo}</span>
                   <span className="text-slate-600 ml-1.5">{c.articuloDescripcion}</span>

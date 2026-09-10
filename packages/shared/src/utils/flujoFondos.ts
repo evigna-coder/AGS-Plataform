@@ -20,6 +20,13 @@ export interface EventoFlujo {
   pagado: boolean;          // VEP/giro ya cumplido (heurística por estado)
   /** Cargado a mano (no deriva de una importación) — 2026-08-06. */
   manual?: boolean;
+  /**
+   * Giro facturado en euros y convertido a dólares al pase declarado en la
+   * importación (2026-09-10). Se conserva el original para mostrarlo al lado.
+   */
+  montoOriginal?: number;
+  monedaOriginal?: string;
+  paseEurUsd?: number;
 }
 
 export const TIPO_LABEL: Record<EventoTipo, string> = { vep: 'VEP', giro: 'Giro', arribo: 'Arribo' };
@@ -30,6 +37,24 @@ export const TIPO_COLOR: Record<EventoTipo, string> = {
 };
 
 const RECIBIDO = new Set(['recibido', 'cancelado']);
+/**
+ * Estados que implican el VEP pagado y la mercadería en el país (2026-09-10):
+ * la aduana no oficializa un despacho sin el VEP pagado, así que una impo
+ * 'despachado' (Oficializada) ya no tiene VEP pendiente aunque nadie haya
+ * apretado "Confirmar VEP". Antes la impo seguía en Pagos VEP hasta recibirse.
+ */
+const OFICIALIZADO = new Set(['despachado', ...RECIBIDO]);
+
+/**
+ * Giros al exterior en una sola moneda (2026-09-10): los que están en euros se
+ * convierten a dólares al pase EUR→USD declarado en la importación. Sin pase
+ * declarado no hay con qué convertir y el giro queda en euros (la pantalla lo
+ * marca aparte).
+ */
+function giroEnUSD(monto: number | null, moneda: string, pase: number | null | undefined): Pick<EventoFlujo, 'monto' | 'moneda' | 'montoOriginal' | 'monedaOriginal' | 'paseEurUsd'> {
+  if (moneda !== 'EUR' || monto == null || !pase || pase <= 0) return { monto, moneda };
+  return { monto: Math.round(monto * pase * 100) / 100, moneda: 'USD', montoOriginal: monto, monedaOriginal: 'EUR', paseEurUsd: pase };
+}
 
 /**
  * Normaliza una fecha a 'YYYY-MM-DD'. Tolerante: acepta string ISO, Firestore Timestamp
@@ -74,17 +99,18 @@ export function buildEventos(importaciones: Importacion[], pagosManuales: PagoEx
   }
   for (const imp of importaciones) {
     const base = { impId: imp.id, ocNumero: imp.ordenCompraNumero || imp.numero, proveedor: imp.proveedorNombre || '—' };
-    const cumplido = RECIBIDO.has(imp.estado);
     // Confirmaciones explícitas (2026-08-27): VEP pagado, giro pagado y arribo
     // (fechaArriboReal) se marcan desde la importación y sacan el evento de los
     // pendientes en el momento, sin esperar a que la impo llegue a 'recibido'.
     // La heurística por estado queda como red para docs viejos sin confirmar:
-    // mercadería recibida implica VEP pagado y arribo ocurrido.
+    // despacho oficializado o mercadería recibida implican VEP pagado y arribo
+    // ocurrido.
     // El giro NO se infiere del estado: la condición de pago puede vencer meses
     // después de recibir (UAT 2026-07-16) — solo el flag o la cancelación.
-    const vepPagado = imp.vepPagado === true || cumplido;
+    const oficializada = OFICIALIZADO.has(imp.estado);
+    const vepPagado = imp.vepPagado === true || oficializada;
     const giroPagado = imp.giroPagado === true || imp.estado === 'cancelado';
-    const arriboOcurrido = cumplido || !!toFecha(imp.fechaArriboReal);
+    const arriboOcurrido = oficializada || !!toFecha(imp.fechaArriboReal);
     const vepFecha = toFecha(imp.vepFechaPago);
     const giroFecha = toFecha(imp.giroFechaEstimada);
     const arriboFecha = toFecha(imp.fechaEstimadaArribo);
@@ -92,7 +118,7 @@ export function buildEventos(importaciones: Importacion[], pagosManuales: PagoEx
       eventos.push({ id: `${imp.id}-vep`, fecha: vepFecha, tipo: 'vep', monto: imp.vepMonto ?? null, moneda: imp.vepMoneda ?? 'ARS', pagado: vepPagado, ...base });
     }
     if (giroFecha) {
-      eventos.push({ id: `${imp.id}-giro`, fecha: giroFecha, tipo: 'giro', monto: imp.giroMonto ?? null, moneda: imp.giroMoneda ?? 'USD', pagado: giroPagado, ...base });
+      eventos.push({ id: `${imp.id}-giro`, fecha: giroFecha, tipo: 'giro', ...giroEnUSD(imp.giroMonto ?? null, imp.giroMoneda ?? 'USD', imp.paseEurUsd), pagado: giroPagado, ...base });
     }
     if (arriboFecha) {
       eventos.push({ id: `${imp.id}-arr`, fecha: arriboFecha, tipo: 'arribo', monto: null, moneda: null, pagado: arriboOcurrido, ...base });

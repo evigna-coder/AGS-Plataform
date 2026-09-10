@@ -11,31 +11,14 @@ import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
-import type { EstadoImportacion, Importacion } from '@ags/shared';
+import type { EstadoImportacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { IMPORTACIONES_EXPORT_COLUMNS } from '../../utils/exports/exportImportaciones';
 import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 
 import { Select } from '../../components/ui/Select';
-const ESTADOS: EstadoImportacion[] = [
-  'preparacion', 'en_origen', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
-];
-
-const FILTER_SCHEMA = {
-  estado: { type: 'string' as const, default: '' },
-  sortField: { type: 'string' as const, default: 'fechaEstimadaArribo' },
-  sortDir: { type: 'string' as const, default: 'desc' },
-};
-
-const isEtaVencida = (imp: Importacion): boolean => {
-  if (!imp.fechaEstimadaArribo) return false;
-  if (imp.estado === 'recibido' || imp.estado === 'cancelado') return false;
-  return new Date(imp.fechaEstimadaArribo) < new Date();
-};
-
-const thClass = 'text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4';
-
+import { ESTADOS, FILTER_SCHEMA, isFinalizada, isEtaVencida, thClass } from './importacionesListHelpers';
 export const ImportacionesList = () => {
   const { importaciones, loading, loadImportaciones } = useImportaciones();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
@@ -72,10 +55,13 @@ export const ImportacionesList = () => {
     setFilter('sortDir', s.dir);
   };
 
-  const sorted = useMemo(
-    () => sortByField(importaciones, filters.sortField, filters.sortDir as SortDir),
-    [importaciones, filters.sortField, filters.sortDir],
-  );
+  const sorted = useMemo(() => {
+    // Con un estado elegido a mano se muestra todo lo que tenga ese estado.
+    const visibles = filters.verFinalizadas || filters.estado
+      ? importaciones
+      : importaciones.filter(imp => !isFinalizada(imp));
+    return sortByField(visibles, filters.sortField, filters.sortDir as SortDir);
+  }, [importaciones, filters.sortField, filters.sortDir, filters.verFinalizadas, filters.estado]);
 
   useEffect(() => {
     loadImportaciones(filters.estado ? { estado: filters.estado } : undefined);
@@ -122,6 +108,12 @@ export const ImportacionesList = () => {
               <option key={e} value={e}>{ESTADO_IMPORTACION_LABELS[e]}</option>
             ))}
           </Select>
+          <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
+            <input type="checkbox" checked={filters.verFinalizadas}
+              onChange={e => setFilter('verFinalizadas', e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-600" />
+            Ver finalizadas
+          </label>
         </div>
       </PageHeader>
 

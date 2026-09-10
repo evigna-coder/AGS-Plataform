@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ordenesCompraService, requerimientosService, presupuestosService, leadsService, proveedoresService } from '../services/firebaseService';
+import { ordenesCompraService, requerimientosService, proveedoresService } from '../services/firebaseService';
+import { advanceTicketsToMateriales } from '../services/ocRequerimientosService';
 import type { RequerimientoCompra, ItemOC, Proveedor } from '@ags/shared';
 
 /**
@@ -160,24 +161,4 @@ export function useGenerarOC() {
   }, []);
 
   return { generarOCs, agregarAOCExistente, loading, error, generadas };
-}
-
-/** Mueve a "Materiales" los tickets de origen de los presupuestos detrás de estos requerimientos. */
-async function advanceTicketsToMateriales(reqs: RequerimientoCompra[]): Promise<void> {
-  try {
-    const presupuestoIds = [...new Set(reqs.map(r => r.presupuestoId).filter(Boolean) as string[])];
-    if (presupuestoIds.length === 0) return;
-    const ticketIds = new Set<string>();
-    for (const pid of presupuestoIds) {
-      const pres = await presupuestosService.getById(pid).catch(() => null);
-      if (pres?.origenTipo === 'lead' && pres.origenId) ticketIds.add(pres.origenId);
-    }
-    await Promise.all([...ticketIds].map(tid =>
-      leadsService.moverAArea(tid, 'materiales').catch(err =>
-        console.error(`Error moviendo ticket ${tid} a Materiales:`, err),
-      ),
-    ));
-  } catch (err) {
-    console.error('[advanceTicketsToMateriales]', err);
-  }
 }

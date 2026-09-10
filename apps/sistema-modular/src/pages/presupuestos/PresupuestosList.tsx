@@ -273,6 +273,10 @@ export const PresupuestosList = () => {
       : presupuestos.filter(p => p.tipo !== 'contrato' || filters.tipo === 'contrato')
   ), [presupuestos, filters.vista, filters.tipo]);
 
+  const getClienteNombre = (clienteId: string) => {
+    return clientes.find(c => c.id === clienteId)?.razonSocial || '—';
+  };
+
   /**
    * Universo de las CARDS (2026-09-09): la solapa recortada por los filtros
    * base —cliente, tipo, responsable, fechas, búsqueda—, pero NO por estado ni
@@ -303,10 +307,6 @@ export const PresupuestosList = () => {
       (!p.ordenesCompraIds || p.ordenesCompraIds.length === 0)
     );
   }, [presupuestos, cargarOCTarget]);
-
-  const getClienteNombre = (clienteId: string) => {
-    return clientes.find(c => c.id === clienteId)?.razonSocial || '—';
-  };
 
   // Sets por presupuesto derivados de las solicitudes de facturación (avisos):
   // activas (no anuladas), pendientes de facturar y facturadas sin cobro.

@@ -39,6 +39,7 @@ const itemsFromOC = (items: ItemOC[], ocMoneda: Moneda): ItemImportacion[] =>
     descripcion: io.descripcion, cantidadPedida: io.cantidad, cantidadRecibida: null,
     unidadMedida: io.unidadMedida, precioUnitario: io.precioUnitario ?? null,
     moneda: (io.moneda ?? ocMoneda) as Moneda, requerimientoId: io.requerimientoId ?? null,
+    requerimientoIds: io.requerimientoIds ?? null,
   }));
 
 /** Gastos precargados: todos en la moneda de la importación (USD por defecto). */

@@ -7,18 +7,19 @@ import { notify } from '../../utils/notify';
 /**
  * Confirmación secuencial desde el listado de importaciones (2026-08-27): cada
  * fila ofrece UNA acción — la próxima del ciclo arribo → pago VEP → giro al
- * exterior. Con la impo ya en 'recibido' el arribo y el VEP se dan por
- * ocurridos (misma heurística que el flujo de fondos), así que solo puede
- * quedar el giro. Cada confirmación estampa la fecha efectiva y saca el evento
- * de los pendientes de Pagos VEP.
+ * exterior. Con la impo oficializada (despacho declarado) o recibida el arribo
+ * y el VEP se dan por ocurridos (misma heurística que el flujo de fondos: la
+ * aduana no oficializa sin el VEP pagado), así que solo puede quedar el giro.
+ * Cada confirmación estampa la fecha efectiva y saca el evento de los
+ * pendientes de Pagos VEP.
  */
 type PasoConfirmacion = { key: 'arribo' | 'vep' | 'giro'; label: string };
 
 export const proximaConfirmacion = (imp: Importacion): PasoConfirmacion | null => {
   if (imp.estado === 'cancelado') return null;
-  const recibida = imp.estado === 'recibido';
-  if (!imp.fechaArriboReal && !recibida) return { key: 'arribo', label: 'Confirmar arribo' };
-  if (imp.vepPagado !== true && !recibida) return { key: 'vep', label: 'Confirmar VEP' };
+  const oficializada = imp.estado === 'despachado' || imp.estado === 'recibido';
+  if (!imp.fechaArriboReal && !oficializada) return { key: 'arribo', label: 'Confirmar arribo' };
+  if (imp.vepPagado !== true && !oficializada) return { key: 'vep', label: 'Confirmar VEP' };
   if (imp.giroPagado !== true) return { key: 'giro', label: 'Confirmar giro' };
   return null;
 };

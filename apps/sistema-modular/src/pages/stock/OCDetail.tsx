@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { OCInfoSidebar } from '../../components/stock/OCInfoSidebar';
 import { OCItemsTable } from '../../components/stock/OCItemsTable';
 import { OCStatusTransition } from '../../components/stock/OCStatusTransition';
+import { VincularRequerimientosButton } from '../../components/stock/VincularRequerimientosButton';
 import { OCImportacionesSection } from '../../components/stock/OCImportacionesSection';
 import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -124,6 +125,7 @@ export const OCDetail = () => {
             {canReceive && (
               <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Cambiar estado</Button>
             )}
+            <VincularRequerimientosButton oc={oc} onDone={loadOC} />
             {canEdit && (
               <Link to={`/stock/ordenes-compra/${oc.id}/editar`}>
                 <Button variant="outline" size="sm">Editar</Button>

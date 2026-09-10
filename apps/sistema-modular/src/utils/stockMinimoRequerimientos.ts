@@ -4,8 +4,17 @@ import { requerimientosService } from '../services/importacionesService';
 import { OC_OPEN_STATES } from '../services/stockAmplioService';
 import type { Articulo, OrdenCompra, UnidadStock } from '@ags/shared';
 
-/** Estados de requerimiento que ya no bloquean generar uno nuevo (cerrados). */
-const REQ_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
+/**
+ * Estados de requerimiento que ya no bloquean generar uno nuevo.
+ *
+ * 'en_compra' entra acá desde 2026-09-10 (caso 5181-8830: requerimiento de 4
+ * vinculado a una OC de 3, y el sweep nunca generaba el saldo de 1). Un
+ * requerimiento en compra ya está representado por lo PENDIENTE de su OC, que
+ * `efectivoDe` suma al disponible — si con eso sigue bajo el mínimo, la falta
+ * es real y hay que pedirla. Mismo criterio que el ATP (REQ_COMPROMETIDO_EXCL).
+ * 'aprobado' sigue frenando: es una decisión de compra sin OC todavía.
+ */
+const REQ_CERRADOS = new Set(['comprado', 'cancelado', 'completado', 'en_compra']);
 
 // Guard de sesión: el sweep corre como máximo una vez cada N minutos por pestaña,
 // sin importar cuántas veces se monten Alertas/Requerimientos. Dos PCs abriendo a la

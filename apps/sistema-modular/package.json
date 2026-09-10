@@ -39,6 +39,8 @@
     "test:ppto-items": "tsx src/utils/__tests__/presupuestoItemNumero.test.ts",
     "test:estado-presupuesto": "tsx src/utils/__tests__/estadoPresupuesto.test.ts",
     "test:estado-importacion": "tsx src/utils/__tests__/estadoImportacion.test.ts",
+    "test:flujo-fondos": "tsx src/utils/__tests__/flujoFondos.test.ts",
+    "test:conciliar-reqs": "tsx src/utils/__tests__/conciliarRequerimientosOC.test.ts",
     "test:costeo-importacion": "tsx src/utils/__tests__/costeoImportacion.test.ts",
     "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
     "test:contrato-servicios": "tsx src/components/presupuestos/contrato/__tests__/materializarServicios.test.ts",

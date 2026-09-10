@@ -12,6 +12,7 @@ import { OCStatusTransition } from './OCStatusTransition';
 import { StockIntakeModal } from './StockIntakeModal';
 import { OCImportacionesSection } from './OCImportacionesSection';
 import { EnviarOrdenCompraModal } from './EnviarOrdenCompraModal';
+import { VincularRequerimientosButton } from './VincularRequerimientosButton';
 import { ImportacionModal } from './ImportacionModal';
 import { previewOrdenCompraPDF } from './pdf/generateOrdenCompraPDF';
 import { useOrdenCompraForm, type OCPrefill } from '../../hooks/useOrdenCompraForm';
@@ -130,6 +131,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
         <Button variant="ghost" size="sm" onClick={handleDelete} className="mr-auto text-red-600 hover:bg-red-50">Eliminar</Button>
       )}
       {pdfMailBtns}
+      {oc && <VincularRequerimientosButton oc={oc} onDone={() => { h.reload(); onSaved?.(); }} />}
       {puedeEditar && (
         <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
       )}

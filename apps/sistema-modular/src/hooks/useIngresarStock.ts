@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { requerimientosDeItem } from '../utils/conciliarRequerimientosOC';
 import { Timestamp } from 'firebase/firestore';
 import type { Importacion, ItemImportacion, Articulo } from '@ags/shared';
 import {
@@ -175,15 +176,18 @@ export function useIngresarStock() {
         // 'comprado' (enum EstadoRequerimiento) — antes escribía 'completado', que no
         // existe en el enum y dejaba el req contando como comprometido en el ATP.
         const recibidoAcumulado = (prevRecibidoByItemId.get(rec.item.id) ?? 0) + rec.cantidadReal;
-        if (rec.item.requerimientoId && recibidoAcumulado >= rec.item.cantidadPedida) {
-          batch.update(
-            docRef('requerimientos_compra', rec.item.requerimientoId),
-            deepCleanForFirestore({
-              estado: 'comprado',
-              updatedAt: Timestamp.now(),
-              ...getUpdateTrace(),
-            }),
-          );
+        if (recibidoAcumulado >= rec.item.cantidadPedida) {
+          // Todos los vinculados: principal + conciliación múltiple (2026-09-10).
+          for (const reqId of requerimientosDeItem(rec.item)) {
+            batch.update(
+              docRef('requerimientos_compra', reqId),
+              deepCleanForFirestore({
+                estado: 'comprado',
+                updatedAt: Timestamp.now(),
+                ...getUpdateTrace(),
+              }),
+            );
+          }
         }
       }
 

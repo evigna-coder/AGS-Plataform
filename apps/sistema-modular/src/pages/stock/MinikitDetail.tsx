@@ -9,8 +9,7 @@ import { MinikitVerificacionCard } from '../../components/stock/MinikitVerificac
 import { MinikitRequeridosCard } from '../../components/stock/MinikitRequeridosCard';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitModal';
-import { ConsumirUnidadMinikitModal } from '../../components/stock/ConsumirUnidadMinikitModal';
-import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
+import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { imprimirListadoMinikit } from '../../utils/minikitImprimir';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -25,9 +24,6 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
   en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-blue-700',
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
 };
-const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
-const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
-const ESTADO_UNIDAD_COLORS: Record<string, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700' };
 
 const Badge = ({ label, color }: { label: string; color: string }) => (
   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${color}`}>{label}</span>
@@ -60,7 +56,6 @@ export const MinikitDetail = () => {
   const [showDuplicate, setShowDuplicate] = useState(false);
   // req: null = reposición libre con buscador de artículos (2026-08-06).
   const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem | null; deficit: number } | null>(null);
-  const [consumirUnidad, setConsumirUnidad] = useState<UnidadStock | null>(null);
 
   // Compat: algunos modales llaman loadRelated tras operar — con la suscripción
   // en tiempo real ya no hace falta refetch manual, queda como no-op.
@@ -237,8 +232,9 @@ export const MinikitDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-4">
-            {/* Requeridos ARRIBA (pedido 2026-08-03): es lo que más se usa;
-                el contenido crudo (unidades) queda al final. */}
+            {/* Requeridos arriba (pedido 2026-08-03). La tabla "Contenido" con las
+                unidades crudas se quitó el 2026-09-10: no aportaba sobre los
+                requeridos y la verificación. */}
             <MinikitRequeridosCard
               requeridos={requeridos}
               unidades={unidades}
@@ -259,45 +255,6 @@ export const MinikitDetail = () => {
               onReponer={(req, deficit) => setReponerFor({ req, deficit })}
             />
 
-            <Card compact title={`Contenido (${unidades.reduce((s, u) => s + (u.cantidad ?? 1), 0)} unidad${unidades.reduce((s, u) => s + (u.cantidad ?? 1), 0) !== 1 ? 'es' : ''})`}>
-              {unidades.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">No hay unidades asignadas a este minikit.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-100">
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Codigo</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Descripcion</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Cant.</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Condicion</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Serie</th>
-                        {canVerify && <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {unidades.map(u => (
-                        <tr key={u.id} className="border-b border-slate-50 last:border-0">
-                          <td className="text-xs py-2 pr-3 font-mono text-teal-600 font-semibold whitespace-nowrap">{u.articuloCodigo}</td>
-                          <td className="text-xs py-2 pr-3 text-slate-700 truncate max-w-[200px]">{u.articuloDescripcion}</td>
-                          <td className="text-xs py-2 pr-3 text-center font-medium">{u.cantidad ?? 1}</td>
-                          <td className="text-xs py-2 pr-3"><Badge label={CONDICION_LABELS[u.condicion]} color={CONDICION_COLORS[u.condicion]} /></td>
-                          <td className="text-xs py-2 pr-3"><Badge label={u.estado.replace('_', ' ')} color={ESTADO_UNIDAD_COLORS[u.estado] ?? 'bg-slate-100 text-slate-500'} /></td>
-                          <td className="text-xs py-2 text-slate-400">{u.nroSerie ? `S/N: ${u.nroSerie}` : '--'}</td>
-                          {canVerify && (
-                            <td className="text-xs py-2 text-center">
-                              <button onClick={() => setConsumirUnidad(u)}
-                                className="text-[11px] font-medium text-teal-600 hover:text-teal-800 whitespace-nowrap">Consumir</button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
           </div>
         </div>
       </div>
@@ -349,19 +306,6 @@ export const MinikitDetail = () => {
         />
       )}
 
-      {consumirUnidad && minikit && (
-        <ConsumirUnidadMinikitModal
-          minikit={{ id: minikit.id, codigo: minikit.codigo, nombre: minikit.nombre }}
-          unidad={consumirUnidad}
-          onClose={() => setConsumirUnidad(null)}
-          onDone={async (res) => {
-            setConsumirUnidad(null);
-            if (res.error) notify.error(`Unidad consumida, pero la reserva no se pudo saldar: ${res.error}. Reponé el kit a mano.`);
-            else if (res.reservaSaldada) notify.success('Unidad consumida y reserva saldada — el kit quedó repuesto con la unidad reservada.');
-            if (minikit) await loadRelated(minikit);
-          }}
-        />
-      )}
     </div>
   );
 };
