@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { AuditLogEntry, AuditAction, UsuarioAGS } from '@ags/shared';
+import { ACTION_LABELS, collectionLabel, describirAccion, entityLabelDe, tituloAccion } from '../../utils/auditHumano';
+import { AuditoriaDetalle } from '../../components/admin/AuditoriaDetalle';
 import { auditService, type AuditFilters } from '../../services/auditService';
 import { usuariosService } from '../../services/personalService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -27,94 +29,6 @@ const ACTION_BADGE: Record<AuditAction, string> = {
   business_event: 'bg-violet-50 text-violet-700 border border-violet-200',
 };
 
-/** Mapeo de nombre técnico de colección Firestore → nombre humano del módulo. */
-const COLLECTION_LABELS: Record<string, string> = {
-  clientes: 'Cliente',
-  establecimientos: 'Establecimiento',
-  reportes: 'Orden de Trabajo',
-  ordenes_trabajo: 'Orden de Trabajo',
-  presupuestos: 'Presupuesto',
-  leads: 'Ticket',
-  articulos: 'Artículo',
-  posiciones_stock: 'Posición de Stock',
-  unidades_stock: 'Unidad de Stock',
-  minikits: 'Minikit',
-  movimientos_stock: 'Movimiento de Stock',
-  remitos: 'Remito',
-  fichas_propiedad: 'Ficha',
-  vehiculos: 'Vehículo',
-  contratos: 'Contrato',
-  dispositivos: 'Dispositivo',
-  loaners: 'Loaner',
-  agenda: 'Agenda',
-  qfDocumentos: 'Documento QF',
-  tableCatalog: 'Tabla de Protocolo',
-  tiposEquipo: 'Tipo de Equipo',
-  proveedores: 'Proveedor',
-  ingreso_empresas: 'Ingreso de Empresa',
-  patrones: 'Patrón',
-  instrumentos: 'Instrumento',
-  ordenes_compra: 'Orden de Compra',
-  facturacion: 'Solicitud de Facturación',
-  requerimientos_compra: 'Requerimiento de Compra',
-  importaciones: 'Importación',
-  pendientes: 'Pendiente',
-  asignaciones: 'Asignación',
-  mailQueue: 'Email',
-  audit_log: 'Registro de Auditoría',
-};
-
-function collectionLabel(c: string): string {
-  return COLLECTION_LABELS[c] || c;
-}
-
-/** Mapeo de eventName de business_event → texto humano. */
-const EVENT_LABELS: Record<string, string> = {
-  // Clientes
-  'cliente.desactivado': 'Dio de baja al cliente',
-  'cliente.reactivado': 'Reactivó al cliente',
-  // OT
-  'ot.estado_cambiado': 'Cambió estado de la OT',
-  'ot.cerrada': 'Cerró administrativamente la OT',
-  // Presupuestos
-  'presupuesto.enviado': 'Envió el presupuesto',
-  'presupuesto.aceptado': 'Aceptó el presupuesto',
-  'presupuesto.rechazado': 'Rechazó el presupuesto',
-  'presupuesto.revision_creada': 'Creó una revisión del presupuesto',
-  'presupuesto.factura_solicitada': 'Solicitó factura del presupuesto',
-  // Tickets
-  'ticket.derivado': 'Derivó el ticket',
-  'ticket.reasignado': 'Reasignó el ticket',
-  'ticket.accion_completada': 'Completó la acción del ticket',
-  'ticket.finalizado': 'Finalizó el ticket',
-  'ticket.reabierto': 'Reabrió el ticket',
-  // Stock
-  'stock.movimiento_creado': 'Registró movimiento de stock',
-  'articulo.dado_de_baja': 'Dio de baja al artículo',
-};
-
-const ACTION_VERB_BY_TYPE: Record<AuditAction, string> = {
-  create: 'Creó',
-  update: 'Modificó',
-  delete: 'Eliminó',
-  business_event: '',
-};
-
-function describeActionFull(e: AuditLogEntry): string {
-  if (e.action === 'business_event') {
-    return EVENT_LABELS[e.eventName || ''] || (e.eventName || 'evento');
-  }
-  return `${ACTION_VERB_BY_TYPE[e.action]} ${collectionLabel(e.collection).toLowerCase()}`;
-}
-
-function actionBadgeLabel(e: AuditLogEntry): string {
-  if (e.action === 'business_event') return 'Evento';
-  if (e.action === 'create') return 'Creación';
-  if (e.action === 'update') return 'Modificación';
-  if (e.action === 'delete') return 'Eliminación';
-  return e.action;
-}
-
 const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   action: { type: 'string' as const, default: '' },
@@ -134,147 +48,6 @@ function formatTs(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-/** Diccionario de campos técnicos → nombre humano. Para el resumen del cambio. */
-const FIELD_LABELS: Record<string, string> = {
-  // Generic
-  status: 'estado', activo: 'activo', name: 'nombre', nombre: 'nombre',
-  description: 'descripción', descripcion: 'descripción', descripción: 'descripción',
-  estado: 'estado', orden: 'orden', email: 'email', telefono: 'teléfono',
-  direccion: 'dirección', observaciones: 'observaciones', notas: 'notas',
-  // Cliente
-  razonSocial: 'razón social', cuit: 'CUIT',
-  // OT
-  estadoAdmin: 'estado administrativo', fechaCierre: 'fecha de cierre',
-  fechaInicio: 'fecha de inicio', clienteId: 'cliente', sistemaId: 'sistema',
-  budgets: 'presupuestos vinculados', tecnicos: 'técnicos asignados',
-  // Tickets
-  asignadoA: 'responsable', asignadoNombre: 'responsable',
-  areaActual: 'área', prioridad: 'prioridad',
-  proximoContacto: 'próximo contacto', motivoLlamado: 'motivo del llamado',
-  motivoOtros: 'motivo (otros)', accionPendiente: 'acción pendiente',
-  ultimaObservacion: 'última observación', postas: 'historial de postas',
-  finalizadoAt: 'fecha de finalización', derivadoPor: 'derivado por',
-  // Presupuesto
-  fechaEnvio: 'fecha de envío', validUntil: 'válido hasta', items: 'items',
-  precio: 'precio', cantidad: 'cantidad', moneda: 'moneda',
-  motivoAnulacion: 'motivo de anulación', anuladoPorId: 'anulado por',
-  origenTipo: 'tipo de origen', origenId: 'origen',
-  ordenesCompraIds: 'órdenes de compra', adjuntos: 'adjuntos',
-  // QF
-  fechaCreacion: 'fecha de creación', fechaUltimaActualizacion: 'última actualización',
-  versionActual: 'versión actual', historial: 'historial',
-  // Sistema / Equipo
-  software: 'software', categoriaId: 'categoría',
-  configuracionGC: 'configuración GC', sector: 'sector',
-  codigoInternoCliente: 'código interno cliente',
-  // Tabla / Protocolo
-  tableType: 'tipo de tabla', allowClientSpec: 'permite especificación cliente',
-  templateRows: 'filas plantilla', validationRules: 'reglas de validación',
-  sysType: 'tipo de sistema', columns: 'columnas', modelos: 'modelos',
-  isDefault: 'es por defecto', tipoServicio: 'tipo de servicio',
-  projectId: 'proyecto',
-  // Stock / Artículo
-  codigoArticulo: 'código de artículo', codigo: 'código',
-  categorias: 'categorías', marca: 'marca', lotes: 'lotes',
-  posicionArancelaria: 'posición arancelaria', origen: 'origen',
-  proveedorId: 'proveedor', stockMinimo: 'stock mínimo',
-  unidadMedida: 'unidad de medida',
-};
-const SKIP_FIELDS = new Set([
-  'updatedAt', 'updatedBy', 'updatedByName', 'createdAt', 'createdBy', 'createdByName',
-  'numero', // se muestra ya en entityLabel
-]);
-
-/** camelCase / snake_case → "Tres palabras separadas". Fallback para cuando un
- * campo no está en FIELD_LABELS (ej. campos nuevos que no fueron mapeados). */
-function humanize(k: string): string {
-  return k
-    .replace(/([a-z])([A-Z])/g, '$1 $2')   // camelCase → camel Case
-    .replace(/_/g, ' ')                    // snake_case → snake case
-    .replace(/^./, (c) => c.toLowerCase()); // primera minúscula
-}
-
-function fieldLabel(k: string): string {
-  return FIELD_LABELS[k] || humanize(k);
-}
-
-function v(x: unknown): string {
-  if (x === null || x === undefined || x === '') return '';
-  if (typeof x === 'string') return x;
-  if (typeof x === 'number' || typeof x === 'boolean') return String(x);
-  return '';
-}
-
-/** Compone una sentencia natural describiendo lo que pasó. Recibe el entry y
- * devuelve "Eliminó artículo 5188-5367 por 4 unidades", etc.
- *
- * El usuario va al inicio de la frase ("Esteban eliminó...") afuera, cuando
- * unimos esto con userName en la celda. */
-function describeAction(e: AuditLogEntry): string {
-  const label = e.entityLabel || '';
-  const d = e.details || {};
-
-  // Eventos de negocio: caso por caso porque cada uno tiene su narrativa.
-  if (e.action === 'business_event') {
-    const en = e.eventName || '';
-    switch (en) {
-      case 'cliente.desactivado': return `dio de baja al cliente ${label}`;
-      case 'cliente.reactivado': return `reactivó al cliente ${label}`;
-      case 'ot.estado_cambiado': {
-        const from = v(d.from); const to = v(d.to);
-        return `cambió estado de la ${label}${from && to ? ` de ${from} a ${to}` : to ? ` a ${to}` : ''}`;
-      }
-      case 'ot.cerrada': return `cerró administrativamente la ${label}${v(d.notas) ? ` (${v(d.notas)})` : ''}`;
-      case 'presupuesto.enviado': return `envió el ${label}`;
-      case 'presupuesto.aceptado': {
-        const reqs = Number(d.requerimientosCreados ?? 0);
-        return `aceptó el ${label}${reqs > 0 ? ` (generó ${reqs} requerimiento${reqs === 1 ? '' : 's'} de compra)` : ''}`;
-      }
-      case 'presupuesto.rechazado': return `rechazó el ${label}`;
-      case 'presupuesto.revision_creada':
-        return `creó revisión ${v(d.nuevoNumero) || label}${v(d.anuladoNumero) ? ` (anuló ${v(d.anuladoNumero)})` : ''}${v(d.motivo) ? ` — motivo: ${v(d.motivo)}` : ''}`;
-      case 'ticket.derivado': {
-        const aNombre = v(d.aNombre); const area = v(d.area);
-        const partes = ['derivó el ticket'];
-        if (label) partes.push(label);
-        if (aNombre) partes.push(`a ${aNombre}`);
-        if (area) partes.push(`(área: ${area})`);
-        return partes.join(' ');
-      }
-      case 'ticket.reasignado': return `reasignó el ticket ${label}${v(d.aNombre) ? ` a ${v(d.aNombre)}` : ''}`;
-      case 'ticket.accion_completada': return `completó acción del ticket ${label}`;
-      case 'ticket.finalizado': return `finalizó el ticket ${label}${v(d.comentario) ? ` (${v(d.comentario)})` : ''}`;
-      case 'ticket.reabierto': return `reabrió el ticket ${label}`;
-      case 'stock.movimiento_creado': {
-        const tipo = v(d.tipo) || 'movimiento';
-        const cantidad = Number(d.cantidad ?? 0);
-        const articulo = v(d.articuloCodigo) || v(d.articuloId);
-        const partes = [`registró ${tipo}`];
-        if (cantidad) partes.push(`de ${cantidad} unidad${cantidad === 1 ? '' : 'es'}`);
-        if (articulo) partes.push(`del artículo ${articulo}`);
-        return partes.join(' ');
-      }
-      case 'articulo.dado_de_baja': return `dio de baja al artículo ${label}`;
-      default: {
-        // Evento sin descriptor específico — describirlo genéricamente
-        return `disparó evento "${en}"${label ? ` en ${label}` : ''}`;
-      }
-    }
-  }
-
-  // CRUD genérico
-  const moduloHumano = collectionLabel(e.collection).toLowerCase();
-  if (e.action === 'create') return `creó ${moduloHumano}${label ? ` ${label}` : ''}`;
-  if (e.action === 'delete') return `eliminó ${moduloHumano}${label ? ` ${label}` : ''}`;
-  if (e.action === 'update') {
-    const keys = Object.keys(e.changes?.after ?? {}).filter(k => !SKIP_FIELDS.has(k));
-    if (keys.length === 0) return `modificó ${moduloHumano}${label ? ` ${label}` : ''}`;
-    const camposTxt = keys.map(fieldLabel).slice(0, 4).join(', ') + (keys.length > 4 ? `, +${keys.length - 4} más` : '');
-    return `modificó ${moduloHumano}${label ? ` ${label}` : ''} (${camposTxt})`;
-  }
-  return '';
 }
 
 export default function AuditoriaPage() {
@@ -307,7 +80,7 @@ export default function AuditoriaPage() {
   const filtered = useMemo(() => {
     if (!filters.search.trim()) return entries;
     return entries.filter(e =>
-      matchesSearch(filters.search, e.userName, e.entityLabel, e.collection, e.eventName, e.documentId)
+      matchesSearch(filters.search, e.userName, entityLabelDe(e), collectionLabel(e.collection), e.eventName, e.documentId, describirAccion(e))
     );
   }, [entries, filters.search]);
 
@@ -409,16 +182,16 @@ export default function AuditoriaPage() {
                         <td className="px-3 py-2 text-xs text-slate-700 font-medium truncate max-w-[160px]" title={e.userName}>{e.userName || '—'}</td>
                         <td className="px-3 py-2">
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ACTION_BADGE[e.action]}`}>
-                            {actionBadgeLabel(e)}
+                            {ACTION_LABELS[e.action]}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-700">
-                          <span className="font-medium">{describeActionFull(e)}</span>
-                          {e.entityLabel && <span className="ml-1 text-slate-500">— {e.entityLabel}</span>}
+                          <span className="font-medium">{tituloAccion(e)}</span>
+                          {entityLabelDe(e) && <span className="ml-1 text-slate-500">— {entityLabelDe(e)}</span>}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{collectionLabel(e.collection)}</td>
-                        <td className="px-3 py-2 text-[11px] text-slate-500 truncate max-w-[280px]" title={describeAction(e)}>
-                          {describeAction(e) || <span className="text-slate-300">—</span>}
+                        <td className="px-3 py-2 text-[11px] text-slate-500 truncate max-w-[280px]" title={describirAccion(e)}>
+                          {describirAccion(e) || <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
                           <span className="text-[10px] text-slate-400">{expanded ? '▼' : '▶'}</span>
@@ -427,21 +200,7 @@ export default function AuditoriaPage() {
                       {expanded && (
                         <tr className="bg-slate-50/50">
                           <td colSpan={7} className="px-6 py-3">
-                            <div className="text-[11px] text-slate-600 space-y-2">
-                              <div><span className="text-slate-400">Document ID:</span> <code className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded">{e.documentId}</code></div>
-                              {e.changes && (
-                                <div>
-                                  <p className="text-slate-400 mb-1">Cambios:</p>
-                                  <pre className="text-[10px] bg-white border border-slate-200 rounded p-2 overflow-auto max-h-64">{JSON.stringify(e.changes, null, 2)}</pre>
-                                </div>
-                              )}
-                              {e.details && (
-                                <div>
-                                  <p className="text-slate-400 mb-1">Detalle del evento:</p>
-                                  <pre className="text-[10px] bg-white border border-slate-200 rounded p-2 overflow-auto max-h-64">{JSON.stringify(e.details, null, 2)}</pre>
-                                </div>
-                              )}
-                            </div>
+                            <AuditoriaDetalle entry={e} />
                           </td>
                         </tr>
                       )}
