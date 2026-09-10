@@ -990,6 +990,13 @@ export const ordenesTrabajoService = {
       }
     }
 
+    // Problema / falla inicial → tarjeta de agenda (2026-09-10). Antes solo se
+    // copiaba al crear la entrada: el problema escrito después no llegaba.
+    if (data.problemaFallaInicial !== undefined) {
+      await agendaService.syncProblemaFromOT(otNumber, (data.problemaFallaInicial as string | null) ?? null)
+        .catch(err => console.error('[otService] syncProblemaFromOT:', err));
+    }
+
     // ── Auto-sync agenda when engineer or date changes ──
     if (!opts?.skipAgendaSync && (data.ingenieroAsignadoId !== undefined || data.fechaServicioAprox !== undefined)) {
       try {

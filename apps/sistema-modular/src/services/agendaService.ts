@@ -344,6 +344,20 @@ export const agendaService = {
     }
   },
 
+  /**
+   * Sincroniza el "Problema / Falla inicial" en las entradas activas de una OT
+   * (2026-09-10, caso 30032.01). La tarjeta guarda una foto tomada al agendar;
+   * si el problema se escribió o corrigió DESPUÉS, la agenda no lo mostraba.
+   */
+  async syncProblemaFromOT(otNumber: string, problemaFallaInicial: string | null): Promise<void> {
+    const existing = await this.getByOtNumber(otNumber);
+    const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
+    for (const entry of active) {
+      if ((entry.problemaFallaInicial ?? null) === (problemaFallaInicial ?? null)) continue;
+      await this.update(entry.id, { problemaFallaInicial: problemaFallaInicial ?? null });
+    }
+  },
+
   /** Sincroniza el EQUIPO mostrado en las entradas activas de una OT
    *  (2026-08-03): la tarjeta guarda una foto del equipo tomada al agendar;
    *  si el equipo de la OT se corrige después, la tarjeta quedaba mostrando

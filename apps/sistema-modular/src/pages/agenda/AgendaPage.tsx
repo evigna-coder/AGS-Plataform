@@ -552,6 +552,10 @@ export const AgendaPage: FC = () => {
             establecimientoNombre: null,
             equipoModelo: ot.moduloModelo || null,
             equipoAgsId,
+            // Faltaba en este camino (2026-09-10): las OTs agendadas
+            // arrastrando desde la cola nacían sin el problema y la tarjeta
+            // no lo mostraba, a diferencia de las agendadas desde la OT.
+            problemaFallaInicial: ot.problemaFallaInicial ?? null,
             estadoAgenda,
             notas: null,
             titulo: null,

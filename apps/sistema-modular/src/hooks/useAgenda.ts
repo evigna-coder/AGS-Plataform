@@ -122,12 +122,24 @@ export function useAgenda(): UseAgendaReturn {
 
   // Real-time entries subscription — only flash loading on first load
   const isFirstLoad = useRef(true);
+  // Entradas viejas sin "Problema / falla inicial" (2026-09-10): se completa
+  // desde la OT una vez por entrada y sesión. Best-effort; el snapshot en vivo
+  // trae el dato apenas se escribe.
+  const problemaRevisado = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (isFirstLoad.current) setLoading(true);
     const unsubscribe = agendaService.subscribeToRange(rangeStart, rangeEnd, (newEntries) => {
       setEntries(newEntries);
       setLoading(false);
       isFirstLoad.current = false;
+      const sinProblema = newEntries.filter(e =>
+        e.otNumber && !e.problemaFallaInicial && e.estadoAgenda !== 'cancelado' && !problemaRevisado.current.has(e.id));
+      for (const e of sinProblema) {
+        problemaRevisado.current.add(e.id);
+        void ordenesTrabajoService.getByOtNumber(e.otNumber!).then(ot => {
+          if (ot?.problemaFallaInicial) return agendaService.update(e.id, { problemaFallaInicial: ot.problemaFallaInicial });
+        }).catch(err => console.warn('[useAgenda] completar problema de', e.otNumber, err));
+      }
     });
     return unsubscribe;
   }, [rangeStart, rangeEnd]);
