@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { reportesPendientesService, type BorradorPendiente } from '../services/firebaseService';
+import { useIngenieroDocId } from './useIngenieroDocId';
 
 /**
  * Lista los borradores de reporte que el usuario actual creó desde reportes-ot
- * y aún no finalizó. Filtrado por `creadoPor.uid`.
+ * y aún no finalizó, más las OTs en borrador asignadas a él (aunque otra
+ * persona haya empezado el reporte — 2026-09-11).
  *
  * Para usuarios con rol `admin`, devuelve TODOS los borradores (no filtra por
  * creador) para que puedan supervisar lo pendiente del equipo. La page
@@ -20,11 +22,12 @@ export function useMisReportesPendientes() {
   const [error, setError] = useState<string | null>(null);
 
   const esAdmin = hasRole('admin');
+  // La OT puede guardar el uid o el id del catálogo de ingenieros (igual que Mis OT).
+  const { ingenieroDocId, loaded: ingLoaded } = useIngenieroDocId(usuario?.id, usuario?.email);
 
   useEffect(() => {
-    if (!usuario?.id) {
-      setBorradores([]);
-      setLoading(false);
+    if (!usuario?.id || !ingLoaded) {
+      if (!usuario?.id) { setBorradores([]); setLoading(false); }
       return;
     }
     setLoading(true);
@@ -40,11 +43,12 @@ export function useMisReportesPendientes() {
       setLoading(false);
     };
 
+    const ids = [usuario.id, ingenieroDocId].filter((x): x is string => !!x);
     const unsub = esAdmin
       ? reportesPendientesService.subscribeTodosBorradores(onData, onErr)
-      : reportesPendientesService.subscribeMisBorradores(usuario.id, onData, onErr);
+      : reportesPendientesService.subscribeMisBorradores(ids, onData, onErr);
     return unsub;
-  }, [usuario?.id, esAdmin]);
+  }, [usuario?.id, esAdmin, ingenieroDocId, ingLoaded]);
 
   return { borradores, loading, error, viendoTodos: esAdmin };
 }

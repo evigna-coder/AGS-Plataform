@@ -1129,15 +1129,23 @@ function mergeAndSort(empezados: BorradorPendiente[], sinEmpezar: BorradorPendie
 export const reportesPendientesService = {
   /**
    * Pendientes del ingeniero: mergea (1) borradores empezados por él en
-   * reportes-ot + (2) OTs asignadas a él en estado BORRADOR sin tocar todavía.
+   * reportes-ot + (2) OTs asignadas a él en estado BORRADOR, las haya tocado
+   * quien las haya tocado (2026-09-11, caso Fanely / 29889.01: si otra
+   * persona abría y guardaba primero el reporte, `creadoPor` quedaba a nombre
+   * de esa persona y la OT desaparecía de la lista de su ingeniera asignada).
+   * `ids` = [uid, id del doc en `ingenieros`]: la OT puede guardar cualquiera
+   * de los dos, igual que en "Mis OT".
    * El callback se invoca cada vez que llega snapshot de cualquiera de las
    * dos queries; mantiene state interno para reemitir merge consistente.
    */
   subscribeMisBorradores(
-    uid: string,
+    ids: string[],
     callback: (list: BorradorPendiente[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    const uid = unique[0];
+    if (!uid) { callback([]); return () => {}; }
     let empezados: BorradorPendiente[] = [];
     let sinEmpezar: BorradorPendiente[] = [];
     const emit = () => callback(mergeAndSort(empezados, sinEmpezar));
@@ -1157,25 +1165,23 @@ export const reportesPendientesService = {
       onError,
     );
 
-    // (2) OTs BORRADOR asignadas a este ingeniero sin tocar — single-field index.
-    // Filtramos en memoria por status + child-only + ausencia de creadoPor para
-    // no requerir índice compuesto nuevo.
-    const qAsignadas = query(
-      collection(db, 'reportes'),
-      where('ingenieroAsignadoId', '==', uid),
-    );
+    // (2) OTs BORRADOR asignadas a este ingeniero — single-field index.
+    // Filtramos en memoria por status + child-only para no requerir índice
+    // compuesto nuevo. Las que ya empezó otra persona se muestran como
+    // borrador con el nombre de quien las empezó; el merge deduplica.
+    const qAsignadas = unique.length === 1
+      ? query(collection(db, 'reportes'), where('ingenieroAsignadoId', '==', uid))
+      : query(collection(db, 'reportes'), where('ingenieroAsignadoId', 'in', unique));
     const unsubA = onSnapshot(
       qAsignadas,
       (snap) => {
         sinEmpezar = snap.docs
-          .filter(d => {
+          .filter(d => (d.data() as Record<string, unknown>).status === 'BORRADOR' && d.id.includes('.'))
+          .map(d => {
             const data = d.data() as Record<string, unknown>;
             const creadoPor = data.creadoPor as Record<string, unknown> | undefined;
-            return data.status === 'BORRADOR'
-              && d.id.includes('.')                          // solo children (work units)
-              && !creadoPor?.uid;                            // no tocado todavía
-          })
-          .map(d => parseSinEmpezar(d.id, d.data() as Record<string, unknown>));
+            return creadoPor?.uid ? parseBorradorEmpezado(d.id, data) : parseSinEmpezar(d.id, data);
+          });
         emit();
       },
       onError,
