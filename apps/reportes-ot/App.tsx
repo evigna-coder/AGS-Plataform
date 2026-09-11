@@ -461,6 +461,13 @@ const App: React.FC = () => {
   return (
     <div id="report-container" className={`max-w-5xl mx-auto bg-white transition-all duration-300 pb-32 ${app.isPreviewMode ? 'p-0 min-h-screen shadow-none' : 'px-4 md:px-8 pt-2 md:pt-4 pb-4 md:pb-8 my-0 md:my-8 min-h-screen shadow-xl border border-slate-100'} print:p-0 print:m-0 print:shadow-none print:min-h-0 print:bg-white`}>
 
+      {/* Autosave rechazado (2026-09-11): antes solo iba a consola y el
+          usuario perdía todo al recargar sin enterarse. Sticky, no-print. */}
+      {app.autosaveError && !app.isPreviewMode && (
+        <div role="alert" className="sticky top-0 z-50 bg-red-100 border-b-2 border-red-500 px-4 py-2 text-red-900 text-xs font-semibold no-print">
+          <strong>NO SE ESTÁ GUARDANDO.</strong> {app.autosaveError}
+        </div>
+      )}
       {app.blankPreviewMode && (
         <div className="sticky top-0 z-50 bg-amber-100 border-b-2 border-amber-400 px-4 py-2 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 no-print">
           <span className="flex-1">

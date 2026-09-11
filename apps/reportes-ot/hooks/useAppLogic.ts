@@ -49,6 +49,7 @@ export function useAppLogic(
     reportState,
     hasUserInteracted,
     hasInitialized,
+    tablasQuitadasEnSesion,
     markUserInteracted
   } = reportForm;
 
@@ -246,7 +247,15 @@ export function useAppLogic(
   };
 
   const handleRemoveCatalogTable = (tableId: string) => {
-    setProtocolSelections(protocolSelections.filter(s => s.tableId !== tableId));
+    // Actualización FUNCIONAL (2026-09-11): era el único handler del protocolo
+    // que filtraba sobre el `protocolSelections` capturado en el closure. Si el
+    // render que refresca el handler todavía no corrió cuando se quita la
+    // siguiente tabla (o el borrado llega desde una tarjeta con el handler
+    // viejo), la lista base es la ANTERIOR y la tabla recién quitada vuelve a
+    // aparecer — y así se autosalva. Caso reportado: quedaban solo las tablas
+    // de portada y al reabrir estaban todas.
+    tablasQuitadasEnSesion.current = true;
+    setProtocolSelections(prev => prev.filter(s => s.tableId !== tableId));
   };
 
   /** Duplicar una sección completa (depth-0 header + hijos) dentro de un checklist */
@@ -860,7 +869,7 @@ export function useAppLogic(
   };
 
   // Hook de autosave - guarda automáticamente con debounce
-  useAutosave({
+  const { autosaveError } = useAutosave({
     reportState,
     otNumber,
     status,
@@ -1239,6 +1248,8 @@ export function useAppLogic(
     setters,
     readOnlyByStatus,
     readOnly,
+    /** Último autosave rechazado (banner en App). Null cuando guarda bien. */
+    autosaveError,
     reportState,
     hasUserInteracted,
     hasInitialized,

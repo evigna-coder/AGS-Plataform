@@ -251,8 +251,13 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     //   - Update de pdfUrl/pdfGeneratedAt post-upload (payload incluye pdfGeneratedAt)
     //   - "Reabrir OT" desde sistema-modular (no pasa por este service)
     // Cualquier otro write con status BORRADOR sin pdfGeneratedAt es sospechoso.
+    // Solo protege un doc que SIGUE finalizado (2026-09-11): una OT reabierta
+    // con el "Reabrir OT" viejo quedaba en BORRADOR conservando pdfGeneratedAt,
+    // y este guard rechazaba TODOS sus autosaves — cada edición (tablas
+    // quitadas, texto, horas) se perdía al recargar, sin aviso en pantalla.
     if (
       existingData?.pdfGeneratedAt &&
+      existingData?.status === 'FINALIZADO' &&
       data?.status === 'BORRADOR' &&
       !data?.pdfGeneratedAt
     ) {
@@ -292,11 +297,22 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
       || (t?.resultado && t.resultado !== 'PENDIENTE')
       || !!t?.observaciones);
     const entranteVacio = Array.isArray(data?.protocolSelections) && data.protocolSelections.length === 0;
-    if (tienenDatos && entranteVacio) {
+    // Vaciado INTENCIONAL (2026-09-11): la sesión que quitó las tablas a mano lo
+    // marca en el payload; sin la marca, la lista vacía es sospechosa (pisado
+    // desde una sesión que nunca las cargó, caso 30051.01) y se preserva.
+    const vaciadoIntencional = data?.protocolTablasQuitadasEnSesion === true;
+    if (tienenDatos && entranteVacio && !vaciadoIntencional) {
       console.error('⛔ [saveReporte] guard protocolo activado: el payload vaciaría '
         + `${tablasGuardadas.length} tabla(s) con datos de la OT ${ot} — se preservan las guardadas.`);
       const { protocolSelections: _omitida, ...resto } = data;
       data = resto;
+    } else if (tienenDatos && entranteVacio) {
+      console.warn(`[saveReporte] OT ${ot}: el usuario quitó todas las tablas del catálogo en esta sesión — se guarda vacío.`);
+    }
+    // La marca es de sesión, no del documento.
+    if ('protocolTablasQuitadasEnSesion' in (data ?? {})) {
+      const { protocolTablasQuitadasEnSesion: _marca, ...sinMarca } = data;
+      data = sinMarca;
     }
 
     // Primer save DEL INGENIERO sobre el reporte → anotar quién lo empezó.

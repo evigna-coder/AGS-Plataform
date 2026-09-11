@@ -1,4 +1,4 @@
-import { useEffect, RefObject } from 'react';
+import { useEffect, useState, RefObject } from 'react';
 import { FirebaseService } from '../services/firebaseService';
 import { ReportState } from './useReportForm';
 
@@ -16,13 +16,30 @@ export interface UseAutosaveOptions {
   debounceMs?: number;
 }
 
+/** Texto para el usuario cuando un autosave es rechazado (2026-09-11). */
+function mensajeDeError(error: unknown): string {
+  const code = (error as { code?: string } | null)?.code;
+  if (code === 'reportes-ot/pdf-protected') {
+    return 'Este reporte tiene el PDF definitivo generado y no acepta cambios en borrador. '
+      + 'Para corregirlo hay que reabrirlo desde el sistema o el portal (Reabrir reporte).';
+  }
+  const msg = error instanceof Error ? error.message : '';
+  return `No se pudo guardar el último cambio${msg ? ` (${msg})` : ''}. `
+    + 'Lo que edites NO queda guardado hasta que esto se resuelva: revisá la conexión y volvé a tocar algo para reintentar.';
+}
+
 /**
  * Hook para manejar el autosave automático del reporte
  * Guarda automáticamente cuando el usuario modifica campos, con debounce
- * 
+ *
+ * Devuelve `autosaveError` con el último fallo (2026-09-11): antes el error
+ * solo iba a consola y se podía trabajar una hora sobre un reporte que no
+ * guardaba nada, enterándose al recargar. Se limpia con el próximo guardado OK.
+ *
  * @param options - Opciones de configuración del autosave
  */
-export const useAutosave = (options: UseAutosaveOptions): void => {
+export const useAutosave = (options: UseAutosaveOptions): { autosaveError: string | null } => {
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
   const {
     reportState,
     otNumber,
@@ -63,10 +80,11 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
       console.log("📝 Autosave BORRADOR", otNumber);
       try {
         await firebase.saveReport(otNumber, dataToSave);
+        setAutosaveError(null);
       } catch (error: any) {
         console.error("❌ Error en autosave:", error);
-        // No mostrar alert en autosave para no interrumpir al usuario
-        // Los errores se verán en la consola
+        // Sin alert (no interrumpe), pero VISIBLE: banner fijo arriba del reporte.
+        setAutosaveError(mensajeDeError(error));
       }
     }, debounceMs); // debounce configurable, default 700ms
 
@@ -74,4 +92,6 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
       clearTimeout(timeout);
     };
   }, [reportState, otNumber, status, isModoFirma, isPreviewMode, firebase, hasInitialized, hasUserInteracted, debounceMs]);
+
+  return { autosaveError };
 };

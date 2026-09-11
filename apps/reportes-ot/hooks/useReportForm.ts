@@ -129,6 +129,8 @@ export interface ReportState {
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
   protocolSelections: ProtocolSelection[];
+  /** Marca de sesión: el usuario quitó tablas del catálogo a mano (ver guard anti-vaciado en saveReporte). */
+  protocolTablasQuitadasEnSesion?: boolean;
   instrumentosSeleccionados: InstrumentoPatronOption[];
   patronesSeleccionados: PatronSeleccionado[];
   columnasSeleccionadas: ColumnaSeleccionada[];
@@ -184,7 +186,7 @@ export interface UseReportFormReturn {
     setAclaracionCliente: (value: string) => void;
     setProtocolTemplateId: (value: string | null) => void;
     setProtocolData: (value: ProtocolData | null) => void;
-    setProtocolSelections: (value: ProtocolSelection[]) => void;
+    setProtocolSelections: React.Dispatch<React.SetStateAction<ProtocolSelection[]>>;
     setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
     setPatronesSeleccionados: (value: PatronSeleccionado[]) => void;
     setColumnasSeleccionadas: (value: ColumnaSeleccionada[]) => void;
@@ -201,6 +203,8 @@ export interface UseReportFormReturn {
   // Refs
   hasUserInteracted: React.MutableRefObject<boolean>;
   hasInitialized: React.MutableRefObject<boolean>;
+  /** true desde que el usuario quita una tabla del catálogo en esta sesión; se resetea al cargar otra OT. */
+  tablasQuitadasEnSesion: React.MutableRefObject<boolean>;
 
   // Helpers
   markUserInteracted: () => void;
@@ -272,6 +276,11 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   // Refs
   const hasUserInteracted = useRef(false);
   const hasInitialized = useRef(false);
+  // Vaciado INTENCIONAL del protocolo (2026-09-11): el guard anti-vaciado de
+  // saveReporte restauraba las tablas cuando el usuario las quitaba todas a
+  // mano (quedaba solo la portada fija) — la lista llegaba vacía igual que en
+  // un pisado accidental. Esta marca viaja en el payload y lo distingue.
+  const tablasQuitadasEnSesion = useRef(false);
 
   const markUserInteracted = () => {
     if (!hasUserInteracted.current) {
@@ -289,6 +298,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
+    // Se lee al recomputar (cambia junto con protocolSelections al quitar una tabla).
+    protocolTablasQuitadasEnSesion: tablasQuitadasEnSesion.current,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
     certificadosIngenieroSeleccionados, resolvedIngenieroId,
     destinatariosExtras, destinatariosManuales,
@@ -413,6 +424,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     reportState,
     hasUserInteracted,
     hasInitialized,
+    tablasQuitadasEnSesion,
     markUserInteracted
   };
 };

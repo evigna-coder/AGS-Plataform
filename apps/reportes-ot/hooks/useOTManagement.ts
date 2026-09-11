@@ -126,7 +126,8 @@ export const useOTManagement = (
     formState,
     setters,
     hasUserInteracted,
-    hasInitialized
+    hasInitialized,
+    tablasQuitadasEnSesion
   } = reportForm;
 
   const {
@@ -347,6 +348,7 @@ export const useOTManagement = (
         // Si es BORRADOR, aunque tenga firma, no debe estar confirmado
         setClientConfirmed(loadedStatus === 'FINALIZADO');
         hasUserInteracted.current = true;
+        tablasQuitadasEnSesion.current = false;
         logger.debug("✅ OT cargada desde Firebase:", v);
 
         // Pre-cargar firma del ingeniero si el reporte es BORRADOR y no tiene
@@ -522,6 +524,7 @@ export const useOTManagement = (
     // porque no hay OT válida para guardar
     hasUserInteracted.current = false;
     hasInitialized.current = false;
+    tablasQuitadasEnSesion.current = false;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
