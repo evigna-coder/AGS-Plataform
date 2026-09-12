@@ -85,15 +85,28 @@ export function inventarioToRemitoItem(
  */
 const CODIGO_EN_DESCRIPCION = /^([^\s·]{2,20})\s*[·—-]\s+(.+)$/;
 const CODIGO_SOLO = /^[^\s·]{2,20}$/;
+/**
+ * Código seguido solo de un ESPACIO (2026-09-12, caso FPC-0002145 / remito
+ * 0001-00017504: "G3430-60590 Fan" salía S/C mientras "G3430-61050 - Board"
+ * sí se rescataba). Sin separador la regla es más estricta que las de arriba:
+ * el primer término tiene que tener un dígito Y una letra o un guion
+ * ("G3430-60590", "7890B", "5181-8830"), así "10 viales" o "2 trampas" no
+ * convierten la cantidad en código.
+ */
+const CODIGO_Y_ESPACIO = /^(\S{2,20})\s+(.+)$/;
+const PARECE_CODIGO_DE_PARTE = /^(?=.*\d)(?=.*[A-Za-z-])[A-Za-z0-9][A-Za-z0-9\-/.]*$/;
 
 export function partirCodigoDescripcion(texto: string | null | undefined): { codigo: string | null; resto: string } {
   const t = (texto || '').trim();
   if (CODIGO_SOLO.test(t) && /\d/.test(t)) return { codigo: t, resto: '' };
   const m = t.match(CODIGO_EN_DESCRIPCION);
-  if (!m) return { codigo: null, resto: t };
-  const posibleCodigo = m[1];
-  if (!/\d/.test(posibleCodigo)) return { codigo: null, resto: t };
-  return { codigo: posibleCodigo, resto: m[2].trim() };
+  if (m) {
+    const posibleCodigo = m[1];
+    return /\d/.test(posibleCodigo) ? { codigo: posibleCodigo, resto: m[2].trim() } : { codigo: null, resto: t };
+  }
+  const e = t.match(CODIGO_Y_ESPACIO);
+  if (e && PARECE_CODIGO_DE_PARTE.test(e[1])) return { codigo: e[1], resto: e[2].trim() };
+  return { codigo: null, resto: t };
 }
 
 /**

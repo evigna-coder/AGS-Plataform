@@ -3,7 +3,7 @@
  * renglón, dos renglones por casilla. Se testea acá y no a ojo contra el papel
  * porque cada verificación real cuesta una impresión.
  */
-import { partirEnRenglones } from '../../components/remitos/pdf/RemitoOverlayPDF';
+import { partirEnRenglones, componerDescripcionRemito, MAX_DESC_CARACTERES } from '../../components/remitos/pdf/RemitoOverlayPDF';
 
 let fallos = 0;
 const check = (nombre: string, cond: boolean, detalle = '') => {
@@ -48,5 +48,26 @@ const palabrota = 'B'.repeat(70);
 const rp = partirEnRenglones(palabrota);
 check('palabra larga se parte', rp.length === 2 && rp[0].length === MAX);
 
-if (fallos === 0) console.log(`✅ remitoOverlayRenglones: ${textos.length + 6} checks OK`);
+
+// ── componerDescripcionRemito (2026-09-11): corte fijo, detalle entero al final ──
+{
+  const larga = 'Detector de arreglo de diodos con celda de flujo estándar de 10 mm';
+  check('corta sin detalle intacta', componerDescripcionRemito('Bomba cuaternaria') === 'Bomba cuaternaria');
+  const soloLarga = componerDescripcionRemito(larga);
+  check('larga sin detalle se corta al tope', soloLarga.length <= MAX_DESC_CARACTERES && soloLarga.endsWith('…'));
+  const conSerie = componerDescripcionRemito(`${larga} · S/N DE12345678`);
+  check('la serie queda entera al final', conSerie.endsWith(' · S/N DE12345678'));
+  check('la cabeza se corta al tope con serie', conSerie.indexOf(' · S/N') <= MAX_DESC_CARACTERES);
+  const loaner = componerDescripcionRemito(`${larga} · S/N DE12345678 · Equipo AGS`);
+  check('detalle de loaner entero', loaner.endsWith(' · S/N DE12345678 · Equipo AGS'));
+  check('línea total acotada', loaner.length <= 65);
+  const parte = componerDescripcionRemito(`Placa principal del detector de fluorescencia completa (de G1321B · S/N X1)`);
+  check('"(de …)" de una parte queda entero', parte.endsWith(' (de G1321B · S/N X1)'));
+  check('cabeza corta con "(de …)"', parte.indexOf(' (de ') <= MAX_DESC_CARACTERES);
+  const detalleLargo = componerDescripcionRemito(`${larga} · S/N DE12345678 · Reparación en garantía por falla de lámpara`);
+  check('detalle muy largo: la cabeza baja al mínimo antes de tocar el detalle', detalleLargo.length <= 65 && detalleLargo.startsWith('Detector de a') && detalleLargo.includes('S/N DE12345678'), detalleLargo);
+  check('vacío = vacío', componerDescripcionRemito('') === '');
+}
+
+if (fallos === 0) console.log(`✅ remitoOverlayRenglones: ${textos.length + 6 + 10} checks OK`);
 else { console.error(`❌ ${fallos} fallos`); process.exit(1); }

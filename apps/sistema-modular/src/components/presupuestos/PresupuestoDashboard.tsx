@@ -100,15 +100,20 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             {metrics.enviadosVencidos.length > 0 && (
               /* Clickeable (2026-08-21): el conteo existía pero no filtraba, así
                  que los vencidos solo se veían cazando filas rojas a ojo. */
-              <button
-                type="button"
+              /* <span role="button"> y no <button> (2026-09-12): un <button>
+                 dentro del <button> de la card es HTML inválido y React lo
+                 avisa en cada render. Teclado: Enter/Espacio disparan el click. */
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={e => { e.stopPropagation(); toggle('vencidos'); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle('vencidos'); } }}
                 title="Ver solo los presupuestos vencidos"
-                className={`text-[9px] truncate text-left w-full hover:underline ${
+                className={`block text-[9px] truncate text-left w-full hover:underline cursor-pointer ${
                   activeKpi === 'vencidos' ? 'text-red-700 font-bold' : 'text-red-600'}`}
               >
                 {metrics.enviadosVencidos.length} vencidos
-              </button>
+              </span>
             )}
             {fmtPipeline(metrics.pipeline) && (
               <p className="text-[9px] text-slate-400 truncate">{fmtPipeline(metrics.pipeline)}</p>

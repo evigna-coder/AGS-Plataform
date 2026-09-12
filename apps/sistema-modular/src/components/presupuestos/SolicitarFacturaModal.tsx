@@ -13,7 +13,8 @@ interface Props {
   open: boolean;
   presupuesto: Presupuesto;
   clienteNombre: string;
-  condicionPagoNombre: string;
+  /** Opcional: si no viene, facturacionService.create la resuelve desde el presupuesto (2026-09-12). */
+  condicionPagoNombre?: string;
   onClose: () => void;
   onCreated: (solicitudId?: string) => void;
   /**
@@ -124,7 +125,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         presupuestoNumero: presupuesto.numero,
         clienteId: presupuesto.clienteId,
         clienteNombre,
-        condicionPago: condicionPagoNombre,
+        condicionPago: condicionPagoNombre ?? '',
         items: facturaItems,
         montoTotal,
         moneda: presupuesto.moneda,

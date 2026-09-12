@@ -92,31 +92,41 @@ assert.equal(cantidadImpresaRemito({ ...porEnvase, cantidad: 15 }), 1.5);
 // Factor basura: nunca dividir por cero ni imprimir Infinity.
 assert.equal(cantidadImpresaRemito({ ...porEnvase, presentacion: { codigoParte: 'X', factor: 0 } }), 10);
 
-// ── La descripción entra en UNA línea y no se pasa del borde (2026-08-14) ────
-// El bug: se envolvía y la segunda línea se pisaba con el item siguiente. Lo que
-// se perdía era el final de la línea, o sea el N° de serie.
-const { fontSizeDescripcion, recortarDescripcion } =
+// ── La descripción va en UNA línea con letra fija (2026-09-11) ──────────────
+// Antes se achicaba la letra y se partía en dos renglones para que entrara
+// todo; ahora la descripción se corta por caracteres y el detalle (serie,
+// loaner, módulo de origen) queda entero al final.
+const { componerDescripcionRemito, MAX_DESC_CARACTERES } =
   await import('../../components/remitos/pdf/RemitoOverlayPDF.js');
-const ANCHO_PT = 280;
-const anchoDe = (t: string) => t.length * fontSizeDescripcion(t) * 0.5;
-const { descripcionEnDosLineas } =
-  await import('../../components/remitos/pdf/RemitoOverlayPDF.js');
-/** Ancho disponible: una línea, o dos si el texto no entraba en una. */
-const disponible = (t: string) => ANCHO_PT * (descripcionEnDosLineas(t) ? 2 : 1);
-
+const MAX_LINEA = Math.floor(280 / (8.5 * 0.5));
 for (const t of [
   'Válvula de purga · S/N AB-9',
   'GC 7890 SN: DE64559987   ·   Orden cliente: 4500123456   ·   Ref: LAB-CROMATO',
   'Mantenimiento preventivo anual del cromatógrafo gaseoso con reemplazo de septa, liner y ferrules — Ppto PRE-0422',
   'x'.repeat(500),
 ]) {
-  const final = recortarDescripcion(t);
-  assert.ok(anchoDe(final) <= disponible(final) + 0.01, `se sale del espacio: "${final}"`);
-  assert.ok(fontSizeDescripcion(final) >= 7, 'nunca por debajo de 7pt — a 6 no se lee');
+  const final = componerDescripcionRemito(t);
+  assert.ok(final.length <= MAX_LINEA, `se sale de la línea: "${final}"`);
 }
-assert.equal(fontSizeDescripcion('corto'), 8.5, 'una línea corta va al cuerpo normal');
-assert.ok(recortarDescripcion('Válvula de purga · S/N AB-9').endsWith('S/N AB-9'),
+assert.equal(componerDescripcionRemito('Válvula de purga · S/N AB-9'), 'Válvula de purga · S/N AB-9',
   'una descripción normal NO se recorta: la serie tiene que estar entera');
+const largaConSerie = componerDescripcionRemito(`${'Detector de fluorescencia con celda de flujo de 8 µl y lámpara de xenón'} · S/N DE123`);
+assert.ok(largaConSerie.endsWith(' · S/N DE123'), 'la serie queda entera al final');
+assert.ok(largaConSerie.indexOf(' · S/N') <= MAX_DESC_CARACTERES, 'la descripción se corta al tope');
+
+// ── Código adelante de la descripción, con o sin separador (2026-09-12) ──────
+// Caso FPC-0002145: "G3430-60590 Fan" salía S/C; "G3430-61050 - Board" no.
+{
+  const { partirCodigoDescripcion: partir } = await import('../inventarioToRemitoItem.js');
+  assert.deepEqual(partir('G3430-60590 Fan'), { codigo: 'G3430-60590', resto: 'Fan' });
+  assert.deepEqual(partir('G3430-61010 Agilent Logic Board, 7890B GC'), { codigo: 'G3430-61010', resto: 'Agilent Logic Board, 7890B GC' });
+  assert.deepEqual(partir('G3430-61050 - Board Assembly'), { codigo: 'G3430-61050', resto: 'Board Assembly' });
+  assert.deepEqual(partir('7890B GC'), { codigo: '7890B', resto: 'GC' });
+  assert.equal(partir('10 viales ámbar').codigo, null, 'una cantidad no es un código');
+  assert.equal(partir('2 trampas de purga').codigo, null, 'una cantidad no es un código');
+  assert.equal(partir('Detector de fluorescencia (FLD)').codigo, null, 'una palabra no es un código');
+  assert.equal(partir('Bomba cuaternaria 1260').codigo, null, 'el código tiene que ir ADELANTE');
+}
 
 // ── Domicilio: no repetir lo que ya sale en su propia casilla (2026-08-18) ──
 // El papel tiene casillas separadas y varios proveedores tienen la dirección

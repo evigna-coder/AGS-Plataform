@@ -8,11 +8,11 @@ import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
 // ajusta SOLO acá.
 const MM = 2.83465;
 const CM = 10 * MM;
-const OFFSET_X = -1.0 * CM;
+const OFFSET_X = -1.0 * CM + 1 * MM; // 2026-09-11: +1 mm a la derecha TODO — tanda nueva de papel preimpreso
 const OFFSET_Y = -3.6 * CM; // 2026-08-04: +1mm (bajar todo 1mm, calibración con papel real)
 // Ronda 2 — correcciones por campo medidas sobre el papel:
 const FIELD_OFFSETS: RemitoOverlayFieldOffsets = {
-  razonSocial: { y: 1 * MM },        // 1 mm abajo
+  razonSocial: { y: 2 * MM },        // 2 mm abajo (2026-09-11: +1 mm, papel real)
   domicilio:   { y: -2 * MM },       // 2 mm arriba (2026-08-28: salía 1 mm bajo la casilla)
   localidad:   { y: -5 * MM },       // 5 mm arriba
   provincia:   { y: -8 * MM },       // 8 mm arriba

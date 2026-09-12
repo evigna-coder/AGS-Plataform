@@ -1015,7 +1015,6 @@ export const PresupuestosList = () => {
           open={!!facturaTarget}
           presupuesto={facturaTarget}
           clienteNombre={getClienteNombre(facturaTarget.clienteId)}
-          condicionPagoNombre="—"
           onClose={() => setFacturaTarget(null)}
           onCreated={() => setFacturaTarget(null)}
         />

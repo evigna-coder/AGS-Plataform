@@ -82,6 +82,39 @@ async function crearTicketFacturaCargada(
   } as any);
 }
 
+/** Texto de la condición para la solicitud: "Nombre (N días)". Mismo formato que el aviso automático. */
+export function nombreCondicionPago(cp: { nombre: string; dias?: number | null } | null | undefined): string {
+  if (!cp?.nombre) return '';
+  return `${cp.nombre}${(cp.dias ?? 0) > 0 ? ` (${cp.dias} días)` : ''}`;
+}
+
+/** Valores que los callers mandaban como "sin condición" y quedaban grabados tal cual. */
+const SIN_CONDICION = new Set(['', '—', '-', 'No especificada']);
+
+/**
+ * La condición de pago se arrastra SIEMPRE desde el presupuesto (2026-09-12).
+ * Tres caminos creaban la solicitud sin ella: "Solicitar factura" desde el
+ * listado de presupuestos (mandaba "—" fijo), las certificaciones con importe
+ * (mandaban '') y cualquier caller sin el nombre resuelto. Punto único: si el
+ * caller no la trae, se lee del presupuesto acá. Lecturas directas (sin
+ * presupuestosService) para no cerrar un ciclo de imports.
+ */
+async function resolverCondicionPago(condicionPago: string | null | undefined, presupuestoId: string | null | undefined): Promise<string> {
+  const actual = (condicionPago ?? '').trim();
+  if (!SIN_CONDICION.has(actual)) return actual;
+  if (!presupuestoId) return '';
+  try {
+    const pSnap = await getDoc(doc(db, 'presupuestos', presupuestoId));
+    const cpId = pSnap.exists() ? (pSnap.data() as { condicionPagoId?: string | null }).condicionPagoId : null;
+    if (!cpId) return '';
+    const cpSnap = await getDoc(doc(db, 'condiciones_pago', cpId));
+    return cpSnap.exists() ? nombreCondicionPago(cpSnap.data() as { nombre: string; dias?: number }) : '';
+  } catch (err) {
+    console.warn('[facturacionService] no se pudo resolver la condición de pago del presupuesto', presupuestoId, err);
+    return '';
+  }
+}
+
 export const facturacionService = {
   async getAll(filters?: { estado?: SolicitudFacturacionEstado; clienteId?: string }) {
     let q = query(collection(db, 'solicitudesFacturacion'));
@@ -132,6 +165,7 @@ export const facturacionService = {
     const batch = createBatch();
     const cleaned = cleanFirestoreData({
       ...data,
+      condicionPago: await resolverCondicionPago(data.condicionPago, data.presupuestoId),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       ...getCreateTrace(),

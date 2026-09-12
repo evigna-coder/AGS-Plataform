@@ -44,7 +44,7 @@ const X_VALUE_RIGHT = X_VALUE_LEFT + 241 + 1 * MM;
  * las Y_* de la izquierda. Positivo = hacia abajo.
  */
 const DY_TRANSPORTISTA = {
-  razonSocial: 2 * MM,
+  razonSocial: 3 * MM, // +1 mm — papel real 2026-09-11
   domicilio: -1 * MM,
   localidad: -4.5 * MM, // bajada 0,5 mm — papel real 2026-08-20
   provincia: -8 * MM,   // bajada 1 mm — papel real 2026-08-20
@@ -129,50 +129,53 @@ const Y_CUIT        = 445;
  */
 const DESC_ANCHO_PT = 280;
 
-/**
- * Cuerpo de la descripción cuando va en DOS renglones: 2 × 7 × 1,05 ≈ 14,7 pt,
- * que entra en los 16 pt de alto de la fila (TABLE_ROW_H) sin invadir la de
- * abajo. Si se toca TABLE_ROW_H hay que rehacer esta cuenta.
- */
-const DESC_FS_DOS_LINEAS = 7;
-const DESC_LINE_H = 1.05;
+/** Cuerpo de letra de la descripción: FIJO (2026-09-11). */
+const DESC_FONT_SIZE = 8.5;
 
 /**
- * Cuerpo de letra de la descripción (2026-08-18).
+ * Descripción en UNA línea con letra fija (pedido 2026-09-11). Hasta hoy la
+ * letra se achicaba y la línea se partía en dos renglones para que entrara
+ * todo, y quedaba feo. Ahora la descripción propiamente dicha se corta a
+ * `MAX_DESC_CARACTERES` y el DETALLE que viene después (N° de serie, "(de …)"
+ * del módulo de origen, "Equipo AGS", motivo) se conserva entero al final.
  *
- * Antes se achicaba hasta 6pt con tal de entrar en UNA línea, porque el papel
- * tiene renglones de alto fijo y una segunda línea se pisaba con el item
- * siguiente. Pero a 6pt no se lee: queda feo y no cumple su función.
- *
- * Ahora: si entra cómoda en una línea, va grande; si no, pasa a DOS renglones a
- * 7pt, que es el cuerpo más grande cuyas dos líneas caben en los 16pt de la
- * fila sin invadir la de abajo.
- *
- * Helvetica promedia ~0,5 × el cuerpo por carácter.
+ * El texto llega ya compuesto por los distintos flujos como
+ * "descripción · S/N xxx · detalle" (o "descripción (de módulo)" en partes),
+ * así que la cabeza es lo que hay antes del primer " · " o " (de ".
+ * Helvetica promedia ~0,5 × el cuerpo por carácter → ~65 caracteres por línea.
  */
-export function fontSizeDescripcion(texto: string): number {
-  const largo = texto.length;
-  if (largo === 0) return 8.5;
-  for (const fs of [8.5, 8]) {
-    if (largo * fs * 0.5 <= DESC_ANCHO_PT) return fs;
-  }
-  return DESC_FS_DOS_LINEAS;
+export const MAX_DESC_CARACTERES = 40;
+const MIN_DESC_CARACTERES = 15;
+const MAX_LINEA_CARACTERES = Math.floor(DESC_ANCHO_PT / (DESC_FONT_SIZE * 0.5));
+const SEP_DETALLE = ' · ';
+
+function truncar(t: string, max: number): string {
+  return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
-/** `true` si el texto necesita el segundo renglón. */
-export function descripcionEnDosLineas(texto: string): boolean {
-  return fontSizeDescripcion(texto) === DESC_FS_DOS_LINEAS && texto.length > 0;
-}
-
-/**
- * Tope duro: lo que no entra ni en dos renglones se recorta con puntos
- * suspensivos. Sigue siendo mejor perder el final que pisar la fila siguiente.
- */
-export function recortarDescripcion(texto: string): string {
-  const lineas = descripcionEnDosLineas(texto) ? 2 : 1;
-  const fs = fontSizeDescripcion(texto);
-  const maxChars = Math.floor((DESC_ANCHO_PT * lineas) / (fs * 0.5));
-  return texto.length <= maxChars ? texto : `${texto.slice(0, maxChars - 1)}…`;
+export function componerDescripcionRemito(
+  texto: string,
+  maxDesc = MAX_DESC_CARACTERES,
+  maxLinea = MAX_LINEA_CARACTERES,
+): string {
+  const limpio = (texto ?? '').trim();
+  if (!limpio) return '';
+  let corte = limpio.length;
+  const iSep = limpio.indexOf(SEP_DETALLE);
+  if (iSep >= 0) corte = Math.min(corte, iSep);
+  const iDe = limpio.indexOf(' (de ');
+  if (iDe >= 0) corte = Math.min(corte, iDe);
+  const cabeza = limpio.slice(0, corte).trim();
+  const resto = limpio.slice(corte).trim();
+  const detalle = resto.startsWith('·') ? resto.slice(1).trim() : resto;
+  // Lugar para la cabeza: el tope fijo, y menos si el detalle es largo — el
+  // detalle no se toca salvo que ni con la cabeza mínima entre en la línea.
+  const lugar = detalle ? maxLinea - detalle.length - SEP_DETALLE.length : maxLinea;
+  const maxCabeza = Math.max(MIN_DESC_CARACTERES, Math.min(maxDesc, lugar));
+  const cabezaCorta = truncar(cabeza, maxCabeza);
+  const separador = detalle.startsWith('(') ? ' ' : SEP_DETALLE;
+  const total = detalle ? `${cabezaCorta}${separador}${detalle}` : cabezaCorta;
+  return truncar(total, maxLinea);
 }
 
 /** Tabla de items */
@@ -355,31 +358,22 @@ function PaginaRemito({ fecha, destinatario, transportista, items, observaciones
             <Text style={[styles.cell, { left: COL_X.item + (fo.colItemX ?? 0) + ox,        top: y }]}>{row.numero}</Text>
             <Text style={[styles.cell, { left: COL_X.cant + (fo.colCantX ?? 0) + ox,        top: y }]}>{row.cantidad}</Text>
             <Text style={[styles.cell, { left: COL_X.producto + (fo.colProductoX ?? 0) + ox,    top: y }]}>{row.producto}</Text>
-            {/* Descripción: una línea si entra; si no, DOS a 7pt (2026-08-18).
-                Antes se achicaba hasta 6pt con tal de no envolver y quedaba
-                ilegible. El `width` es lo que permite el corte de línea, y
-                `maxLines` impide que una descripción larguísima empuje la fila
-                de abajo. */}
-            {(() => {
-              const texto = recortarDescripcion(String(row.descripcion ?? ''));
-              const dosLineas = descripcionEnDosLineas(String(row.descripcion ?? ''));
-              return (
-                <Text
-                  style={[styles.cell, {
-                    left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox,
-                    top: y,
-                    width: DESC_ANCHO_PT,
-                    fontSize: fontSizeDescripcion(String(row.descripcion ?? '')),
-                    lineHeight: DESC_LINE_H,
-                    maxLines: dosLineas ? 2 : 1,
-                    textOverflow: 'ellipsis',
-                  }]}
-                  wrap={false}
-                >
-                  {texto}
-                </Text>
-              );
-            })()}
+            {/* Descripción: UNA línea, letra fija, cortada por caracteres
+                (2026-09-11) — ver componerDescripcionRemito. `maxLines` +
+                ellipsis es la red de seguridad si la estimación de ancho falla. */}
+            <Text
+              style={[styles.cell, {
+                left: COL_X.descripcion + (fo.colDescripcionX ?? 0) + ox,
+                top: y,
+                width: DESC_ANCHO_PT,
+                fontSize: DESC_FONT_SIZE,
+                maxLines: 1,
+                textOverflow: 'ellipsis',
+              }]}
+              wrap={false}
+            >
+              {componerDescripcionRemito(String(row.descripcion ?? ''))}
+            </Text>
           </View>
         );
       })}
