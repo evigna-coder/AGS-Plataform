@@ -3,7 +3,7 @@ import { updateDoc, deleteDoc, addDoc } from './firebase';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
 import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { establecimientosService } from './establecimientosService';
-import { getCached, setCache, invalidateCache } from './serviceCache';
+import { getCached, setCache, invalidateCache, conCache } from './serviceCache';
 
 // Servicio para Categorias Equipo
 export const categoriasEquipoService = {
@@ -223,9 +223,8 @@ export const sistemasService = {
   // Obtener todos los sistemas. Filtros: establecimientoId, clienteCuit (resuelve a establecimientos del cliente), activosOnly.
   async getAll(filters?: { establecimientoId?: string; clienteCuit?: string; clienteId?: string; activosOnly?: boolean }) {
     const cacheKey = `sistemas:${JSON.stringify(filters || {})}`;
-    const cached = getCached<Sistema[]>(cacheKey);
-    if (cached) return cached;
-
+    // conCache (2026-09-11): lecturas simultáneas de la misma clave comparten la consulta.
+    return conCache<Sistema[]>(cacheKey, async () => {
     let q;
     if (filters?.establecimientoId) {
       q = query(collection(db, 'sistemas'), where('establecimientoId', '==', filters.establecimientoId));
@@ -262,8 +261,8 @@ export const sistemasService = {
       sistemas = sistemas.filter(s => s.activo === true);
     }
     sistemas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    setCache(cacheKey, sistemas);
     return sistemas;
+    });
   },
 
   // Obtener sistema por ID

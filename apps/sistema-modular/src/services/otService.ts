@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, orderBy, startAt, endAt, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, orderBy, startAt, endAt, Timestamp, type QueryConstraint } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS, presupuestoEstaAceptado } from '@ags/shared';
@@ -10,6 +10,9 @@ import { db, storage, createBatch, docRef, batchAudit, logBusinessEvent, getCrea
 import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
+
+/** Primer número de OT del go-live de numeración (2026-07-30). Los IDs de `reportes` son el número de OT. */
+const OT_NUMERACION_GO_LIVE = '29779';
 import { clientesService } from './clientesService';
 import { getAdminSoporteAssignee, getRevisarCierreAssignee } from './personalService';
 import { agendaService } from './agendaService';
@@ -131,9 +134,25 @@ export const ordenesTrabajoService = {
     // Las OTs anteriores (legado del sistema viejo, borradores de campo) quedan
     // intactas en el resto del sistema — solo dejan de aparecer en coordinación.
     const AGENDA_PENDING_DESDE = '2026-07-30';
+    // Recorte por ID (2026-09-11): el ID del doc es el número de OT y la
+    // numeración del go-live arranca en 29779, así que `documentId() >= '29779'`
+    // deja afuera los ~1.500 borradores legado que la query por `status` bajaba
+    // en CADA refresco de la agenda (60 s). El filtro por fecha de abajo sigue
+    // siendo el que manda; el rango solo evita leer lo que igual se descartaba.
+    // Si la consulta con rango fallara (índice), se cae a la query sin recorte.
+    const base = collection(db, 'reportes');
+    const rangoId = [where(documentId(), '>=', OT_NUMERACION_GO_LIVE), where(documentId(), '<', ':')]; // ':' (0x3A) > dígitos
+    const leer = async (filtro: QueryConstraint) => {
+      try {
+        return await getDocs(query(base, filtro, ...rangoId));
+      } catch (err) {
+        console.warn('[getPending] consulta con rango de ID falló, se lee sin recorte:', err);
+        return getDocs(query(base, filtro));
+      }
+    };
     const [byEstado, byBorrador] = await Promise.all([
-      getDocs(query(collection(db, 'reportes'), where('estadoAdmin', 'in', PENDING_ESTADOS))),
-      getDocs(query(collection(db, 'reportes'), where('status', '==', 'BORRADOR'))),
+      leer(where('estadoAdmin', 'in', PENDING_ESTADOS)),
+      leer(where('status', '==', 'BORRADOR')),
     ]);
     const seen = new Set<string>();
     const results: WorkOrder[] = [];
@@ -274,14 +293,19 @@ export const ordenesTrabajoService = {
     });
   },
 
-  // Obtener items de una OT padre
+  // Obtener items de una OT padre. Consulta por rango de ID (los items son
+  // `${padre}.NN`): antes bajaba la colección `reportes` ENTERA (~4.300 docs)
+  // y filtraba en memoria, y la agenda lo llamaba por cada padre candidato en
+  // cada refresco de 60 s (2026-09-11: ~800.000 docs leídos en una sesión).
   async getItemsByOtPadre(otPadre: string): Promise<WorkOrder[]> {
-    const q = query(collection(db, 'reportes'));
-    const querySnapshot = await getDocs(q);
     const prefix = otPadre + '.';
+    const querySnapshot = await getDocs(query(
+      collection(db, 'reportes'),
+      where(documentId(), '>=', prefix),
+      where(documentId(), '<', prefix + ':'), // ':' (0x3A) > dígitos
+    ));
 
     const items = querySnapshot.docs
-      .filter(doc => doc.id.startsWith(prefix))
       .map(doc => ({
         otNumber: doc.id,
         ...doc.data(),
@@ -1600,22 +1624,27 @@ export const ordenesTrabajoService = {
       actor: { uid: trace?.uid ?? '', nombre: trace?.name ?? 'Sistema' },
       origen: 'sistema-modular',
     });
+    // Efectos best-effort EN PARALELO (2026-09-12, fase 3 de performance):
+    // son independientes entre sí; antes iban en serie (el resguardo del PDF
+    // en Storage era el más lento) y el usuario esperaba la suma.
+    const efectos: Array<Promise<unknown>> = [];
     if (opts.nivel === 'tecnica') {
-      await resguardarPdfsReapertura(db, storage, otNumber, res.pdfAnterior)
-        .catch(err => console.warn('[reabrir] resguardo del PDF falló:', err));
+      efectos.push(resguardarPdfsReapertura(db, storage, otNumber, res.pdfAnterior)
+        .catch(err => console.warn('[reabrir] resguardo del PDF falló:', err)));
       if (res.ot.ingenieroAsignadoId) {
-        await leadsService.create(buildTicketAvisoReaperturaTecnica(res.ot, res.reapertura))
-          .catch(err => console.warn('[reabrir] ticket al ingeniero falló:', err));
+        efectos.push(leadsService.create(buildTicketAvisoReaperturaTecnica(res.ot, res.reapertura))
+          .catch(err => console.warn('[reabrir] ticket al ingeniero falló:', err)));
       }
     }
-    await anotarReaperturaEnTickets(db, otNumber, res.reapertura)
-      .catch(err => console.warn('[reabrir] postas en tickets fallaron:', err));
+    efectos.push(anotarReaperturaEnTickets(db, otNumber, res.reapertura)
+      .catch(err => console.warn('[reabrir] postas en tickets fallaron:', err)));
     for (const pid of res.presupuestosTocados) {
-      await (presupuestosService as any)._recomputeAndPersistEsquema(pid)
-        .catch((err: unknown) => console.warn('[reabrir] esquema del ppto:', err));
+      efectos.push((presupuestosService as any)._recomputeAndPersistEsquema(pid)
+        .catch((err: unknown) => console.warn('[reabrir] esquema del ppto:', err)));
     }
-    await this.sincronizarPadreConHijas(otNumber, { permitirRetroceso: true })
-      .catch(err => console.error('[reabrir] sincronizarPadreConHijas:', err));
+    efectos.push(this.sincronizarPadreConHijas(otNumber, { permitirRetroceso: true })
+      .catch(err => console.error('[reabrir] sincronizarPadreConHijas:', err)));
+    await Promise.allSettled(efectos);
     logBusinessEvent({
       eventName: 'ot.reabierta',
       collection: 'ordenes_trabajo',
@@ -1671,29 +1700,30 @@ export const ordenesTrabajoService = {
       }
     }
 
+    // Pre-reads independientes EN PARALELO (2026-09-12, fase 3 de performance):
+    // config, presupuestos vinculados, requisito del cliente y revisor del
+    // ticket. Antes iban en serie y los presupuestos se resolvían bajando la
+    // colección ENTERA (`getAll`, ~500 docs) para buscar 1 o 2 números.
+    const presupuestoNumeros = ot.budgets || [];
+    const [cfgRes, pptosRes, cliRes, revisorRes] = await Promise.allSettled([
+      adminConfigService.getWithDefaults(),
+      Promise.all(presupuestoNumeros.map(num => presupuestosService.getByNumero(num).catch(err => {
+        console.warn(`[cerrarAdministrativamente] presupuesto ${num} read failed:`, err);
+        return null;
+      }))),
+      ot.clienteId ? clientesService.getById(ot.clienteId) : Promise.resolve(null),
+      yaCerrada ? Promise.resolve(null) : getRevisarCierreAssignee(),
+    ]);
+
     // Config con defaults (fallback hardcoded si adminConfig lectura falla).
     let mailTo = 'mbarrios@agsanalitica.com';
-    try {
-      const cfg = await adminConfigService.getWithDefaults();
-      mailTo = cfg.mailFacturacion || mailTo;
-    } catch (err) {
-      console.warn('[cerrarAdministrativamente] adminConfig read failed; using default mail:', err);
-    }
+    if (cfgRes.status === 'fulfilled') mailTo = cfgRes.value.mailFacturacion || mailTo;
+    else console.warn('[cerrarAdministrativamente] adminConfig read failed; using default mail:', cfgRes.reason);
 
-    // Pre-cargar presupuestos vinculados para el body del mail. OT.budgets contiene
-    // los `numero` (PRE-XXXX.NN) — aquí los resolvemos a IDs para el tx.update.
-    const presupuestoNumeros = ot.budgets || [];
-    let presupuestosPorNumero: Array<Presupuesto | null> = [];
-    let presupuestoIds: string[] = [];
-    if (presupuestoNumeros.length > 0) {
-      try {
-        const all = await presupuestosService.getAll();
-        presupuestosPorNumero = presupuestoNumeros.map(num => all.find(p => p.numero === num) ?? null);
-        presupuestoIds = presupuestosPorNumero.filter((p): p is Presupuesto => !!p).map(p => p.id);
-      } catch (err) {
-        console.warn('[cerrarAdministrativamente] presupuestos read failed:', err);
-      }
-    }
+    // Presupuestos vinculados para el body del mail. OT.budgets contiene los
+    // `numero` (PRE-XXXX.NN) — aquí los resolvemos a IDs para el tx.update.
+    const presupuestosPorNumero: Array<Presupuesto | null> = pptosRes.status === 'fulfilled' ? pptosRes.value : [];
+    const presupuestoIds: string[] = presupuestosPorNumero.filter((p): p is Presupuesto => !!p).map(p => p.id);
 
     const ocIds = Array.from(new Set(
       presupuestosPorNumero.flatMap(p => (p?.ordenesCompraIds || [])),
@@ -1712,14 +1742,8 @@ export const ordenesTrabajoService = {
     // otsListasParaFacturar; queda retenida hasta `liberarParaFacturacion`. Fail-safe:
     // si la lectura del cliente falla, no se retiene (comportamiento previo).
     let requisitoCliente: RequisitoFacturacion = 'ninguno';
-    if (ot.clienteId) {
-      try {
-        const cli = await clientesService.getById(ot.clienteId);
-        requisitoCliente = cli?.requisitoFacturacion ?? 'ninguno';
-      } catch (err) {
-        console.warn('[cerrarAdministrativamente] no se pudo leer requisitoFacturacion del cliente:', err);
-      }
-    }
+    if (cliRes.status === 'fulfilled') requisitoCliente = cliRes.value?.requisitoFacturacion ?? 'ninguno';
+    else console.warn('[cerrarAdministrativamente] no se pudo leer requisitoFacturacion del cliente:', cliRes.reason);
     const retenerPorDoc = requisitoCliente !== 'ninguno';
 
     // ── Item 10 (UAT 2026-07-17): el ppto avanza a 'pendiente_facturacion' recién
@@ -1734,8 +1758,10 @@ export const ordenesTrabajoService = {
     // el camino de reservas (auditoría I1) lo usa para saber si esta es la última
     // OT del ppto. Con yaCerrada + stockDeducido no hace falta (no se deduce nada).
     if (!yaCerrada || !ot.cierreAdmin?.stockDeducido) {
-      for (const p of presupuestosPorNumero) {
-        if (!p) continue;
+      // En paralelo por presupuesto y, adentro, por OT (2026-09-12): eran
+      // lecturas una por una, en serie, mientras el usuario esperaba.
+      await Promise.all(presupuestosPorNumero.map(async p => {
+        if (!p) return;
         try {
           const otsDelPpto = new Set<string>([
             ...(p.otsVinculadasNumbers ?? []),
@@ -1749,25 +1775,26 @@ export const ordenesTrabajoService = {
           }
           // Vinculadas que no vinieron por budgets (budgets mal cargado en la OT):
           // read directo por doc id. Una vinculada inexistente no bloquea (jamás cerraría).
-          for (const num of otsDelPpto) {
-            if (num === otNumber || estadoPorOt.has(num)) continue;
+          const sinEstado = [...otsDelPpto].filter(num => num !== otNumber && !estadoPorOt.has(num));
+          await Promise.all(sinEstado.map(async num => {
             const s = await getDoc(doc(db, 'reportes', num));
             if (s.exists()) estadoPorOt.set(num, (s.data()?.estadoAdmin as string) ?? '');
-          }
+          }));
           // OTs padre (sin .NN) con hijas son contenedores no-accionables: nunca
           // reciben cierre administrativo y no pueden bloquear el avance del ppto
           // (UAT 2026-07-20: el gate pedía cerrar 30107/30108/30109 padres, imposible).
           const padresConHijas = new Set<string>();
+          const padresAConsultar: string[] = [];
           for (const num of otsDelPpto) {
             if (num.includes('.')) continue;
-            if ([...otsDelPpto].some(n => n !== num && n.startsWith(`${num}.`))) {
-              padresConHijas.add(num);
-              continue;
-            }
+            if ([...otsDelPpto].some(n => n !== num && n.startsWith(`${num}.`))) padresConHijas.add(num);
+            else padresAConsultar.push(num);
+          }
+          await Promise.all(padresAConsultar.map(async num => {
             try {
               if ((await this.getItemsByOtPadre(num)).length > 0) padresConHijas.add(num);
             } catch { /* sin datos: se lo trata como OT normal */ }
-          }
+          }));
           const todasCerradas = [...otsDelPpto]
             .filter(num => num !== otNumber && !padresConHijas.has(num))
             .every(num => !estadoPorOt.has(num) || OT_CERRADA_ADMIN.has(estadoPorOt.get(num) as string));
@@ -1779,7 +1806,7 @@ export const ordenesTrabajoService = {
           console.warn(`[cerrarAdministrativamente] check todas-cerradas falló para ppto ${p.numero}; se avanza estado como antes:`, err);
           avanzaEstadoPorPpto.set(p.id, true);
         }
-      }
+      }));
     }
 
     const subject = `Aviso facturación — OT ${otNumber}`;
@@ -1793,7 +1820,7 @@ export const ordenesTrabajoService = {
 
     // Responsable del "Revisar cierre de OT" (2026-08-30). Se resuelve ANTES de
     // la transacción; si falla, el ticket queda sin asignar como antes.
-    const revisorCierre = yaCerrada ? null : await getRevisarCierreAssignee().catch(() => null);
+    const revisorCierre = revisorRes.status === 'fulfilled' ? revisorRes.value : null;
 
     // ── Transaction: reads-before-writes invariant ──────────────────────────────
     const txResult = yaCerrada
@@ -1940,6 +1967,14 @@ export const ordenesTrabajoService = {
     });
 
     // ── Post-commit side-effects (best-effort, NO bloquea) ────────
+    // EN PARALELO (2026-09-12, fase 3 de performance): cada efecto es
+    // independiente de los demás (tickets, fichas, loaners, esquema de cuotas,
+    // reclamo de OC, padre, remitos de servicio). Antes corrían uno detrás del
+    // otro y el usuario esperaba la suma de todos; ahora arrancan juntos y se
+    // solapan con la deducción de stock de más abajo. Se espera a todos antes
+    // de devolver (allSettled) para no dejar escrituras colgadas al cerrar la
+    // pestaña. Cada uno conserva su propio catch: ninguno voltea al resto.
+    const efectos: Array<Promise<unknown>> = [];
     if (!yaCerrada) {
       // Re-cierre: constancia en el ticket "Revisar cierre" que ya existía.
       if (ticketRevisarExistente) {
@@ -1950,101 +1985,92 @@ export const ordenesTrabajoService = {
           estadoAnterior: ticketRevisarExistente.estado, estadoNuevo: ticketRevisarExistente.estado,
           evento: `OT ${otNumber} cerrada administrativamente de nuevo tras una reapertura`,
         };
-        await leadsService.agregarComentario(ticketRevisarExistente.id, posta)
-          .catch(err => console.warn('[cerrarAdmin] posta de re-cierre falló:', err));
+        efectos.push(leadsService.agregarComentario(ticketRevisarExistente.id, posta)
+          .catch(err => console.warn('[cerrarAdmin] posta de re-cierre falló:', err)));
       }
-      try {
-        if (ot.leadId) {
-          await leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO');
-        }
-      } catch (err) {
-        console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
+      if (ot.leadId) {
+        efectos.push(leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO')
+          .catch(err => console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err)));
       }
 
       // Fichas propiedad del cliente: anotar el cierre en el historial de los
       // items con esta OT asignada (informe técnico, ingeniero, partes usadas).
-      // Best-effort — nunca bloquea el cierre.
-      try {
-        await fichasService.syncCierreOT(otNumber);
-      } catch (err) {
-        console.error('[cerrarAdministrativamente] fichasService.syncCierreOT failed (non-blocking):', err);
-      }
+      efectos.push(fichasService.syncCierreOT(otNumber)
+        .catch(err => console.error('[cerrarAdministrativamente] fichasService.syncCierreOT failed (non-blocking):', err)));
 
       // Loaners: el cierre administrativo implica cierre técnico ya pasado —
-      // si la OT es de recalificación de un loaner, liberarlo. Best-effort.
+      // si la OT es de recalificación de un loaner, liberarlo.
       // (El camino update() → CIERRE_ADMINISTRATIVO delega acá con early-return,
       // así que este hook cubre también esa ruta.)
       if (ot.loanerId) {
-        try {
-          await loanersService.liberarTrasRecalificacion(ot.loanerId);
-        } catch (err) {
-          console.error('[cerrarAdministrativamente] liberarTrasRecalificacion failed (non-blocking):', err);
-        }
+        efectos.push(loanersService.liberarTrasRecalificacion(ot.loanerId)
+          .catch(err => console.error('[cerrarAdministrativamente] liberarTrasRecalificacion failed (non-blocking):', err)));
       }
 
       // ── Phase 12 BILL-02: recompute cuota estados for all linked presupuestos ──
       // When an OT closes, cuotas with hito='todas_ots_cerradas' may become habilitada.
-      // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
+      // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados
+      // (orden dentro de cada ppto; pptos distintos en paralelo).
       // Pitfall 2: called post-commit (never inside runTransaction).
       for (const presupuestoId of presupuestoIds) {
-        try {
-          await (presupuestosService as any)._recomputeAndPersistEsquema(presupuestoId);
-        } catch (err) {
-          console.warn(`[cerrarAdmin.recompute] ppto ${presupuestoId}:`, err);
-        }
-        try {
-          await presupuestosService.trySyncFinalizacion(presupuestoId);
-        } catch (err) {
-          console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
-        }
+        efectos.push((async () => {
+          try {
+            await (presupuestosService as any)._recomputeAndPersistEsquema(presupuestoId);
+          } catch (err) {
+            console.warn(`[cerrarAdmin.recompute] ppto ${presupuestoId}:`, err);
+          }
+          try {
+            await presupuestosService.trySyncFinalizacion(presupuestoId);
+          } catch (err) {
+            console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+          }
+        })());
       }
 
       // ── Item 1 (UAT 2026-07-17): trabajo realizado sin OC del cliente ──────
       // Si un ppto vinculado NO tiene OC cargada, el trabajo ya se hizo y la OC
       // se debe: el ticket comercial (no-terminal, excluyendo áreas operativas)
       // pasa a accionar el reclamo. No se crea ticket nuevo si no existe ninguno.
-      // Best-effort — nunca bloquea el cierre.
       for (const p of presupuestosPorNumero) {
         if (!p) continue;
         if ((p.ordenesCompraIds ?? []).length > 0) continue;
-        try {
-          const tksSnap = await getDocs(query(
-            collection(db, 'leads'),
-            where('presupuestosIds', 'array-contains', p.id),
-          ));
-          const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
-          const comercial = tksSnap.docs
-            .map(d => ({ ...(d.data() as Lead), id: d.id }))
-            .filter(t => !TERMINAL.includes(t.estado))
-            .find(t => !esTicketOperativo(t));
-          if (comercial) {
-            await leadsService.update(comercial.id, {
-              accionPendiente: 'Reclamar OC del cliente — trabajo realizado',
-            });
-            console.log(`[cerrarAdmin.reclamoOC] ticket ${comercial.id} → reclamar OC (ppto ${p.numero} sin OC, trabajo realizado)`);
+        efectos.push((async () => {
+          try {
+            const tksSnap = await getDocs(query(
+              collection(db, 'leads'),
+              where('presupuestosIds', 'array-contains', p.id),
+            ));
+            const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+            const comercial = tksSnap.docs
+              .map(d => ({ ...(d.data() as Lead), id: d.id }))
+              .filter(t => !TERMINAL.includes(t.estado))
+              .find(t => !esTicketOperativo(t));
+            if (comercial) {
+              await leadsService.update(comercial.id, {
+                accionPendiente: 'Reclamar OC del cliente — trabajo realizado',
+              });
+              console.log(`[cerrarAdmin.reclamoOC] ticket ${comercial.id} → reclamar OC (ppto ${p.numero} sin OC, trabajo realizado)`);
+            }
+          } catch (err) {
+            console.warn(`[cerrarAdmin.reclamoOC] ppto ${p.numero}:`, err);
           }
-        } catch (err) {
-          console.warn(`[cerrarAdmin.reclamoOC] ppto ${p.numero}:`, err);
-        }
+        })());
       }
     }
 
     // El padre espeja a las hijas. Se llama también acá porque este camino no
     // pasa por `update()` (el cierre admin escribe el estado en su propia tx).
-    await this.sincronizarPadreConHijas(otNumber)
-      .catch(err => console.error('[cerrarAdministrativamente] sincronizarPadreConHijas:', err));
+    efectos.push(this.sincronizarPadreConHijas(otNumber)
+      .catch(err => console.error('[cerrarAdministrativamente] sincronizarPadreConHijas:', err)));
 
     // Remito de servicio: se completa al cerrar la ÚLTIMA OT que cubre. Fuera del
     // guard `!yaCerrada` a propósito — es idempotente, y así un reintento del
     // cierre repara el remito si la primera pasada falló. Best-effort.
-    try {
-      const completados = await this.completarRemitosServicioDeOT(otNumber);
-      if (completados.length > 0) {
-        console.log(`[cerrarAdmin] remito(s) de servicio completado(s): ${completados.join(', ')}`);
-      }
-    } catch (err) {
-      console.error('[cerrarAdministrativamente] completarRemitosServicioDeOT failed (non-blocking):', err);
-    }
+    efectos.push(this.completarRemitosServicioDeOT(otNumber)
+      .then(completados => {
+        if (completados.length > 0) console.log(`[cerrarAdmin] remito(s) de servicio completado(s): ${completados.join(', ')}`);
+      })
+      .catch(err => console.error('[cerrarAdministrativamente] completarRemitosServicioDeOT failed (non-blocking):', err)));
 
     // ── Deducción de stock al cierre — POR LÍNEA (2026-09-10, fase 2 reapertura) ──
     // Cada StockSelection lleva `deducidoAt` + `movimientoIds`; se descuentan
@@ -2141,6 +2167,9 @@ export const ordenesTrabajoService = {
         }
       }
     }
+
+    // Los efectos best-effort corrieron en paralelo con la deducción de stock.
+    await Promise.allSettled(efectos);
 
     // Evento de negocio: OT cerrada administrativamente (solo en el cierre real).
     if (!yaCerrada) {

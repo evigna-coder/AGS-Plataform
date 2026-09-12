@@ -2,7 +2,7 @@ import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'fireb
 import { addDoc, updateDoc, deleteDoc } from './firebase';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
-import { getCached, setCache, invalidateCache } from './serviceCache';
+import { invalidateCache, conCache } from './serviceCache';
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
 export const contactosEstablecimientoService = {
@@ -133,9 +133,8 @@ export const establecimientosService = {
   },
 
   async getAll(): Promise<Establecimiento[]> {
-    const cached = getCached<Establecimiento[]>('establecimientos');
-    if (cached) return cached;
-
+    // conCache (2026-09-11): lecturas simultáneas comparten la consulta.
+    return conCache<Establecimiento[]>('establecimientos', async () => {
     const snapshot = await getDocs(collection(db, 'establecimientos'));
     const list = snapshot.docs.map(docSnap => {
       const d = docSnap.data();
@@ -149,8 +148,8 @@ export const establecimientosService = {
       } as Establecimiento;
     });
     list.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    setCache('establecimientos', list);
     return list;
+    });
   },
 
   /** Real-time subscription. Returns unsubscribe function. */

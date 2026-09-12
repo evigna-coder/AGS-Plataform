@@ -23,8 +23,9 @@ if (SENTRY_DSN) {
       dsn: SENTRY_DSN,
       environment: isDevEnv ? 'development' : 'production',
       release: `sistema-modular@${app.getVersion()}`,
-      // Solo errores por ahora (sin performance tracing) mientras se evalúa.
-      tracesSampleRate: 0,
+      // Tracing al 20 % desde 2026-09-11 (fase 0 de performance.md): p50/p95
+      // reales por pantalla. El renderer hereda la config por IPC.
+      tracesSampleRate: 0.2,
     });
     console.log('[Sentry] Inicializado en main process —', isDevEnv ? 'development' : 'production');
   } catch (err) {

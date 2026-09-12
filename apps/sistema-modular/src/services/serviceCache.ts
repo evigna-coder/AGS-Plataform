@@ -42,6 +42,26 @@ export function setCache(key: string, data: any): void {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
+/**
+ * Lecturas EN VUELO (2026-09-11, fase 2 de performance): dos pantallas que
+ * piden el mismo catálogo en el mismo instante (arranque con varias pestañas,
+ * página + modal) encontraban la caché vacía las dos y bajaban la colección
+ * dos veces. Mientras una lectura está en curso, las siguientes con la misma
+ * clave esperan esa promesa en lugar de repetir la consulta.
+ */
+const enVuelo = new Map<string, Promise<any>>();
+
+/** Lee de caché; si no hay pero ya hay una lectura en curso, la comparte; si no, corre `cargar`. */
+export function conCache<T>(key: string, cargar: () => Promise<T>): Promise<T> {
+  const cached = getCached<T>(key);
+  if (cached) return Promise.resolve(cached);
+  const pendiente = enVuelo.get(key) as Promise<T> | undefined;
+  if (pendiente) return pendiente;
+  const p = cargar().then(data => { setCache(key, data); return data; }).finally(() => { enVuelo.delete(key); });
+  enVuelo.set(key, p);
+  return p;
+}
+
 /** Invalidate a specific cache key (call on create/update/delete). */
 export function invalidateCache(key: string): void {
   // Borra por prefijo en esta pestaña y avisa a las demás para que hagan lo mismo.

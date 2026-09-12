@@ -85,8 +85,14 @@ export const OTList = () => {
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden, toggleCol, showAllCols } = useResizableColumns('ot-list-v2');
 
   // Índice de términos de módulo (modelo / descripción / serie) por sistema, para
-  // que el buscador del filtro encuentre un equipo por su módulo.
-  const moduloTermsBySistema = useModuloSearchTerms(ordenes);
+  // que el buscador del filtro encuentre un equipo por su módulo. Se carga a
+  // demanda: al escribir en el buscador o al enfocar el selector de sistema.
+  const [modulosPedidos, setModulosPedidos] = useState(false);
+  const pedirModulos = useCallback(() => setModulosPedidos(true), []);
+  const moduloTermsBySistema = useModuloSearchTerms(
+    ordenes,
+    modulosPedidos || !!(filters.busqueda || filters.busquedaDescripcion),
+  );
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -192,6 +198,7 @@ export const OTList = () => {
           tiposServicioList={tiposServicioList}
           ingenierosList={ingenierosList}
           moduloTermsBySistema={moduloTermsBySistema}
+          onNecesitaModulos={pedirModulos}
         />
       </PageHeader>
 

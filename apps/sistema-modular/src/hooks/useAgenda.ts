@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
 import { ingenierosService, agendaService, agendaNotasService, feriadosService, diasAgsService, ordenesTrabajoService, sistemasService, establecimientosService } from '../services/firebaseService';
+import { useTabOverlay } from '../contexts/TabOverlayContext';
 import { esInteriorPorDistancia } from '../utils/distanciaInterior';
 import {
   getMonday,
@@ -166,8 +167,14 @@ export function useAgenda(): UseAgendaReturn {
   // pestañas viven horas — las OTs creadas después no entraban a la cola hasta
   // reabrir la pestaña ("creamos órdenes y no aparecen en agenda"). Ahora se
   // recarga cada 60s y al volver el foco a la ventana.
+  // Solo mientras la pestaña de la agenda es la ACTIVA (2026-09-11): las
+  // pestañas quedan montadas en segundo plano y este refresco seguía pegándole
+  // a Firestore toda la jornada aunque nadie mirara la agenda. Al volver a la
+  // pestaña se recarga en el acto (el efecto se re-arma con `isTabActive`).
   const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
+  const isTabActive = useTabOverlay()?.isTabActive ?? true;
   useEffect(() => {
+    if (!isTabActive) return;
     const load = () => ordenesTrabajoService.getPending()
       .then(setAllCandidateOTs)
       .catch(err => console.error('Error loading pending OTs:', err));
@@ -176,7 +183,7 @@ export function useAgenda(): UseAgendaReturn {
     const onVis = () => { if (!document.hidden) load(); };
     document.addEventListener('visibilitychange', onVis);
     return () => { clearInterval(int); document.removeEventListener('visibilitychange', onVis); };
-  }, []);
+  }, [isTabActive]);
 
   // Mapa sistemaId → id visible para las tarjetas del sidebar (UAT 2026-07-17).
   // Prioriza el código interno del CLIENTE (pedido coordinación 2026-08-03).
@@ -200,21 +207,26 @@ export function useAgenda(): UseAgendaReturn {
   // técnicamente no está en `allCandidateOTs`, el padre no se detectaba como
   // contenedor y caía en la cola "a programar" (caso 29970 con 29970.01
   // asignada y cerrada). Solo se consultan los padres que hoy aparecerían en
-  // la cola, así que son pocas lecturas.
+  // la cola, así que son pocas lecturas. Un padre que ya tiene hijas no deja
+  // de tenerlas: se recuerda por sesión y en cada refresco (60 s) solo se
+  // consultan los padres nuevos (2026-09-11).
   const [padresConHijas, setPadresConHijas] = useState<Set<string>>(new Set());
+  const padresConfirmados = useRef<Set<string>>(new Set());
   useEffect(() => {
     const candidatosPadre = allCandidateOTs
       .filter(ot => !ot.otNumber.includes('.'))
       .map(ot => ot.otNumber);
     if (candidatosPadre.length === 0) { setPadresConHijas(new Set()); return; }
     let cancelled = false;
-    Promise.all(candidatosPadre.map(async num => {
+    const aConsultar = candidatosPadre.filter(num => !padresConfirmados.current.has(num));
+    Promise.all(aConsultar.map(async num => {
       try {
         const hijas = await ordenesTrabajoService.getItemsByOtPadre(num);
         return hijas.length > 0 ? num : null;
       } catch { return null; }
     })).then(res => {
-      if (!cancelled) setPadresConHijas(new Set(res.filter((n): n is string => !!n)));
+      for (const num of res) if (num) padresConfirmados.current.add(num);
+      if (!cancelled) setPadresConHijas(new Set(candidatosPadre.filter(num => padresConfirmados.current.has(num))));
     });
     return () => { cancelled = true; };
   }, [allCandidateOTs]);

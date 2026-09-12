@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { useTabs } from '../../contexts/TabsContext';
-import { EditPresupuestoModal } from '../presupuestos/EditPresupuestoModal';
+// A demanda (2026-09-11): la burbuja vive en el Layout global y el modal de
+// presupuesto arrastra su árbol entero (PDF incluido) al arranque.
+const EditPresupuestoModal = lazy(() => import('../presupuestos/EditPresupuestoModal').then(m => ({ default: m.EditPresupuestoModal })));
 
 export const FloatingPresupuesto: React.FC = () => {
   const fp = useFloatingPresupuesto();
@@ -28,6 +30,7 @@ export const FloatingPresupuesto: React.FC = () => {
     <>
       {/* Editor flotante (a lo sumo uno visible) — persiste entre pestañas */}
       {abiertos.map(e => (
+        <Suspense key={e.presupuestoId} fallback={null}>
         <EditPresupuestoModal
           // Remount por presupuesto: estado fresco al cambiar de presupuesto.
           key={e.presupuestoId}
@@ -38,6 +41,7 @@ export const FloatingPresupuesto: React.FC = () => {
           onMinimize={() => fp.minimize(e.presupuestoId)}
           onLabel={label => fp.setLabel(e.presupuestoId, label)}
         />
+        </Suspense>
       ))}
 
       {/* Pills de presupuestos minimizados — uno por presupuesto, con su número */}

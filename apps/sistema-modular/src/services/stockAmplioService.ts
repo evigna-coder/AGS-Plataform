@@ -189,6 +189,94 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
     ? __testState.unidades.filter(u => u.articuloId === articuloId && u.activo !== false)
     : await fetchUnidades(articuloId);
 
+  // 2. OCs abiertas — pending items NOT yet received (not yet in DB as units)
+  const ocs = __testState
+    ? __testState.ocs.filter(oc => OC_OPEN_STATES.has(oc.estado))
+    : await fetchOpenOCsShared();
+
+  // 3. Requerimientos condicionales — comprometido bucket
+  const reqs = __testState
+    ? __testState.requerimientos.filter(
+        r => r.articuloId === articuloId && r.condicional === true,
+      )
+    : await fetchCondicionales(articuloId);
+
+  return armarStockAmplio(articuloId, unidades as UnidadStockRow[], ocs, reqs);
+}
+
+/** StockAmplio de un artículo sin unidades, OCs ni requerimientos (todo en cero). */
+export function stockAmplioVacio(): StockAmplio {
+  return armarStockAmplio('', [], [], []);
+}
+
+/**
+ * Versión EN BLOQUE (2026-09-11, Planificación de stock): el mismo cálculo que
+ * `computeStockAmplio` para todos los artículos a la vez, a partir de tres
+ * listas ya leídas (unidades activas, OCs abiertas, requerimientos
+ * condicionales). Antes cada fila de Planificación sin `resumenStock` hacía
+ * sus tres consultas: ~4.000 filas → ~6.000 consultas vacías por apertura.
+ * Los filtros de estado se aplican acá adentro, así que se pueden pasar las
+ * listas crudas. Un artículo sin datos no aparece en el mapa: usar
+ * `stockAmplioVacio()` para él.
+ */
+export function computeStockAmplioBulk(
+  unidades: Array<UnidadStockRow & { articuloId: string }>,
+  ocs: OCRecord[],
+  reqs: RequerimientoRecord[],
+): Map<string, StockAmplio> {
+  const unidadesPor = new Map<string, UnidadStockRow[]>();
+  for (const u of unidades) {
+    if (u.activo === false || !u.articuloId) continue;
+    const arr = unidadesPor.get(u.articuloId) ?? [];
+    arr.push(u);
+    unidadesPor.set(u.articuloId, arr);
+  }
+  const ocsAbiertas = ocs.filter(oc => OC_OPEN_STATES.has(oc.estado));
+  const reqsPor = new Map<string, RequerimientoRecord[]>();
+  for (const r of reqs) {
+    if (r.condicional !== true || !r.articuloId) continue;
+    const arr = reqsPor.get(r.articuloId) ?? [];
+    arr.push(r);
+    reqsPor.set(r.articuloId, arr);
+  }
+  const ids = new Set<string>([...unidadesPor.keys(), ...reqsPor.keys()]);
+  for (const oc of ocsAbiertas) for (const it of (oc.items ?? [])) if (it.articuloId) ids.add(it.articuloId);
+
+  const out = new Map<string, StockAmplio>();
+  for (const id of ids) {
+    out.set(id, armarStockAmplio(id, unidadesPor.get(id) ?? [], ocsAbiertas, reqsPor.get(id) ?? []));
+  }
+  return out;
+}
+
+/**
+ * Lee las tres colecciones una sola vez y arma el mapa por artículo. Sin
+ * serviceCache (STKP-04): datos vivos al momento de la lectura.
+ */
+export async function fetchStockAmplioBulk(): Promise<Map<string, StockAmplio>> {
+  if (__testState) {
+    return computeStockAmplioBulk(__testState.unidades, __testState.ocs, __testState.requerimientos);
+  }
+  const { db, collection, query, where, getDocs } = await getFirebaseModules();
+  const [uSnap, ocs, rSnap] = await Promise.all([
+    getDocs(query(collection(db, 'unidades'), where('activo', '==', true))),
+    fetchOpenOCsShared(),
+    getDocs(query(collection(db, 'requerimientos_compra'), where('condicional', '==', true))),
+  ]);
+  return computeStockAmplioBulk(
+    uSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+    ocs,
+    rSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as RequerimientoRecord),
+  );
+}
+
+/** Núcleo puro: arma el StockAmplio de UN artículo con sus unidades, las OCs abiertas y sus reqs condicionales. */
+function armarStockAmplio(
+  articuloId: string,
+  unidades: UnidadStockRow[],
+  ocs: OCRecord[],
+  reqs: RequerimientoRecord[],
+): StockAmplio {
   // Sum `cantidad` (default 1) rather than counting docs: a single lote doc can
   // represent N physical units. Serialized articles always store cantidad=1, so
   // the sum collapses to a count for them. Shared helper — same criterion as the
@@ -198,12 +286,8 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
   const reservado = sumCantidadUnidades(rows, 'reservado');
   const unidadesEnTransito = sumCantidadUnidades(rows, 'en_transito');
 
-  // 2. OCs abiertas — pending items NOT yet received (not yet in DB as units)
+  // OCs abiertas: pending items NOT yet received (not yet in DB as units).
   // These are SEPARATE from unidades.en_transito — DO NOT deduplicate.
-  const ocs = __testState
-    ? __testState.ocs.filter(oc => OC_OPEN_STATES.has(oc.estado))
-    : await fetchOpenOCsShared();
-
   let ocEnTransito = 0;
   const ocsBreakdown: StockAmplioBreakdownEntry[] = [];
 
@@ -222,14 +306,8 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
     }
   }
 
-  // 3. Requerimientos condicionales — comprometido bucket
+  // Requerimientos condicionales — comprometido bucket.
   // Only conditional requirements in active (non-terminal) states count.
-  const reqs = __testState
-    ? __testState.requerimientos.filter(
-        r => r.articuloId === articuloId && r.condicional === true,
-      )
-    : await fetchCondicionales(articuloId);
-
   const activeReqs = reqs.filter(r => !REQ_COMPROMETIDO_EXCL.has(r.estado));
   const comprometido = activeReqs.reduce((acc, r) => acc + (r.cantidad ?? 1), 0);
   const reqsBreakdown: StockAmplioBreakdownEntry[] = activeReqs.map(r => ({

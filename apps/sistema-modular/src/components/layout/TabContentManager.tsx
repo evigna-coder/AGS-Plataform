@@ -1,45 +1,151 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { MemoryRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTabs } from '../../contexts/TabsContext';
 import { TabOverlayScope } from '../../contexts/TabOverlayContext';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { useLandingPath } from './navigation';
+import { LoadingState } from '../ui/LoadingState';
+import { marcarPantalla } from '../../utils/perfReads';
 
-// ── Page imports ──
-import { NotFoundPage } from '../../pages/auth';
-import { LeadsList, LeadDetail } from '../../pages/leads';
-import { ClientesList, ClienteDetail } from '../../pages/clientes';
-import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from '../../pages/establecimientos';
-import { EquiposList, EquipoDetail, CategoriasEquipo } from '../../pages/equipos';
-import { OTList, OTNew, OTDetail, TiposServicio } from '../../pages/ordenes-trabajo';
-import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio, AnaliticaPresupuestos } from '../../pages/presupuestos';
-import { TableCatalogPage, TableCatalogEditorPage, MigrateRenameConclusion } from '../../pages/protocol-catalog';
-import { InstrumentosList, InstrumentoEditorPage } from '../../pages/instrumentos';
-import { PatronesList, PatronEditorPage } from '../../pages/patrones';
-import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
-import { FichasList, FichaDetail } from '../../pages/fichas';
-import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
-import { StockHome, MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, ConsumosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionesVistaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
-import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
-import { DispositivosList } from '../../pages/dispositivos';
-import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
-import { UsuariosList } from '../../pages/usuarios';
-import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage, BackfillVentasInsumosDerivadorPage, AuditoriaPage } from '../../pages/admin';
-import { AgendaPage } from '../../pages/agenda';
-import { ControlSemanal } from '../../pages/control-semanal';
-import { CierresSemanalesList } from '../../pages/control-semanal/CierresSemanalesList';
-import { PendientesList } from '../../pages/pendientes';
-import { FacturacionList, FacturacionDetail, PendientesDocumentacionPage, CuotasPorFacturarPage } from '../../pages/facturacion';
-import { ControlFacturasList } from '../../pages/control-facturas';
-import { CalificacionesList } from '../../pages/calificacion-proveedores';
-import { ContratosList, ContratoDetail } from '../../pages/contratos';
-import { TiposEquipoList } from '../../pages/tipos-equipo';
-import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
-import { QFDocumentosList } from '../../pages/qf-documentos';
-import { NuevaPestanaPage } from '../../pages/nueva-pestana';
-import { DashboardPage } from '../../pages/dashboard';
-import { EntregasList } from '../../pages/entregas';
+// ── Páginas a demanda (2026-09-11, fase 1 de .claude/plans/performance.md) ──
+// Cada módulo (carpeta de pages/) es un chunk propio que se baja recién al
+// abrir una ruta suya. Antes las 33 carpetas se importaban estáticas y el
+// bundle principal pesaba 4,6 MB de JS a parsear antes del primer render.
+type PageMod<T> = { default: T };
+/** Cargadores de todos los módulos, para precalentarlos cuando la app queda ociosa. */
+const CARGADORES: Array<() => Promise<unknown>> = [];
+const pagina = <T,>(load: () => Promise<T>) => {
+  CARGADORES.push(load);
+  return lazy(() => load().then(c => ({ default: c })) as Promise<PageMod<any>>);
+};
+
+/**
+ * Precarga en segundo plano (2026-09-11). React Router v7 navega dentro de una
+ * transición: mientras baja el chunk de la página nueva deja la vieja en
+ * pantalla, y el clic en un módulo "no hacía nada" hasta que el archivo
+ * estaba. Con la precarga, el arranque sigue liviano (solo lo que se ve) y
+ * cuando el usuario hace clic el módulo ya está en memoria. Se dispara cuando
+ * el navegador está ocioso, de a uno, para no competir con la pantalla activa.
+ * En dev además calienta la compilación de Vite sin bloquear.
+ */
+let precargaLanzada = false;
+export function precargarModulosEnIdle(): void {
+  if (precargaLanzada || typeof window === 'undefined') return;
+  precargaLanzada = true;
+  const pendientes = [...CARGADORES];
+  const idle = (cb: () => void) =>
+    'requestIdleCallback' in window ? (window as any).requestIdleCallback(cb, { timeout: 2000 }) : setTimeout(cb, 300);
+  const siguiente = () => {
+    const load = pendientes.shift();
+    if (!load) return;
+    load().catch(() => undefined).finally(() => idle(siguiente));
+  };
+  // Arranca recién cuando la primera pantalla ya se pintó.
+  setTimeout(() => idle(siguiente), 1500);
+}
+const NotFoundPage = pagina(() => import('../../pages/auth').then(m => m.NotFoundPage));
+const LeadsList = pagina(() => import('../../pages/leads').then(m => m.LeadsList));
+const LeadDetail = pagina(() => import('../../pages/leads').then(m => m.LeadDetail));
+const ClientesList = pagina(() => import('../../pages/clientes').then(m => m.ClientesList));
+const ClienteDetail = pagina(() => import('../../pages/clientes').then(m => m.ClienteDetail));
+const EstablecimientosList = pagina(() => import('../../pages/establecimientos').then(m => m.EstablecimientosList));
+const EstablecimientoNew = pagina(() => import('../../pages/establecimientos').then(m => m.EstablecimientoNew));
+const EstablecimientoDetail = pagina(() => import('../../pages/establecimientos').then(m => m.EstablecimientoDetail));
+const EquiposList = pagina(() => import('../../pages/equipos').then(m => m.EquiposList));
+const EquipoDetail = pagina(() => import('../../pages/equipos').then(m => m.EquipoDetail));
+const CategoriasEquipo = pagina(() => import('../../pages/equipos').then(m => m.CategoriasEquipo));
+const OTList = pagina(() => import('../../pages/ordenes-trabajo').then(m => m.OTList));
+const OTNew = pagina(() => import('../../pages/ordenes-trabajo').then(m => m.OTNew));
+const OTDetail = pagina(() => import('../../pages/ordenes-trabajo').then(m => m.OTDetail));
+const TiposServicio = pagina(() => import('../../pages/ordenes-trabajo').then(m => m.TiposServicio));
+const PresupuestosList = pagina(() => import('../../pages/presupuestos').then(m => m.PresupuestosList));
+const PresupuestoNew = pagina(() => import('../../pages/presupuestos').then(m => m.PresupuestoNew));
+const PresupuestoDetail = pagina(() => import('../../pages/presupuestos').then(m => m.PresupuestoDetail));
+const CategoriasPresupuesto = pagina(() => import('../../pages/presupuestos').then(m => m.CategoriasPresupuesto));
+const CondicionesPago = pagina(() => import('../../pages/presupuestos').then(m => m.CondicionesPago));
+const ConceptosServicio = pagina(() => import('../../pages/presupuestos').then(m => m.ConceptosServicio));
+const AnaliticaPresupuestos = pagina(() => import('../../pages/presupuestos').then(m => m.AnaliticaPresupuestos));
+const TableCatalogPage = pagina(() => import('../../pages/protocol-catalog').then(m => m.TableCatalogPage));
+const TableCatalogEditorPage = pagina(() => import('../../pages/protocol-catalog').then(m => m.TableCatalogEditorPage));
+const MigrateRenameConclusion = pagina(() => import('../../pages/protocol-catalog').then(m => m.MigrateRenameConclusion));
+const InstrumentosList = pagina(() => import('../../pages/instrumentos').then(m => m.InstrumentosList));
+const InstrumentoEditorPage = pagina(() => import('../../pages/instrumentos').then(m => m.InstrumentoEditorPage));
+const PatronesList = pagina(() => import('../../pages/patrones').then(m => m.PatronesList));
+const PatronEditorPage = pagina(() => import('../../pages/patrones').then(m => m.PatronEditorPage));
+const ColumnasList = pagina(() => import('../../pages/columnas').then(m => m.ColumnasList));
+const ColumnaEditorPage = pagina(() => import('../../pages/columnas').then(m => m.ColumnaEditorPage));
+const FichasList = pagina(() => import('../../pages/fichas').then(m => m.FichasList));
+const FichaDetail = pagina(() => import('../../pages/fichas').then(m => m.FichaDetail));
+const LoanersList = pagina(() => import('../../pages/loaners').then(m => m.LoanersList));
+const LoanerEditor = pagina(() => import('../../pages/loaners').then(m => m.LoanerEditor));
+const LoanerDetail = pagina(() => import('../../pages/loaners').then(m => m.LoanerDetail));
+const StockHome = pagina(() => import('../../pages/stock').then(m => m.StockHome));
+const MarcasPage = pagina(() => import('../../pages/stock').then(m => m.MarcasPage));
+const IngenierosPage = pagina(() => import('../../pages/stock').then(m => m.IngenierosPage));
+const ProveedoresPage = pagina(() => import('../../pages/stock').then(m => m.ProveedoresPage));
+const PosicionesPage = pagina(() => import('../../pages/stock').then(m => m.PosicionesPage));
+const ArticulosList = pagina(() => import('../../pages/stock').then(m => m.ArticulosList));
+const ArticuloEditor = pagina(() => import('../../pages/stock').then(m => m.ArticuloEditor));
+const ArticuloDetail = pagina(() => import('../../pages/stock').then(m => m.ArticuloDetail));
+const UnidadesList = pagina(() => import('../../pages/stock').then(m => m.UnidadesList));
+const MinikitsList = pagina(() => import('../../pages/stock').then(m => m.MinikitsList));
+const MinikitDetail = pagina(() => import('../../pages/stock').then(m => m.MinikitDetail));
+const MinikitFaltantesPage = pagina(() => import('../../pages/stock').then(m => m.MinikitFaltantesPage));
+const MovimientosPage = pagina(() => import('../../pages/stock').then(m => m.MovimientosPage));
+const ConsumosPage = pagina(() => import('../../pages/stock').then(m => m.ConsumosPage));
+const RemitosList = pagina(() => import('../../pages/stock').then(m => m.RemitosList));
+const RemitoDetail = pagina(() => import('../../pages/stock').then(m => m.RemitoDetail));
+const AlertasStockPage = pagina(() => import('../../pages/stock').then(m => m.AlertasStockPage));
+const PosicionesArancelariasPage = pagina(() => import('../../pages/stock').then(m => m.PosicionesArancelariasPage));
+const ProveedorDetail = pagina(() => import('../../pages/stock').then(m => m.ProveedorDetail));
+const RequerimientosList = pagina(() => import('../../pages/stock').then(m => m.RequerimientosList));
+const OCList = pagina(() => import('../../pages/stock').then(m => m.OCList));
+const OCEditor = pagina(() => import('../../pages/stock').then(m => m.OCEditor));
+const OCDetail = pagina(() => import('../../pages/stock').then(m => m.OCDetail));
+const ImportacionesList = pagina(() => import('../../pages/stock').then(m => m.ImportacionesList));
+const PagosVEPPage = pagina(() => import('../../pages/stock').then(m => m.PagosVEPPage));
+const ImportacionEditor = pagina(() => import('../../pages/stock').then(m => m.ImportacionEditor));
+const ImportacionDetail = pagina(() => import('../../pages/stock').then(m => m.ImportacionDetail));
+const AsignacionesVistaPage = pagina(() => import('../../pages/stock').then(m => m.AsignacionesVistaPage));
+const AsignacionesList = pagina(() => import('../../pages/stock').then(m => m.AsignacionesList));
+const AsignacionDetail = pagina(() => import('../../pages/stock').then(m => m.AsignacionDetail));
+const InventarioIngenieroPage = pagina(() => import('../../pages/stock').then(m => m.InventarioIngenieroPage));
+const PlanificacionStockPage = pagina(() => import('../../pages/stock').then(m => m.PlanificacionStockPage));
+const IngresoEmpresasList = pagina(() => import('../../pages/ingreso-empresas').then(m => m.IngresoEmpresasList));
+const DispositivosList = pagina(() => import('../../pages/dispositivos').then(m => m.DispositivosList));
+const VehiculosList = pagina(() => import('../../pages/vehiculos').then(m => m.VehiculosList));
+const VehiculoDetail = pagina(() => import('../../pages/vehiculos').then(m => m.VehiculoDetail));
+const UsuariosList = pagina(() => import('../../pages/usuarios').then(m => m.UsuariosList));
+const ImportacionDatos = pagina(() => import('../../pages/admin').then(m => m.ImportacionDatos));
+const RevisionClienteIdPage = pagina(() => import('../../pages/admin').then(m => m.RevisionClienteIdPage));
+const ModulosAdminPage = pagina(() => import('../../pages/admin').then(m => m.ModulosAdminPage));
+const ConfigFlujosPage = pagina(() => import('../../pages/admin').then(m => m.ConfigFlujosPage));
+const AccionesPendientesPage = pagina(() => import('../../pages/admin').then(m => m.AccionesPendientesPage));
+const RelinkearArticulosPage = pagina(() => import('../../pages/admin').then(m => m.RelinkearArticulosPage));
+const BackfillTicketNumerosPage = pagina(() => import('../../pages/admin').then(m => m.BackfillTicketNumerosPage));
+const BackfillClienteIdsPage = pagina(() => import('../../pages/admin').then(m => m.BackfillClienteIdsPage));
+const BackfillResponsablesPage = pagina(() => import('../../pages/admin').then(m => m.BackfillResponsablesPage));
+const BackfillVentasInsumosDerivadorPage = pagina(() => import('../../pages/admin').then(m => m.BackfillVentasInsumosDerivadorPage));
+const AuditoriaPage = pagina(() => import('../../pages/admin').then(m => m.AuditoriaPage));
+const AgendaPage = pagina(() => import('../../pages/agenda').then(m => m.AgendaPage));
+const ControlSemanal = pagina(() => import('../../pages/control-semanal').then(m => m.ControlSemanal));
+const CierresSemanalesList = pagina(() => import('../../pages/control-semanal/CierresSemanalesList').then(m => m.CierresSemanalesList));
+const PendientesList = pagina(() => import('../../pages/pendientes').then(m => m.PendientesList));
+const FacturacionList = pagina(() => import('../../pages/facturacion').then(m => m.FacturacionList));
+const FacturacionDetail = pagina(() => import('../../pages/facturacion').then(m => m.FacturacionDetail));
+const PendientesDocumentacionPage = pagina(() => import('../../pages/facturacion').then(m => m.PendientesDocumentacionPage));
+const CuotasPorFacturarPage = pagina(() => import('../../pages/facturacion').then(m => m.CuotasPorFacturarPage));
+const ControlFacturasList = pagina(() => import('../../pages/control-facturas').then(m => m.ControlFacturasList));
+const CalificacionesList = pagina(() => import('../../pages/calificacion-proveedores').then(m => m.CalificacionesList));
+const ContratosList = pagina(() => import('../../pages/contratos').then(m => m.ContratosList));
+const ContratoDetail = pagina(() => import('../../pages/contratos').then(m => m.ContratoDetail));
+const TiposEquipoList = pagina(() => import('../../pages/tipos-equipo').then(m => m.TiposEquipoList));
+const ConsumiblesPorModuloList = pagina(() => import('../../pages/consumibles-por-modulo').then(m => m.ConsumiblesPorModuloList));
+const QFDocumentosList = pagina(() => import('../../pages/qf-documentos').then(m => m.QFDocumentosList));
+const NuevaPestanaPage = pagina(() => import('../../pages/nueva-pestana').then(m => m.NuevaPestanaPage));
+const DashboardPage = pagina(() => import('../../pages/dashboard').then(m => m.DashboardPage));
+const EntregasList = pagina(() => import('../../pages/entregas').then(m => m.EntregasList));
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -66,6 +172,8 @@ function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean
   useEffect(() => {
     updateTabLocation(tabId, location.pathname, location.search);
     if (isActive) {
+      // Bucket de medición por pantalla (fase 0 de performance.md).
+      marcarPantalla(location.pathname);
       const fullPath = location.pathname + location.search;
       if (window.location.pathname + window.location.search !== fullPath) {
         window.history.replaceState(null, '', fullPath);
@@ -82,6 +190,7 @@ function AppRoutes() {
   // el destino del botón "Volver al inicio" de AccessDeniedPage.
   const landing = useLandingPath();
   return (
+    <Suspense fallback={<LoadingState message="Cargando módulo…" />}>
     <Routes>
       <Route path="/" element={<Navigate to={landing} replace />} />
       {/* Pestaña nueva (el "+" de la barra de pestañas) — sin gate: lo que lista
@@ -235,20 +344,32 @@ function AppRoutes() {
       {/* Catch-all: render inline como AccessDeniedPage (sin redirect — cada tab tiene su MemoryRouter) */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </Suspense>
   );
 }
 
 /**
- * Renders ALL open tabs simultaneously, each inside its own MemoryRouter.
- * Inactive tabs are hidden with display:none — components stay mounted,
- * preserving forms, scroll position, and local state (Chrome-like tabs).
+ * Renders open tabs, each inside its own MemoryRouter. Inactive tabs are
+ * hidden with display:none — components stay mounted, preserving forms,
+ * scroll position, and local state (Chrome-like tabs).
+ *
+ * Montaje diferido (2026-09-11, fase 2 de performance): una pestaña se monta
+ * la PRIMERA vez que se activa, no al arrancar. Las pestañas restauradas al
+ * abrir la app (agenda, OTs, planificación…) cargaban todas sus colecciones a
+ * la vez sobre la pantalla de login; ahora solo carga la activa y el resto al
+ * clickearla. Una vez montada queda montada, como antes.
  */
 export function TabContentManager() {
   const { tabs, activeTabId } = useTabs();
+  useEffect(() => { precargarModulosEnIdle(); }, []);
+  const montadas = useRef(new Set<string>());
+  montadas.current.add(activeTabId);
+  const abiertas = new Set(tabs.map(t => t.id));
+  for (const id of montadas.current) if (!abiertas.has(id)) montadas.current.delete(id);
 
   return (
     <>
-      {tabs.map(tab => (
+      {tabs.filter(tab => montadas.current.has(tab.id)).map(tab => (
         <TabOverlayScope key={tab.id} isTabActive={tab.id === activeTabId}>
           <MemoryRouter initialEntries={[tab.path]}>
             <TabRouterBridge tabId={tab.id} isActive={tab.id === activeTabId} />

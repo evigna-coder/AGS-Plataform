@@ -13,14 +13,18 @@ import type { ModuloSistema, WorkOrder } from '@ags/shared';
  *
  * Extraído de OTList para mantener la página dentro del presupuesto de 250 líneas.
  */
-export function useModuloSearchTerms(ordenes: WorkOrder[]): Map<string, string> {
+export function useModuloSearchTerms(ordenes: WorkOrder[], activo = true): Map<string, string> {
   const [modulosAll, setModulosAll] = useState<ModuloSistema[]>([]);
 
+  // Los módulos son ~9.000 docs (collectionGroup) y solo sirven para BUSCAR:
+  // se cargan recién cuando `activo` (el usuario escribe en el buscador o abre
+  // el selector de sistema), no al abrir el listado (2026-09-11).
   useEffect(() => {
+    if (!activo) return;
     modulosService.getAllGrouped()
       .then(setModulosAll)
       .catch(err => console.warn('[useModuloSearchTerms] no se pudieron cargar módulos para el filtro:', err));
-  }, []);
+  }, [activo]);
 
   return useMemo(() => {
     const m = new Map<string, string>();

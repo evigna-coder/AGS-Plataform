@@ -137,7 +137,11 @@ export function useAsignacionRapida() {
     setLoading(true);
     try {
       const results = await Promise.allSettled([
-        unidadesService.getAll({ activoOnly: true }),
+        // Solo lo asignable (2026-09-11): disponibles y reservadas EN POSICIÓN —
+        // es exactamente el filtro de `availableUnits`. Antes bajaba las ~3.400
+        // unidades activas (incluidas las que ya están en campo o en remito) en
+        // cada apertura del modal y en cada recarga tras confirmar.
+        unidadesService.getEnPosicionAsignables(),
         minikitsService.getAll(true),
         instrumentosService.getAll({ activoOnly: true }),
         dispositivosService.getAll(true),

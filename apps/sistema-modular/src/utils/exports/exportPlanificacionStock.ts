@@ -1,14 +1,15 @@
 import type { Articulo, StockAmplio } from '@ags/shared';
 import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
+import { stockAmplioVacio } from '../../services/stockAmplioService';
 import { type ExportColumn } from '../exportToExcel';
 import { filtrosAplicadosDesc } from './filtros';
 
 /**
  * Export de Planificación de Stock (Excel + PDF vía ExportarButton).
- * Los buckets salen de `articulo.resumenStock` (mirror server-side, CF 09-02).
- * La tabla en pantalla tiene además un fallback client-side por fila
- * (useStockAmplio), así que un artículo sin mirror exporta '—' aunque en la
- * pantalla se vea el valor calculado (~).
+ * Los buckets salen de `articulo.resumenStock` (mirror server-side, CF 09-02)
+ * y, para los artículos sin mirror, del cálculo en bloque de la página
+ * (`calculado`, mismo fallback que muestra la tabla con "~"). Sin mapa, el
+ * artículo sin mirror exporta '—'.
  */
 export interface PlanificacionExportRow {
   articulo: Articulo;
@@ -21,10 +22,11 @@ export function buildPlanificacionExportRows(
   articulos: Articulo[],
   marcaById: Record<string, string>,
   soloComprometido: boolean,
+  calculado?: Map<string, StockAmplio> | null,
 ): PlanificacionExportRow[] {
   const out: PlanificacionExportRow[] = [];
   for (const a of articulos) {
-    const sa = a.resumenStock ?? null;
+    const sa = a.resumenStock ?? (calculado ? (calculado.get(a.id) ?? stockAmplioVacio()) : null);
     // Mismo criterio que la fila: con "solo comprometido" se ocultan las que
     // tienen comprometido === 0 (las sin datos quedan, igual que en pantalla).
     if (soloComprometido && sa && sa.comprometido === 0) continue;

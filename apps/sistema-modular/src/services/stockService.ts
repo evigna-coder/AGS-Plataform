@@ -5,7 +5,7 @@ import type { ResultadoDeduccionLinea } from '../utils/cierreStockLineas';
 import { costoComponente } from '../utils/kitProrrateo';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
-import { getCached, setCache, invalidateCache } from './serviceCache';
+import { getCached, setCache, invalidateCache, conCache } from './serviceCache';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -192,9 +192,8 @@ export const articulosService = {
     // ('articulos') en create/update/delete borra todas las variantes. Las
     // listas en vivo usan subscribe() y no tocan esta cache.
     const cacheKey = `articulos:${filters?.activoOnly !== false}:${filters?.categoriaEquipo ?? ''}:${filters?.marcaId ?? ''}:${filters?.tipo ?? ''}`;
-    const cached = getCached<Articulo[]>(cacheKey);
-    if (cached) return cached;
-
+    // conCache (2026-09-11): lecturas simultáneas de la misma clave comparten la consulta.
+    return conCache<Articulo[]>(cacheKey, async () => {
     let q = query(collection(db, 'articulos'));
     if (filters?.activoOnly !== false) {
       q = query(q, where('activo', '==', true));
@@ -216,8 +215,8 @@ export const articulosService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as Articulo[];
     items.sort((a, b) => a.codigo.localeCompare(b.codigo));
-    setCache(cacheKey, items);
     return items;
+    });
   },
 
   async getById(id: string): Promise<Articulo | null> {
@@ -426,6 +425,19 @@ export const articulosService = {
 // ========== UNIDADES DE STOCK ==========
 
 export const unidadesService = {
+  /**
+   * Unidades asignables desde el modal de asignación (2026-09-11): activas,
+   * en una POSICIÓN de stock, disponibles o reservadas. Dos consultas acotadas
+   * por estado en lugar de bajar la colección entera y filtrar en memoria.
+   */
+  async getEnPosicionAsignables(): Promise<UnidadStock[]> {
+    const [disp, res] = await Promise.all([
+      this.getAll({ activoOnly: true, estado: 'disponible' }),
+      this.getAll({ activoOnly: true, estado: 'reservado' }),
+    ]);
+    return [...disp, ...res].filter(u => u.ubicacion?.tipo === 'posicion');
+  },
+
   async getAll(filters?: {
     articuloId?: string;
     estado?: string;

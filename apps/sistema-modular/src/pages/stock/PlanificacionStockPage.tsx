@@ -1,11 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { articuloMatchesSearch } from '../../utils/articuloSearch';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
-import { articulosService } from '../../services/stockService';
-import { marcasService } from '../../services/catalogService';
-import { proveedoresService } from '../../services/personalService';
-import type { Articulo } from '@ags/shared';
+import { usePlanificacionStock } from '../../hooks/usePlanificacionStock';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import {
@@ -26,10 +23,7 @@ const FILTER_SCHEMA = {
 };
 
 export function PlanificacionStockPage() {
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
-  const [marcas, setMarcas] = useState<Array<{ id: string; nombre: string }>>([]);
-  const [proveedores, setProveedores] = useState<Array<{ id: string; nombre: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const { articulos, marcas, proveedores, loading, calculado, stockDe } = usePlanificacionStock();
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
   // Input responsivo: valor local inmediato, URL (y por ende la lista) con debounce.
   const [textoInput, setTextoInput] = useDebouncedUrlText(filters.texto, v => setFilter('texto', v));
@@ -40,21 +34,6 @@ export function PlanificacionStockPage() {
     marcas.forEach(m => { map[m.id] = m.nombre; });
     return map;
   }, [marcas]);
-
-  useEffect(() => {
-    // Direct service calls — NO serviceCache usage (STKP-04)
-    (async () => {
-      const [arts, ms, ps] = await Promise.all([
-        articulosService.getAll({ activoOnly: true }),
-        marcasService.getAll(true).catch(() => [] as Array<{ id: string; nombre: string }>),
-        proveedoresService.getAll(true).catch(() => [] as Array<{ id: string; nombre: string }>),
-      ]);
-      setArticulos(arts);
-      setMarcas(ms.map((m: { id: string; nombre: string }) => ({ id: m.id, nombre: m.nombre })));
-      setProveedores(ps.map((p: { id: string; nombre: string }) => ({ id: p.id, nombre: p.nombre })));
-      setLoading(false);
-    })();
-  }, []);
 
   const filtered = useMemo(() => {
     const t = filters.texto.trim();
@@ -74,8 +53,8 @@ export function PlanificacionStockPage() {
   const hasAdvancedFilters = !!(filters.marcaId || filters.proveedorId || filters.soloComprometido);
 
   const exportRows = useMemo(
-    () => buildPlanificacionExportRows(filtered, marcaById, hideIfNotComprometido),
-    [filtered, marcaById, hideIfNotComprometido],
+    () => buildPlanificacionExportRows(filtered, marcaById, hideIfNotComprometido, calculado),
+    [filtered, marcaById, hideIfNotComprometido, calculado],
   );
 
   const th = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -191,6 +170,7 @@ export function PlanificacionStockPage() {
                     articulo={a}
                     hideIfNotComprometido={hideIfNotComprometido}
                     marcaNombre={marcaById[a.marcaId]}
+                    {...stockDe(a)}
                   />
                 ))}
               </tbody>

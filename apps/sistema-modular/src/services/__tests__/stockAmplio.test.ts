@@ -11,7 +11,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { computeStockAmplio, atpUnidades, __setTestFirestore } from '../stockAmplioService.js';
+import { computeStockAmplio, computeStockAmplioBulk, fetchStockAmplioBulk, stockAmplioVacio, atpUnidades, __setTestFirestore } from '../stockAmplioService.js';
 import { atpFromStockAmplio, itemRequiresImportacionFromUnidades } from '../atpHelpers.js';
 import {
   FIXTURE_HAPPY_PATH,
@@ -107,6 +107,24 @@ async function run() {
     'I7: stock solo asignado → la variante sync también debe decir "requiere importación"',
   );
   console.log('  ✓ Test 7 passed: I7 async y sync coinciden con stock solo asignado');
+
+  // ── Test 8: la versión en bloque (Planificación) coincide con la por artículo ──
+  for (const [nombre, fx] of [
+    ['happy', FIXTURE_HAPPY_PATH], ['double-count', FIXTURE_DOUBLE_COUNT_REGRESSION],
+    ['stale reqs', FIXTURE_STALE_REQS], ['closed OCs', FIXTURE_CLOSED_OCS],
+    ['lotes', FIXTURE_LOTES_Y_ASIGNADOS],
+  ] as const) {
+    __setTestFirestore(fx);
+    const porArticulo = await computeStockAmplio('art-1');
+    const bulk = computeStockAmplioBulk(fx.unidades, fx.ocs, fx.requerimientos);
+    assert.deepEqual(bulk.get('art-1') ?? stockAmplioVacio(), porArticulo, `bulk (${nombre}): debe coincidir con computeStockAmplio`);
+    const leido = await fetchStockAmplioBulk();
+    assert.deepEqual(leido.get('art-1') ?? stockAmplioVacio(), porArticulo, `fetchStockAmplioBulk (${nombre}): debe coincidir`);
+  }
+  __setTestFirestore(FIXTURE_EMPTY);
+  assert.deepEqual(stockAmplioVacio(), await computeStockAmplio('art-1'), 'vacío: todo en cero, mismo shape');
+  assert.equal(computeStockAmplioBulk(FIXTURE_EMPTY.unidades, FIXTURE_EMPTY.ocs, FIXTURE_EMPTY.requerimientos).size, 0, 'vacío: mapa sin entradas');
+  console.log('  ✓ Test 8 passed: computeStockAmplioBulk coincide con computeStockAmplio');
 
   console.log('\n✅ All stockAmplio tests passed');
 }

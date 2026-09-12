@@ -30,9 +30,29 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     base: './', // Importante para Electron: rutas relativas
-    plugins: [react()],
+    plugins: [
+      react(),
+      // Lecturas de Firestore instrumentadas (2026-09-11, fase 0 de
+      // .claude/plans/performance.md): todo `import 'firebase/firestore'` de la
+      // app y de packages/shared va al shim, que re-exporta el SDK y cuenta
+      // getDoc/getDocs/onSnapshot. Solo el shim importa el SDK real.
+      {
+        name: 'ags-firestore-instrumentado',
+        enforce: 'pre' as const,
+        resolveId(id: string, importer?: string) {
+          if (id !== 'firebase/firestore' || !importer) return null;
+          if (importer.replace(/\\/g, '/').includes('/services/firestoreInstrumented')) return null;
+          return path.resolve(__dirname, 'src/services/firestoreInstrumented.ts');
+        },
+      },
+    ],
     optimizeDeps: {
       force: true, // Forzar re-optimización de dependencias
+      // Con las páginas a demanda (lazy, 2026-09-11) Vite descubría dependencias
+      // nuevas recién al abrir un módulo y hacía un RELOAD completo de la app
+      // ("optimized dependencies changed. reloading" → vuelve a "AGS cargando").
+      // Escanear todas las páginas al arrancar evita el descubrimiento tardío.
+      entries: ['index.html', 'src/pages/**/*.tsx', 'src/components/**/*.tsx'],
     },
     resolve: {
       alias: {
@@ -71,7 +91,11 @@ export default defineConfig(({ mode }) => {
             if (p.includes('/html2canvas') || p.includes('/html2pdf') || p.includes('/pdf-lib')) return 'vendor-pdf-tools';
             if (p.includes('/date-fns')) return 'vendor-date-fns';
             if (p.includes('/@dnd-kit')) return 'vendor-dnd';
-            if (p.includes('/react-dom/') || p.includes('/scheduler/')) return 'vendor-react';
+            // `react` y su jsx-runtime también acá (2026-09-11): sin asignarlos,
+            // Rollup los dejaba caer DENTRO del chunk de react-pdf, y como todo
+            // el app importa React, el chunk de 2,1 MB se precargaba al arranque
+            // aunque ninguna pantalla lo usara todavía.
+            if (p.includes('/node_modules/react/') || p.includes('/react-dom/') || p.includes('/scheduler/')) return 'vendor-react';
             return;
           },
         },

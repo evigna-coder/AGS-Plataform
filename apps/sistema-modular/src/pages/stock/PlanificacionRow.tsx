@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { Articulo } from '@ags/shared';
-import { useStockAmplio } from '../../hooks/useStockAmplio';
+import type { Articulo, StockAmplio } from '@ags/shared';
 import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { StockAmplioBreakdownDrawer } from '../../components/stock/StockAmplioBreakdownDrawer';
 
@@ -11,10 +10,18 @@ interface Props {
   hideIfNotComprometido: boolean;
   /** Display name for marca — passed from page to avoid per-row lookup. */
   marcaNombre?: string;
+  /**
+   * Stock amplio ya resuelto por la página (2026-09-11): `resumenStock` del
+   * artículo (llega vivo por la suscripción a `articulos`) o el cálculo en
+   * bloque. Antes cada fila abría su propio listener y, sin mirror, tres
+   * consultas — ~4.000 filas eran ~4.000 listeners y ~6.000 consultas vacías.
+   */
+  stockAmplio: StockAmplio | null;
+  source: 'firestore' | 'computed' | null;
+  loading: boolean;
 }
 
-export function PlanificacionRow({ articulo, hideIfNotComprometido, marcaNombre }: Props) {
-  const { stockAmplio, loading, source } = useStockAmplio(articulo.id);
+export function PlanificacionRow({ articulo, hideIfNotComprometido, marcaNombre, stockAmplio, source, loading }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();

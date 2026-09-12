@@ -43,6 +43,8 @@ interface Props {
   /** sistemaId → términos de módulo (modelo/serie de las OTs cargadas), para que
    *  el filtro de sistema matchee también buscando un módulo (ej. G1314A). */
   moduloTermsBySistema?: Map<string, string>;
+  /** Se dispara al enfocar el selector de sistema: el padre carga los módulos recién ahí (2026-09-11). */
+  onNecesitaModulos?: () => void;
 }
 
 const ESTADO_OPTIONS = [
@@ -57,7 +59,7 @@ const ESTADO_OPTIONS = [
 export const OTFiltersBar: React.FC<Props> = ({
   filters, setFilter, resetFilters,
   clientes, sistemas, tiposServicioList, ingenierosList,
-  moduloTermsBySistema,
+  moduloTermsBySistema, onNecesitaModulos,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -146,7 +148,7 @@ export const OTFiltersBar: React.FC<Props> = ({
               placeholder="Cliente"
             />
           </div>
-          <div className="min-w-[170px]">
+          <div className="min-w-[170px]" onFocusCapture={onNecesitaModulos}>
             {/* Buscable por nombre de sistema, ID de equipo (agsVisibleId), código
                 interno del cliente y módulo (via linkedCode — UAT 2026-07-17). */}
             <SearchableSelect size="sm"

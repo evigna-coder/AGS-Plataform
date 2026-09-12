@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, collection, addDoc as _addDoc, doc, writeBatch as _writeBatch, runTransaction as _runTransaction, Timestamp, getDocs, getDoc, updateDoc as _updateDoc, setDoc as _setDoc, deleteDoc as _deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, memoryLocalCache, persistentLocalCache, persistentMultipleTabManager, enableNetwork, collection, addDoc as _addDoc, doc, writeBatch as _writeBatch, runTransaction as _runTransaction, Timestamp, getDocs, getDoc, updateDoc as _updateDoc, setDoc as _setDoc, deleteDoc as _deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore, Firestore as FirestoreType } from 'firebase/firestore';
 import { getStorage, uploadBytes as _uploadBytes, deleteObject as _deleteObject } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -67,20 +67,13 @@ export let storage: ReturnType<typeof getStorage>;
 try {
   // Reutilizar instancia existente en HMR (Vite hot-reload)
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  // Cache strategy: in-memory (default del SDK).
-  //
-  // Probamos persistentLocalCache (IndexedDB) pero falla en el .exe de Electron
-  // porque nuestro static server usa puerto random cada launch — el origen
-  // (http://localhost:<port>) cambia, así que IndexedDB ve un origen nuevo y
-  // arranca con cache vacío. Combinado con la race condition entre
-  // signInWithCredential y la primera read de Firestore, generaba
-  // "FirebaseError: Failed to get document because the client is offline"
-  // y la app se colgaba en "Cargando perfil...".
-  //
-  // En memoria → cero cache entre sessions, pero la app siempre lee del server
-  // y nunca falla por offline. Para AGS (always-online, tool interno) está OK.
-  // Si en el futuro queremos persistencia, hay que estabilizar el puerto del
-  // static server (fixed port o registrar protocol app://).
+  // Cache strategy: MEMORIA por defecto. La persistente (IndexedDB) se probó el
+  // 2026-09-11 (fase 1 de .claude/plans/performance.md) y en Electron dev la app
+  // quedó clavada en "Cargando…" al loguear: la primera lectura del perfil no
+  // volvía. Queda opt-in con VITE_FIRESTORE_CACHE=persistente para medirla en
+  // un entorno controlado (el bloqueo histórico del puerto random ya no existe:
+  // electron/main.cjs usa PREFERRED_PORTS). Si falla, cae a memoria.
+  const cachePersistente = import.meta.env.VITE_FIRESTORE_CACHE === 'persistente';
   try {
     // experimentalAutoDetectLongPolling: el SDK arranca con WebChannel/WebSocket
     // y si detecta que falla (AV/firewall lo intercepta) cae automáticamente a
@@ -91,12 +84,20 @@ try {
     // común (WebSocket OK), parpadeo sólo donde sea inevitable.
     // Ver memory/project_search_inputs_disabled_after_write.md
     db = initializeFirestore(app, {
-      localCache: memoryLocalCache(),
+      localCache: cachePersistente
+        ? persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        : memoryLocalCache(),
       experimentalAutoDetectLongPolling: true,
     });
+    if (cachePersistente) console.info('[Firestore] caché persistente (VITE_FIRESTORE_CACHE=persistente)');
   } catch (innerErr) {
-    console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
-    db = getFirestore(app);
+    console.warn('[Firestore] initializeFirestore falló, fallback a memoria:', innerErr);
+    try {
+      db = initializeFirestore(app, { localCache: memoryLocalCache(), experimentalAutoDetectLongPolling: true });
+    } catch (memErr) {
+      console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', memErr);
+      db = getFirestore(app);
+    }
   }
   // Enable network explícito: por si el SDK arranca en modo offline por defecto
   // en este entorno (Electron + memory cache + sin sesión previa).

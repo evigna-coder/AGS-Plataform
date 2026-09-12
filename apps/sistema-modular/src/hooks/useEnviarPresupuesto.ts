@@ -3,7 +3,6 @@ import { useGoogleOAuth } from './useGoogleOAuth';
 import { useEnviarAnexos } from './useEnviarAnexos';
 import { sendGmail } from '../services/gmailService';
 import { presupuestosService } from '../services/firebaseService';
-import { generateAnexoConsumiblesPDF } from '../components/presupuestos/pdf';
 import type { GeneratePDFParams } from '../components/presupuestos/pdf';
 import type { PresupuestoEstado } from '@ags/shared';
 
@@ -120,6 +119,10 @@ export function useEnviarPresupuesto(params: UseEnviarParams) {
         setStatus('preparing_anexos');
         const blobs = await Promise.all(
           anexos.map(async (a) => {
+            // Import dinámico (2026-09-11, fase 1 de performance.md): el barrel de PDF
+            // arrastra @react-pdf (2,1 MB) y este hook cuelga del Layout global — con el
+            // import estático la librería entraba al arranque de la app.
+            const { generateAnexoConsumiblesPDF } = await import('../components/presupuestos/pdf');
             const blob = await generateAnexoConsumiblesPDF(a.data);
             const base64 = await blobToBase64(blob);
             return { filename: a.filename, mimeType: 'application/pdf', base64Data: base64 };
