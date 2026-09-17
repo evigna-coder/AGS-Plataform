@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
-import type { SolicitudFacturacion, SolicitudFacturacionEstado, TicketArea, TicketEstado } from '@ags/shared';
+import type { SolicitudFacturacion, SolicitudFacturacionEstado, TicketArea, TicketEstado, Presupuesto, PresupuestoCuota } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot, runTransaction } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -173,6 +173,44 @@ export const facturacionService = {
     batch.set(ref, cleaned);
     await batch.commit();
     return ref.id;
+  },
+
+  /**
+   * Cuota de contrato facturada FUERA del sistema (2026-09-16, caso TEVA: la
+   * cuota 1 salió por el sistema viejo). Se registra como solicitud ya
+   * `facturada` con la referencia: la cuota deja de estar pendiente, el aviso
+   * automático no la genera y el control semanal la ve como facturada.
+   */
+  async registrarFacturadaExterna(input: {
+    presupuesto: Presupuesto;
+    cuota: PresupuestoCuota;
+    clienteNombre: string;
+    fecha: string;
+    referencia?: string | null;
+    actor: { uid: string; name?: string };
+  }): Promise<string> {
+    const { presupuesto: p, cuota, fecha, referencia, actor } = input;
+    return this.create({
+      presupuestoId: p.id,
+      presupuestoNumero: p.numero,
+      clienteId: p.clienteId,
+      clienteNombre: input.clienteNombre,
+      condicionPago: '',
+      items: [],
+      montoTotal: cuota.monto,
+      moneda: cuota.moneda,
+      estado: 'facturada',
+      otNumbers: [],
+      cuotaNumero: cuota.numero,
+      cuotaMoneda: cuota.moneda,
+      montoPorMoneda: { [cuota.moneda]: cuota.monto },
+      numeroFactura: referencia ?? null,
+      fechaFactura: fecha,
+      facturadaExterna: { fecha, referencia: referencia ?? null },
+      observaciones: `${cuota.descripcion || `Cuota ${cuota.numero}`} (${cuota.moneda}) del contrato ${p.numero}: facturada fuera del sistema${referencia ? ` (ref. ${referencia})` : ''}.`,
+      solicitadoPor: actor.uid || null,
+      solicitadoPorNombre: actor.name ?? null,
+    } as Omit<SolicitudFacturacion, 'id' | 'createdAt' | 'updatedAt'>);
   },
 
   async update(id: string, data: Partial<SolicitudFacturacion>): Promise<void> {

@@ -3,9 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { derivarEstadoImportacion, ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
+import { INCOTERMS, derivarEstadoImportacion, ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 import { useImportacionForm, type ImportacionPrefill } from '../../hooks/useImportacionForm';
 import { computeCosteoImportacion } from '../../utils/costeoImportacion';
+import { factorDeItem } from '../../utils/importacionRecepcion';
+import { envasePedido } from '../../utils/envaseUnidad';
+import type { CostoLineaImportacion } from '../../services/stockService';
+import type { ItemImportacion } from '@ags/shared';
+import type { LineaCosteoItem } from '../../utils/costeoImportacion';
 import { ImportacionGastosEditor } from './ImportacionGastosEditor';
 import { ImportacionCosteoPanel } from './ImportacionCosteoPanel';
 import { ImportacionIngresarStockModal } from './ImportacionIngresarStockModal';
@@ -24,9 +29,27 @@ interface Props {
   prefill?: ImportacionPrefill;
 }
 
-const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'];
 const lbl = 'block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-0.5';
 const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500';
+
+/**
+ * Costo por unidad BASE de cada línea (2026-09-17): por línea y no por artículo,
+ * así tres envases del mismo base no se pisan. El servicio empareja cada
+ * unidad con su línea (o con su artículo+envase si es anterior a hoy).
+ */
+function costoPorLineaDe(lineas: LineaCosteoItem[], items: ItemImportacion[]): CostoLineaImportacion[] {
+  const out: CostoLineaImportacion[] = [];
+  for (const linea of lineas) {
+    const item = items.find(i => i.id === linea.itemId);
+    if (!item?.articuloId || !item.cantidadPedida) continue;
+    const unidadesBase = item.cantidadPedida * factorDeItem(item);
+    out.push({
+      itemId: item.id, articuloId: item.articuloId, envase: envasePedido(item.presentacion ?? null),
+      costoBase: linea.costoComputable / unidadesBase, unidadesBase,
+    });
+  }
+  return out;
+}
 
 export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSaved, prefill }) => {
   const navigate = useNavigate();
@@ -44,8 +67,11 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     tipoCambio: h.form.tipoCambio ? Number(h.form.tipoCambio) : null,
     paseEurUsd: h.form.paseEurUsd ? Number(h.form.paseEurUsd) : null,
     esCourier: h.form.esCourier,
+    derechosDespacho: h.form.derechosDespacho ? Number(h.form.derechosDespacho) : null,
+    estadisticaDespacho: h.form.estadisticaDespacho ? Number(h.form.estadisticaDespacho) : null,
   }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado,
-    h.form.monedaFleteDeclarado, h.form.monedaSeguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier]);
+    h.form.monedaFleteDeclarado, h.form.monedaSeguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier,
+    h.form.derechosDespacho, h.form.estadisticaDespacho]);
 
   const handleSave = async () => {
     const id = await h.save(costeo.costoTotalARS, costeo.factorEmbarque);
@@ -171,14 +197,8 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
    */
   const handleConfirmarCosteo = async () => {
     if (!h.imp?.numero) return;
-    // articuloId -> costo por unidad base, del costeo recalculado.
-    const costoPorArticulo = new Map<string, number>();
-    for (const linea of costeo.lineas) {
-      const item = (h.imp.items ?? []).find(i => i.id === linea.itemId);
-      if (!item?.articuloId || !item.cantidadPedida) continue;
-      costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
-    }
-    if (costoPorArticulo.size === 0) {
+    const costoPorLinea = costoPorLineaDe(costeo.lineas, h.imp.items ?? []);
+    if (costoPorLinea.length === 0) {
       notify.warning('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
       return;
     }
@@ -193,7 +213,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
       const r = await unidadesService.confirmarCosteoImportacion({
         importacionNumero: h.imp.numero,
         factorEmbarque: costeo.factorEmbarque,
-        costoPorArticulo,
+        costoPorLinea,
       });
       notify.error(`Costeo confirmado.\n\nUnidades actualizadas: ${r.actualizadas}` +
         (r.sinCosto > 0 ? `\nSin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
@@ -213,13 +233,8 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
    */
   const handleReestimarCosteo = async () => {
     if (!h.imp?.numero) return;
-    const costoPorArticulo = new Map<string, number>();
-    for (const linea of costeo.lineas) {
-      const item = (h.imp.items ?? []).find(i => i.id === linea.itemId);
-      if (!item?.articuloId || !item.cantidadPedida) continue;
-      costoPorArticulo.set(item.articuloId, linea.costoComputable / item.cantidadPedida);
-    }
-    if (costoPorArticulo.size === 0) {
+    const costoPorLinea = costoPorLineaDe(costeo.lineas, h.imp.items ?? []);
+    if (costoPorLinea.length === 0) {
       notify.warning('El costeo no arrojó ningún artículo con costo. Revisá que los ítems tengan artículo de catálogo y cantidad.');
       return;
     }
@@ -238,7 +253,7 @@ Sigue siendo estimado — no confirma el costeo definitivo. Las unidades con cos
       const r = await unidadesService.reestimarCosteoImportacion({
         importacionNumero: h.imp.numero,
         factorEmbarque: costeo.factorEmbarque,
-        costoPorArticulo,
+        costoPorLinea,
       });
       notify.warning(`Estimado actualizado.
 
@@ -253,6 +268,17 @@ Sin costo en el costeo (no se tocaron): ${r.sinCosto}` : ''));
     } finally {
       setConfirmandoCosteo(false);
     }
+  };
+
+  const [actualizandoOC, setActualizandoOC] = useState(false);
+  const handleActualizarDesdeOC = async () => {
+    setActualizandoOC(true);
+    try {
+      const r = await h.actualizarDesdeOC();
+      if (!r) return;
+      if (r.actualizados === 0 && r.agregados === 0) notify.info('Los ítems ya coinciden con la orden de compra.');
+      else notify.success(`${r.actualizados} ítem(s) actualizado(s), ${r.agregados} agregado(s) desde la OC. Guardá la importación para aplicar los cambios.`);
+    } finally { setActualizandoOC(false); }
   };
 
   const handleEliminar = async () => {
@@ -459,6 +485,21 @@ No se van a poder ingresar mas unidades por este embarque.`,
             <Input inputSize="sm" label="Fecha de recepción" type="date" value={h.form.fechaRecepcion} onChange={e => h.set('fechaRecepcion', e.target.value)} />
           </div>
 
+          {/* Según despacho (2026-09-16): derechos y estadística REALES en USD.
+              Reemplazan al estimado en el costeo, prorrateados por artículo. */}
+          <div className="grid grid-cols-4 gap-3 items-end">
+            <Input inputSize="sm" label="Derechos s/ despacho (USD)" type="number" step="0.01" min="0"
+              value={h.form.derechosDespacho} onFocus={selectAll} onChange={e => h.set('derechosDespacho', e.target.value)}
+              placeholder={`estimado ${costeo.derechosEstimados.toFixed(2)}`} />
+            <Input inputSize="sm" label="Estadística s/ despacho (USD)" type="number" step="0.01" min="0"
+              value={h.form.estadisticaDespacho} onFocus={selectAll} onChange={e => h.set('estadisticaDespacho', e.target.value)}
+              placeholder={`estimado ${costeo.estadisticaEstimada.toFixed(2)}`} />
+            <div className="col-span-2">
+              <Input inputSize="sm" label="Motivo del ajuste (opcional)" value={h.form.motivoAjusteDespacho} onFocus={selectAll}
+                onChange={e => h.set('motivoAjusteDespacho', e.target.value)} placeholder="ajuste de valor en aduana, diferencia de cambio…" />
+            </div>
+          </div>
+
           {/* Valor en aduana — flete/seguro DECLARADOS (guía), distintos de los pagos locales */}
           <div className="border-t border-slate-200 pt-3">
             <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Valor en aduana (declarado)</p>
@@ -606,13 +647,23 @@ No se van a poder ingresar mas unidades por este embarque.`,
           {/* Documentos — adjuntar invoice, packing, BL, despacho, etc. (requiere importación guardada) */}
           {h.imp && (
             <div className="border-t border-slate-200 pt-3">
-              <ImportacionDocumentosSection imp={h.imp} onUpdate={h.reload} />
+              {/* refrescarImp y no reload (2026-09-16): adjuntar no debe pisar lo escrito sin guardar. */}
+              <ImportacionDocumentosSection imp={h.imp} onUpdate={() => void h.refrescarImp()} />
             </div>
           )}
 
           {/* Artículos + costeo */}
           <div className="border-t border-slate-200 pt-3">
-            <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Artículos y costeo</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">Artículos y costeo</p>
+              {/* Re-sincronizar con la OC (2026-09-16): precios/cantidades cargados
+                  o corregidos en la orden DESPUÉS de crear la importación. */}
+              <Button variant="ghost" size="sm" disabled={actualizandoOC || !h.ordenCompraId}
+                title="Vuelve a tomar precios, cantidades y artículos de la orden de compra. Hay que Guardar para que impacte."
+                onClick={() => void handleActualizarDesdeOC()}>
+                {actualizandoOC ? 'Actualizando…' : 'Actualizar valores desde la OC'}
+              </Button>
+            </div>
             <ImportacionCosteoPanel costeo={costeo} />
           </div>
 
@@ -628,7 +679,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
       <ImportacionIngresarStockModal
         imp={h.imp}
         onClose={() => setShowIngresar(false)}
-        onSuccess={() => { setShowIngresar(false); h.reload(); }}
+        onSuccess={() => { setShowIngresar(false); void h.refrescarImp({ items: true }); }}
       />
     )}
     </>

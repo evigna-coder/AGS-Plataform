@@ -21,10 +21,25 @@ function deleteByPrefix(prefix: string): void {
   }
 }
 
+/**
+ * Avisos de invalidación en el mismo proceso (2026-09-16): una pantalla abierta
+ * (ej. el modal de importación con el catálogo de artículos en memoria) puede
+ * volver a leer SOLO lo que cambió cuando otra pestaña de la app guarda. Antes
+ * ese refresco pasaba por accidente al recargar el modal entero.
+ */
+const oyentes = new Set<(prefix: string) => void>();
+export function onCacheInvalidated(cb: (prefix: string) => void): () => void {
+  oyentes.add(cb);
+  return () => { oyentes.delete(cb); };
+}
+function avisar(prefix: string): void {
+  for (const cb of oyentes) { try { cb(prefix); } catch (err) { console.warn('[serviceCache] oyente falló:', err); } }
+}
+
 // Invalidación recibida de otra pestaña: borrar local SIN re-emitir (evita loop).
 channel?.addEventListener('message', (e: MessageEvent) => {
   const key = (e.data as { key?: unknown } | null)?.key;
-  if (typeof key === 'string') deleteByPrefix(key);
+  if (typeof key === 'string') { deleteByPrefix(key); avisar(key); }
 });
 
 /** Get cached data if still valid, or null. */
@@ -67,4 +82,5 @@ export function invalidateCache(key: string): void {
   // Borra por prefijo en esta pestaña y avisa a las demás para que hagan lo mismo.
   deleteByPrefix(key);
   channel?.postMessage({ key });
+  avisar(key);
 }

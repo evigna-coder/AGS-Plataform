@@ -88,6 +88,21 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], 
           <Field label="Fecha aprobación">{fmtFecha(req.fechaAprobacion)}</Field>
         </div>
 
+        {/* Componentes del ítem de presupuesto (2026-09-16): viajan a la OC como detalle. */}
+        {(req.componentes?.length ?? 0) > 0 && (
+          <div className="border-t border-slate-100 pt-3">
+            <p className={lbl}>Incluye (desglose del presupuesto)</p>
+            <ul className="mt-1 space-y-0.5">
+              {req.componentes!.map((c, i) => (
+                <li key={i} className="text-xs text-slate-700">
+                  <span className="font-semibold tabular-nums">{c.cantidad} ×</span>{' '}
+                  {c.codigo && <span className="font-mono text-slate-500">{c.codigo} </span>}{c.descripcion}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Desglose cliente / stock mínimo (2026-08-12, consolidación al aceptar ppto). */}
         {(req.desglose?.length ?? 0) > 0 && (
           <div className="border-t border-slate-100 pt-3">

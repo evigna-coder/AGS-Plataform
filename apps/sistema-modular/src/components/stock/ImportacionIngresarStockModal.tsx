@@ -5,6 +5,8 @@ import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { Button } from '../ui/Button';
 import { posicionesStockService, articulosService } from '../../services/stockService';
+import { ordenesCompraService } from '../../services/presupuestosService';
+import { resolverItemsImportacion } from '../../utils/resolverItemsImportacion';
 import { useIngresarStock, type RecepcionItem } from '../../hooks/useIngresarStock';
 import { pendienteDeItem, resumenRecepcion } from '../../utils/importacionRecepcion';
 import { IngresarStockItemRow, rowValido, seriesDe, type IngresoItemState } from './IngresarStockItemRow';
@@ -17,20 +19,21 @@ interface Props {
 
 // Default de cantidad = lo PENDIENTE del ítem (en la primera recepción coincide
 // con lo pedido; en re-ingresos por faltante, con lo que falta — I3).
+// El envase por defecto es el de la OC (2026-09-16); la cantidad va en ese envase.
 const initState = (it: ItemImportacion): IngresoItemState => ({
   verificado: false, posicionId: '', posicionNombre: '',
-  cantidadReal: pendienteDeItem(it), serialesText: '', nroLote: '',
+  cantidadReal: pendienteDeItem(it), presentacion: it.presentacion ?? null, serialesText: '', nroLote: '',
 });
 
 export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, onSuccess }) => {
-  // Solo los ítems con faltante: lo ya ingresado en recepciones anteriores no se re-ofrece.
-  const items = (imp.items ?? []).filter(it => pendienteDeItem(it) > 0);
+  // Ítems RESUELTOS contra el catálogo y la OC (2026-09-16): artículo base +
+  // envase de compra (ver resolverItemsImportacion). Hasta que carga, vacío.
+  const [items, setItems] = useState<ItemImportacion[]>([]);
+  const [resolviendo, setResolviendo] = useState(true);
   const resumen = resumenRecepcion(imp);
   const [posiciones, setPosiciones] = useState<PosicionStock[]>([]);
   const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
-  const [itemStates, setItemStates] = useState<Record<string, IngresoItemState>>(
-    () => Object.fromEntries(items.map(it => [it.id, initState(it)])),
-  );
+  const [itemStates, setItemStates] = useState<Record<string, IngresoItemState>>({});
   const { ingresarStock, loading, error } = useIngresarStock();
 
   /**
@@ -42,27 +45,29 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
   const [posicionTodos, setPosicionTodos] = useState('');
 
   useEffect(() => {
-    posicionesStockService.getAll(true).then(all => {
+    (async () => {
+      const [all, catalogo, oc] = await Promise.all([
+        posicionesStockService.getAll(true),
+        articulosService.getAll().catch(() => [] as Articulo[]),
+        imp.ordenCompraId ? ordenesCompraService.getById(imp.ordenCompraId).catch(() => null) : Promise.resolve(null),
+      ]);
       const usables = all.filter(p => p.codigo !== 'RESERVAS');
       setPosiciones(usables);
       // Preseleccionar INGRESOS (2026-08-20): es adonde entra casi todo. Se
-      // aplica a los renglones ya inicializados y se puede cambiar igual, uno
-      // por uno o con el selector de arriba.
-      const ingresos = usables.find(p => p.codigo?.toUpperCase() === POSICION_INGRESOS_CODIGO);
-      if (!ingresos) return;
-      setPosicionTodos(ingresos.id);
-      setItemStates(prev => {
-        const next = { ...prev };
-        for (const id of Object.keys(next)) {
-          if (next[id].posicionId) continue; // respeta lo que ya eligió el usuario
-          next[id] = { ...next[id], posicionId: ingresos.id, posicionNombre: ingresos.nombre };
-        }
-        return next;
-      });
-    });
-    const ids = Array.from(new Set(items.map(i => i.articuloId).filter(Boolean) as string[]));
-    Promise.all(ids.map(id => articulosService.getById(id).catch(() => null)))
-      .then(arts => setArticulosById(new Map(arts.filter((a): a is Articulo => !!a).map(a => [a.id, a]))));
+      // puede cambiar igual, uno por uno o con el selector de arriba.
+      const ingresos = usables.find(p => p.codigo?.toUpperCase() === POSICION_INGRESOS_CODIGO) ?? null;
+      if (ingresos) setPosicionTodos(ingresos.id);
+      setArticulosById(new Map(catalogo.map(a => [a.id, a])));
+      // Solo los ítems con faltante: lo ya ingresado en recepciones anteriores no se re-ofrece.
+      const resueltos = resolverItemsImportacion((imp.items ?? []).filter(it => pendienteDeItem(it) > 0), catalogo, oc?.items ?? null);
+      setItems(resueltos);
+      setItemStates(Object.fromEntries(resueltos.map(it => [it.id, {
+        ...initState(it),
+        ...(ingresos ? { posicionId: ingresos.id, posicionNombre: ingresos.nombre } : {}),
+      }])));
+      setResolviendo(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const posicionOptions = useMemo(() => posiciones.map(p => ({ value: p.id, label: p.nombre })), [posiciones]);
@@ -109,6 +114,7 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
         posicionId: s.posicionId,
         posicionNombre: s.posicionNombre,
         cantidadReal: s.cantidadReal,
+        presentacion: s.presentacion,
         nroLote: s.nroLote.trim() || null,
         nrosSerie: seriesDe(s),
       };
@@ -146,7 +152,9 @@ export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, o
     <Modal open onClose={onClose} title="Ingresar al stock"
       subtitle={`OC ${imp.ordenCompraNumero}${imp.despachoNumero ? ` · Despacho ${imp.despachoNumero}` : ''} — ${imp.proveedorNombre}`}
       maxWidth="xl" footer={footer} closeOnBackdropClick={false}>
-      {items.length === 0 ? (
+      {resolviendo ? (
+        <p className="text-xs text-slate-400 py-4">Cargando artículos y envases…</p>
+      ) : items.length === 0 ? (
         <p className="text-xs text-slate-400 py-4">
           {(imp.items?.length ?? 0) > 0
             ? 'Todos los ítems del embarque ya fueron ingresados al stock.'

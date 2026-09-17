@@ -19,6 +19,15 @@ export interface AggRow {
   units: UnidadStock[];
   /** Presentaciones (N° de parte) del artículo — para el badge. Resuelto en UnidadesList. */
   presentaciones?: Presentacion[];
+  /**
+   * Fila de ENVASE (2026-09-17): las unidades que entraron como paquete cerrado
+   * son una fila propia, contada en PAQUETES (cantidad base ÷ factor). `codigo`
+   * es el N° de parte del envase; `baseCodigo` el artículo dueño del pool.
+   * null/ausente = fila de unidades sueltas del artículo base.
+   */
+  envase?: string | null;
+  factor?: number;
+  baseCodigo?: string;
 }
 
 const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
@@ -70,9 +79,11 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, o
         </thead>
         <tbody className="divide-y divide-slate-100">
           {sorted.map(row => {
-            const isOpen = expanded.has(row.articuloId);
+            // Clave por artículo Y envase (2026-09-17): las filas de envase comparten articuloId.
+            const rowKey = `${row.articuloId}|${row.envase ?? ''}`;
+            const isOpen = expanded.has(rowKey);
             return (
-              <FragmentRow key={row.articuloId} row={row} isOpen={isOpen} onToggle={() => toggle(row.articuloId)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} onArticulo={onArticulo} />
+              <FragmentRow key={rowKey} row={row} isOpen={isOpen} onToggle={() => toggle(rowKey)} onAjustar={onAjustar} onMover={onMover} onLiberar={onLiberar} onLiberarGrupo={onLiberarGrupo} onArticulo={onArticulo} />
             );
           })}
         </tbody>
@@ -86,14 +97,15 @@ export const UnidadesAggregatedTable = ({ rows, onAjustar, onMover, onLiberar, o
  * — a cuánto está entrando en promedio y con qué factor. El detalle por
  * unidad/tanda sigue en el desglose; el detalle por embarque, en Importaciones.
  */
-const PromedioCell = ({ units }: { units: UnidadStock[] }) => {
+const PromedioCell = ({ units, factor = 1 }: { units: UnidadStock[]; factor?: number }) => {
   const p = promedioCostoFactor(units);
   if (!p) return <span className="text-slate-300">—</span>;
+  // Fila de envase (2026-09-17): el costo se muestra POR PAQUETE (costo base × factor).
   return (
     <span className="inline-flex flex-col items-end leading-tight"
-      title={`Promedio ponderado sobre ${p.unidades} unidad(es) en stock${p.algunEstimado ? ' — incluye costeos estimados sin confirmar' : ''}`}>
+      title={`Promedio ponderado sobre ${p.unidades} unidad(es) base en stock${factor > 1 ? ` · por paquete de ${factor}` : ''}${p.algunEstimado ? ' — incluye costeos estimados sin confirmar' : ''}`}>
       {p.costo != null && (
-        <span className="font-mono text-xs text-slate-700 tabular-nums">{p.moneda} {p.costo.toFixed(2)}</span>
+        <span className="font-mono text-xs text-slate-700 tabular-nums">{p.moneda} {(p.costo * factor).toFixed(2)}{factor > 1 && <span className="text-[9px] text-slate-400"> /paq.</span>}</span>
       )}
       {p.factor != null && (
         <span className={`font-mono text-[10px] tabular-nums ${p.algunEstimado ? 'text-amber-600' : 'text-teal-600'}`}>
@@ -118,13 +130,19 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onL
         {row.presentaciones && row.presentaciones.length > 0 && (
           <span className="ml-1 inline-flex align-middle"><PresentacionesBadge presentaciones={row.presentaciones} /></span>
         )}
+        {/* Fila de envase (2026-09-17): se cuenta en paquetes; abajo, de qué base es. */}
+        {row.envase && (
+          <span className="block text-[9px] text-teal-700 font-sans mt-0.5" title="Paquete cerrado: cada uno son unidades base del artículo indicado">
+            paquete ×{row.factor} de {row.baseCodigo}
+          </span>
+        )}
       </td>
       <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[220px]">{row.descripcion}</td>
       <td className="px-3 py-2 text-sm font-semibold text-teal-700 text-right">{row.disponible}</td>
       <td className="px-3 py-2 text-sm font-semibold text-amber-600 text-right">{row.reservado}</td>
       <td className="px-3 py-2 text-sm font-medium text-slate-500 text-right">{row.asignado}</td>
       <td className="px-3 py-2 text-sm font-bold text-slate-800 text-right">{row.total}</td>
-      <td className="px-3 py-2 text-right whitespace-nowrap"><PromedioCell units={row.units} /></td>
+      <td className="px-3 py-2 text-right whitespace-nowrap"><PromedioCell units={row.units} factor={row.envase ? (row.factor ?? 1) : 1} /></td>
     </tr>
     {isOpen && (
       <tr className="bg-slate-50/60">

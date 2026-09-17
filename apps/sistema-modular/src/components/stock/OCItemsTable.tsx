@@ -45,7 +45,22 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
                 return (
                   <tr key={item.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-xs text-slate-400">{idx + 1}</td>
-                    <td className="px-3 py-2 text-xs text-slate-700">{item.descripcion}</td>
+                    <td className="px-3 py-2 text-xs text-slate-700">
+                      {item.descripcion}
+                      {/* Desglose del ítem de presupuesto (2026-09-16): no son líneas
+                          de la OC, son el contenido del equipo que se compra. */}
+                      {(item.componentes?.length ?? 0) > 0 && (
+                        <ul className="mt-1 space-y-0.5 border-l-2 border-slate-100 pl-2">
+                          {item.componentes!.map((c, i) => (
+                            <li key={i} className="text-[10px] text-slate-500">
+                              <span className="tabular-nums">{c.cantidad} ×</span>
+                              {c.codigo && <span className="font-mono ml-1">{c.codigo}</span>}
+                              <span className="ml-1">{c.descripcion}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
                     {/* Se compra por el N° de parte del envase; el stock entra
                         al artículo base (Fase 2 presentaciones, 2026-08-13). */}
                     <td className="px-3 py-2 text-xs text-slate-500 font-mono">

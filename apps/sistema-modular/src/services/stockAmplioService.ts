@@ -84,7 +84,13 @@ export interface UnidadStockRow {
   estado: string;
   activo?: boolean;
   cantidad?: number | null;
+  /** Envase con el que entró (2026-09-17): un paquete cerrado solo cuenta para ese envase. */
+  presentacion?: { codigoParte: string; factor: number } | null;
 }
+
+/** Código del envase de una fila, o null si es suelta (misma regla que utils/envaseUnidad). */
+const envaseDeFila = (u: UnidadStockRow): string | null =>
+  u.presentacion?.factor && u.presentacion.factor > 1 ? u.presentacion.codigoParte : null;
 
 /**
  * Estados de unidad que cuentan para el ATP calculado desde `unidades`.
@@ -183,11 +189,23 @@ export function __setTestFirestore(state: MockState | null): void {
  * @param articuloId FK to the articulo document
  * @returns StockAmplio snapshot (point-in-time — caller responsible for refresh cadence)
  */
-export async function computeStockAmplio(articuloId: string): Promise<StockAmplio> {
+export async function computeStockAmplio(
+  articuloId: string,
+  /**
+   * Disponibilidad POR ENVASE (2026-09-17): con `envase` (código, o null =
+   * unidad base) solo cuentan las unidades de ese envase — un kit cerrado de
+   * 500 no es stock de packs de 100. Sin `opts`, todo el pool (valuación,
+   * mirror del artículo, stock mínimo).
+   */
+  opts?: { envase?: string | null },
+): Promise<StockAmplio> {
   // 1. Unidades — physical stock rows for this articuloId
-  const unidades = __testState
+  const todas = __testState
     ? __testState.unidades.filter(u => u.articuloId === articuloId && u.activo !== false)
     : await fetchUnidades(articuloId);
+  const unidades = opts && 'envase' in opts
+    ? (todas as UnidadStockRow[]).filter(u => envaseDeFila(u) === (opts.envase ?? null))
+    : todas;
 
   // 2. OCs abiertas — pending items NOT yet received (not yet in DB as units)
   const ocs = __testState

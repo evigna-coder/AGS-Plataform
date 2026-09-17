@@ -3,6 +3,7 @@ import type { ItemOC } from '@ags/shared';
 import { MoneyInput } from '../ui/MoneyInput';
 
 import { Select } from '../ui/Select';
+import { OCItemComponentesEditor } from './OCItemComponentesEditor';
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '€' };
 const IVA_OPCIONES = [21, 10.5, 0];
 
@@ -84,6 +85,8 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
                   <td className="px-2 py-1">
                     <input value={item.descripcion} onChange={e => onUpdate(item.id, 'descripcion', e.target.value)}
                       className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="Descripcion del item" />
+                    {/* Desglose editable (2026-09-16): sacar lo que es para el cliente. */}
+                    <OCItemComponentesEditor componentes={item.componentes} onChange={c => onUpdate(item.id, 'componentes', c)} />
                   </td>
                   <td className="px-2 py-1">
                     <input type="number" min={1} value={item.cantidad} onChange={e => onUpdate(item.id, 'cantidad', Number(e.target.value))}

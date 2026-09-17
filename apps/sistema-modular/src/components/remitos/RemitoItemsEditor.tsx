@@ -80,7 +80,7 @@ export function RemitoItemsEditor({
         const envases = presentacionesPorArticulo?.[u.articuloId] ?? [];
         return {
           value: u.id,
-          label: `${u.articuloCodigo} — ${u.articuloDescripcion}${u.nroSerie ? ` · S/N ${u.nroSerie}` : ''}${u.nroLote ? ` · Lote ${u.nroLote}` : ''} (${u.cantidad ?? 1} disp. · ${u.ubicacion?.referenciaNombre || 'sin ubicación'})${reserva}`,
+          label: `${u.articuloCodigo} — ${u.articuloDescripcion}${u.nroSerie ? ` · S/N ${u.nroSerie}` : ''}${u.nroLote ? ` · Lote ${u.nroLote}` : ''}${u.presentacion && u.presentacion.factor > 1 ? ` · ${Math.round(((u.cantidad ?? 1) / u.presentacion.factor) * 1000) / 1000} × ${u.presentacion.codigoParte}` : ''} (${u.cantidad ?? 1} disp. · ${u.ubicacion?.referenciaNombre || 'sin ubicación'})${reserva}`,
           linkedCode: [u.articuloCodigo, ...envases.map(e => e.codigoParte)].filter(Boolean).join(' '),
           subLabel: envases.length > 0
             ? `Envases: ${envases.map(e => `${e.codigoParte} ×${e.factor}`).join(' · ')}`

@@ -126,6 +126,24 @@ async function run() {
   assert.equal(computeStockAmplioBulk(FIXTURE_EMPTY.unidades, FIXTURE_EMPTY.ocs, FIXTURE_EMPTY.requerimientos).size, 0, 'vacío: mapa sin entradas');
   console.log('  ✓ Test 8 passed: computeStockAmplioBulk coincide con computeStockAmplio');
 
+  // ── Test 9: disponibilidad POR ENVASE (2026-09-17) ──
+  __setTestFirestore({
+    unidades: [
+      { articuloId: 'art-1', estado: 'disponible', activo: true, cantidad: 20 },
+      { articuloId: 'art-1', estado: 'disponible', activo: true, cantidad: 5, presentacion: { codigoParte: 'KIT-500', factor: 5 } } as any,
+      { articuloId: 'art-1', estado: 'reservado', activo: true, cantidad: 5, presentacion: { codigoParte: 'KIT-500', factor: 5 } } as any,
+    ],
+    ocs: [], requerimientos: [],
+  });
+  const todo = await computeStockAmplio('art-1');
+  const sueltas = await computeStockAmplio('art-1', { envase: null });
+  const kits = await computeStockAmplio('art-1', { envase: 'KIT-500' });
+  assert.equal(todo.disponible, 25, 'envase: sin opts, todo el pool');
+  assert.equal(sueltas.disponible, 20, 'envase: base = solo sueltas');
+  assert.equal(kits.disponible, 5, 'envase: kit = solo el kit (5 u. base = 1 paquete)');
+  assert.equal(kits.reservado, 5, 'envase: reservado del kit');
+  console.log('  ✓ Test 9 passed: disponibilidad por envase');
+
   console.log('\n✅ All stockAmplio tests passed');
 }
 

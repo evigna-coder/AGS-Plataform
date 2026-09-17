@@ -401,7 +401,7 @@ export const ordenesTrabajoService = {
     // Lado presupuesto: agregar la OT a otsVinculadasNumbers (vínculo BIDIRECCIONAL).
     // Sin esto, el presupuesto no "sabía" de la OT y la OT no mostraba el presupuesto.
     try {
-      const pres = (await presupuestosService.getAll()).find(p => p.numero === presupuestoNumero);
+      const pres = await presupuestosService.getByNumero(presupuestoNumero);
       if (pres) {
         const prev = pres.otsVinculadasNumbers ?? [];
         const yaVinculada = prev.includes(otNumber);
@@ -1122,9 +1122,8 @@ export const ordenesTrabajoService = {
   async _syncPresupuestoOnFinalize(ot: WorkOrder): Promise<void> {
     const budgetNumbers = ot.budgets || [];
     if (budgetNumbers.length === 0) return;
-    const allPresupuestos = await presupuestosService.getAll();
-    for (const budgetNum of budgetNumbers) {
-      const pres = allPresupuestos.find(p => p.numero === budgetNum);
+    const presupuestos = await presupuestosService.getByNumeros(budgetNumbers);
+    for (const pres of presupuestos) {
       if (!pres) continue;
       // Phase 12 BILL-02: recompute cuota estados before checking finalizacion
       // (cuotas with hito='todas_ots_cerradas' become habilitada when OT → FINALIZADO).
@@ -1369,9 +1368,8 @@ export const ordenesTrabajoService = {
   async vincularPresupuestosAlItem(numeros: string[], nuevoItem: string): Promise<void> {
     if (numeros.length === 0) return;
     try {
-      const todos = await presupuestosService.getAll();
-      for (const numero of numeros) {
-        const p = todos.find(x => x.numero === numero);
+      const encontrados = await presupuestosService.getByNumeros(numeros);
+      for (const p of encontrados) {
         if (!p) continue;
         const previas = p.otsVinculadasNumbers ?? [];
         if (previas.includes(nuevoItem)) continue;
@@ -1443,8 +1441,7 @@ export const ordenesTrabajoService = {
     }
 
     const { presupuestosService } = await import('./presupuestosService');
-    const todos = await presupuestosService.getAll();
-    const pres = todos.find(p => p.numero === presupuestoNumero.trim());
+    const pres = await presupuestosService.getByNumero(presupuestoNumero.trim());
     if (!pres) throw new Error(`No existe el presupuesto ${presupuestoNumero}`);
     if (pres.estado === 'anulado') throw new Error(`El presupuesto ${pres.numero} está anulado`);
     if ((ot.budgets ?? []).includes(pres.numero)) {
@@ -1528,9 +1525,7 @@ export const ordenesTrabajoService = {
     let presupuestoIds: string[] = [];
     if (presupuestoNumeros.length > 0) {
       try {
-        const all = await presupuestosService.getAll();
-        presupuestoIds = presupuestoNumeros
-          .map(num => all.find(p => p.numero === num))
+        presupuestoIds = (await presupuestosService.getByNumeros(presupuestoNumeros))
           .filter((p): p is Presupuesto => !!p)
           .map(p => p.id);
       } catch (err) {

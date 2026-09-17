@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, deleteField, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, deleteDoc, setDoc, uploadBytes, deleteObject } from './firebase';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
-import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
+import type { PreferenciasUsuario, Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
@@ -315,6 +315,15 @@ export const usuariosService = {
     batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload });
     await batch.commit();
     invalidateCache('usuarios');
+  },
+
+  /** Preferencias de pantalla del usuario (2026-09-17): se mezclan clave por clave. */
+  async updatePreferencias(uid: string, patch: Partial<PreferenciasUsuario>): Promise<void> {
+    const payload: Record<string, unknown> = { updatedAt: Timestamp.now() };
+    for (const [k, v] of Object.entries(patch)) payload[`preferencias.${k}`] = v ?? null;
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), payload as { [k: string]: any });
+    await batch.commit();
   },
 
   async updateRoles(uid: string, roles: UserRole[]): Promise<void> {

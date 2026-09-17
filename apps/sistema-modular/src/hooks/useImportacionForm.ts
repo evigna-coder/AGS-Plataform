@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { importacionesService, ordenesCompraService, articulosService } from '../services/firebaseService';
 import { proveedoresService } from '../services/personalService';
 import { proveedorEsCategoria } from '@ags/shared';
 import type { Proveedor } from '@ags/shared';
 import { cotizacionesService, type CotizacionDolar } from '../services/cotizacionesService';
 import { deepCleanForFirestore } from '../services/firebase';
+import { onCacheInvalidated } from '../services/serviceCache';
 import { CONCEPTOS_GASTO_IMPORTACION, derivarEstadoImportacion } from '@ags/shared';
 import type { Importacion, OrdenCompra, ItemImportacion, GastoImportacion, Articulo, ItemOC } from '@ags/shared';
 
@@ -40,6 +41,8 @@ const itemsFromOC = (items: ItemOC[], ocMoneda: Moneda): ItemImportacion[] =>
     unidadMedida: io.unidadMedida, precioUnitario: io.precioUnitario ?? null,
     moneda: (io.moneda ?? ocMoneda) as Moneda, requerimientoId: io.requerimientoId ?? null,
     requerimientoIds: io.requerimientoIds ?? null,
+    // Envase de la OC (2026-09-16): cantidades y precio van en este envase.
+    presentacion: io.presentacion ?? null,
   }));
 
 /** Gastos precargados: todos en la moneda de la importación (USD por defecto). */
@@ -51,6 +54,12 @@ const gastosPrecargados = (ocMoneda: Moneda): GastoImportacion[] =>
 
 export function useImportacionForm(impId: string | null, open: boolean, prefill?: ImportacionPrefill) {
   const isEdit = !!impId;
+  // El prefill llega como objeto NUEVO en cada render del padre (OrdenCompraModal
+  // lo arma inline): si fuera dependencia de `load`, cada re-render de la OC
+  // volvía a cargar el form y pisaba lo que el usuario estaba escribiendo
+  // (2026-09-16). Se lee por ref y `load` solo depende del id.
+  const prefillRef = useRef(prefill);
+  prefillRef.current = prefill;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imp, setImp] = useState<Importacion | null>(null);
@@ -81,6 +90,8 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '', vepPagado: false,
     giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', giroPagado: false, anticipoPct: '' as string,
     esCourier: false, despachante: '',
+    // Según despacho (2026-09-16), en USD.
+    derechosDespacho: '' as string, estadisticaDespacho: '' as string, motivoAjusteDespacho: '',
     notas: '',
   });
   const [gastos, setGastos] = useState<GastoImportacion[]>([]);
@@ -129,6 +140,9 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             anticipoPct: data.anticipoPct != null ? String(data.anticipoPct) : '',
             esCourier: data.esCourier === true,
             despachante: data.despachante ?? '',
+            derechosDespacho: data.derechosDespacho != null ? String(data.derechosDespacho) : '',
+            estadisticaDespacho: data.estadisticaDespacho != null ? String(data.estadisticaDespacho) : '',
+            motivoAjusteDespacho: data.motivoAjusteDespacho ?? '',
             notas: data.notas ?? '',
           });
           setGastos(data.gastos?.length ? data.gastos : gastosPrecargados('USD'));
@@ -137,6 +151,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       } else {
         // Nueva: prefill desde OC (o vacío) + gastos precargados.
         setImp(null);
+        const prefill = prefillRef.current;
         if (prefill) {
           const m = (prefill.moneda ?? 'USD') as Moneda;
           setOrdenCompraId(prefill.ordenCompraId); setOrdenCompraNumero(prefill.ordenCompraNumero);
@@ -169,7 +184,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       // Pase EUR/USD sugerido. Sólo autocompleta el campo si el embarque es en euros.
       const embarqueEsEur = impId
         ? false /* se resuelve en el effect de monedaOC más abajo si hace falta */
-        : (prefill?.moneda === 'EUR');
+        : (prefillRef.current?.moneda === 'EUR');
       const pase = await cotizacionesService.paseEurUsd();
       if (pase) {
         setPaseSugerido(pase);
@@ -180,7 +195,23 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     } finally {
       setLoading(false);
     }
-  }, [impId, prefill]);
+  }, [impId]);
+
+  /**
+   * Refresca SOLO el documento guardado (y, a pedido, los ítems) sin tocar el
+   * form ni los gastos (2026-09-16). Adjuntar un PDF desde el modal llamaba a
+   * `load()` entero y re-inicializaba el form desde el servidor: todo lo
+   * escrito y todavía no guardado (despacho, guía, VEP, giro…) desaparecía.
+   * Los ítems sí se refrescan tras ingresar stock, porque ahí cambió lo
+   * recibido en el servidor y un guardado posterior lo pisaría.
+   */
+  const refrescarImp = useCallback(async (opts?: { items?: boolean }) => {
+    if (!impId) return;
+    const data = await importacionesService.getById(impId).catch(() => null);
+    if (!data) return;
+    setImp(data);
+    if (opts?.items) setItems(data.items ?? []);
+  }, [impId]);
 
   const fetchTC = async () => {
     const cot = await cotizacionesService.mayorista();
@@ -194,6 +225,20 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   };
 
   useEffect(() => { if (open) load(); }, [open, load]);
+
+  // Catálogo de artículos vivo mientras el modal está abierto (2026-09-16): al
+  // guardar un artículo (posición arancelaria, descripción) desde otra pestaña
+  // se vuelven a leer los artículos, sin tocar el form. Antes esto pasaba por
+  // accidente porque el modal se recargaba entero con cualquier re-render.
+  useEffect(() => {
+    if (!open) return;
+    return onCacheInvalidated(prefix => {
+      if (!prefix.startsWith('articulos')) return;
+      articulosService.getAll()
+        .then(arts => setArticulosById(new Map(arts.map(a => [a.id, a]))))
+        .catch(err => console.warn('[useImportacionForm] refresco de artículos falló:', err));
+    });
+  }, [open]);
 
   const selectOC = (ocId: string) => {
     const oc = ocOptions.find(o => o.id === ocId);
@@ -243,6 +288,45 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     } catch (err) { console.error(`Error creando proveedor (${categoria}):`, err); }
   };
   const crearAgente = (nombre: string) => crearProveedorCategoria(nombre, 'agente_carga');
+
+  /**
+   * Vuelve a tomar los valores de la OC (2026-09-16, caso JAS045: un artículo
+   * sin precio al crear la impo, cargado en la OC después). Los ítems ya
+   * existentes se emparejan por `itemOCId` y actualizan precio, moneda,
+   * cantidad pedida, descripción y código; conservan lo recibido. Los ítems
+   * nuevos de la OC se agregan; los que ya no están en la OC se conservan.
+   * Solo toca el form: hay que Guardar para que impacte.
+   */
+  const actualizarDesdeOC = useCallback(async (): Promise<{ actualizados: number; agregados: number } | null> => {
+    if (!ordenCompraId) { notify.warning('La importación no tiene orden de compra vinculada'); return null; }
+    const oc = await ordenesCompraService.getById(ordenCompraId).catch(() => null);
+    if (!oc) { notify.error('No se pudo leer la orden de compra'); return null; }
+    const m = (oc.moneda ?? monedaOC) as Moneda;
+    const nuevos = itemsFromOC(oc.items ?? [], m);
+    // Se calcula sobre el estado actual (no dentro del updater): los contadores
+    // se devuelven al caller y un updater corre después, fuera de este turno.
+    let actualizados = 0, agregados = 0;
+    {
+      const prev = items;
+      const porOC = new Map(prev.map(it => [it.itemOCId, it]));
+      const out = prev.map(it => {
+        const n = nuevos.find(x => x.itemOCId === it.itemOCId);
+        if (!n) return it;
+        const cambia = n.precioUnitario !== (it.precioUnitario ?? null) || n.moneda !== it.moneda
+          || n.cantidadPedida !== it.cantidadPedida || n.descripcion !== it.descripcion || (n.articuloCodigo ?? null) !== (it.articuloCodigo ?? null)
+          || (n.presentacion?.codigoParte ?? null) !== (it.presentacion?.codigoParte ?? null) || (n.presentacion?.factor ?? null) !== (it.presentacion?.factor ?? null);
+        if (!cambia) return it;
+        actualizados++;
+        return { ...it, precioUnitario: n.precioUnitario, moneda: n.moneda, cantidadPedida: n.cantidadPedida,
+          descripcion: n.descripcion, articuloId: n.articuloId, articuloCodigo: n.articuloCodigo,
+          requerimientoId: n.requerimientoId, requerimientoIds: n.requerimientoIds, presentacion: n.presentacion ?? null };
+      });
+      for (const n of nuevos) if (!porOC.has(n.itemOCId)) { out.push(n); agregados++; }
+      setItems(out);
+    }
+    setMonedaOC(m);
+    return { actualizados, agregados };
+  }, [ordenCompraId, monedaOC, items]);
 
   const addGasto = () => setGastos(prev => [...prev, { id: uuid(), concepto: '', descripcion: '', monto: 0, moneda: monedaOC, fecha: null, comprobante: null }]);
   const updateGasto = (id: string, patch: Partial<GastoImportacion>) =>
@@ -296,6 +380,9 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         anticipoPct: form.anticipoPct ? Number(form.anticipoPct) : null,
         esCourier: form.esCourier,
         despachante: form.despachante || null,
+        derechosDespacho: form.derechosDespacho ? Number(form.derechosDespacho) : null,
+        estadisticaDespacho: form.estadisticaDespacho ? Number(form.estadisticaDespacho) : null,
+        motivoAjusteDespacho: form.motivoAjusteDespacho.trim() || null,
         notas: form.notas || null,
         gastos, items: items.length ? items : null,
         costoTotalARS,
@@ -325,6 +412,6 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     ordenCompraId, ordenCompraNumero, proveedorNombre, monedaOC,
     form, set, selectOC,
     gastos, addGasto, updateGasto, removeGasto, items,
-    save, reload: load,
+    save, reload: load, refrescarImp, actualizarDesdeOC,
   };
 }

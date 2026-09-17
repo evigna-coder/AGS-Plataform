@@ -11,6 +11,7 @@ import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { matchesSearch } from '../../utils/searchTerms';
 import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpFromStockAmplio } from '../../services/atpHelpers';
+import { envasePedido } from '../../utils/envaseUnidad';
 import { articulosService } from '../../services/firebaseService';
 
 import { Select } from '../ui/Select';
@@ -86,7 +87,13 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
       descripcion: c.descripcion, precio: c.valorBase * c.factorActualizacion,
       categoriaPresupuestoId: c.categoriaPresupuestoId ?? null,
     })),
-    ...articulos.map(a => ({
+    ...articulos.filter(a => {
+      // Duplicado suelto (2026-09-17): mismo código que un envase de otro base,
+      // resto del catálogo viejo. No se ofrece: se cotiza por el base con su envase.
+      if ((a.presentaciones?.length ?? 0) > 0) return true;
+      const c = (a.codigo ?? '').trim().toLowerCase();
+      return !c || !articulos.some(b => b.id !== a.id && (b.presentaciones ?? []).some(p => p.codigoParte.trim().toLowerCase() === c));
+    }).map(a => ({
       tipo: 'articulo' as const, refId: a.id, codigo: a.codigo ?? null,
       descripcion: a.descripcion, precio: a.precioReferencia ?? 0,
       // N° de parte de los otros envases del MISMO artículo: se presupuesta por
@@ -164,7 +171,8 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
       let disponibilidad: Disponibilidad = 'post_facturacion';
       let etaDiasEstimados: number | null = null;
       try {
-        const stock = await computeStockAmplio(sel.refId);
+        // Disponibilidad del ENVASE pedido (2026-09-17): un kit cerrado no cubre packs sueltos.
+        const stock = await computeStockAmplio(sel.refId, { envase: envasePedido(presentacion) });
         // StockAmplio no tiene campo `atp` — leerlo daba siempre 0 y sugería
         // a_importar con stock en mano (regresión del wizard; mismo bug que el
         // AddItemModal viejo, arreglado en v1.14.0 con este helper).
@@ -219,7 +227,16 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
                     </span>
                     <span className="text-slate-700">{r.descripcion}</span>
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400 shrink-0 whitespace-nowrap">{r.codigo}{r.precio ? ` · ${sym}${r.precio}` : ''}</span>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0 whitespace-nowrap">
+                    {r.codigo}{r.precio ? ` · ${sym}${r.precio}` : ''}
+                    {(() => {
+                      // Pista del envase que matcheó la búsqueda (2026-09-17): "vía 5183-2068 ×10".
+                      const t = term.toLowerCase();
+                      const p = (r.presentaciones ?? []).find(x => x.codigoParte.toLowerCase().includes(t));
+                      return p && !(r.codigo ?? '').toLowerCase().includes(t)
+                        ? <span className="ml-1 text-teal-700">vía {p.codigoParte} ×{p.factor}</span> : null;
+                    })()}
+                  </span>
                 </button>
               ))}
             </div>

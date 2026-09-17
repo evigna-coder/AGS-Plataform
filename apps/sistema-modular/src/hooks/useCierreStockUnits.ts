@@ -4,6 +4,7 @@ import type { Part, Articulo, Patron, Remito, UnidadStock, TipoUbicacionStock } 
 import { articulosService, remitosService, unidadesService } from '../services/stockService';
 import { asignacionesService } from '../services/firebaseService';
 import { patronesService } from '../services/patronesService';
+import { envaseDeUnidad } from '../utils/envaseUnidad';
 import { dedupPorUnidad, type RemitoItemOrigen } from '../utils/origenRemitoDedup';
 export type { RemitoItemOrigen };
 
@@ -252,6 +253,9 @@ export function useCierreStockUnits(articulos: Part[]): {
         // de cobertura sería ambigua, así que ahí gana la primera con stock.
         let presentacionFactor = 1;
         let presentacionBaseCodigo: string | null = null;
+        // Envase que pide la parte (2026-09-17): si su código es un envase del
+        // base, se ofrecen primero las unidades que entraron con ESE envase.
+        let envaseParte: string | null = null;
         let basesExtra: Articulo[] = [];
         if (part.codigo) {
           const sinStockPropio = !articulo
@@ -274,6 +278,7 @@ export function useCierreStockUnits(articulos: Part[]): {
               basesExtra = elegidas.slice(1).map(c => c.base);
               presentacionFactor = elegidas[0].presentacion.factor;
               presentacionBaseCodigo = elegidas.map(c => c.base.codigo).join(' / ');
+              if (presentacionFactor > 1) envaseParte = elegidas[0].presentacion.codigoParte;
             }
           }
         }
@@ -299,6 +304,12 @@ export function useCierreStockUnits(articulos: Part[]): {
           unidades = todas.filter(u =>
             unidadCuentaComoDisponible(u)
             || (u.activo !== false && u.estado === 'reservado' && u.ubicacion?.tipo !== 'remito'));
+          // Por envase (2026-09-17): la parte pedida como kit se descuenta de
+          // los kits; pedida en unidad base, de las sueltas. Si no hay del
+          // envase justo, se ofrece todo (el ingeniero pudo haber abierto un
+          // paquete en campo) — no se bloquea el cierre.
+          const delEnvase = unidades.filter(u => envaseDeUnidad(u) === envaseParte);
+          if (delEnvase.length > 0) unidades = delEnvase;
         }
         const patron = (articulo ? patronPorArticulo.get(articulo.id) : null)
           ?? patronPorCodigo.get(normCodigo(part.codigo))

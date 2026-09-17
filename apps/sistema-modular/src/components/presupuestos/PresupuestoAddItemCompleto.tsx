@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, PromedioCostoFactor, Sistema } from '@ags/shared';
-import { MONEDA_SIMBOLO, promedioCostoFactor } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, PromedioCostoFactor, Sistema, Presentacion } from '@ags/shared';
+import { MONEDA_SIMBOLO, promedioCostoFactor, cantidadEnUnidadBase } from '@ags/shared';
+import { Select } from '../ui/Select';
 import { unidadesService } from '../../services/firebaseService';
 import { PromedioStockHint } from './PromedioStockHint';
 import { Card } from '../ui/Card';
@@ -11,6 +12,7 @@ import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFiel
 import { PresupuestoTaxPreview } from './PresupuestoTaxPreview';
 import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpFromStockAmplio } from '../../services/atpHelpers';
+import { envasePedido } from '../../utils/envaseUnidad';
 import { articulosService } from '../../services/firebaseService';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 
@@ -61,6 +63,10 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       : { ...prev, ...sistemaFields((sistemas ?? []).find(s => s.id === defaultSistemaId)) });
   }, [defaultSistemaId, sistemas]);
   const [seleccion, setSeleccion] = useState('');
+  // Envases del artículo elegido (2026-09-17): se cotiza por el N° de parte con
+  // el que se vende; el stock se compromete en el pool del base. La carga
+  // completa no los ofrecía — solo el wizard.
+  const [presentaciones, setPresentaciones] = useState<Presentacion[]>([]);
   const [disponibilidadTouched, setDisponibilidadTouched] = useState(false);
   const [atpHint, setAtpHint] = useState<{ atp: number } | null>(null);
   const [promedio, setPromedio] = useState<PromedioCostoFactor | null>(null);
@@ -87,6 +93,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       ...(defaultSistemaId ? sistemaFields((sistemas ?? []).find(s => s.id === defaultSistemaId)) : {}),
     });
     setSeleccion('');
+    setPresentaciones([]);
     setDisponibilidadTouched(false);
     setAtpHint(null);
     setPromedio(null);
@@ -96,13 +103,16 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
   // Disponibilidad auto-default por ATP al vincular un artículo (mismo criterio que el wizard).
   useEffect(() => {
     const artId = item.stockArticuloId ?? null;
-    if (artId === prevArticuloId.current) return;
-    prevArticuloId.current = artId;
+    // La disponibilidad es del ENVASE pedido (2026-09-17): cambiar de envase recalcula.
+    const envase = envasePedido(item.presentacion ?? null);
+    const clave = artId ? `${artId}|${envase ?? ''}` : null;
+    if (clave === prevArticuloId.current) return;
+    prevArticuloId.current = clave;
     // Costo/factor promedio del stock vivo (2026-08-27): referencia de precio.
     setPromedio(null);
     if (artId) {
       unidadesService.getByArticulo(artId)
-        .then(us => { if (prevArticuloId.current === artId) setPromedio(promedioCostoFactor(us)); })
+        .then(us => { if (prevArticuloId.current === clave) setPromedio(promedioCostoFactor(us)); })
         .catch(() => {});
     }
     if (disponibilidadTouched) return;
@@ -110,7 +120,7 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
     let cancelled = false;
     (async () => {
       try {
-        const stock = await computeStockAmplio(artId);
+        const stock = await computeStockAmplio(artId, { envase });
         if (cancelled) return;
         const atp = atpFromStockAmplio(stock);
         setAtpHint({ atp });
@@ -120,18 +130,39 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       }
     })();
     return () => { cancelled = true; };
-  }, [item.stockArticuloId, disponibilidadTouched]);
+  }, [item.stockArticuloId, item.presentacion?.codigoParte, item.presentacion?.factor, disponibilidadTouched]);
 
   // Buscador unificado servicios + artículos (prefill; los campos quedan editables abajo).
-  const searchOptions = useMemo(() => [
-    { value: '', label: '— Sin vincular (carga manual) —' },
-    ...conceptosServicio.filter(c => c.activo).map(c => ({
-      value: `con:${c.id}`, label: `🛠 ${c.codigo ? `${c.codigo} — ` : ''}${c.descripcion}`,
-    })),
-    ...articulos.map(a => ({
-      value: `art:${a.id}`, label: `📦 ${a.codigo} — ${a.descripcion}`, linkedCode: a.codigo ?? undefined,
-    })),
-  ], [conceptosServicio, articulos]);
+  // Envases (2026-09-17): cada presentación es una opción propia ("5183-2068 —
+  // … (×10 de 5182-0715)") y el base también matchea por sus N° de parte. El
+  // artículo suelto DUPLICADO (mismo código que un envase de otro base, resto
+  // del catálogo viejo) no se ofrece: se cotiza por el base con su envase.
+  const searchOptions = useMemo(() => {
+    const codigosEnvase = new Set(articulos.flatMap(a => (a.presentaciones ?? []).map(p => p.codigoParte.trim().toLowerCase())));
+    return [
+      { value: '', label: '— Sin vincular (carga manual) —' },
+      ...conceptosServicio.filter(c => c.activo).map(c => ({
+        value: `con:${c.id}`, label: `🛠 ${c.codigo ? `${c.codigo} — ` : ''}${c.descripcion}`,
+      })),
+      ...articulos.flatMap(a => {
+        const activas = (a.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0 && p.codigoParte);
+        if (activas.length === 0 && codigosEnvase.has((a.codigo ?? '').trim().toLowerCase())) return [];
+        return [
+          { value: `art:${a.id}`, label: `📦 ${a.codigo} — ${a.descripcion}`, linkedCode: [a.codigo, ...activas.map(p => p.codigoParte)].filter(Boolean).join(' ') },
+          ...activas.map(p => ({
+            value: `art:${a.id}:${p.codigoParte}`,
+            label: `📦 ${p.codigoParte} — ${p.descripcion || a.descripcion} (×${p.factor} de ${a.codigo})`,
+            linkedCode: p.codigoParte,
+          })),
+        ];
+      }),
+    ];
+  }, [conceptosServicio, articulos]);
+
+  const elegirEnvase = (codigoParte: string) => {
+    const p = presentaciones.find(x => x.codigoParte === codigoParte) ?? null;
+    setItem(prev => ({ ...prev, presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null }));
+  };
 
   const applySeleccion = (v: string) => {
     setSeleccion(v);
@@ -149,17 +180,25 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
         conceptoServicioId: c.id, stockArticuloId: null, itemRequiereImportacion: false,
       }));
     } else if (v.startsWith('art:')) {
-      const a = articulos.find(x => x.id === v.slice(4));
+      const [, id, codigoParte] = v.split(':');
+      const a = articulos.find(x => x.id === id);
       if (!a) return;
+      const activas = (a.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0 && p.codigoParte);
+      setPresentaciones(activas);
+      const p = codigoParte ? activas.find(x => x.codigoParte === codigoParte) ?? null : null;
       setItem(prev => ({ ...prev,
         stockArticuloId: a.id, conceptoServicioId: null,
+        // El código del ítem es el del artículo BASE (los requerimientos lo usan);
+        // el envase va aparte y el PDF imprime su N° de parte.
         codigoProducto: a.codigo || prev.codigoProducto || null,
-        descripcion: prev.descripcion || a.descripcion,
+        presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null,
+        descripcion: prev.descripcion || (p?.descripcion || a.descripcion),
         precioUnitario: prev.precioUnitario || a.precioReferencia || 0,
         categoriaPresupuestoId: prev.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
       }));
     } else {
-      setItem(prev => ({ ...prev, conceptoServicioId: null, stockArticuloId: null, itemRequiereImportacion: false }));
+      setPresentaciones([]);
+      setItem(prev => ({ ...prev, conceptoServicioId: null, stockArticuloId: null, presentacion: null, itemRequiereImportacion: false }));
     }
   };
 
@@ -227,6 +266,24 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
           {/* Gris + mono como en el wizard: es un dato de referencia, no el foco de la carga. */}
           <input value={item.codigoProducto || ''} onChange={e => setItem(prev => ({ ...prev, codigoProducto: e.target.value }))}
             className={`${inp} font-mono text-slate-500`} placeholder="Ej: G1312-60067" />
+          {/* Envase cotizado (2026-09-17): el precio es POR ENVASE; el stock se
+              compromete en unidades base. */}
+          {presentaciones.length > 0 && (
+            <div className="mt-2">
+              <label className={lbl}>Presentación (se cotiza por)</label>
+              <Select className="w-full" selectSize="sm" value={item.presentacion?.codigoParte ?? ''} onChange={e => elegirEnvase(e.target.value)}>
+                <option value="">{item.codigoProducto || 'Unidad base'} — unidad base (×1)</option>
+                {presentaciones.map(p => (
+                  <option key={p.codigoParte} value={p.codigoParte}>{p.codigoParte} — {p.descripcion || 'envase'} (×{p.factor})</option>
+                ))}
+              </Select>
+              {item.presentacion && (
+                <p className="text-[11px] text-teal-700 mt-1">
+                  Compromete <span className="font-semibold">{cantidadEnUnidadBase(item.cantidad || 1, item.presentacion)}</span> unidad(es) de <span className="font-mono">{item.codigoProducto}</span>
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label className={lbl}>Descripcion *</label>

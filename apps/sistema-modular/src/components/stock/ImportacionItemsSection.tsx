@@ -36,7 +36,14 @@ export const ImportacionItemsSection: React.FC<ImportacionItemsSectionProps> = (
                 const pendiente = pendienteDeItem(item);
                 return (
                   <tr key={item.id} className="hover:bg-slate-50/50">
-                    <td className={tdClass}>{item.articuloCodigo || '—'}</td>
+                    <td className={tdClass}>
+                      {item.presentacion?.codigoParte || item.articuloCodigo || '—'}
+                      {item.presentacion && (
+                        <span className="block text-[9px] text-teal-700" title="Envase de la OC — el stock entra al artículo base">
+                          ×{item.presentacion.factor} → {item.articuloCodigo}
+                        </span>
+                      )}
+                    </td>
                     <td className={tdClass}>{item.descripcion}</td>
                     <td className={`${tdClass} text-right`}>{item.cantidadPedida}</td>
                     <td className={`${tdClass} text-right`}>{item.cantidadRecibida != null ? item.cantidadRecibida : '—'}</td>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { requerimientosDeItem } from '../utils/conciliarRequerimientosOC';
 import { Timestamp } from 'firebase/firestore';
-import type { Importacion, ItemImportacion, Articulo } from '@ags/shared';
+import type { Importacion, ItemImportacion, Articulo, PresentacionUsada } from '@ags/shared';
+import { factorDeItem, pendienteDeItem } from '../utils/importacionRecepcion';
+import { resolverItemsImportacion } from '../utils/resolverItemsImportacion';
 import {
   createBatch,
   docRef,
@@ -20,8 +22,29 @@ export interface RecepcionItem {
   posicionId: string;
   posicionNombre: string;
   nrosSerie: string[];     // one per unit; empty array if no serial required
+  /** Cantidad recibida EN EL ENVASE `presentacion` (null = unidad base). */
   cantidadReal: number;
+  /** Envase con el que se recibe (2026-09-16); puede no ser el de la OC. El stock entra en unidades base. */
+  presentacion?: PresentacionUsada | null;
   nroLote?: string | null; // si el artículo se maneja por lote
+}
+
+/**
+ * Envase en que está expresada la línea de la OC para esta recepción. Si el
+ * ítem ya trae envase, ese. Si no lo trae y el usuario recibe con uno, se mira
+ * la cantidad: coincide con lo pendiente en envases y no en unidades base →
+ * la OC estaba en ese envase (precio por envase, recibido 1 = pedido 1).
+ */
+export function interpretarEnvaseOC(rec: RecepcionItem): { factorItem: number; presentacionItem: PresentacionUsada | null } {
+  const propio = rec.item.presentacion ?? null;
+  if (propio || !rec.presentacion || !(rec.presentacion.factor > 1)) {
+    return { factorItem: factorDeItem(rec.item), presentacionItem: propio };
+  }
+  const pend = pendienteDeItem(rec.item);
+  const coincideEnBase = Math.abs(rec.cantidadReal * rec.presentacion.factor - pend) < 1e-6;
+  const coincideEnEnvase = Math.abs(rec.cantidadReal - pend) < 1e-6;
+  if (coincideEnEnvase && !coincideEnBase) return { factorItem: rec.presentacion.factor, presentacionItem: rec.presentacion };
+  return { factorItem: 1, presentacionItem: null };
 }
 
 export function useIngresarStock() {
@@ -46,15 +69,21 @@ export function useIngresarStock() {
       // Costeo completo del embarque (CIF + gravámenes + factor), en USD.
       // El costo por unidad = costoComputable de la línea / cantidad costeada (cantidadPedida).
       const monedaEmbarque = imp.items?.[0]?.moneda ?? 'USD';
-      const articuloIds = Array.from(
-        new Set((imp.items ?? []).map(i => i.articuloId).filter(Boolean) as string[]),
-      );
-      const arts = await Promise.all(articuloIds.map(id => articulosService.getById(id).catch(() => null)));
-      const articulosById = new Map<string, Articulo>();
-      arts.forEach(a => { if (a) articulosById.set(a.id, a); });
+      // Catálogo + OC para resolver artículo base y envase de cada ítem
+      // (2026-09-16), igual que el modal: el costeo por línea necesita el
+      // artículo BASE (posición arancelaria) aunque la OC haya usado el
+      // N° de parte del envase.
+      const { ordenesCompraService } = await import('../services/presupuestosService');
+      const [catalogo, ocOrigen] = await Promise.all([
+        articulosService.getAll().catch(() => [] as Articulo[]),
+        imp.ordenCompraId ? ordenesCompraService.getById(imp.ordenCompraId).catch(() => null) : Promise.resolve(null),
+      ]);
+      const articulosById = new Map<string, Articulo>(catalogo.map(a => [a.id, a]));
+      const itemsResueltos = resolverItemsImportacion(itemsBase, catalogo, ocOrigen?.items ?? null);
+      const resueltoById = new Map(itemsResueltos.map(it => [it.id, it]));
 
       const costeo = computeCosteoImportacion({
-        items: imp.items ?? [],
+        items: itemsResueltos,
         articulosById,
         gastos: imp.gastos ?? [],
         monedaBase: monedaEmbarque,
@@ -68,6 +97,10 @@ export function useIngresarStock() {
         // ingresar (estadística + IIBB + financiero de percepciones que no
         // existen): las unidades quedaban ~9% sobrevaluadas vs el panel.
         esCourier: imp.esCourier ?? null,
+        // Según despacho (2026-09-16): si están cargados, el factor que queda
+        // en las unidades ya es el real.
+        derechosDespacho: imp.derechosDespacho ?? null,
+        estadisticaDespacho: imp.estadisticaDespacho ?? null,
       });
       const lineaByItemId = new Map(costeo.lineas.map(l => [l.itemId, l]));
       const nowIso = new Date().toISOString();
@@ -79,10 +112,23 @@ export function useIngresarStock() {
 
       for (const rec of recepciones) {
         const linea = lineaByItemId.get(rec.item.id);
-        const cantBase = rec.item.cantidadPedida || 0;
+        // Presentaciones (2026-09-16): lo pedido está en el envase de la OC y lo
+        // recibido en el envase elegido al ingresar; el stock y el costo van por
+        // unidad BASE. Comprado 2 × kit(×1000), recibido 20 × caja(×100) = 2.000 u.
+        const factorRec = rec.presentacion?.factor && rec.presentacion.factor > 0 ? rec.presentacion.factor : 1;
+        // OC sin envase declarado (2026-09-17, caso JAS041): "1 × 5181-3376" con
+        // el precio del pack de 1000. Si al recibir se elige un envase y la
+        // cantidad tipeada coincide con lo pedido EN ENVASES (1 = 1) y no en
+        // unidades base (10 ≠ 1), la OC estaba expresada en ese envase: el
+        // precio de la línea es por envase y se divide por el factor. Antes el
+        // costo por unidad base quedaba como el del pack entero.
+        const { factorItem } = interpretarEnvaseOC(rec);
+        const unidadesBase = Math.round(rec.cantidadReal * factorRec * 1000) / 1000;
+        const recibidoEnEnvaseOC = Math.round((unidadesBase / factorItem) * 1000) / 1000;
+        const cantBase = (rec.item.cantidadPedida || 0) * factorItem;
         const costoUnitario = linea && cantBase > 0
           ? linea.costoComputable / cantBase
-          : (rec.item.precioUnitario ?? 0);
+          : (rec.item.precioUnitario ?? 0) / factorItem;
         const factorImportacion = linea?.factor ?? null;
         if (rec.item.articuloId) {
           ultimoCostoByArticulo.set(rec.item.articuloId, { costo: costoUnitario, factor: factorImportacion ?? 0 });
@@ -94,22 +140,28 @@ export function useIngresarStock() {
         //  - sin trazabilidad → un doc por unidad (cantidad 1); si la cantidad
         //    tiene decimales (2026-09-04: 0,5 L de reactivo), un solo doc con
         //    esa cantidad — no hay "media unidad" que crear por separado.
+        //  - por envase (factor > 1) → un solo doc con todas las unidades base
+        //    (2026-09-16): 20 cajas de 100 son un doc de 2.000, no 2.000 docs.
         const loteId = rec.nroLote?.trim() || null;
         const unidadesACrear: { nroSerie: string | null; nroLote: string | null; cantidad: number }[] =
           rec.nrosSerie.length > 0
             ? rec.nrosSerie.map(s => ({ nroSerie: s, nroLote: loteId, cantidad: 1 }))
-            : loteId || !Number.isInteger(rec.cantidadReal)
-              ? [{ nroSerie: null, nroLote: loteId, cantidad: rec.cantidadReal }]
-              : Array.from({ length: rec.cantidadReal }, () => ({ nroSerie: null, nroLote: null, cantidad: 1 }));
+            : loteId || factorRec > 1 || !Number.isInteger(unidadesBase)
+              ? [{ nroSerie: null, nroLote: loteId, cantidad: unidadesBase }]
+              : Array.from({ length: unidadesBase }, () => ({ nroSerie: null, nroLote: null, cantidad: 1 }));
 
         for (const u of unidadesACrear) {
           const unidadId = crypto.randomUUID();
           const movId = crypto.randomUUID();
 
+          // Descripción del ARTÍCULO base (2026-09-17): la del ítem es la del
+          // envase de la OC ("5,000/pk") y contaminaba la fila del base.
+          const artDesc = (rec.item.articuloId ? articulosById.get(rec.item.articuloId)?.descripcion : null) || rec.item.descripcion;
           const unidadPayload = deepCleanForFirestore({
             articuloId: rec.item.articuloId ?? '',
             articuloCodigo: rec.item.articuloCodigo ?? '',
-            articuloDescripcion: rec.item.descripcion,
+            articuloDescripcion: artDesc,
+            importacionItemId: rec.item.id,
             nroSerie: u.nroSerie,
             nroLote: u.nroLote,
             cantidad: u.cantidad,
@@ -123,6 +175,7 @@ export function useIngresarStock() {
             costoUnitario,
             monedaCosto: 'USD' as const,
             factorImportacion,
+            presentacion: rec.presentacion ?? null,
             importacionNumero: imp.numero,
             ordenCompraNumero: imp.ordenCompraNumero ?? null,
             despachoImportacionNumero: imp.despachoNumero ?? null,
@@ -146,10 +199,12 @@ export function useIngresarStock() {
             unidadId,
             articuloId: rec.item.articuloId ?? '',
             articuloCodigo: rec.item.articuloCodigo ?? '',
-            articuloDescripcion: rec.item.descripcion,
+            articuloDescripcion: artDesc,
             cantidad: u.cantidad,
             nroSerie: u.nroSerie ?? null,
             nroLote: u.nroLote ?? null,
+            // Rastro de la conversión: "20 × 5183-2067 ×100 = 2.000".
+            presentacion: rec.presentacion ?? null,
             origenTipo: 'proveedor' as const,
             origenId: imp.id,
             origenNombre: imp.proveedorNombre,
@@ -175,8 +230,8 @@ export function useIngresarStock() {
         // cubre lo pedido (I3 — la segunda tanda del faltante también lo cierra).
         // 'comprado' (enum EstadoRequerimiento) — antes escribía 'completado', que no
         // existe en el enum y dejaba el req contando como comprometido en el ATP.
-        const recibidoAcumulado = (prevRecibidoByItemId.get(rec.item.id) ?? 0) + rec.cantidadReal;
-        if (recibidoAcumulado >= rec.item.cantidadPedida) {
+        const recibidoAcumulado = (prevRecibidoByItemId.get(rec.item.id) ?? 0) + recibidoEnEnvaseOC;
+        if (recibidoAcumulado >= rec.item.cantidadPedida - 1e-6) {
           // Todos los vinculados: principal + conciliación múltiple (2026-09-10).
           for (const reqId of requerimientosDeItem(rec.item)) {
             batch.update(
@@ -209,12 +264,23 @@ export function useIngresarStock() {
       // Acumular lo recibido por ítem (I3: recepciones parciales múltiples) y marcar
       // la importación como ingresada SOLO cuando todo lo pedido entró. Mientras haya
       // faltante la importación admite nuevas recepciones (o el cierre incompleto manual).
+      // `cantidadRecibida` se acumula EN EL ENVASE DE LA OC (misma unidad que cantidadPedida).
+      const recibidoOCDe = (rec: RecepcionItem) => {
+        const fRec = rec.presentacion?.factor && rec.presentacion.factor > 0 ? rec.presentacion.factor : 1;
+        return Math.round((rec.cantidadReal * fRec / interpretarEnvaseOC(rec).factorItem) * 1000) / 1000;
+      };
       const updatedItems = itemsBase.map(it => {
         const rec = recepciones.find(r => r.item.id === it.id);
-        return rec ? { ...it, cantidadRecibida: (it.cantidadRecibida ?? 0) + rec.cantidadReal } : it;
+        // Se persiste la resolución (base + envase) para que la impo quede consistente;
+        // si la OC se interpretó en el envase recibido, ese envase queda en el ítem.
+        const res = resueltoById.get(it.id) ?? it;
+        const envaseOC = rec ? interpretarEnvaseOC(rec).presentacionItem : null;
+        const normalizado = { ...it, articuloId: res.articuloId ?? it.articuloId ?? null,
+          articuloCodigo: res.articuloCodigo ?? it.articuloCodigo ?? null, presentacion: envaseOC ?? res.presentacion ?? it.presentacion ?? null };
+        return rec ? { ...normalizado, cantidadRecibida: (it.cantidadRecibida ?? 0) + recibidoOCDe(rec) } : normalizado;
       });
       const recepcionCompleta = updatedItems.length > 0 &&
-        updatedItems.every(it => (it.cantidadRecibida ?? 0) >= (it.cantidadPedida || 0));
+        updatedItems.every(it => (it.cantidadRecibida ?? 0) >= (it.cantidadPedida || 0) - 1e-6);
 
       batch.update(
         docRef('importaciones', imp.id),
@@ -239,7 +305,8 @@ export function useIngresarStock() {
             const recByItemOC = new Map<string, number>();
             for (const rec of recepciones) {
               if (rec.item.itemOCId) {
-                recByItemOC.set(rec.item.itemOCId, (recByItemOC.get(rec.item.itemOCId) ?? 0) + rec.cantidadReal);
+                // En el envase de la OC (el ítem de la impo hereda el mismo).
+                recByItemOC.set(rec.item.itemOCId, (recByItemOC.get(rec.item.itemOCId) ?? 0) + recibidoOCDe(rec));
               }
             }
             const itemsOC = (oc.items ?? []).map(it => {

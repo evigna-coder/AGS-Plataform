@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
-import { runTransaction } from './firebase';
+import { runTransaction, getCurrentUserTrace } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito } from '@ags/shared';
 import type { ResultadoDeduccionLinea } from '../utils/cierreStockLineas';
 import { costoComponente } from '../utils/kitProrrateo';
@@ -424,6 +424,51 @@ export const articulosService = {
 
 // ========== UNIDADES DE STOCK ==========
 
+/**
+ * Costo por unidad BASE de cada línea de la importación (2026-09-17). Antes el
+ * re-estampado iba por ARTÍCULO: tres líneas del mismo base en distintos
+ * envases (100PK, 1.000/pk, 5.000/pk) se pisaban y la última —la del pack de
+ * 5.000, USD 1.307 la unidad— quedaba en TODAS las unidades del artículo.
+ */
+export interface CostoLineaImportacion {
+  itemId: string;
+  articuloId: string;
+  /** Envase de la línea (código) o null = unidad base. */
+  envase: string | null;
+  /** Costo por unidad base. */
+  costoBase: number;
+  /** Unidades base de la línea (peso para promediar). */
+  unidadesBase: number;
+}
+
+const promedioPonderado = (ls: CostoLineaImportacion[]): number | undefined => {
+  const peso = ls.reduce((s, l) => s + (l.unidadesBase > 0 ? l.unidadesBase : 0), 0);
+  if (ls.length === 0) return undefined;
+  if (peso <= 0) return ls[0].costoBase;
+  return ls.reduce((s, l) => s + l.costoBase * (l.unidadesBase > 0 ? l.unidadesBase : 0), 0) / peso;
+};
+
+/** Costo de un artículo entero (promedio ponderado de sus líneas) — para componentes de kit. */
+function costoPorArticulo(lineas: CostoLineaImportacion[], articuloId: string): number | undefined {
+  return promedioPonderado(lineas.filter(l => l.articuloId === articuloId));
+}
+
+/**
+ * Costo de UNA unidad: su línea de origen si la conoce; si no (unidades
+ * anteriores a hoy), las líneas del mismo artículo y envase; si no, todas las
+ * del artículo (promedio ponderado por unidades base).
+ */
+function costoDeUnidadPorLinea(u: UnidadStock, lineas: CostoLineaImportacion[]): number | undefined {
+  if (u.importacionItemId) {
+    const propia = lineas.find(l => l.itemId === u.importacionItemId);
+    if (propia) return propia.costoBase;
+  }
+  const envase = u.presentacion?.factor && u.presentacion.factor > 1 ? u.presentacion.codigoParte : null;
+  const mismoEnvase = lineas.filter(l => l.articuloId === u.articuloId && l.envase === envase);
+  if (mismoEnvase.length > 0) return promedioPonderado(mismoEnvase);
+  return costoPorArticulo(lineas, u.articuloId);
+}
+
 export const unidadesService = {
   /**
    * Unidades asignables desde el modal de asignación (2026-09-11): activas,
@@ -437,6 +482,41 @@ export const unidadesService = {
     ]);
     return [...disp, ...res].filter(u => u.ubicacion?.tipo === 'posicion');
   },
+
+  /**
+   * Abrir paquete (2026-09-17): una unidad que entró como envase cerrado pasa
+   * a unidades sueltas del artículo base — misma cantidad en base, sin envase.
+   * Es el ÚNICO camino de un envase a sueltas; queda un asiento de ajuste con
+   * cantidad 0 como rastro (el pool no cambia, cambia lo que se puede vender).
+   */
+  async abrirPaquete(unidadId: string): Promise<void> {
+    const u = await this.getById(unidadId);
+    if (!u) throw new Error('Unidad no encontrada');
+    if (!u.presentacion || !(u.presentacion.factor > 1)) return;
+    if (u.estado !== 'disponible') throw new Error(`Solo se abre un paquete disponible (estado actual: ${u.estado})`);
+    const paquetes = Math.round(((u.cantidad ?? 1) / u.presentacion.factor) * 1000) / 1000;
+    await this.update(unidadId, { presentacion: null } as Partial<UnidadStock>);
+    await movimientosService.create({
+      tipo: 'ajuste',
+      unidadId,
+      articuloId: u.articuloId,
+      articuloCodigo: u.articuloCodigo,
+      articuloDescripcion: u.articuloDescripcion,
+      cantidad: 0,
+      origenTipo: u.ubicacion.tipo as any,
+      origenId: u.ubicacion.referenciaId,
+      origenNombre: u.ubicacion.referenciaNombre,
+      destinoTipo: u.ubicacion.tipo as any,
+      destinoId: u.ubicacion.referenciaId,
+      destinoNombre: u.ubicacion.referenciaNombre,
+      remitoId: null,
+      otNumber: null,
+      presentacion: u.presentacion,
+      motivo: `Paquete abierto: ${paquetes} × ${u.presentacion.codigoParte} (×${u.presentacion.factor}) → ${u.cantidad ?? 1} unidad(es) suelta(s)`,
+      creadoPor: getCurrentUserTrace()?.name ?? 'Sistema',
+    } as any);
+  },
+
 
   async getAll(filters?: {
     articuloId?: string;
@@ -509,7 +589,7 @@ export const unidadesService = {
   async confirmarCosteoImportacion(params: {
     importacionNumero: string;
     factorEmbarque: number;
-    costoPorArticulo: Map<string, number>;
+    costoPorLinea: CostoLineaImportacion[];
   }): Promise<{ actualizadas: number; sinCosto: number }> {
     const unidades = await this.getByImportacion(params.importacionNumero);
     const ahora = new Date().toISOString();
@@ -519,8 +599,8 @@ export const unidadesService = {
       // Unidad nacida de un kit de este embarque (2026-09-10): su costo real es
       // el del kit × su participación ÷ cantidad por kit. Comparte el factor.
       const costo = u.origenKit
-        ? costoComponente(params.costoPorArticulo.get(u.origenKit.articuloId), u.origenKit.participacionPct, u.origenKit.cantidadPorKit)
-        : params.costoPorArticulo.get(u.articuloId);
+        ? costoComponente(costoPorArticulo(params.costoPorLinea, u.origenKit.articuloId), u.origenKit.participacionPct, u.origenKit.cantidadPorKit)
+        : costoDeUnidadPorLinea(u, params.costoPorLinea);
       if (costo == null) { sinCosto++; continue; }
       await this.update(u.id, {
         costoUnitarioReal: costo,
@@ -560,7 +640,7 @@ export const unidadesService = {
   async reestimarCosteoImportacion(params: {
     importacionNumero: string;
     factorEmbarque: number;
-    costoPorArticulo: Map<string, number>;
+    costoPorLinea: CostoLineaImportacion[];
   }): Promise<{ actualizadas: number; sinCosto: number; confirmadas: number }> {
     const unidades = await this.getByImportacion(params.importacionNumero);
     let actualizadas = 0, sinCosto = 0, confirmadas = 0;
@@ -568,7 +648,9 @@ export const unidadesService = {
     let ultimoIngreso = '';
 
     for (const u of unidades) {
-      const costo = params.costoPorArticulo.get(u.articuloId);
+      const costo = u.origenKit
+        ? costoComponente(costoPorArticulo(params.costoPorLinea, u.origenKit.articuloId), u.origenKit.participacionPct, u.origenKit.cantidadPorKit)
+        : costoDeUnidadPorLinea(u, params.costoPorLinea);
       if (costo == null) { sinCosto++; continue; }
       if (u.costeoConfirmadoAt) { confirmadas++; continue; }
       if (!factorAnteriorPorArticulo.has(u.articuloId)) {
@@ -585,7 +667,12 @@ export const unidadesService = {
     // Snapshot del catálogo: solo si esta impo sigue siendo la última que costeó
     // el artículo — una posterior ya habría estampado una fecha más nueva.
     const ahora = new Date().toISOString();
-    for (const [articuloId, costo] of params.costoPorArticulo) {
+    // Último costo del artículo = promedio ponderado de sus líneas (2026-09-17).
+    const porArticulo = new Map<string, number>();
+    for (const l of params.costoPorLinea) {
+      if (!porArticulo.has(l.articuloId)) porArticulo.set(l.articuloId, costoPorArticulo(params.costoPorLinea, l.articuloId) ?? l.costoBase);
+    }
+    for (const [articuloId, costo] of porArticulo) {
       if (!unidades.some(u => u.articuloId === articuloId && !u.costeoConfirmadoAt)) continue;
       try {
         const art = await articulosService.getById(articuloId);

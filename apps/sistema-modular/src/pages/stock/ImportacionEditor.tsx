@@ -1,3 +1,4 @@
+import { INCOTERMS } from '@ags/shared';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ordenesCompraService } from '../../services/firebaseService';
@@ -13,7 +14,6 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../../components/ui/Select';
-const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP'] as const;
 
 interface FromOCState {
   ordenCompraId: string;

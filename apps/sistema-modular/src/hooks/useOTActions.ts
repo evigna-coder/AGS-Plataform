@@ -81,10 +81,10 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
       let budgetsHeredados: string[] = [];
       try {
         const padre = otNumber.split('.')[0];
-        const [hermanas, presupuestos] = await Promise.all([
-          ordenesTrabajoService.getItemsByOtPadre(padre),
-          presupuestosService.getAll(),
-        ]);
+        const hermanas = await ordenesTrabajoService.getItemsByOtPadre(padre);
+        // Solo los presupuestos que llevan las hermanas (2026-09-14), no el catálogo entero.
+        const numeros = [...new Set(hermanas.flatMap(h => (h.budgets ?? []).map(b => (b || '').trim()).filter(Boolean)))];
+        const presupuestos = (await presupuestosService.getByNumeros(numeros)).filter((p): p is NonNullable<typeof p> => !!p);
         budgetsHeredados = presupuestosVivosDeHermanas(hermanas, presupuestos);
       } catch (err) {
         // Best-effort: sin el arrastre el item se crea igual y se vincula a mano.

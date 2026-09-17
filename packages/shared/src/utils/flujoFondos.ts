@@ -201,17 +201,60 @@ export function mesLabel(mes: string): string {
   return `${nombre} ${y}`;
 }
 
+// --- Vista a gusto de cada usuario (2026-09-17): semana / quincena / mes, todo / VEP / giros ---
+
+export type VistaFlujo = 'semanal' | 'quincenal' | 'mensual';
+/** '' = todo (VEP, giros y arribos); 'vep' / 'giro' = solo ese tipo. */
+export type FiltroTipoFlujo = '' | 'vep' | 'giro';
+
+const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const diaMes = (iso: string) => `${Number(iso.slice(8, 10))}-${MES_CORTO[Number(iso.slice(5, 7)) - 1]}`;
+
+/** Clave y etiqueta del período al que pertenece una fecha 'YYYY-MM-DD'. */
+export function periodoDe(fecha: string, vista: VistaFlujo): { key: string; label: string } {
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number);
+  if (vista === 'mensual') {
+    const key = fecha.slice(0, 7);
+    return { key, label: mesLabel(key) };
+  }
+  if (vista === 'quincenal') {
+    const primera = d <= 15;
+    const key = `${fecha.slice(0, 7)}-Q${primera ? 1 : 2}`;
+    return { key, label: `${primera ? '1ª' : '2ª'} quincena de ${mesLabel(fecha.slice(0, 7))}` };
+  }
+  // Semanal: de lunes a domingo; la clave es el lunes.
+  const f = new Date(y, m - 1, d);
+  const dow = (f.getDay() + 6) % 7; // lunes = 0
+  const lunes = new Date(y, m - 1, d - dow);
+  const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
+  const key = isoLocal(lunes);
+  return { key, label: `semana del ${diaMes(key)} al ${diaMes(isoLocal(domingo))} ${domingo.getFullYear()}` };
+}
+
+/** Solo VEP o solo giros (los arribos salen); '' deja todo. */
+export function filtrarEventosPorTipo(eventos: EventoFlujo[], tipo: FiltroTipoFlujo): EventoFlujo[] {
+  return tipo ? eventos.filter(e => e.tipo === tipo) : eventos;
+}
+
 /**
  * Agrupa los eventos por mes calendario (YYYY-MM), ordenado ascendente.
  * Cada mes incluye sus eventos y los subtotales pendientes por tipo+moneda
  * (VEP/giro; los arribos no tienen monto).
  */
 export function groupByMes(eventos: EventoFlujo[]): MesFlujo[] {
+  return groupByPeriodo(eventos, 'mensual');
+}
+
+/** Igual que groupByMes, pero por semana / quincena / mes según `vista`. `mes` es la clave del período. */
+export function groupByPeriodo(eventos: EventoFlujo[], vista: VistaFlujo): MesFlujo[] {
   const map = new Map<string, EventoFlujo[]>();
+  const labels = new Map<string, string>();
   for (const e of eventos) {
-    const mes = e.fecha.slice(0, 7);
-    const arr = map.get(mes);
-    if (arr) arr.push(e); else map.set(mes, [e]);
+    const { key, label } = periodoDe(e.fecha, vista);
+    labels.set(key, label);
+    const arr = map.get(key);
+    if (arr) arr.push(e); else map.set(key, [e]);
   }
   return [...map.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -226,6 +269,6 @@ export function groupByMes(eventos: EventoFlujo[]): MesFlujo[] {
       }
       const subtotales = [...subMap.values()].sort((a, b) =>
         a.tipo === b.tipo ? a.moneda.localeCompare(b.moneda) : a.tipo.localeCompare(b.tipo));
-      return { mes, label: mesLabel(mes), eventos: evs, subtotales };
+      return { mes, label: labels.get(mes) ?? mesLabel(mes), eventos: evs, subtotales };
     });
 }

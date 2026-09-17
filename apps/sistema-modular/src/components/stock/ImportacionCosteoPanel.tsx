@@ -12,10 +12,11 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
   const m = costeo.moneda;
   // En courier las percepciones no se cobran — se ocultan del desglose en vez
   // de mostrar tres renglones en cero (2026-08-06).
+  const segun = (real: boolean) => real ? ' (según despacho)' : '';
   const lineas: [string, number][] = [
     ['Valor en aduana (CIF)', costeo.cifTotal],
-    ['Derechos de importación', costeo.derechos],
-    ...(costeo.esCourier ? [] : [['Tasa de estadística', costeo.estadistica] as [string, number]]),
+    [`Derechos de importación${segun(costeo.derechosSegunDespacho)}`, costeo.derechos],
+    ...(costeo.esCourier ? [] : [[`Tasa de estadística${segun(costeo.estadisticaSegunDespacho)}`, costeo.estadistica] as [string, number]]),
     ['IVA', costeo.iva],
     ...(costeo.esCourier ? [] : [
       ['IVA adicional', costeo.ivaAdicional] as [string, number],
@@ -53,7 +54,10 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
               <tr key={l.itemId}>
                 <td className="px-2 py-1.5">
                   <div className="text-slate-700">
-                    {l.articuloCodigo ? <span className="font-mono text-slate-500 mr-1">{l.articuloCodigo}</span> : null}
+                    {/* Envase de la línea (2026-09-17): tres líneas del mismo base en distintos envases se distinguen por su N° de parte. */}
+                    {l.presentacionCodigo
+                      ? <span className="font-mono text-slate-500 mr-1">{l.presentacionCodigo} <span className="text-teal-700">×{l.presentacionFactor} → {l.articuloCodigo}</span></span>
+                      : l.articuloCodigo ? <span className="font-mono text-slate-500 mr-1">{l.articuloCodigo}</span> : null}
                     {l.descripcion}
                   </div>
                   <div className="text-[10px] mt-0.5">
@@ -84,6 +88,16 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
             <span className="font-mono text-slate-700">{fmt(val, m)}</span>
           </div>
         ))}
+        {/* Diferencia contra lo estimado por alícuota (2026-09-16). */}
+        {(costeo.derechosSegunDespacho || costeo.estadisticaSegunDespacho) && (() => {
+          const dif = (costeo.derechos - costeo.derechosEstimados) + (costeo.estadistica - costeo.estadisticaEstimada);
+          return (
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>Diferencia vs. estimado (derechos {fmt(costeo.derechosEstimados, m)}, estadística {fmt(costeo.estadisticaEstimada, m)})</span>
+              <span className={`font-mono ${dif > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dif > 0 ? '+' : ''}{fmt(dif, m)}</span>
+            </div>
+          );
+        })()}
         <div className="flex justify-between text-[11px] pt-1 border-t border-slate-200">
           <span className="text-slate-500">Total gravámenes</span>
           <span className="font-mono text-slate-700">{fmt(costeo.totalGravamenes, m)}</span>

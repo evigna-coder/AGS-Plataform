@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
+import { INCOTERMS, ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -221,7 +221,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
                     <label className={lbl}>Incoterm</label>
                     <Select value={h.incoterm} onChange={e => h.setIncoterm(e.target.value)} className="w-full">
                       <option value="">—</option>
-                      {['FOB', 'CIF', 'EXW', 'FCA', 'DAP', 'CFR', 'DDP'].map(i => <option key={i} value={i}>{i}</option>)}
+                      {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
                     </Select>
                   </div>
                   {/* Flete y seguro acordados: la importación los levanta como

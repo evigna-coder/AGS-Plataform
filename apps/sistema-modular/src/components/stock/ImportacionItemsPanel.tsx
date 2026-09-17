@@ -35,6 +35,8 @@ export function ImportacionItemsPanel({ imp, articulosById }: Props) {
     tipoCambio: imp.tipoCambio,
     paseEurUsd: imp.paseEurUsd,
     esCourier: imp.esCourier,
+    derechosDespacho: imp.derechosDespacho ?? null,
+    estadisticaDespacho: imp.estadisticaDespacho ?? null,
   }), [imp, articulosById, monedaEmbarque]);
 
   const rotuloValor = `Valor ${imp.incoterm || 'FOB'}`;
@@ -76,7 +78,9 @@ export function ImportacionItemsPanel({ imp, articulosById }: Props) {
               return (
                 <tr key={l.itemId}>
                   <td className="px-2 py-1">
-                    {l.articuloCodigo && <span className="font-mono text-slate-500 mr-1">{l.articuloCodigo}</span>}
+                    {l.presentacionCodigo
+                      ? <span className="font-mono text-slate-500 mr-1">{l.presentacionCodigo} <span className="text-teal-700">×{l.presentacionFactor} → {l.articuloCodigo}</span></span>
+                      : l.articuloCodigo && <span className="font-mono text-slate-500 mr-1">{l.articuloCodigo}</span>}
                     <span className="text-slate-700">{l.descripcion}</span>
                   </td>
                   <td className="px-2 py-1 font-mono text-[11px] text-slate-500">

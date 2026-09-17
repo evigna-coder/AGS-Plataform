@@ -181,7 +181,15 @@ export function OrdenCompraPDF({ oc, proveedor }: { oc: OrdenCompra; proveedor?:
                 <Text style={[S.tdMono, S.colCod]}>
                   {item.presentacion?.codigoParte || item.articuloCodigo || '-'}
                 </Text>
-                <Text style={[S.td, S.colDesc]}>{item.descripcion}</Text>
+                <View style={S.colDesc}>
+                  <Text style={S.td}>{item.descripcion}</Text>
+                  {/* Desglose del equipo (2026-09-16): el proveedor ve qué incluye. */}
+                  {(item.componentes ?? []).map((c, i) => (
+                    <Text key={i} style={[S.td, { fontSize: 6.5, color: COLORS.textMuted, marginTop: 1 }]}>
+                      {`  · ${c.cantidad} × ${c.codigo ? `${c.codigo} ` : ''}${c.descripcion}`}
+                    </Text>
+                  ))}
+                </View>
                 <Text style={[S.td, S.colCant]}>{item.cantidad}</Text>
                 <Text style={[S.td, S.colUnid]}>{item.unidadMedida}</Text>
                 <Text style={[S.td, S.colPrecio]}>{item.precioUnitario != null ? fmtMoney(item.precioUnitario, sym) : '-'}</Text>

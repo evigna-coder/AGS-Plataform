@@ -30,6 +30,7 @@ import { notify } from '../../utils/notify';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { Select } from '../../components/ui/Select';
+import { envaseDeUnidad } from '../../utils/envaseUnidad';
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 
 /** Días enteros desde una fecha ISO — cuánto hace que la pieza está afuera. */
@@ -180,6 +181,8 @@ export const UnidadesList = () => {
         matchesSearch(
           debouncedSearch, u.articuloCodigo, u.articuloDescripcion, u.nroSerie, u.nroLote,
           u.reservadoParaPresupuestoNumero, u.reservadoParaClienteNombre,
+          // El envase con el que entró (2026-09-17) y los envases que declara el base.
+          envaseDeUnidad(u),
           ...(presentacionesByArticulo.get(u.articuloId) ?? []).map(p => p.codigoParte),
         )
       );
@@ -187,26 +190,41 @@ export const UnidadesList = () => {
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [unidades, filters.estado, filters.deposito, debouncedSearch, filters.sortField, filters.sortDir, presentacionesByArticulo]);
 
+  // Una fila por artículo Y ENVASE (2026-09-17): los paquetes cerrados
+  // (unidades con `presentacion`) son una fila propia con el N° de parte del
+  // envase, contada en PAQUETES: "5185-5820 — 20", no "5182-0717 — 100". La
+  // fila del base queda con las sueltas. Buscar por el código del envase
+  // encuentra su fila (y la del base, que lo declara como presentación).
   const aggregated = useMemo((): AggRow[] => {
-    const byArticulo = new Map<string, AggRow>();
+    const byKey = new Map<string, AggRow>();
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
     filtered.forEach(u => {
-      const prev = byArticulo.get(u.articuloId) ?? {
-        articuloId: u.articuloId, codigo: u.articuloCodigo, descripcion: u.articuloDescripcion,
+      const envase = envaseDeUnidad(u);
+      const factor = envase ? (u.presentacion?.factor ?? 1) : 1;
+      const key = `${u.articuloId}|${envase ?? ''}`;
+      const pres = envase ? (presentacionesByArticulo.get(u.articuloId) ?? []).find(p => p.codigoParte === envase) : undefined;
+      const prev = byKey.get(key) ?? {
+        articuloId: u.articuloId,
+        codigo: envase ?? u.articuloCodigo,
+        descripcion: envase ? (pres?.descripcion || u.articuloDescripcion) : u.articuloDescripcion,
+        envase, factor, baseCodigo: u.articuloCodigo,
         hasSerie: false, hasLote: false, disponible: 0, reservado: 0, asignado: 0, total: 0, units: [],
       };
-      const qty = u.cantidad ?? 1;
+      const qty = (u.cantidad ?? 1) / factor;
       if (u.estado === 'disponible') prev.disponible += qty;
       else if (u.estado === 'reservado') prev.reservado += qty;
       else if (u.estado === 'asignado') prev.asignado += qty;
       if (u.nroSerie) prev.hasSerie = true;
       if (u.nroLote) prev.hasLote = true;
       prev.units.push(u);
-      byArticulo.set(u.articuloId, prev);
+      byKey.set(key, prev);
     });
-    return [...byArticulo.values()].map(row => ({
+    return [...byKey.values()].map(row => ({
       ...row,
-      total: row.disponible + row.reservado + row.asignado,
-      presentaciones: presentacionesByArticulo.get(row.articuloId),
+      disponible: r3(row.disponible), reservado: r3(row.reservado), asignado: r3(row.asignado),
+      total: r3(row.disponible + row.reservado + row.asignado),
+      // El badge de presentaciones va en la fila del base; la del envase ya es una.
+      presentaciones: row.envase ? undefined : presentacionesByArticulo.get(row.articuloId),
     }));
   }, [filtered, presentacionesByArticulo]);
 

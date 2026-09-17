@@ -1720,6 +1720,8 @@ export interface ItemOC {
    */
   requerimientoIds?: string[] | null;
   notas?: string | null;
+  /** Desglose heredado del requerimiento (sub-ítems del presupuesto); se imprime en la OC. */
+  componentes?: ComponenteRequerimiento[] | null;
   /**
    * Envase que se le compra al proveedor (Fase 2 presentaciones, 2026-08-13).
    * `articuloId` sigue siendo el artículo BASE —donde vive el stock— y acá va el
@@ -2298,6 +2300,15 @@ export interface SolicitudFacturacion {
   // --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
   /** Phase 12: 1:1 back-ref to PresupuestoCuotaFacturacion.id. null = legacy free-floating Tier-1 solicitud. */
   cuotaId?: string | null;
+  /**
+   * Cuota de CONTRATO (2026-09-16): número + moneda de `Presupuesto.cuotas[]`.
+   * En un contrato mixto cada moneda es un aviso aparte. El estado de la cuota
+   * se deriva de estas solicitudes (ver utils/cuotasContrato).
+   */
+  cuotaNumero?: number | null;
+  cuotaMoneda?: MonedaCuota | null;
+  /** Facturada FUERA del sistema (ej. sistema viejo): registro sin aviso, nace `facturada`. */
+  facturadaExterna?: { fecha: string; referencia?: string | null } | null;
   /** Phase 12: per-moneda coverage % computed at creation as (montoSolicitud[m] / totalPpto[m]) * 100. */
   porcentajeCoberturaPorMoneda?: Partial<Record<'ARS'|'USD'|'EUR', number>> | null;
   // Audit
@@ -4109,6 +4120,13 @@ export interface UnidadStock {
   nroSerie?: string | null;
   nroLote?: string | null;
   /**
+   * Envase con el que INGRESÓ (2026-09-17): 10 u. base que llegaron como
+   * "1 × 5183-4493 ×10". Solo rastro; la cantidad sigue en unidades base.
+   */
+  presentacion?: PresentacionUsada | null;
+  /** Línea de la importación de la que salió (2026-09-17): el costeo se re-estampa por línea, no por artículo. */
+  importacionItemId?: string | null;
+  /**
    * Cantidad de unidades físicas que representa este documento.
    * Para artículos con nº de serie es siempre 1 (un doc = una unidad serializada).
    * Para lotes / sin trazabilidad un solo doc puede representar N unidades iguales.
@@ -5690,6 +5708,19 @@ export interface RequerimientoDesgloseLinea {
   consolidaNumeros?: string[] | null;
 }
 
+/**
+ * Componente del desglose de un ítem de presupuesto de equipos (2026-09-16,
+ * caso P4-005166-02): el ítem principal (ej. un sniffer) genera el
+ * requerimiento y la OC, y los sub-ítems del presupuesto viajan con él como
+ * detalle — no son requerimientos propios ni líneas de la OC, pero el
+ * proveedor tiene que verlos en la orden.
+ */
+export interface ComponenteRequerimiento {
+  codigo: string | null;
+  descripcion: string;
+  cantidad: number;
+}
+
 export interface RequerimientoCompra {
   id: string;
   numero: string; // REQ-0001
@@ -5753,6 +5784,8 @@ export interface RequerimientoCompra {
    * los requerimientos generados/ajustados al aceptar un presupuesto.
    */
   desglose?: RequerimientoDesgloseLinea[] | null;
+  /** Sub-ítems del ítem de presupuesto que originó el requerimiento (ver ComponenteRequerimiento). */
+  componentes?: ComponenteRequerimiento[] | null;
 }
 
 export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';
@@ -5864,6 +5897,13 @@ export type ConceptoGastoImportacionKey = typeof CONCEPTOS_GASTO_IMPORTACION[num
 /** Conceptos que integran la base CIF (se prorratean sobre el FOB de cada ítem). */
 export const CONCEPTOS_GASTO_EN_CIF: ConceptoGastoImportacionKey[] = ['flete', 'seguro'];
 
+/**
+ * Incoterms ofrecidos en OC e importaciones. Lista ÚNICA (2026-09-16): había
+ * tres copias distintas y CPT/CIP faltaban en todas.
+ */
+export const INCOTERMS = ['EXW', 'FCA', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DDP'] as const;
+export type Incoterm = typeof INCOTERMS[number];
+
 export interface ItemImportacion {
   id: string;                                    // uuid local, not FK to another collection
   itemOCId: string;                              // ItemOC.id de origen
@@ -5879,6 +5919,14 @@ export interface ItemImportacion {
   costoUnitarioConGastos?: number | null;        // calculado al ingresar stock
   requerimientoId?: string | null;               // ItemOC.requerimientoId para cierre automático
   requerimientoIds?: string[] | null;            // ItemOC.requerimientoIds (conciliación múltiple)
+  /**
+   * Envase de la OC (2026-09-16), congelado como en ItemOC. `cantidadPedida`,
+   * `cantidadRecibida` y `precioUnitario` están EN ESTE ENVASE; el stock entra
+   * en unidades base (× factor). Al ingresar se puede recibir con OTRO envase
+   * del artículo (compró ×1000, llegó en cajas ×100): el sistema convierte.
+   * Ausente = se compró por la unidad base.
+   */
+  presentacion?: PresentacionUsada | null;
 }
 
 export interface Importacion extends TandaFotos {
@@ -5904,6 +5952,17 @@ export interface Importacion extends TandaFotos {
   despachante?: string | null;
   despachoNumero?: string | null;
   fechaDespacho?: string | null;
+  /**
+   * Derechos y tasa de estadística SEGÚN DESPACHO, en USD (2026-09-16; el
+   * despacho los liquida en dólares). Opcionales: cuando están, el costeo reemplaza el
+   * estimado (alícuota × CIF) por el real, prorrateado entre los artículos en
+   * proporción a lo estimado de cada uno, y muestra la diferencia. Cubren
+   * ajustes de aduana, ajustes a FOB y diferencias de cambio sin un campo por
+   * causa; `motivoAjusteDespacho` deja la traza en texto.
+   */
+  derechosDespacho?: number | null;
+  estadisticaDespacho?: number | null;
+  motivoAjusteDespacho?: string | null;
   // VEP
   vepNumero?: string | null;
   vepMonto?: number | null;
@@ -6662,9 +6721,16 @@ export interface UsuarioAGS {
   nombreAclaracion?: string | null;
   /** Preferencias de notificaciones push */
   notificationPreferences?: NotificationPreferences | null;
+  /** Preferencias de pantalla que siguen al usuario a cualquier PC (2026-09-17). */
+  preferencias?: PreferenciasUsuario | null;
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string;
+}
+
+export interface PreferenciasUsuario {
+  /** Pagos VEP: período de las tarjetas y qué mostrar. */
+  pagosVep?: { vista: 'semanal' | 'quincenal' | 'mensual'; tipo: '' | 'vep' | 'giro' } | null;
 }
 
 // --- Notification Preferences ---

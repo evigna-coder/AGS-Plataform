@@ -1,6 +1,6 @@
 import { collection, getDocs, getDocsFromServer, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
-import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, PresupuestoCategoria, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto, PresupuestoSubItem, PresentacionUsada } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY, categoriaFromTipoPresupuesto, formatPresupuestoNumero, ESTADO_PRESUPUESTO_LABELS, presupuestoEstaAceptado } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
@@ -24,6 +24,8 @@ import { computeStockAmplio } from './stockAmplioService';
 import { cantidadEnUnidadBase } from '@ags/shared';
 import { atpNetoFromStockAmplio } from './atpHelpers';
 import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual, tieneOCAdjunta } from '../utils/cuotasFacturacion';
+import { componentesDeItem } from '../utils/componentesRequerimiento';
+import { envasePedido, unidadSirveParaEnvase } from '../utils/envaseUnidad';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
@@ -217,6 +219,21 @@ export const presupuestosService = {
    * significaba `getAll()` + `.find()` —la coleccion entera para levantar un
    * documento—; esto es un where acotado y no necesita indice compuesto.
    */
+  /**
+   * Varios presupuestos por número, en paralelo (2026-09-14). Reemplaza el
+   * patrón `(await getAll()).find(p => p.numero === n)` que bajaba la
+   * colección entera (~260 docs) para encontrar uno o dos — se repetía en
+   * cada apertura de OT, cada cierre y cada vínculo (medido: 18.666 docs de
+   * presupuestos en una tarde de cierres). Devuelve null en la posición de
+   * los que no existen; un error de lectura cuenta como no encontrado.
+   */
+  async getByNumeros(numeros: string[]): Promise<Array<Presupuesto | null>> {
+    return Promise.all(numeros.map(n => this.getByNumero(n).catch(err => {
+      console.warn(`[presupuestosService.getByNumeros] ${n}:`, err);
+      return null;
+    })));
+  },
+
   async getByNumero(numero: string): Promise<Presupuesto | null> {
     const n = (numero ?? '').trim();
     if (!n) return null;
@@ -316,7 +333,7 @@ export const presupuestosService = {
   async generarRequerimientosParaItems(
     presupuestoId: string,
     presupuestoNumero: string,
-    items: Array<{ id?: string | null; stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
+    items: Array<{ id?: string | null; stockArticuloId?: string | null; descripcion: string; cantidad: number; subItems?: PresupuestoSubItem[] | null; presentacion?: PresentacionUsada | null }>,
     /** forzar (2026-07-31): crear el requerimiento AUNQUE el ATP cubra la
      *  cantidad — el vendedor quiere comprar igual (venta certera, ppto enviado
      *  sin aceptar). El caller avisa antes que el stock alcanzaba. */
@@ -340,14 +357,17 @@ export const presupuestosService = {
       // por el flip de estado al reservar — restarlo de nuevo inflaba los requerimientos).
       const stockProyectado = atpNetoFromStockAmplio(sa);
       const stockMinimo = articulo?.stockMinimo ?? 0;
-      const qtyResultante = stockProyectado - item.cantidad;
+      // En unidades BASE (2026-09-17): un ítem cotizado por envase (2 × kit ×10)
+      // necesita 20 unidades del pool, no 2.
+      const necesarias = cantidadEnUnidadBase(item.cantidad, item.presentacion);
+      const qtyResultante = stockProyectado - necesarias;
 
-      const cubreStock = qtyResultante >= stockMinimo && stockProyectado >= item.cantidad;
+      const cubreStock = qtyResultante >= stockMinimo && stockProyectado >= necesarias;
       if (!cubreStock || opts?.forzar) {
         // Forzado con stock que cubre: se pide la cantidad del ítem (no hay faltante que calcular).
         const qtyReq = cubreStock
-          ? Math.max(item.cantidad, 1)
-          : Math.max(stockMinimo - qtyResultante, item.cantidad - stockProyectado, 1);
+          ? Math.max(necesarias, 1)
+          : Math.max(stockMinimo - qtyResultante, necesarias - stockProyectado, 1);
         await requerimientosService.create({
           articuloId: item.stockArticuloId,
           articuloCodigo: articulo?.codigo ?? null,
@@ -363,6 +383,7 @@ export const presupuestosService = {
           presupuestoId,
           presupuestoNumero,
           presupuestoItemId: item.id ?? null, // join key del visor de entregas (UAT 2026-07-16: sin esto la fila no muestra la OC)
+          componentes: componentesDeItem(item),
           proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
           proveedorSugeridoNombre: null,
           ordenCompraId: null,
@@ -1223,8 +1244,9 @@ export const presupuestosService = {
           articuloId: item.stockArticuloId,
           articuloCodigo: item.codigoProducto || articulo?.codigo || null,
           articuloDescripcion: item.descripcion || articulo?.descripcion || '',
-          cantidad: item.cantidad,
-          unidadMedida: item.unidad || articulo?.unidadMedida || 'unidad',
+          // Unidades BASE (2026-09-17): la línea puede estar cotizada por envase.
+          cantidad: cantidadEnUnidadBase(item.cantidad, item.presentacion ?? null),
+          unidadMedida: articulo?.unidadMedida || item.unidad || 'unidad',
           motivo: 'Auto — items sin stock en presupuesto aceptado',
           origen: 'presupuesto',
           origenRef: presupuestoId,
@@ -1233,6 +1255,7 @@ export const presupuestosService = {
           presupuestoId,
           presupuestoNumero: pp.numero,
           presupuestoItemId: item.id ?? null,    // (Phase 16) join key para visor de entregas
+          componentes: componentesDeItem(item),
           proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
           proveedorSugeridoNombre: null,
           ordenCompraId: null,
@@ -1383,17 +1406,23 @@ export const presupuestosService = {
       // encontrara el req del primero y lo AJUSTARA a su propia cantidad — el
       // pedido quedaba por 3 en vez de 6. Se procesa cada artículo UNA vez con
       // la suma de todos sus ítems (en unidades base).
+      // …y por ENVASE (2026-09-17): un kit cerrado no se reserva contra packs
+      // sueltos ni al revés. La clave es artículo + envase pedido.
+      const claveDe = (it: { stockArticuloId?: string | null; presentacion?: PresentacionUsada | null }) =>
+        `${it.stockArticuloId}|${envasePedido(it.presentacion ?? null) ?? ''}`;
       const cantidadBasePorArticulo = new Map<string, number>();
       for (const it of itemsConStock) {
-        const artId = it.stockArticuloId!;
-        cantidadBasePorArticulo.set(artId,
-          (cantidadBasePorArticulo.get(artId) ?? 0) + cantidadEnUnidadBase(it.cantidad, it.presentacion));
+        const clave = claveDe(it);
+        cantidadBasePorArticulo.set(clave,
+          (cantidadBasePorArticulo.get(clave) ?? 0) + cantidadEnUnidadBase(it.cantidad, it.presentacion));
       }
       const articulosProcesados = new Set<string>();
 
       for (const item of itemsConStock) {
-        if (articulosProcesados.has(item.stockArticuloId!)) continue;
-        articulosProcesados.add(item.stockArticuloId!);
+        const clave = claveDe(item);
+        if (articulosProcesados.has(clave)) continue;
+        articulosProcesados.add(clave);
+        const envase = envasePedido(item.presentacion ?? null);
         try {
           const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
           const unidadesRaw = await unidadesService
@@ -1404,24 +1433,30 @@ export const presupuestosService = {
           // moverlas a RESERVAS las sacaría del minikit en los papeles sin salida física.
           // Su baja se concilia al consumir el kit (reservasService.saldarConsumoMinikit).
           // UAT 2026-07-23 (antes el comentario decía que excluía minikits pero el filtro no).
-          const unidades = unidadesRaw.filter(u => u.ubicacion?.tipo !== 'ingeniero' && u.ubicacion?.tipo !== 'minikit');
+          // Solo las del ENVASE pedido (2026-09-17): lo demás no cubre este ítem.
+          const unidades = unidadesRaw.filter(u => u.ubicacion?.tipo !== 'ingeniero' && u.ubicacion?.tipo !== 'minikit'
+            && unidadSirveParaEnvase(u, envase));
           // Float de kits: stock disponible del artículo que vive dentro de minikits. Cuenta
           // como COBERTURA (comportamiento A): si el estante no alcanza pero el kit sí, no es
           // faltante de compra — el ingeniero ya lo lleva. Se repone el kit al consumirlo.
           const qtyEnKits = unidadesRaw
-            .filter(u => u.ubicacion?.tipo === 'minikit')
+            .filter(u => u.ubicacion?.tipo === 'minikit' && unidadSirveParaEnvase(u, envase))
             .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
-          // Cantidad FÍSICA disponible (para el chequeo de stock mínimo): estante + kits.
+          // Cantidad FÍSICA disponible del envase pedido: estante + kits.
           // Sumar u.cantidad (un doc puede ser un lote con cantidad > 1); contar docs
           // sobre-contaba/sobre-reservaba.
           const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0)
             + qtyEnKits;
+          // Todo el artículo, cualquier envase: el stock MÍNIMO es del artículo en unidad base.
+          const qtyDisponibleTotal = unidadesRaw
+            .filter(u => u.ubicacion?.tipo !== 'ingeniero')
+            .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
           const stockMinimo = articulo?.stockMinimo ?? 0;
           // Cantidad en UNIDADES BASE (Fase 3 presentaciones, 2026-08-13),
-          // SUMADA sobre todos los ítems del ppto con este artículo (2026-08-28).
-          const cantidadBase = cantidadBasePorArticulo.get(item.stockArticuloId!)
+          // SUMADA sobre todos los ítems del ppto con este artículo y envase (2026-08-28).
+          const cantidadBase = cantidadBasePorArticulo.get(clave)
             ?? cantidadEnUnidadBase(item.cantidad, item.presentacion);
-          const qtyResultante = qtyDisponible - cantidadBase;
+          const qtyResultanteTotal = qtyDisponibleTotal - cantidadBase;
 
           // Auto-req: la ACEPTACIÓN manda (2026-08-04). Si ya hay un req
           // pendiente/aprobado para este (presupuesto, artículo) — generado a
@@ -1432,9 +1467,13 @@ export const presupuestosService = {
           // OJO (UAT 2026-07-16, duplicados REQ): query directa con 2 igualdades
           // (sin orderBy, sin índice) y FAIL-SAFE: si el chequeo falla, NO
           // crear ni ajustar (mejor un req de menos que duplicados).
-          const qtyReq = qtyResultante < stockMinimo
-            ? Math.max(stockMinimo - qtyResultante, cantidadBase - qtyDisponible)
-            : 0;
+          // Faltante del cliente: contra el envase pedido. Reposición del mínimo:
+          // contra el artículo entero (un kit cerrado sigue siendo stock del artículo).
+          const faltanteCliente = Math.max(cantidadBase - qtyDisponible, 0);
+          const qtyReq = Math.max(
+            qtyResultanteTotal < stockMinimo ? stockMinimo - qtyResultanteTotal : 0,
+            faltanteCliente,
+          );
 
           // ── Desglose + consolidación de stock mínimo (2026-08-12, caso G1530-67950) ──
           // qtyReq ya SUMA la reposición del mínimo, pero el requerimiento de
@@ -1443,7 +1482,7 @@ export const presupuestosService = {
           // el comprador: el req del presupuesto absorbe el del sweep, éste se
           // cancela referenciando la consolidación, y el desglose cliente/mínimo
           // queda registrado en el requerimiento que sobrevive.
-          const parteCliente = Math.min(qtyReq, Math.max(cantidadBase - qtyDisponible, 0));
+          const parteCliente = Math.min(qtyReq, faltanteCliente);
           const parteMinimo = qtyReq - parteCliente;
           let reqsMinimoPrevios: RequerimientoCompra[] = [];
           if (qtyReq > 0) {
@@ -1580,6 +1619,7 @@ export const presupuestosService = {
                 presupuestoId,
                 presupuestoNumero: pres.numero ?? null,
                 presupuestoItemId: item.id ?? null, // join key del visor de entregas
+                componentes: componentesDeItem(item),
                 proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
                 proveedorSugeridoNombre: null,
                 ordenCompraId: null,
@@ -2192,8 +2232,10 @@ export const presupuestosService = {
     const { facturacionService } = await import('./facturacionService');
 
     // ── Check 1: todas las work-unit OTs vinculadas en FINALIZADO ─────────
-    const allOTs = await ordenesTrabajoService.getAll();
-    const otsForPres = allOTs.filter(o => (o.budgets || []).includes(pres.numero));
+    // Solo las OTs que llevan este presupuesto en `budgets` (2026-09-14):
+    // antes bajaba la colección `reportes` ENTERA (~4.400 docs) para filtrar
+    // en memoria, en cada cierre y por cada presupuesto vinculado.
+    const otsForPres = await ordenesTrabajoService.queryByBudget(pres.numero);
     if (otsForPres.length === 0) return; // sin OTs aún, nada que finalizar
 
     // Work-unit = (tiene punto → child) OR (sin punto AND sin children entre los OTs).
@@ -2427,6 +2469,9 @@ ${linea}`,
       cuotaId?: string;                                              // Phase 12 anticipo back-ref
       /** Lote de certificación que respalda el aviso (2026-09-07). */
       certificacionId?: string;
+      /** Cuota de CONTRATO (2026-09-16): un aviso por cuota y moneda. */
+      cuotaNumero?: number;
+      cuotaMoneda?: MonedaCuota;
     },
     actor?: { uid: string; name?: string },
   ): Promise<{ solicitudId: string }> {
@@ -2590,10 +2635,13 @@ ${linea}`,
           subtotal: it.subtotal,
         })),
         montoTotal: extras?.monto ?? pres.total,
-        moneda: pres.moneda,
+        // Cuota de contrato: el aviso es de UNA moneda aunque el ppto sea mixto.
+        moneda: extras?.cuotaMoneda ?? pres.moneda,
         estado: 'pendiente' as const,
         otNumbers,
         cuotaId: cuotaTarget?.id ?? null,                            // BILL-03 back-ref
+        cuotaNumero: extras?.cuotaNumero ?? null,
+        cuotaMoneda: extras?.cuotaMoneda ?? null,
         montoPorMoneda: resolvedMontoPorMoneda,                       // BILL-04
         porcentajeCoberturaPorMoneda,                                 // BILL-04 derived
         ordenesCompraIds: pres.ordenesCompraIds || [],

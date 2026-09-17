@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import { costoUnitarioVigente, factorImportacionVigente } from '@ags/shared';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
+import { envaseDeUnidad } from '../../utils/envaseUnidad';
+import { unidadesService } from '../../services/stockService';
+import { useConfirm } from '../ui/ConfirmDialog';
+import { notify } from '../../utils/notify';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
@@ -25,6 +29,8 @@ interface Grupo {
 const grupoKey = (u: UnidadStock): string => {
   if (u.nroSerie) return `serie:${u.id}`; // serializadas nunca se unifican
   return [
+    // Envase (2026-09-17): un kit cerrado no se unifica con las sueltas.
+    envaseDeUnidad(u) ?? '',
     u.nroLote ?? '', u.condicion, u.estado,
     u.reservadoParaPresupuestoNumero ?? '',
     u.ubicacion.tipo, u.ubicacion.referenciaId ?? '',
@@ -39,10 +45,16 @@ const CostoFactorCell = ({ u }: { u: UnidadStock }) => {
   const factor = factorImportacionVigente(u);
   if (costo == null && factor == null) return <span className="text-slate-300">—</span>;
   const confirmado = !!u.costeoConfirmadoAt;
+  // Paquete cerrado (2026-09-17): el costo guardado es por unidad BASE; se
+  // muestra por paquete, con el de base al lado.
+  const envaseFactor = u.presentacion?.factor && u.presentacion.factor > 1 ? u.presentacion.factor : 1;
   return (
     <span className="inline-flex flex-col items-end leading-tight">
       {costo != null && (
-        <span className="font-mono text-slate-700 tabular-nums">{u.monedaCosto ?? 'USD'} {costo.toFixed(2)}</span>
+        <span className="font-mono text-slate-700 tabular-nums" title={envaseFactor > 1 ? `Por paquete de ${envaseFactor}; ${costo.toFixed(2)} por unidad base` : undefined}>
+          {u.monedaCosto ?? 'USD'} {(costo * envaseFactor).toFixed(2)}
+          {envaseFactor > 1 && <span className="text-[9px] text-slate-400"> /paq. · {costo.toFixed(2)} /u.</span>}
+        </span>
       )}
       {factor != null && (
         <span className={`font-mono text-[10px] tabular-nums ${confirmado ? 'text-teal-600' : 'text-amber-600'}`}
@@ -68,6 +80,21 @@ interface Props {
 
 export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiberarGrupo }: Props) => {
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
+  const confirm = useConfirm();
+  const abrirPaquete = async (u: UnidadStock) => {
+    const envase = envaseDeUnidad(u);
+    if (!envase) return;
+    const paquetes = Math.round(((u.cantidad ?? 1) / (u.presentacion?.factor ?? 1)) * 1000) / 1000;
+    const ok = await confirm(`¿Abrir ${paquetes} × ${envase} y pasarlo a ${u.cantidad ?? 1} unidad(es) suelta(s) de ${u.articuloCodigo}? A partir de ahí cuentan como stock suelto y no se pueden vender como ${envase}.`);
+    if (!ok) return;
+    try {
+      await unidadesService.abrirPaquete(u.id);
+      notify.success('Paquete abierto: ahora son unidades sueltas.');
+    } catch (err) {
+      console.error('[UnidadesSubTable] abrirPaquete:', err);
+      notify.error(err instanceof Error ? err.message : 'No se pudo abrir el paquete');
+    }
+  };
   const grupos = useMemo<Grupo[]>(() => {
     const map = new Map<string, Grupo>();
     for (const u of units) {
@@ -92,6 +119,12 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
       <tr key={esGrupo ? opts.grupo!.key : u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''} ${opts.tanda ? 'bg-slate-50/70' : ''}`}>
         <td className="px-2 py-1.5 text-right font-semibold text-slate-700">
           {opts.tanda && <span className="text-slate-300 mr-1">└</span>}{cantidad}
+          {/* Envase con que entró (2026-09-17): 10 u. base que son "1 × 5183-4493 ×10". */}
+          {!esGrupo && u.presentacion && u.presentacion.factor > 1 && (
+            <span className="block text-[9px] font-mono text-slate-400 whitespace-nowrap" title="Envase con el que ingresó">
+              {Math.round(((u.cantidad ?? 1) / u.presentacion.factor) * 1000) / 1000} × {u.presentacion.codigoParte} (×{u.presentacion.factor})
+            </span>
+          )}
         </td>
         <td className="px-2 py-1.5 font-mono text-slate-700">{u.nroSerie || '—'}</td>
         <td className="px-2 py-1.5 font-mono text-slate-600">{u.nroLote || '—'}</td>
@@ -140,6 +173,11 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
                 <button onClick={() => onLiberar(u)} className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-50">Liberar</button>
               )}
               <button onClick={() => onAjustar([u])} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
+              {/* Abrir paquete (2026-09-17): el único paso de un envase a sueltas. */}
+              {u.estado === 'disponible' && envaseDeUnidad(u) && (
+                <button onClick={() => void abrirPaquete(u)} title="Pasar este paquete cerrado a unidades sueltas del artículo base"
+                  className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50">Abrir paquete</button>
+              )}
             </>
           )}
         </td>

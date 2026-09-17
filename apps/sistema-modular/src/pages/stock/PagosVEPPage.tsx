@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Importacion, PagoExterior } from '@ags/shared';
-import { buildEventos, totalPendiente, proximoPago, groupByMes, pagosPendientes, diasDeAtraso, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
+import { buildEventos, totalPendiente, proximoPago, groupByPeriodo, filtrarEventosPorTipo, pagosPendientes, diasDeAtraso, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo, type VistaFlujo, type FiltroTipoFlujo } from '@ags/shared';
+import { usePreferenciaUsuario } from '../../hooks/usePreferenciaUsuario';
+import { FlujoFondosFiltros } from '../../components/stock/FlujoFondosFiltros';
 import { importacionesService } from '../../services/firebaseService';
 import { pagosExteriorService } from '../../services/pagosExteriorService';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -12,6 +14,11 @@ import { PagoExteriorModal } from '../../components/stock/PagoExteriorModal';
 import { buildPagosVEPExportRows, PAGOS_VEP_EXPORT_COLUMNS } from '../../utils/exports/exportPagosVEP';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+
+// Vista y tipo a gusto de cada usuario (2026-09-17): es una preferencia del
+// USUARIO (doc de `usuarios`), no de la pestaña — lo sigue a cualquier PC.
+// Por eso no va por useUrlFilters como los filtros de lista.
+const PREF_DEFAULT = { vista: 'mensual', tipo: '' } as const;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
@@ -86,6 +93,9 @@ export const PagosVEPPage = () => {
   // Carga manual de pagos (2026-08-06): puente hasta que la rueda de OCs corra sola.
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<PagoExterior | null>(null);
+  const [pref, setPref] = usePreferenciaUsuario('pagosVep', PREF_DEFAULT);
+  const vista = (['semanal', 'quincenal', 'mensual'].includes(pref.vista) ? pref.vista : 'mensual') as VistaFlujo;
+  const tipo = (['vep', 'giro'].includes(pref.tipo) ? pref.tipo : '') as FiltroTipoFlujo;
 
   const load = useCallback(() => {
     setLoading(true);
@@ -98,7 +108,8 @@ export const PagosVEPPage = () => {
   useEffect(() => { load(); }, [load]);
 
   const { meses, girosUSD, girosEUR, vepARS, prox, futurosCount, vencidos, hoyStr } = useMemo(() => {
-    const eventos = buildEventos(importaciones, pagosManuales);
+    // Las tarjetas y los períodos siguen el filtro de tipo: "solo VEP" es solo VEP en todo.
+    const eventos = filtrarEventosPorTipo(buildEventos(importaciones, pagosManuales), tipo);
     // Un pago sale de la lista SOLO cuando se confirma que se pagó (2026-09-03).
     // Antes se filtraba por fecha futura, así que un VEP que vencía sin pagarse
     // desaparecía — justo el que hay que vigilar cuando el pago se demora.
@@ -106,7 +117,7 @@ export const PagosVEPPage = () => {
     const { vencidos, proximos } = pagosPendientes(eventos, hoyStr);
     const futuros = [...vencidos, ...proximos];
     return {
-      meses: groupByMes(futuros),
+      meses: groupByPeriodo(futuros, vista),
       girosUSD: totalPendiente(eventos, 'giro', 'USD'),
       girosEUR: totalPendiente(eventos, 'giro', 'EUR'),
       vepARS: totalPendiente(eventos, 'vep', 'ARS'),
@@ -115,7 +126,7 @@ export const PagosVEPPage = () => {
       vencidos,
       hoyStr,
     };
-  }, [importaciones, pagosManuales]);
+  }, [importaciones, pagosManuales, vista, tipo]);
 
   const exportRows = useMemo(() => buildPagosVEPExportRows(meses), [meses]);
 
@@ -132,10 +143,11 @@ export const PagosVEPPage = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Pagos VEP" subtitle="Flujo de fondos comercio exterior — VEP, giros y arribos por mes"
+      <PageHeader title="Pagos VEP" subtitle="Flujo de fondos comercio exterior — VEP, giros y arribos"
         count={loading ? undefined : futurosCount}
         actions={
           <>
+            <FlujoFondosFiltros vista={vista} tipo={tipo} onVista={v => setPref({ vista: v })} onTipo={t => setPref({ tipo: t })} />
             <ExportarButton
               columnas={PAGOS_VEP_EXPORT_COLUMNS}
               data={exportRows}
@@ -163,13 +175,13 @@ export const PagosVEPPage = () => {
               <Kpi label="VEP pendientes" value={`ARS ${fmt(vepARS)}`} sub="a pagar a aduana" accent="text-amber-700" />
               <Kpi label={vencidos.length > 0 ? 'Vencidos sin pagar' : 'Eventos pendientes'}
                 value={vencidos.length > 0 ? String(vencidos.length) : String(futurosCount)}
-                sub={vencidos.length > 0 ? `de ${futurosCount} pendientes` : 'VEP + giros + arribos'}
+                sub={vencidos.length > 0 ? `de ${futurosCount} pendientes` : tipo === 'vep' ? 'solo VEP' : tipo === 'giro' ? 'solo giros' : 'VEP + giros + arribos'}
                 accent={vencidos.length > 0 ? 'text-red-700' : undefined} />
             </div>
 
             {meses.length === 0 ? (
               <Card compact>
-                <p className="text-center py-10 text-sm text-slate-400">Sin pagos ni arribos pendientes</p>
+                <p className="text-center py-10 text-sm text-slate-400">{tipo === 'vep' ? 'Sin VEP pendientes' : tipo === 'giro' ? 'Sin giros pendientes' : 'Sin pagos ni arribos pendientes'}</p>
               </Card>
             ) : (
               <div className="space-y-4">

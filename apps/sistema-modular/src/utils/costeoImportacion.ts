@@ -40,6 +40,9 @@ export interface LineaCosteoItem {
   itemId: string;
   descripcion: string;
   articuloCodigo: string | null;
+  /** Envase de la línea (2026-09-17): N° de parte con el que se compró y su factor. */
+  presentacionCodigo: string | null;
+  presentacionFactor: number | null;
   posicionArancelaria: string | null;
   derechoPct: number;       // % de derecho aplicado (para verificar la posición)
   estadisticaPct: number;
@@ -49,6 +52,9 @@ export interface LineaCosteoItem {
   cif: number;
   derechos: number;
   estadistica: number;
+  /** Estimados por alícuota (iguales a derechos/estadistica si no hay valores según despacho). */
+  derechosEstimados: number;
+  estadisticaEstimada: number;
   iva: number;
   ivaAdicional: number;
   ganancias: number;
@@ -70,6 +76,14 @@ export interface CosteoImportacion {
   cifTotal: number;
   derechos: number;
   estadistica: number;
+  /**
+   * Según despacho (2026-09-16): estimados por alícuota y si el real reemplazó
+   * al estimado. `derechos`/`estadistica` ya son el valor vigente (real si lo hay).
+   */
+  derechosEstimados: number;
+  estadisticaEstimada: number;
+  derechosSegunDespacho: boolean;
+  estadisticaSegunDespacho: boolean;
   iva: number;
   ivaAdicional: number;
   ganancias: number;
@@ -117,6 +131,9 @@ export function computeCosteoImportacion(input: {
   paseEurUsd?: number | null;
   /** Régimen courier (puerta a puerta): sin percepciones. Ver `esCourier` abajo. */
   esCourier?: boolean | null;
+  /** Derechos y estadística según despacho, en USD (ver Importacion.derechosDespacho). */
+  derechosDespacho?: number | null;
+  estadisticaDespacho?: number | null;
 }): CosteoImportacion {
   // Régimen COURIER (regla del dueño 2026-08-06/07): SOLO tributa los derechos
   // de la posición arancelaria y el IVA. NO paga tasa de estadística, IVA
@@ -152,16 +169,35 @@ export function computeCosteoImportacion(input: {
   const gastosReales = input.gastos.reduce((s, g) => s + toUsd(g.monto || 0, g.moneda), 0);
   const finPct = COSTO_FINANCIERO_PCT / 100;
 
-  // 2) Línea de costeo por ítem: CIF + gravámenes + costo computable + factor.
-  const lineas: LineaCosteoItem[] = fobByItem.map(({ item, fob }) => {
+  // 2) Estimados por ítem: CIF y derechos/estadística por alícuota.
+  const base = fobByItem.map(({ item, fob }) => {
     const peso = fobTotal > 0 ? fob / fobTotal : 0;
     const cif = fob + peso * adicionalCif;
     const art = item.articuloId ? input.articulosById.get(item.articuloId) : null;
     const trat = art?.tratamientoArancelario ?? null;
-
-    const derechos = cif * pct(trat?.derechoImportacion, DEFAULTS.derechoImportacion);
+    const derechosEst = cif * pct(trat?.derechoImportacion, DEFAULTS.derechoImportacion);
     // Courier: tampoco paga tasa de estadística (confirmado 2026-08-07).
-    const estadistica = esCourier ? 0 : cif * pct(trat?.estadistica, DEFAULTS.estadistica);
+    const estadisticaEst = esCourier ? 0 : cif * pct(trat?.estadistica, DEFAULTS.estadistica);
+    return { item, fob, peso, cif, art, trat, derechosEst, estadisticaEst };
+  });
+  const derechosEstTotal = base.reduce((a, b) => a + b.derechosEst, 0);
+  const estadisticaEstTotal = base.reduce((a, b) => a + b.estadisticaEst, 0);
+
+  // 3) Reales según despacho (2026-09-16), en USD. Reemplazan al estimado y se
+  // reparten entre los artículos en proporción a lo estimado de cada uno (los
+  // derechos varían por posición arancelaria: un artículo al 35 % absorbe más
+  // diferencia que uno al 0 %). Si nada tenía estimado (todo 0 %) se reparte
+  // por valor. Vacío o cero = no cargado.
+  const real = (usd: number | null | undefined): number | null => (usd != null && usd > 0 ? usd : null);
+  const derechosReal = real(input.derechosDespacho);
+  const estadisticaReal = esCourier ? null : real(input.estadisticaDespacho);
+  const repartir = (real: number, est: number, estTotal: number, peso: number): number =>
+    estTotal > 0 ? real * (est / estTotal) : real * peso;
+
+  // 4) Línea de costeo por ítem: CIF + gravámenes + costo computable + factor.
+  const lineas: LineaCosteoItem[] = base.map(({ item, fob, peso, cif, art, trat, derechosEst, estadisticaEst }) => {
+    const derechos = derechosReal != null ? repartir(derechosReal, derechosEst, derechosEstTotal, peso) : derechosEst;
+    const estadistica = estadisticaReal != null ? repartir(estadisticaReal, estadisticaEst, estadisticaEstTotal, peso) : estadisticaEst;
     const baseImponible = cif + derechos + estadistica;
     const iva = baseImponible * pct(trat?.iva, DEFAULTS.iva);
     // Percepciones: no aplican en courier.
@@ -182,12 +218,15 @@ export function computeCosteoImportacion(input: {
     return {
       itemId: item.id, descripcion: item.descripcion,
       articuloCodigo: item.articuloCodigo ?? null,
+      presentacionCodigo: item.presentacion?.codigoParte ?? null,
+      presentacionFactor: item.presentacion?.factor ?? null,
       posicionArancelaria: art?.posicionArancelaria ?? null,
       derechoPct: trat?.derechoImportacion ?? DEFAULTS.derechoImportacion,
       estadisticaPct: trat?.estadistica ?? DEFAULTS.estadistica,
       ivaPct: trat?.iva ?? DEFAULTS.iva,
       sinTratamiento: !trat,
-      fob, cif, derechos, estadistica, iva, ivaAdicional, ganancias, iibb, gravamenes,
+      fob, cif, derechos, estadistica, derechosEstimados: derechosEst, estadisticaEstimada: estadisticaEst,
+      iva, ivaAdicional, ganancias, iibb, gravamenes,
       costoComputable, factor,
     };
   });
@@ -217,6 +256,8 @@ export function computeCosteoImportacion(input: {
     moneda: 'USD', monedaEmbarque, paseEurUsd: pase, tipoCambio: tc,
     fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
     derechos, estadistica, iva, ivaAdicional, ganancias, iibb, arancelSim,
+    derechosEstimados: derechosEstTotal, estadisticaEstimada: estadisticaEstTotal,
+    derechosSegunDespacho: derechosReal != null, estadisticaSegunDespacho: estadisticaReal != null,
     totalGravamenes, gastosReales, costoTotal, costoTotalARS,
     costoFinanciero, costoComputable, factorEmbarque, lineas,
   };

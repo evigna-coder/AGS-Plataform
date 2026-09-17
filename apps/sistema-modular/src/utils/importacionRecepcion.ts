@@ -6,9 +6,17 @@ import type { Importacion, ItemImportacion } from '@ags/shared';
  * suma en cada recepción. No hay campo espejo que pueda desincronizarse.
  */
 
-/** Cantidad que falta ingresar de un ítem (pedido − recibido acumulado, piso 0). */
+/** Cantidad que falta ingresar de un ítem (pedido − recibido acumulado, piso 0), en el envase de la OC. */
 export const pendienteDeItem = (it: ItemImportacion): number =>
   Math.max(0, (it.cantidadPedida || 0) - (it.cantidadRecibida ?? 0));
+
+/** Unidades base por 1 del envase de la OC del ítem (1 si se compró por la unidad base). */
+export const factorDeItem = (it: Pick<ItemImportacion, 'presentacion'>): number =>
+  it.presentacion?.factor && it.presentacion.factor > 0 ? it.presentacion.factor : 1;
+
+/** Lo pendiente en unidades BASE (lo que efectivamente entra al stock). */
+export const pendienteBaseDeItem = (it: ItemImportacion): number =>
+  Math.round(pendienteDeItem(it) * factorDeItem(it) * 1000) / 1000;
 
 export interface ResumenRecepcion {
   /** Total de unidades pedidas en el embarque. */

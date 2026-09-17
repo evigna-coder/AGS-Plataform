@@ -436,7 +436,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       for (const numero of budgetsQuitados) {
         try {
           const pres = presupuestosCliente.find(p => p.numero === numero)
-            ?? (await presupuestosService.getAll()).find(p => p.numero === numero);
+            ?? await presupuestosService.getByNumero(numero);
           if (!pres) continue;
           const restantes = (pres.otsVinculadasNumbers ?? []).filter(n => n !== otNumber);
           await presupuestosService.update(pres.id, deepCleanForFirestore({
@@ -459,7 +459,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       for (const numero of budgetsFinal) {
         try {
           const pres = presupuestosCliente.find(p => p.numero === numero)
-            ?? (await presupuestosService.getAll()).find(p => p.numero === numero);
+            ?? await presupuestosService.getByNumero(numero);
           if (!pres) continue;
           const prev = pres.otsVinculadasNumbers ?? [];
           if (prev.includes(otNumber) && pres.otVinculadaNumber) continue; // ya vinculado

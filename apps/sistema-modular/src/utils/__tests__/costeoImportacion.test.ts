@@ -54,7 +54,7 @@ const items = [{
   moneda: 'EUR',
 }] as unknown as ItemImportacion[];
 
-const costeo = computeCosteoImportacion({
+const BASE_ARGS = {
   items,
   articulosById: new Map([['art-1', articulo]]),
   gastos: [],
@@ -65,7 +65,8 @@ const costeo = computeCosteoImportacion({
   monedaSeguro: 'EUR',
   tipoCambio: 1503,
   paseEurUsd: PASE,
-});
+};
+const costeo = computeCosteoImportacion(BASE_ARGS);
 
 // ── Valor en aduana ────────────────────────────────────────────────────────
 cerca('FOB en dólares', costeo.fobTotal, FOB_USD);
@@ -135,5 +136,28 @@ cerca('base imponible', costeo.lineas[0].cif + costeo.derechos + costeo.estadist
   assert.ok(courier.derechos > 0 && courier.iva > 0, 'courier sí tributa derechos e IVA');
 }
 
+// ── Según despacho (2026-09-16): el real (USD) reemplaza al estimado, prorrateado ──
+// Sobre régimen GENERAL (el despacho base es courier y ahí la estadística no existe).
+{
+  const general = computeCosteoImportacion({ ...BASE_ARGS, esCourier: false });
+  const derechosRealUsd = general.derechos * 1.02;   // aduana liquidó 2 % de más
+  // +10 USD absolutos: el fixture tiene estadística 0 % y con un real en cero no hay nada que reemplazar.
+  const estadisticaRealUsd = general.estadistica * 0.98 + 10;
+  const conReal = computeCosteoImportacion({
+    ...BASE_ARGS, esCourier: false, derechosDespacho: derechosRealUsd, estadisticaDespacho: estadisticaRealUsd,
+  });
+  cerca('despacho: derechos = real', conReal.derechos, derechosRealUsd);
+  cerca('despacho: estadística = real', conReal.estadistica, estadisticaRealUsd);
+  cerca('despacho: estimado conservado', conReal.derechosEstimados, general.derechos);
+  assert.ok(conReal.derechosSegunDespacho && conReal.estadisticaSegunDespacho, 'despacho: marca de real');
+  cerca('despacho: la suma de líneas da el real', conReal.lineas.reduce((a, l) => a + l.derechos, 0), derechosRealUsd);
+  assert.ok(conReal.factorEmbarque > general.factorEmbarque, 'despacho: más derechos → más factor');
+  const vacio = computeCosteoImportacion({ ...BASE_ARGS, esCourier: false, derechosDespacho: 0, estadisticaDespacho: null });
+  assert.ok(!vacio.derechosSegunDespacho && vacio.derechos === general.derechos, 'despacho: cero/ausente = estimado');
+  // Courier: la estadística según despacho no aplica aunque venga cargada.
+  const courierReal = computeCosteoImportacion({ ...BASE_ARGS, esCourier: true, estadisticaDespacho: 50 });
+  assert.ok(!courierReal.estadisticaSegunDespacho && courierReal.estadistica === 0, 'despacho: courier sigue sin estadística');
+}
+
 if (fallos > 0) { console.error(`\n❌ costeoImportacion: ${fallos} fallo(s)`); process.exit(1); }
-console.log('✅ costeoImportacion: 22 checks OK (contrastado contra el despacho 26001IC04780007)');
+console.log('✅ costeoImportacion: 27 checks OK (contrastado contra el despacho 26001IC04780007)');

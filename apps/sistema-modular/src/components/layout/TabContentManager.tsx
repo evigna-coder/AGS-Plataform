@@ -7,6 +7,8 @@ import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { useLandingPath } from './navigation';
 import { LoadingState } from '../ui/LoadingState';
 import { marcarPantalla } from '../../utils/perfReads';
+import { useAuth } from '../../contexts/AuthContext';
+import { sweepCuotasContrato } from '../../utils/sweepCuotasContrato';
 
 // ── Páginas a demanda (2026-09-11, fase 1 de .claude/plans/performance.md) ──
 // Cada módulo (carpeta de pages/) es un chunk propio que se baja recién al
@@ -362,6 +364,22 @@ function AppRoutes() {
 export function TabContentManager() {
   const { tabs, activeTabId } = useTabs();
   useEffect(() => { precargarModulosEnIdle(); }, []);
+
+  // Aviso automático de cuotas de contrato (2026-09-16): la primera PC con
+  // permiso de facturación que abre la app el primer día hábil del mes (o
+  // después) genera los avisos del mes. Arranca a los 20 s para no competir
+  // con la carga inicial. Ver utils/sweepCuotasContrato.
+  const { hasRole, firebaseUser, usuario } = useAuth();
+  const puedeFacturar = hasRole('admin', 'admin_contable', 'administracion');
+  useEffect(() => {
+    if (!puedeFacturar || !firebaseUser?.uid) return;
+    const actor = { uid: firebaseUser.uid, name: usuario?.displayName };
+    const t = setTimeout(() => {
+      sweepCuotasContrato(actor).catch(err => console.warn('[sweepCuotasContrato]', err));
+    }, 20_000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeFacturar, firebaseUser?.uid]);
   const montadas = useRef(new Set<string>());
   montadas.current.add(activeTabId);
   const abiertas = new Set(tabs.map(t => t.id));

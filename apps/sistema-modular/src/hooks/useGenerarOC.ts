@@ -35,6 +35,8 @@ function reqToItemOC(r: RequerimientoCompra): ItemOC {
     moneda: null,
     requerimientoId: r.id,
     notas: r.notas ?? null,
+    // El desglose del ítem de presupuesto acompaña a la línea (2026-09-16).
+    componentes: r.componentes ?? null,
   };
 }
 

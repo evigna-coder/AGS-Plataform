@@ -50,11 +50,6 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
     const load = async () => {
       try {
         const allPresupuestos = await presupuestosService.getAll({ clienteId });
-        const allOTs = await ordenesTrabajoService.getAll();
-
-        // OTs padre con hijas: contenedores no-accionables, no bloquean el aviso.
-        const padresConHijas = new Set(
-          allOTs.filter(o => o.otNumber.includes('.')).map(o => o.otNumber.split('.')[0]));
 
         const infos: PresupuestoInfo[] = [];
         for (const budgetNum of budgets) {
@@ -63,15 +58,36 @@ export const CierreFacturacionWizard: React.FC<Props> = ({
 
           // Universo de OTs del ppto: vinculadas ∪ OTs cuyo budgets contiene el
           // número (incluye hijas .NN) — mismo criterio que el gate de otService.
+          // Solo esas OTs se leen (2026-09-14): antes el wizard bajaba la
+          // colección `reportes` ENTERA (~4.400 docs) en cada apertura.
           const nums = new Set<string>([
             ...(pres.otsVinculadasNumbers ?? []),
             ...(pres.otVinculadaNumber ? [pres.otVinculadaNumber] : []),
           ]);
           const estadoPorOt = new Map<string, string>();
-          for (const ot of allOTs) {
-            if ((ot.budgets || []).includes(budgetNum)) nums.add(ot.otNumber);
+          for (const ot of await ordenesTrabajoService.queryByBudget(budgetNum)) {
+            nums.add(ot.otNumber);
             estadoPorOt.set(ot.otNumber, ot.estadoAdmin ?? '');
           }
+          // Vinculadas que no llevan el ppto en budgets: read directo. Una
+          // inexistente no bloquea (no entra en estadoPorOt).
+          await Promise.all([...nums].filter(n => !estadoPorOt.has(n)).map(async n => {
+            const o = await ordenesTrabajoService.getByOtNumber(n).catch(() => null);
+            if (o) estadoPorOt.set(n, o.estadoAdmin ?? '');
+          }));
+          // OTs padre con hijas: contenedores no-accionables, no bloquean el aviso.
+          const padresConHijas = new Set<string>();
+          const padresAConsultar: string[] = [];
+          for (const n of nums) {
+            if (n.includes('.')) continue;
+            if ([...nums].some(m => m !== n && m.startsWith(`${n}.`))) padresConHijas.add(n);
+            else padresAConsultar.push(n);
+          }
+          await Promise.all(padresAConsultar.map(async n => {
+            try {
+              if ((await ordenesTrabajoService.getItemsByOtPadre(n)).length > 0) padresConHijas.add(n);
+            } catch { /* sin datos: se lo trata como OT normal */ }
+          }));
           const otsPendientes = [...nums].filter(num =>
             num !== otNumber &&
             !padresConHijas.has(num) &&

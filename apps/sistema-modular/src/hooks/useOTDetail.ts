@@ -214,9 +214,7 @@ export function useOTDetail(otNumber?: string) {
       const presupuestoNumeros = ot?.budgets || [];
       if (presupuestoNumeros.length > 0) {
         try {
-          const allPres = await presupuestosService.getAll();
-          const presupuestosVinculados = presupuestoNumeros
-            .map((num: string) => allPres.find(p => p.numero === num))
+          const presupuestosVinculados = (await presupuestosService.getByNumeros(presupuestoNumeros))
             .filter((p): p is NonNullable<typeof p> => !!p);
           for (const pres of presupuestosVinculados) {
             await presupuestosService._appendPendingAction(pres.id, {

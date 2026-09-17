@@ -107,6 +107,16 @@ post-commit (tickets, fichas, loaners, esquema de cuotas, reclamo de OC, padre, 
 lanzados juntos y solapados con la deducción de stock; se espera a todos con `allSettled` antes de
 devolver. `reabrir`: mismos efectos en paralelo (el resguardo del PDF en Storage era el lento).
 La CF `onOTCerrada` sigue apuntando a la colección equivocada — pendiente, requiere deploy de functions.
+
+**Medición sobre v1.94.0 (2026-09-14, tarde de cierres de OT):** la pestaña `/ordenes-trabajo` acumuló
+106.590 docs / 1.590 consultas: `reportes` 66.026 (la colección entera ~15 veces), `presupuestos`
+18.666 (~70 veces), `clientes` 6.469. Causas y fixes (working tree, sin release):
+- `CierreFacturacionWizard` bajaba TODAS las OTs al abrirse → `queryByBudget` por presupuesto + lecturas
+  directas de las vinculadas + `getItemsByOtPadre` para los padres.
+- `presupuestosService.trySyncFinalizacion` (corre por cada ppto en cada cierre) bajaba TODAS las OTs →
+  `queryByBudget`.
+- Patrón `(await presupuestosService.getAll()).find(p => p.numero === n)` en 9 sitios (detalle de OT,
+  edición, nuevo item, vincular, finalizar, liberar para facturación) → `getByNumero` / `getByNumeros`.
 - `cerrarAdministrativamente` y `reabrir`: paralelizar con `Promise.all` lo independiente,
   reemplazar `presupuestosService.getAll()` por `where('numero','in',…)`, y mover la cadena
   best-effort (tickets, fichas, loaners, esquema, sync de leads) a una **Cloud Function
