@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 
@@ -21,6 +21,12 @@ interface Props {
   disabled?: boolean;
   /** Tooltip del disparador. */
   title?: string;
+  /** Disparador chico para menús de fila (2026-09-18); el menú se abre alineado a la derecha. */
+  compacto?: boolean;
+  /** Texto del disparador compacto (default "⋯"). */
+  disparador?: string;
+  /** Contenido del disparador compacto (ej. un badge): reemplaza a `disparador`. */
+  children?: ReactNode;
 }
 
 /**
@@ -28,7 +34,7 @@ interface Props {
  * de un header (ej. "Configuración ▾" en listas). Portal + click-outside + Escape,
  * mismo patrón que ColMenu.
  */
-export const MenuButton: React.FC<Props> = ({ label, items, disabled, title }) => {
+export const MenuButton: React.FC<Props> = ({ label, items, disabled, title, compacto = false, disparador = '⋯', children }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -38,7 +44,9 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title }) =
     if (open) { setOpen(false); return; }
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setPos({ top: rect.bottom + 4, left: rect.left });
+    // Compacto: alineado al borde derecho del disparador, sin salirse de la ventana.
+    const left = compacto ? Math.max(8, Math.min(rect.right - 190, window.innerWidth - 200)) : rect.left;
+    setPos({ top: rect.bottom + 4, left });
     setOpen(true);
   };
 
@@ -61,14 +69,26 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title }) =
   return (
     <>
       <span ref={wrapRef}>
-        <Button size="sm" variant="outline" onClick={toggle} disabled={disabled} title={title}>
-          {label} <span className="text-[9px] ml-0.5">▾</span>
-        </Button>
+        {compacto && children ? (
+          <button type="button" onClick={toggle} disabled={disabled} title={title ?? label} aria-label={title ?? label}
+            className={`inline-flex items-center rounded-full leading-none disabled:opacity-40 ${open ? 'ring-2 ring-teal-400' : 'hover:ring-2 hover:ring-slate-300'}`}>
+            {children}
+          </button>
+        ) : compacto ? (
+          <button type="button" onClick={toggle} disabled={disabled} title={title ?? label} aria-label={title ?? label}
+            className="text-sm font-bold text-slate-400 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100 leading-none disabled:opacity-40">
+            {disparador}
+          </button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={toggle} disabled={disabled} title={title}>
+            {label} <span className="text-[9px] ml-0.5">▾</span>
+          </Button>
+        )}
       </span>
       {open && pos && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[60] min-w-[190px] bg-white border border-slate-200 rounded-lg shadow-lg py-1"
+          className="fixed z-[60] w-max min-w-[190px] max-w-sm bg-white border border-slate-200 rounded-lg shadow-lg py-1"
           style={{ top: pos.top, left: pos.left }}
         >
           {items.map(item => (

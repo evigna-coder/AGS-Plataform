@@ -68,9 +68,9 @@ function storagePathFromDownloadUrl(url: string): string | null {
  * de la `pdfUrl` derivamos el path real para poder re-subir/backupear.
  * Los `candidatePaths` quedan solo como fallback para OTs legacy sin `pdfUrl`.
  */
-async function resolveReportePdf(otNumber: string): Promise<ResolvedReportePdf | null> {
+async function resolveReportePdf(otNumber: string, otLeida?: WorkOrder | null): Promise<ResolvedReportePdf | null> {
   try {
-    const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
+    const ot = otLeida ?? await ordenesTrabajoService.getByOtNumber(otNumber);
     if (ot?.pdfUrl) {
       const path = storagePathFromDownloadUrl(ot.pdfUrl);
       if (path) {

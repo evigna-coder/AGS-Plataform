@@ -128,6 +128,24 @@ export const OT_ESTADOS_CIERRE_TECNICO_PLUS: readonly OTEstadoAdmin[] = [
  * - `status === 'FINALIZADO'` (el técnico finalizó el reporte desde la app de campo,
  *   que escribe `status` directo sin pasar por las transiciones de estadoAdmin).
  */
+/** Registro del envío del reporte por mail (reportes-ot, `useSendReportByEmail`). */
+export interface EnviadoPorEmailReporte {
+  estado?: 'enviado' | 'error' | null;
+  fecha?: string | null;
+  destinatarios?: string[] | null;
+  bcc?: string[] | null;
+  variante?: string | null;
+  adjuntoTamanoMB?: number | null;
+  error?: string | null;
+}
+
+/** Entrega manual del reporte marcada desde el portal (WhatsApp, impreso, etc.). */
+export interface EnvioManualReporte {
+  marcadoPorUid?: string | null;
+  marcadoPorNombre?: string | null;
+  fecha?: string | null;
+}
+
 export function esOTCerradaTecnicamente(ot: {
   estadoAdmin?: OTEstadoAdmin | null;
   status?: string | null;
@@ -326,6 +344,10 @@ export interface WorkOrder {
   pdfActualizadoAt?: string;                // Última vez que se re-mergeó el PDF definitivo
   /** Estampa de reportes-ot al subir el PDF; guard anti-pisado de esa app. Null tras reapertura técnica. */
   pdfGeneratedAt?: string | null;
+  /** Envío del reporte al cliente por mail desde reportes-ot (cada intento pisa el anterior). */
+  enviadoPorEmail?: EnviadoPorEmailReporte | null;
+  /** Marca manual desde el portal: "se entregó por otro medio" (prioridad sobre enviadoPorEmail). */
+  envioManual?: EnvioManualReporte | null;
   /** Firma del cliente desde el celular (Cloud Function onClientSignature). */
   signedAt?: string | null;
   signedFrom?: string | null;
@@ -5370,6 +5392,13 @@ export interface LoanerEnProveedor {
 export interface LoanerDerivacion extends LoanerEnProveedor {
   id: string;
   fechaRetorno?: string | null;
+  /** La vuelta del proveedor disparó el ciclo de recalificación (2026-09-18).
+   *  Solo con alcance 'modulo': si volvió una parte, el módulo no cambia. */
+  requiereRecalificacion?: boolean | null;
+  /** OT de recalificación: el ÍTEM de la OT del trabajo (ej. 30255.03) cuando la
+   *  derivación pertenece a una OT, o el padre de la OT interna nueva si no.
+   *  'PENDIENTE' = reclamada por una sesión que la está creando. */
+  otRecalificacionNumber?: string | null;
 }
 
 export interface PrestamoLoaner {

@@ -10,6 +10,7 @@ import { formatDateShort } from '../utils/formatDate';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { useDebouncedUrlText } from '../hooks/useDebouncedUrlText';
+import { sacarPadresConHijasLocal } from '../services/misOTService';
 import { matchesSearch } from '../utils/searchTerms';
 
 const FILTER_SCHEMA = {
@@ -101,7 +102,12 @@ export default function HistorialPage() {
     return () => { unsubRef.current?.(); };
   }, []);
 
-  const finalizadas = useMemo(() => ots.filter(ot =>
+  // Sin OT padre (2026-09-18): el padre hereda el estado administrativo de
+  // sus hijas (sincronizarPadreConHijas) y pasaba el filtro de "finalizada"
+  // como un renglón "Borrador" sin reporte. Es un contenedor: la unidad de
+  // trabajo es la hija. La suscripción trae todo el universo, así que las
+  // hijas están acá y alcanza con la detección local.
+  const finalizadas = useMemo(() => sacarPadresConHijasLocal(ots).filter(ot =>
     ot.status === 'FINALIZADO' ||
     ot.estadoAdmin === 'CIERRE_TECNICO' ||
     ot.estadoAdmin === 'CIERRE_ADMINISTRATIVO' ||

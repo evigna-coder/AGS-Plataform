@@ -35,14 +35,16 @@ export function usePresentacionAlerta(
 
   useEffect(() => {
     let cancelado = false;
-    const limpios = key ? key.split('|') : [];
+    // Códigos tal como están escritos (getByCodigo compara exacto; la clave en minúscula es solo para no re-consultar).
+    const limpios = key ? Array.from(new Set(codigos.map(c => c.trim()).filter(Boolean))) : [];
     if (limpios.length === 0) { setAlertas([]); return; }
 
     void (async () => {
       try {
-        const todos = await articulosService.getAll({ activoOnly: false }) as Articulo[];
-        const encontrados = todos.filter(a =>
-          a.id !== articuloIdActual && limpios.includes((a.codigo ?? '').trim().toLowerCase()));
+        // Por código (2026-09-17): antes bajaba el catálogo ENTERO (4.000 docs,
+        // activos e inactivos) cada vez que se abría el editor de un artículo.
+        const porCodigo = await Promise.all(limpios.map(c => articulosService.getByCodigo(c).catch(() => null)));
+        const encontrados = porCodigo.filter((a): a is Articulo => !!a && a.id !== articuloIdActual);
         if (encontrados.length === 0) { if (!cancelado) setAlertas([]); return; }
 
         const conStock = await Promise.all(encontrados.map(async a => {

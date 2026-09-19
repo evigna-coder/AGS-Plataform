@@ -493,9 +493,21 @@ export const presupuestosService = {
       }
     }
 
+    // Fecha de aprobación (2026-09-18): `aceptarConRequerimientos` la estampa al
+    // pasar a 'aceptado', pero el camino más usado es "Aceptado — pendiente OC"
+    // desde el desplegable, que entraba acá sin fecha y el seguimiento de OC no
+    // sabía desde cuándo se debe. Se estampa en la PRIMERA entrada a la familia
+    // de aceptados, por cualquier camino (una lectura extra solo en esa transición).
+    let fechaAceptacionAuto: string | null = null;
+    if (data.estado && presupuestoEstaAceptado(data.estado) && !data.fechaAceptacion) {
+      const cur = await this.getById(id);
+      if (cur && !cur.fechaAceptacion && !presupuestoEstaAceptado(cur.estado)) fechaAceptacionAuto = new Date().toISOString();
+    }
+
     // Convert date strings to Firestore Timestamps, then deep-clean
     const raw = {
       ...data,
+      ...(fechaAceptacionAuto ? { fechaAceptacion: fechaAceptacionAuto } : {}),
       // Anulación: registrar la fecha del evento (analítica de rechazos por período,
       // decisión 2026-07-17). Solo si el caller no la pasó explícita. Todos los caminos
       // que anulan (quick-estado, edit modal, createRevision) pasan por este update().

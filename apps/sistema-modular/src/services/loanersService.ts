@@ -1,4 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { otCierraElCiclo } from '../utils/loanerCicloRecalificacion';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, FotoLoaner, CondicionUnidad } from '@ags/shared';
 import { normalizarSerie, esPrestamoDeParte, partesDelPrestamo, idDeParte } from '@ags/shared';
@@ -552,14 +553,28 @@ export const loanersService = {
     await this.update(loanerId, { prestamos });
   },
 
+  /** Anota la OT de recalificación en la derivación a proveedor (2026-09-18). */
+  async setOtRecalificacionEnDerivacion(loanerId: string, derivacionId: string, otNumber: string): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) return;
+    const derivaciones = (loaner.derivaciones ?? []).map(d =>
+      d.id === derivacionId ? { ...d, otRecalificacionNumber: otNumber } : d
+    );
+    await this.update(loanerId, { derivaciones });
+  },
+
   /**
    * Libera el loaner tras la recalificación: 'en_recalificacion' → 'en_base'.
    * Idempotente — si el loaner ya no está en recalificación no hace nada.
-   * Devuelve true si efectivamente lo liberó.
+   * Con `otCerrada` (2026-09-18) solo libera si esa OT es la del ciclo
+   * vigente: cuando la RQ es un ítem de la OT del trabajo (30255.03), el
+   * cierre del .02 del proveedor externo —que también lleva loanerId— no
+   * debe soltar el módulo sin recalificar. Devuelve true si lo liberó.
    */
-  async liberarTrasRecalificacion(loanerId: string): Promise<boolean> {
+  async liberarTrasRecalificacion(loanerId: string, otCerrada?: string): Promise<boolean> {
     const loaner = await this.getById(loanerId);
     if (!loaner || loaner.estado !== 'en_recalificacion') return false;
+    if (otCerrada && !otCierraElCiclo(loaner, otCerrada)) return false;
     await this.update(loanerId, { estado: 'en_base' });
     const { logBusinessEvent } = await getFirebaseModules();
     logBusinessEvent({

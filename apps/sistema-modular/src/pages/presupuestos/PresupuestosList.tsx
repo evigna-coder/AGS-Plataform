@@ -43,13 +43,14 @@ import { matchesSearch } from '../../utils/searchTerms';
 import { computeTrabajoRealizado, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
 import { tieneOCAdjunta } from '../../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../../utils/formatFecha';
+import { computeSinOC } from '../../utils/presupuestosSinOC';
+import { CeldaAprobadoSinOC, CeldaTrabajoHechoSinOC } from '../../components/presupuestos/SinOCCeldas';
 import { descargarPresupuestoPdfDirecto } from '../../utils/presupuestoPdfDirecto';
 import { sweepPresupuestosVencidos } from '../../utils/sweepPresupuestosVencidos';
 
 import { notify } from '../../utils/notify';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingState } from '../../components/ui/LoadingState';
-import { Select } from '../../components/ui/Select';
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion'];
 
@@ -171,6 +172,11 @@ export const PresupuestosList = () => {
     kpi:         { type: 'string' as const,  default: '' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  // Modo "Sin OC" (2026-09-18): la card del dashboard o el drill-down de la
+  // analítica (?ocPendiente=true). Las columnas Validez y Seguimiento pasan a
+  // "Aprobado" y "Trabajo hecho", con los días de demora.
+  const modoSinOC = filters.ocPendiente || filters.kpi === 'sin_oc' || filters.kpi === 'sin_oc_trabajo';
+  const soloTrabajoHecho = filters.ocTrabajoRealizado || filters.kpi === 'sin_oc_trabajo';
   // Local search state for responsive typing — syncs to URL debounced
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -350,6 +356,8 @@ export const PresupuestosList = () => {
     () => new Set(computeTrabajoRealizado(presupuestos, otsCerradas, new Date()).rows.map(r => r.presupuesto.id)),
     [presupuestos, otsCerradas],
   );
+  // Días sin OC por presupuesto (misma regla que la card "Sin OC").
+  const sinOCMap = useMemo(() => computeSinOC(presupuestos, otsCerradas), [presupuestos, otsCerradas]);
 
   /**
    * Sin enviar/aceptar pero con el trabajo hecho (2026-08-19; ampliado a
@@ -426,7 +434,7 @@ export const PresupuestosList = () => {
       // OCs pendientes: aceptado o posterior SIN OCs cargadas aun (esperando OC del
       // cliente). Mismos estados que la analítica (OC_ADEUDADA_ESTADOS) — alinea el
       // drill-down que navega con ?ocPendiente=true.
-      if (filters.ocPendiente) {
+      if (modoSinOC) {
         if (!OC_ADEUDADA_ESTADOS.has(p.estado)) return false;
         // Respaldo por certificación (2026-09-08): el cliente no emite OC, no
         // se la debe. Se sigue desde Pend. documentación.
@@ -436,7 +444,7 @@ export const PresupuestosList = () => {
         if (tieneOCDelCliente(p)) return false;
       }
       // Solo trabajo realizado: subconjunto sin OC con OT cerrada.
-      if (filters.ocTrabajoRealizado && !trabajoRealizadoIds.has(p.id)) return false;
+      if (soloTrabajoHecho && !trabajoRealizadoIds.has(p.id)) return false;
       // KPI del dashboard como filtro (UAT 2026-07-17).
       // Vencidos (2026-08-21): validez cumplida y todavía pre-aceptación.
       if (filters.kpi === 'vencidos' && !isExpired(p)) return false;
@@ -456,23 +464,22 @@ export const PresupuestosList = () => {
         matchesSearch(debouncedSearch, p.numero, getClienteNombre(p.clienteId)));
     }
     // Custom sort for computed fields
+    // En modo Sin OC las mismas columnas ordenan por días sin OC / desde el cierre.
     if (filters.sortField === '_validez') {
-      result = [...result].sort((a, b) => {
-        const va = getDaysUntilExpiry(a.validUntil, a.fechaEnvio, a.validezDias) ?? 9999;
-        const vb = getDaysUntilExpiry(b.validUntil, b.fechaEnvio, b.validezDias) ?? 9999;
-        return filters.sortDir === 'asc' ? va - vb : vb - va;
-      });
+      const dias = (p: Presupuesto) => modoSinOC
+        ? (sinOCMap.get(p.id)?.diasSinOC ?? -1)
+        : (getDaysUntilExpiry(p.validUntil, p.fechaEnvio, p.validezDias) ?? 9999);
+      result = [...result].sort((a, b) => filters.sortDir === 'asc' ? dias(a) - dias(b) : dias(b) - dias(a));
     } else if (filters.sortField === '_seguimiento') {
-      result = [...result].sort((a, b) => {
-        const va = getDaysUntilContacto(a.proximoContacto) ?? 9999;
-        const vb = getDaysUntilContacto(b.proximoContacto) ?? 9999;
-        return filters.sortDir === 'asc' ? va - vb : vb - va;
-      });
+      const dias = (p: Presupuesto) => modoSinOC
+        ? (sinOCMap.get(p.id)?.diasDesdeCierre ?? -1)
+        : (getDaysUntilContacto(p.proximoContacto) ?? 9999);
+      result = [...result].sort((a, b) => filters.sortDir === 'asc' ? dias(a) - dias(b) : dias(b) - dias(a));
     } else {
       result = sortByField(result, filters.sortField, filters.sortDir as SortDir);
     }
     return result;
-  }, [presupuestos, filters, debouncedSearch, solicitudSets, trabajoRealizadoIds]);
+  }, [presupuestos, filters, debouncedSearch, solicitudSets, trabajoRealizadoIds, modoSinOC, soloTrabajoHecho, sinOCMap]);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
@@ -511,12 +518,12 @@ export const PresupuestosList = () => {
   // Export Excel/PDF (ExportarButton): filas desde el MISMO array filtrado que
   // muestra la tabla; el set de columnas cambia según el modo "OCs pendientes".
   const exportRowsPresupuestos = useMemo(
-    () => (filters.ocPendiente ? [] : buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios)),
-    [filters.ocPendiente, presupuestosFiltrados, clientes, usuarios],
+    () => (modoSinOC ? [] : buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios)),
+    [modoSinOC, presupuestosFiltrados, clientes, usuarios],
   );
   const exportRowsOCs = useMemo(
-    () => (filters.ocPendiente ? buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios) : []),
-    [filters.ocPendiente, presupuestosFiltrados, clientes, usuarios],
+    () => (modoSinOC ? buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios, sinOCMap) : []),
+    [modoSinOC, presupuestosFiltrados, clientes, usuarios, sinOCMap],
   );
   const filtrosExport = buildPresupuestosFiltrosExport(filters, clientes, usuarios);
 
@@ -536,7 +543,7 @@ export const PresupuestosList = () => {
               { label: 'Consumibles por módulo', onClick: () => navigateInActiveTab('/presupuestos/consumibles-por-modulo') },
             ]} />
             <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/analitica')}>Analítica</Button>
-            {canExport && (filters.ocPendiente ? (
+            {canExport && (modoSinOC ? (
               <ExportarButton
                 columnas={OCS_PENDIENTES_EXPORT_COLUMNS}
                 data={exportRowsOCs}
@@ -675,23 +682,27 @@ export const PresupuestosList = () => {
         ) : presupuestosFiltrados.length === 0 ? (
           <EmptyState message="No hay presupuestos para mostrar" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs">Crear primer presupuesto</button>} />
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-            <table ref={tableRef} className="tabla-compacta w-full table-fixed">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
+            {/* Ancho mínimo (2026-09-18): en ventanas angostas la tabla scrollea
+                horizontal en vez de apretar las columnas hasta que se pisan. */}
+            <table ref={tableRef} className="tabla-compacta w-full table-fixed min-w-[1500px]">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (
                 <colgroup>
+                  {/* Acciones al 16% (2026-09-18): con 12% la fila de controles
+                      se montaba sobre las dos columnas de la izquierda. */}
                   <col style={{ width: '9%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '7%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '7%' }} />
-                  <col style={{ width: '7%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '6%' }} />
                   <col style={{ width: '12%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '16%' }} />
                 </colgroup>
               )}
               <thead className="sticky top-0 z-10">
@@ -728,11 +739,11 @@ export const PresupuestosList = () => {
                     <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
                     <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Validez" field="_validez" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} relative ${getAlignClass(8)}`}>
+                  <SortableHeader label={modoSinOC ? 'Aprobado' : 'Validez'} field="_validez" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} relative ${getAlignClass(8)}`}>
                     <ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} />
                     <div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Seguimiento" field="_seguimiento" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} relative ${getAlignClass(9)}`}>
+                  <SortableHeader label={modoSinOC ? 'Trabajo hecho' : 'Seguimiento'} field="_seguimiento" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} relative ${getAlignClass(9)}`}>
                     <ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} />
                     <div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
@@ -769,17 +780,38 @@ export const PresupuestosList = () => {
                         {/* Una sola línea: badge de estado + chip compacto "OC ⚠" (UAT 2026-07-18 —
                             el segundo badge apilado duplicaba el alto de la fila). */}
                         <div className="inline-flex items-center gap-1">
-                          {faltaAviso(p) ? (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700"
-                              title="OT cerrada lista para facturar, pero todavía no se generó el aviso a facturación — generalo desde el presupuesto (sección Facturación)">
-                              OT cerrada — falta aviso
-                            </span>
-                          ) : (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
-                              title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
-                              {ESTADO_PRESUPUESTO_LABELS[p.estado]}
-                            </span>
-                          )}
+                          {/* Cambio rápido de estado (2026-09-18): antes era un desplegable
+                              en Acciones que repetía lo que dice esta columna y se comía el
+                              ancho. Ahora el badge ES el botón: click y elegís el estado.
+                              Vale también para el badge "falta aviso", que reemplaza al de
+                              estado en esas filas. Los anulados no cambian de estado. */}
+                          {(() => {
+                            const editable = !isAnulado(p);
+                            const caret = editable ? <span className="opacity-60"> ▾</span> : null;
+                            const badge = faltaAviso(p) ? (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700"
+                                title="OT cerrada lista para facturar, pero todavía no se generó el aviso a facturación — generalo desde el presupuesto (sección Facturación)">
+                                OT cerrada — falta aviso{caret}
+                              </span>
+                            ) : (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
+                                title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
+                                {ESTADO_PRESUPUESTO_LABELS[p.estado]}{caret}
+                              </span>
+                            );
+                            if (!editable) return badge;
+                            return (
+                              <span onClick={e => e.stopPropagation()}>
+                                <MenuButton compacto label="Cambiar estado" title={`Estado: ${ESTADO_PRESUPUESTO_LABELS[p.estado]} — click para cambiarlo`}
+                                  items={Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([k, v]) => ({
+                                    label: v, checked: k === p.estado,
+                                    onClick: () => { if (k !== p.estado) handleQuickEstado(p, k as PresupuestoEstado); },
+                                  }))}>
+                                  {badge}
+                                </MenuButton>
+                              </span>
+                            );
+                          })()}
                           {sinAceptarConTrabajoIds.has(p.id) && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
                               title={p.estado === 'enviado'
@@ -805,54 +837,27 @@ export const PresupuestosList = () => {
                       <td className={`px-3 py-2 text-[10px] text-slate-500 whitespace-nowrap ${getAlignClass(6)}`}>{formatDate(p.createdAt)}</td>
                       <td className={`px-3 py-2 text-[10px] text-slate-500 whitespace-nowrap ${getAlignClass(7)}`}>{formatDate(p.fechaEnvio)}</td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(8)}`}>
-                        {daysExpiry !== null ? (
+                        {modoSinOC ? <CeldaAprobadoSinOC info={sinOCMap.get(p.id)} /> : daysExpiry !== null ? (
                           <span className={`text-[10px] font-medium ${getExpiryStatusColor(daysExpiry)}`}>
                             {getExpiryStatusText(daysExpiry)}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(9)}`}>
-                        {daysContact !== null ? (
+                        {modoSinOC ? <CeldaTrabajoHechoSinOC info={sinOCMap.get(p.id)} /> : daysContact !== null ? (
                           <span className={`text-[10px] font-medium ${getContactoStatusColor(daysContact)}`}>
                             {getContactoStatusText(daysContact)}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        {/* Acciones (2026-09-18): sin el desplegable de estado, que
+                            repetía la columna Estado y se comía el ancho — ahora cuelga
+                            del badge. Los botones quedan todos a la vista. "Cargar OC" y
+                            "Falta OC" abren lo mismo: se muestra uno solo. */}
                         <div className="flex items-center justify-end gap-0.5">
                           {!isAnulado(p) && (
                             <>
-                              <Select
-                                value={p.estado}
-                                onChange={e => handleQuickEstado(p, e.target.value as PresupuestoEstado)}
-                                className="cursor-pointer" selectSize="xs"
-                                title="Cambiar estado"
-                              >
-                                {Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([k, v]) => (
-                                  <option key={k} value={k}>{v}</option>
-                                ))}
-                              </Select>
-                              <button onClick={() => setOcTarget(p)} title="Adjuntar OC"
-                                className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
-                                </svg>
-                              </button>
-                              {presupuestoEstaAceptado(p.estado) && (
-                                <button onClick={() => setCargarOCTarget(p)}
-                                  title="Cargar OC del cliente (FLOW-02)"
-                                  className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50 border border-teal-100">
-                                  Cargar OC
-                                </button>
-                              )}
-                              {(p.estado === 'borrador' || p.estado === 'enviado') && (
-                                <button onClick={() => handleQuickEstado(p, 'enviado')} title="Marcar como enviado"
-                                  className="text-[10px] font-medium text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50">
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                                  </svg>
-                                </button>
-                              )}
                               {/* Sin la OC adjunta el aviso no sale (2026-08-24): en vez de
                                   dejar clickear y fallar, el botón lleva a cargarla. */}
                               {faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && !tieneOCAdjunta(p) && (
@@ -873,6 +878,30 @@ export const PresupuestosList = () => {
                                   </svg>
                                 </button>
                               )}
+                              {/* Un solo clip de OC (2026-09-18): "Adjuntar OC" y "Cargar OC"
+                                  hacían lo mismo para el usuario. En los
+                                  aceptados abre la carga formal (OC como documento propio,
+                                  reutilizable); en borrador/enviado, donde la formal no
+                                  aplica, adjunta número + archivo y acepta el presupuesto. */}
+                              {!(faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && !tieneOCAdjunta(p)) && (
+                                <button onClick={() => (presupuestoEstaAceptado(p.estado) ? setCargarOCTarget(p) : setOcTarget(p))}
+                                  title={presupuestoEstaAceptado(p.estado)
+                                    ? 'Cargar la OC del cliente'
+                                    : 'Adjuntar la OC del cliente — al guardarla el presupuesto queda aceptado'}
+                                  className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1 py-0.5 rounded hover:bg-teal-50">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                  </svg>
+                                </button>
+                              )}
+                              {(p.estado === 'borrador' || p.estado === 'enviado') && (
+                                <button onClick={() => handleQuickEstado(p, 'enviado')} title="Marcar como enviado"
+                                  className="text-[10px] font-medium text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                                  </svg>
+                                </button>
+                              )}
                               {presupuestoEstaAceptado(p.estado) && (
                                 <button onClick={() => setFacturaTarget(p)} title="Facturación parcial o anticipo"
                                   className="text-[10px] font-medium text-amber-500 hover:text-amber-700 px-1 py-0.5 rounded hover:bg-amber-50">
@@ -889,12 +918,9 @@ export const PresupuestosList = () => {
                               </button>
                             </>
                           )}
-                          {/* Crear revisión: TAMBIÉN en los anulados (2026-08-21).
-                              Estaba dentro del bloque `!isAnulado`, y como crear
-                              una revisión es justamente lo que anula el original,
-                              un presupuesto anulado quedaba sin forma de revisarse
-                              — que es el caso más común: el cliente vuelve dos
-                              meses después y hay que rehacerlo con precios nuevos. */}
+                          {/* Crear revisión: TAMBIÉN en los anulados (2026-08-21): crear una
+                              revisión es justamente lo que anula el original, y un anulado
+                              es el caso más común de revisión (el cliente vuelve meses después). */}
                           <button onClick={() => setRevisionTarget(p)} title="Crear revisión"
                             className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

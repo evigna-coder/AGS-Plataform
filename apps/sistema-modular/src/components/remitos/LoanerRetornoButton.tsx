@@ -11,10 +11,9 @@ interface Props {
 
 /**
  * Registra la vuelta de un LOANER derivado a proveedor (2026-08-12): marca la
- * línea del remito como devuelta (cerrando el remito si todo quedó resuelto) y
- * dispara la calificación pendiente del proveedor. Las líneas de loaner son
- * documentales — el loaner no cambia de estado, por eso este botón y no el
- * circuito de préstamos.
+ * línea del remito como devuelta (cerrando el remito si todo quedó resuelto),
+ * dispara la calificación pendiente del proveedor y deja el módulo en
+ * recalificación (2026-09-18) — la OT/ítem de RQ la crea el servicio.
  */
 export function LoanerRetornoButton({ remitoId, item }: Props) {
   const confirm = useConfirm();
@@ -23,7 +22,7 @@ export function LoanerRetornoButton({ remitoId, item }: Props) {
   const handle = async () => {
     if (!item.loanerId) return;
     const label = item.loanerCodigo || item.loanerDescripcion || 'el loaner';
-    if (!await confirm(`¿Registrar la vuelta de ${label} del proveedor? La línea queda devuelta y se genera la calificación pendiente del proveedor.`)) return;
+    if (!await confirm(`¿Registrar la vuelta de ${label} del proveedor? La línea queda devuelta, se genera la calificación pendiente del proveedor y el módulo queda en recalificación (ítem de RQ en la OT del trabajo, o una OT nueva si salió sin OT).`)) return;
     try {
       setActing(true);
       await remitosService.marcarLoanerRetornado(remitoId, item.id);

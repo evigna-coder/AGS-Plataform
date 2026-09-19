@@ -143,3 +143,19 @@ La CF `onOTCerrada` sigue apuntando a la colección equivocada — pendiente, re
 - Docs leídos por sesión (también es costo de Firestore).
 - Tamaño del `main-*.js`.
 Se reporta al final de cada fase con los mismos números.
+
+## Medición 2026-09-18 (tarde de cierres de OT) y recortes para v1.95.1
+
+| pantalla | docs | consultas | top |
+|---|---|---|---|
+| /presupuestos | 11.955 | 56 | articulos (snapshot) 4.001 · conceptos_servicio 2.502 · reportes (snapshot) 2.254 |
+| /ordenes-trabajo | 25.332 | 847 | presupuestos 7.666 · reportes (snapshot) 4.584 · remitos 3.169 |
+| /agenda | 5.709 | 18 | reportes 3.204 (≈350 por refresco de 60 s, OK) · sistemas 925 (cacheado) |
+
+Hecho:
+- `PresupuestosSinOtKpi` (lista de OT): releía TODOS los presupuestos + clientes en cada snapshot de OTs → ahora solo estados con trabajo (4 `where estado ==`) vía `conCache('presupuestos:conTrabajo')`.
+- `useCierreStockUnits`: `remitosService.getAll()` completo por cierre → `getAll({ estados })` (`in`).
+- `completarRemitosServicioDeOT`: todos los remitos de servicio → `getAll({ otNumber })` (array-contains).
+- Pickers de artículos de presupuestos (Completo + Wizard): `articulosService.subscribe` (catálogo entero por montaje) → `getAll()` cacheado + `onCacheInvalidated('articulos')`.
+
+Queda (necesita diseño): dos listeners sobre TODAS las `reportes` en OT (lista + KPI) y otro en PresupuestosList — ambos "universo completo y vivo" por decisión 2026-08-06; `conceptos_servicio` 1.251 docs cada 2 min en presupuestos (TTL por clave).

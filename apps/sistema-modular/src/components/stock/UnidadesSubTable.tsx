@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { costoUnitarioVigente, factorImportacionVigente } from '@ags/shared';
+import { costoUnitarioVigente, factorImportacionVigente, promedioCostoFactor } from '@ags/shared';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 import { envaseDeUnidad } from '../../utils/envaseUnidad';
 import { unidadesService } from '../../services/stockService';
@@ -26,6 +26,10 @@ interface Grupo {
   cantidad: number;
 }
 
+// El costo NO separa filas (2026-09-18, caso 0905-1175 en CA1: 28 sin costo +
+// 6 a USD 132.55 eran dos renglones). Lo que importa acá es qué hay y dónde;
+// la fila muestra el promedio ponderado y cada tanda conserva su costo al
+// desplegar "×N tandas". El detalle por importación vive en la importación.
 const grupoKey = (u: UnidadStock): string => {
   if (u.nroSerie) return `serie:${u.id}`; // serializadas nunca se unifican
   return [
@@ -34,10 +38,42 @@ const grupoKey = (u: UnidadStock): string => {
     u.nroLote ?? '', u.condicion, u.estado,
     u.reservadoParaPresupuestoNumero ?? '',
     u.ubicacion.tipo, u.ubicacion.referenciaId ?? '',
-    costoUnitarioVigente(u) ?? '', factorImportacionVigente(u) ?? '',
-    u.monedaCosto ?? '', u.costeoConfirmadoAt ? 'conf' : 'est',
     u.activo === false ? 'inactiva' : 'activa',
   ].join('|');
+};
+
+/** Costo/factor de una fila agrupada: promedio ponderado de sus tandas. */
+const GrupoCostoCell = ({ units }: { units: UnidadStock[] }) => {
+  const p = promedioCostoFactor(units);
+  if (!p) return <span className="text-slate-300">—</span>;
+  const envaseFactor = units[0].presentacion?.factor && units[0].presentacion.factor > 1 ? units[0].presentacion.factor : 1;
+  const costos = new Set(units.map(u => `${costoUnitarioVigente(u) ?? '-'}|${factorImportacionVigente(u) ?? '-'}`));
+  const mixto = costos.size > 1;
+  const sinCosto = units.filter(u => costoUnitarioVigente(u) == null && factorImportacionVigente(u) == null)
+    .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+  const title = [
+    `Promedio ponderado sobre ${p.unidades} unidad(es) con costo`,
+    sinCosto > 0 ? `${sinCosto} sin costo cargado (no entran al promedio)` : null,
+    p.algunEstimado ? 'incluye costeos estimados sin confirmar' : null,
+    envaseFactor > 1 ? `por paquete de ${envaseFactor}` : null,
+    'Desplegá las tandas para ver cada costo',
+  ].filter(Boolean).join(' · ');
+  return (
+    <span className="inline-flex flex-col items-end leading-tight" title={title}>
+      {p.costo != null && (
+        <span className="font-mono text-slate-700 tabular-nums">
+          {p.moneda} {(p.costo * envaseFactor).toFixed(2)}
+          {envaseFactor > 1 && <span className="text-[9px] text-slate-400"> /paq.</span>}
+          {mixto && <span className="text-[9px] text-slate-400"> prom.</span>}
+        </span>
+      )}
+      {p.factor != null && (
+        <span className={`font-mono text-[10px] tabular-nums ${p.algunEstimado ? 'text-amber-600' : 'text-teal-600'}`}>
+          factor {p.factor.toFixed(3)}{p.algunEstimado ? ' (est.)' : ''}
+        </span>
+      )}
+    </span>
+  );
 };
 
 const CostoFactorCell = ({ u }: { u: UnidadStock }) => {
@@ -141,7 +177,7 @@ export const UnidadesSubTable = ({ units, onAjustar, onMover, onLiberar, onLiber
           {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
           {u.ubicacion.referenciaNombre && <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>}
         </td>
-        <td className="px-2 py-1.5 text-right whitespace-nowrap"><CostoFactorCell u={u} /></td>
+        <td className="px-2 py-1.5 text-right whitespace-nowrap">{esGrupo ? <GrupoCostoCell units={opts.grupo!.units} /> : <CostoFactorCell u={u} />}</td>
         <td className="px-2 py-1.5 text-center whitespace-nowrap">
           {esGrupo ? (
             <>

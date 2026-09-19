@@ -549,10 +549,12 @@ export const ordenesTrabajoService = {
    */
   async completarRemitosServicioDeOT(otNumber: string): Promise<string[]> {
     const cerrados = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-    const remitos = await remitosService.getAll({ tipo: 'servicio' });
+    // Solo los remitos que llevan ESTA OT (2026-09-18): antes bajaba todos los
+    // de servicio en cada cierre para filtrar en memoria.
+    const remitos = await remitosService.getAll({ otNumber });
     const completados: string[] = [];
     for (const r of remitos) {
-      if (r.estado !== 'confirmado' || !(r.otNumbers ?? []).includes(otNumber)) continue;
+      if (r.tipo !== 'servicio' || r.estado !== 'confirmado' || !(r.otNumbers ?? []).includes(otNumber)) continue;
       // La OT que se acaba de cerrar cuenta como cerrada sin releerla.
       const otras = (r.otNumbers ?? []).filter(n => n && n !== otNumber);
       let todasCerradas = true;
@@ -1005,7 +1007,7 @@ export const ordenesTrabajoService = {
         // service (solo actúa si el loaner está en_recalificacion). El cierre
         // técnico escrito por la app de campo lo cubre el sweep de loaners.
         if (ot?.loanerId && OT_ESTADOS_CIERRE_TECNICO_PLUS.includes(data.estadoAdmin)) {
-          await loanersService.liberarTrasRecalificacion(ot.loanerId).catch(err =>
+          await loanersService.liberarTrasRecalificacion(ot.loanerId, ot.otNumber).catch(err =>
             console.error('[otService] liberarTrasRecalificacion failed (non-blocking):', err)
           );
         }
@@ -1998,7 +2000,7 @@ export const ordenesTrabajoService = {
       // (El camino update() → CIERRE_ADMINISTRATIVO delega acá con early-return,
       // así que este hook cubre también esa ruta.)
       if (ot.loanerId) {
-        efectos.push(loanersService.liberarTrasRecalificacion(ot.loanerId)
+        efectos.push(loanersService.liberarTrasRecalificacion(ot.loanerId, ot.otNumber)
           .catch(err => console.error('[cerrarAdministrativamente] liberarTrasRecalificacion failed (non-blocking):', err)));
       }
 

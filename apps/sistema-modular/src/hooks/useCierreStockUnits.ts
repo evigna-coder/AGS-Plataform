@@ -218,7 +218,9 @@ export function useCierreStockUnits(articulos: Part[]): {
 
       // Remitos en campo (2026-08-04): sus items pendientes se ofrecen como
       // origen "Remito N° xxx" — el material ya salió, se consume desde ahí.
-      const remitosEnCampo = (await remitosService.getAll().catch(() => []))
+      // Por estado (2026-09-18): antes bajaba TODOS los remitos en cada cierre
+      // (~800 docs) para quedarse con los pocos que siguen en la calle.
+      const remitosEnCampo = (await remitosService.getAll({ estados: [...REMITO_ESTADOS_EN_CAMPO] }).catch(() => []))
         .filter(r => REMITO_ESTADOS_EN_CAMPO.has(r.estado));
 
       // Asignaciones activas (2026-08-27): lo que un ingeniero tiene en su

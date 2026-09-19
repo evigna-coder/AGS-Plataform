@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Presupuesto, WorkOrder } from '@ags/shared';
 import { clientesService, ordenesTrabajoService, presupuestosService } from '../../services/firebaseService';
+import { conCache } from '../../services/serviceCache';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { useTabs } from '../../contexts/TabsContext';
 
@@ -46,8 +47,15 @@ export function PresupuestosSinOtKpi() {
   useEffect(() => {
     if (ots === null) return; // todavía sin snapshot: no calcular con lista vacía
     let cancelled = false;
+    // Solo los estados con trabajo y cacheado 2 min (2026-09-18): este efecto
+    // corre con CADA snapshot de OTs y antes releía los ~2.500 presupuestos
+    // completos en cada cierre (7.666 docs en una tarde de cierres).
+    const cargarPptos = () => conCache<Presupuesto[]>('presupuestos:conTrabajo', async () => {
+      const porEstado = await Promise.all([...ESTADOS_CON_TRABAJO].map(estado => presupuestosService.getAll({ estado })));
+      return porEstado.flat();
+    });
     Promise.all([
-      presupuestosService.getAll(),
+      cargarPptos(),
       clientesService.getAll(),
     ]).then(([pptos, clientes]: [Presupuesto[], { id: string; razonSocial: string }[]]) => {
       if (cancelled) return;

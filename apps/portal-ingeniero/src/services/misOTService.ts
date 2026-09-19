@@ -97,12 +97,12 @@ function chunk<T>(arr: T[], size: number): T[][] {
  * hijas pueden estar cerradas y por eso fuera de este listado (caso real: padre
  * ASIGNADA con la hija ya en cierre técnico).
  */
-function sacarPadresConHijasLocal(ots: MisOTDoc[]): MisOTDoc[] {
+export function sacarPadresConHijasLocal<T extends { otNumber?: string | null }>(ots: T[]): T[] {
   const conHijas = new Set<string>();
   for (const ot of ots) {
     if (ot.otNumber?.includes('.')) conHijas.add(ot.otNumber.split('.')[0]);
   }
-  return ots.filter(ot => !conHijas.has(ot.otNumber));
+  return ots.filter(ot => !ot.otNumber || !conHijas.has(ot.otNumber));
 }
 
 /**

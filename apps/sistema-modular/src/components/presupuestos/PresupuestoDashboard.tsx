@@ -5,7 +5,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { usePresupuestoDashboardMetrics } from '../../hooks/usePresupuestoDashboardMetrics';
 
 /** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
-export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'en_ejecucion' | 'a_certificar' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso' | 'vencidos';
+export type KpiFilter = '' | 'borradores' | 'enviados' | 'aceptados' | 'sin_oc' | 'sin_oc_trabajo' | 'en_ejecucion' | 'a_certificar' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso' | 'vencidos';
 
 interface Props {
   presupuestos: Presupuesto[];
@@ -50,7 +50,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
     <div className="px-5 pb-3">
-    <div className="grid grid-cols-[0.42fr_repeat(6,minmax(0,1fr))] gap-1.5">
+    <div className="grid grid-cols-[0.42fr_repeat(7,minmax(0,1fr))] gap-1.5">
       {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
           estado — las cards "tapaban" al desplegable y no había cómo salir. */}
       <button type="button" onClick={onVerTodos}
@@ -136,6 +136,40 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             )}
             {metrics.aceptadosSinFacturar.length > 0 && (
               <p className="text-[9px] text-orange-600 truncate">{metrics.aceptadosSinFacturar.length} sin facturar</p>
+            )}
+          </div>
+        )}
+      </button>
+
+      {/* Sin OC (2026-09-18): aprobados a los que les falta la OC del cliente.
+          La lista pasa a mostrar desde cuándo está aprobado y desde cuándo se
+          hizo el trabajo. El sub-indicador recorta a los que ya tienen OT
+          cerrada: el trabajo se hizo y la OC se debe. */}
+      <button type="button" className={cardCls(activeKpi === 'sin_oc_trabajo' ? 'sin_oc_trabajo' : 'sin_oc')} onClick={() => toggle('sin_oc')}
+        title="Aprobados sin OC del cliente — click para filtrarlos, con los días desde la aprobación y desde el cierre técnico">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide truncate">Sin OC</p>
+          <p className="text-sm font-black text-rose-600 leading-none">{metrics.sinOC.length}</p>
+        </div>
+        {(metrics.sinOCConTrabajo.length > 0 || metrics.sinOCMaxDias != null) && (
+          <div className="space-y-0 mt-0.5">
+            {metrics.sinOCConTrabajo.length > 0 && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={e => { e.stopPropagation(); toggle('sin_oc_trabajo'); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle('sin_oc_trabajo'); } }}
+                title="Con OT cerrada: el trabajo ya se hizo y la OC se debe — click para ver solo esos"
+                className={`block text-[9px] truncate text-left w-full hover:underline cursor-pointer ${
+                  activeKpi === 'sin_oc_trabajo' ? 'text-red-700 font-bold' : 'text-red-600'}`}
+              >
+                {metrics.sinOCConTrabajo.length} con trabajo hecho
+              </span>
+            )}
+            {metrics.sinOCMaxDias != null && (
+              <p className="text-[9px] text-slate-400 truncate" title="El aprobado más antiguo que todavía no tiene OC">
+                hasta {metrics.sinOCMaxDias} d sin OC
+              </p>
             )}
           </div>
         )}

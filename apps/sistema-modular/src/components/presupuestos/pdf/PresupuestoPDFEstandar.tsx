@@ -567,7 +567,7 @@ export function PDFTotalesNeto({ data }: { data: PresupuestoPDFData }) {
                 <View key={m} style={{ marginTop: 5 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primaryTint, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 5, paddingVertical: 6, paddingHorizontal: 10 }}>
                     <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primaryDark }}>TOTAL {m} (sin IVA)</Text>
-                    <Text style={{ fontSize: 11.5, fontWeight: 'bold', color: COLORS.primaryDark }}>{fmt(neto)}</Text>
+                    <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primaryDark }}>{fmt(neto)}</Text>
                   </View>
                   {imp > 0 && (
                     <View style={{ marginTop: 3, paddingHorizontal: 10 }}>

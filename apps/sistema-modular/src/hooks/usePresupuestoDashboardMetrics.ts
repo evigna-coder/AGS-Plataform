@@ -5,6 +5,7 @@ import { getDaysSinceEnvio, isExpired } from '../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from './useControlSemanal';
 import { sumarPorMoneda } from '../utils/montosPorMoneda';
 import { computeACertificar, computeCertificadasSinAviso, computePorCobrar } from '../utils/analitica/porCobrar';
+import { computeSinOC } from '../utils/presupuestosSinOC';
 
 const OT_CERRADA_SET = new Set(['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
 
@@ -138,6 +139,16 @@ export function usePresupuestoDashboardMetrics(
         )
       : porCobrar;
 
+    // Sin OC (2026-09-18): aprobados a los que les falta la OC del cliente,
+    // con o sin trabajo hecho. Misma regla que el filtro `ocPendiente`.
+    const sinOCMap = computeSinOC(presupuestos, ots);
+    const sinOC = presupuestos.filter(p => sinOCMap.has(p.id));
+    const sinOCConTrabajo = sinOC.filter(p => (sinOCMap.get(p.id)?.otsCerradas.length ?? 0) > 0);
+    const sinOCMaxDias = sinOC.reduce<number | null>((max, p) => {
+      const d = sinOCMap.get(p.id)?.diasSinOC ?? null;
+      return d != null && (max == null || d > max) ? d : max;
+    }, null);
+
     // Monto pipeline por moneda
     const pipeline: Record<string, number> = {};
     enviados.forEach(p => {
@@ -146,6 +157,9 @@ export function usePresupuestoDashboardMetrics(
     });
 
     return {
+      sinOC,
+      sinOCConTrabajo,
+      sinOCMaxDias,
       enviadosTotal: enviados.length,
       enviadosSinRespuesta,
       enviadosVencidos,

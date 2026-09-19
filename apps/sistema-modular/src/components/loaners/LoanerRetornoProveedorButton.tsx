@@ -3,6 +3,8 @@ import { Button } from '../ui/Button';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { remitosService, loanersService } from '../../services/firebaseService';
 import type { Loaner } from '@ags/shared';
+import { patchRetornoProveedor } from '../../utils/loanerCicloRecalificacion';
+import { recalificarTrasRetornoProveedor } from '../../utils/loanerRecalificacion';
 
 import { notify } from '../../utils/notify';
 /**
@@ -25,7 +27,8 @@ export function LoanerRetornoProveedorButton({ loaner }: { loaner: Loaner }) {
       : loaner.codigo;
     const ok = await confirm(
       `¿Registrar el retorno de ${que} desde ${salida.proveedorNombre ?? 'el proveedor'}?\n\n` +
-      `Se marca devuelta su línea del remito ${salida.remitoNumero} — las otras líneas del remito no se tocan — y el loaner vuelve a Base.`,
+      `Se marca devuelta su línea del remito ${salida.remitoNumero} — las otras líneas del remito no se tocan. ` +
+      `El módulo queda en recalificación${salida.alcance === 'parte' ? ' (hay que rearmarlo)' : ''}: se crea el ítem de RQ en la OT del trabajo (o una OT nueva si salió sin OT) y el ticket para coordinarla.`,
     );
     if (!ok) return;
     setSaving(true);
@@ -36,14 +39,11 @@ export function LoanerRetornoProveedorButton({ loaner }: { loaner: Loaner }) {
         await remitosService.marcarLoanerRetornado(remito.id, item.id);
       } else {
         // Remito viejo sin la línea rastreable: resolver el loaner igual, con
-        // el mismo efecto (vuelta a base + fechaRetorno en el historial).
-        const now = new Date().toISOString();
-        await loanersService.update(loaner.id, {
-          estado: 'en_base',
-          enProveedor: null,
-          derivaciones: (loaner.derivaciones ?? []).map(d =>
-            d.remitoId === salida.remitoId && !d.fechaRetorno ? { ...d, fechaRetorno: now } : d),
-        });
+        // el mismo efecto (recalificación + fechaRetorno en el historial).
+        const patch = patchRetornoProveedor(loaner, salida.remitoId, new Date().toISOString());
+        await loanersService.update(loaner.id, patch);
+        await recalificarTrasRetornoProveedor(loaner.id, salida.remitoId)
+          .catch(err => console.error('[LoanerRetornoProveedorButton] recalificación no iniciada (la completa el sweep):', err));
       }
     } catch (err) {
       console.error('[LoanerRetornoProveedorButton] retorno falló:', err);

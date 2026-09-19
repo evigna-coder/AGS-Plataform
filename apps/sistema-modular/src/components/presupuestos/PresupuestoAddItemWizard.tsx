@@ -13,6 +13,7 @@ import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpFromStockAmplio } from '../../services/atpHelpers';
 import { envasePedido } from '../../utils/envaseUnidad';
 import { articulosService } from '../../services/firebaseService';
+import { onCacheInvalidated } from '../../services/serviceCache';
 
 import { Select } from '../ui/Select';
 interface Props {
@@ -69,11 +70,16 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const listRef = useRef<HTMLDivElement | null>(null);
   const sym = MONEDA_SIMBOLO[(moneda as keyof typeof MONEDA_SIMBOLO) || 'USD'] || '$';
 
-  // Suscripción en vivo (2026-08-27): un artículo dado de alta en otra pestaña
-  // aparece acá sin cerrar y reabrir el modal (antes: getAll una sola vez + caché).
+  // Catálogo cacheado + refresco al invalidarse (2026-09-18): la suscripción
+  // en vivo bajaba el catálogo entero (~2.000 docs) en cada montaje del modal.
+  // Un artículo dado de alta en otra pestaña sigue apareciendo: el alta
+  // invalida 'articulos' y el aviso cruza pestañas (serviceCache).
   useEffect(() => {
-    const unsub = articulosService.subscribe(undefined, setArticulos, () => {});
-    return unsub;
+    let vivo = true;
+    const cargar = () => articulosService.getAll().then(a => { if (vivo) setArticulos(a); }).catch(() => {});
+    void cargar();
+    const off = onCacheInvalidated(prefix => { if (prefix.startsWith('articulos')) void cargar(); });
+    return () => { vivo = false; off(); };
   }, []);
   useEffect(() => {
     const t = setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select?.(); }, 30);

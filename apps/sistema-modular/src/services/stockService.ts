@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
+import { patchRetornoProveedor } from '../utils/loanerCicloRecalificacion';
 import { runTransaction, getCurrentUserTrace } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito, Loaner } from '@ags/shared';
 import type { ResultadoDeduccionLinea } from '../utils/cierreStockLineas';
 import { costoComponente } from '../utils/kitProrrateo';
 import { computeFichaEstado } from '@ags/shared';
@@ -448,6 +449,30 @@ const promedioPonderado = (ls: CostoLineaImportacion[]): number | undefined => {
   return ls.reduce((s, l) => s + l.costoBase * (l.unidadesBase > 0 ? l.unidadesBase : 0), 0) / peso;
 };
 
+/**
+ * Escrituras en TANDAS (2026-09-17): el re-estampado de costos hacía un commit
+ * por unidad (170 unidades = 170 idas y vueltas, más de un minuto en JAS041).
+ * Se acumulan en un batch y se commitea cada ~150 unidades (cada una son dos
+ * operaciones: el update y su auditoría; el tope de Firestore es 500).
+ */
+class EscrituraEnTandas {
+  private batch = createBatch();
+  private ops = 0;
+  constructor(private readonly max = 300) {}
+  async update(ref: ReturnType<typeof docRef>, payload: Record<string, unknown>, audit?: { collection: string; documentId: string }): Promise<void> {
+    this.batch.update(ref, payload as { [k: string]: any });
+    this.ops += 1;
+    if (audit) { batchAudit(this.batch, { action: 'update', collection: audit.collection, documentId: audit.documentId, after: payload }); this.ops += 1; }
+    if (this.ops >= this.max) await this.flush();
+  }
+  async flush(): Promise<void> {
+    if (this.ops === 0) return;
+    await this.batch.commit();
+    this.batch = createBatch();
+    this.ops = 0;
+  }
+}
+
 /** Costo de un artículo entero (promedio ponderado de sus líneas) — para componentes de kit. */
 function costoPorArticulo(lineas: CostoLineaImportacion[], articuloId: string): number | undefined {
   return promedioPonderado(lineas.filter(l => l.articuloId === articuloId));
@@ -594,6 +619,7 @@ export const unidadesService = {
     const unidades = await this.getByImportacion(params.importacionNumero);
     const ahora = new Date().toISOString();
     let actualizadas = 0, sinCosto = 0;
+    const tandas = new EscrituraEnTandas();
 
     for (const u of unidades) {
       // Unidad nacida de un kit de este embarque (2026-09-10): su costo real es
@@ -602,13 +628,16 @@ export const unidadesService = {
         ? costoComponente(costoPorArticulo(params.costoPorLinea, u.origenKit.articuloId), u.origenKit.participacionPct, u.origenKit.cantidadPorKit)
         : costoDeUnidadPorLinea(u, params.costoPorLinea);
       if (costo == null) { sinCosto++; continue; }
-      await this.update(u.id, {
+      await tandas.update(docRef('unidades', u.id), deepCleanForFirestore({
         costoUnitarioReal: costo,
         factorImportacionReal: params.factorEmbarque,
         costeoConfirmadoAt: ahora,
-      } as Partial<UnidadStock>);
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }), { collection: 'unidades_stock', documentId: u.id });
       actualizadas++;
     }
+    await tandas.flush();
 
     logBusinessEvent({
       eventName: 'importacion.costeo_confirmado',
@@ -646,6 +675,7 @@ export const unidadesService = {
     let actualizadas = 0, sinCosto = 0, confirmadas = 0;
     const factorAnteriorPorArticulo = new Map<string, number | null>();
     let ultimoIngreso = '';
+    const tandas = new EscrituraEnTandas();
 
     for (const u of unidades) {
       const costo = u.origenKit
@@ -657,12 +687,15 @@ export const unidadesService = {
         factorAnteriorPorArticulo.set(u.articuloId, u.factorImportacion ?? null);
       }
       if (u.createdAt > ultimoIngreso) ultimoIngreso = u.createdAt;
-      await this.update(u.id, {
+      await tandas.update(docRef('unidades', u.id), deepCleanForFirestore({
         costoUnitario: costo,
         factorImportacion: params.factorEmbarque,
-      } as Partial<UnidadStock>);
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }), { collection: 'unidades_stock', documentId: u.id });
       actualizadas++;
     }
+    await tandas.flush();
 
     // Snapshot del catálogo: solo si esta impo sigue siendo la última que costeó
     // el artículo — una posterior ya habría estampado una fecha más nueva.
@@ -678,16 +711,23 @@ export const unidadesService = {
         const art = await articulosService.getById(articuloId);
         if (!art) continue;
         if (art.ultimoCostoFecha && ultimoIngreso && art.ultimoCostoFecha > ultimoIngreso) continue;
-        await articulosService.update(articuloId, {
+        // En la misma tanda y con UNA invalidación de caché al final (2026-09-17):
+        // articulosService.update invalidaba el catálogo por artículo y cada
+        // pantalla abierta lo volvía a bajar entero (4.000 docs) por cada uno.
+        await tandas.update(docRef('articulos', articuloId), deepCleanForFirestore({
           ultimoCostoImportacion: costo,
           ultimoFactorImportacion: params.factorEmbarque,
           ultimoCostoMoneda: 'USD',
           ultimoCostoFecha: ahora,
-        });
+          ...getUpdateTrace(),
+          updatedAt: Timestamp.now(),
+        }), { collection: 'articulos', documentId: articuloId });
       } catch (err) {
         console.warn(`[reestimarCosteo] snapshot artículo ${articuloId}:`, err);
       }
     }
+    await tandas.flush();
+    if (porArticulo.size > 0) invalidateCache('articulos');
 
     logBusinessEvent({
       eventName: 'importacion.costeo_reestimado',
@@ -1162,7 +1202,11 @@ export const remitosService = {
   async getAll(filters?: {
     ingenieroId?: string;
     estado?: string;
+    /** Varios estados en una consulta (2026-09-18): `in`, un solo campo, sin índice compuesto. */
+    estados?: string[];
     tipo?: string;
+    /** Remitos que llevan esta OT (`otNumbers` array-contains). Usar SOLO, sin otros filtros. */
+    otNumber?: string;
   }): Promise<Remito[]> {
     let q = query(collection(db, 'remitos'));
     if (filters?.ingenieroId) {
@@ -1171,8 +1215,14 @@ export const remitosService = {
     if (filters?.estado) {
       q = query(q, where('estado', '==', filters.estado));
     }
+    if (filters?.estados && filters.estados.length > 0) {
+      q = query(q, where('estado', 'in', filters.estados.slice(0, 30)));
+    }
     if (filters?.tipo) {
       q = query(q, where('tipo', '==', filters.tipo));
+    }
+    if (filters?.otNumber) {
+      q = query(q, where('otNumbers', 'array-contains', filters.otNumber));
     }
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({
@@ -1856,24 +1906,30 @@ export const remitosService = {
     const batch = createBatch();
     batch.update(docRef('remitos', remitoId), remitoPatch);
     batchAudit(batch, { action: 'update', collection: 'remitos', documentId: remitoId, after: remitoPatch });
-    // La vuelta revierte el loaner a base, limpia el snapshot vigente y
-    // estampa fechaRetorno en la entrada del HISTORIAL de este remito
-    // (2026-08-12) — espejo del efecto de createForItems.
+    // La vuelta limpia el snapshot vigente y estampa fechaRetorno en la
+    // entrada del HISTORIAL de este remito (2026-08-12) — espejo del efecto
+    // de createForItems. Todo lo que vuelve de un proveedor se recalifica
+    // (2026-09-18): el módulo queda 'en_recalificacion' y post-commit se crea
+    // el ítem de RQ en la OT del trabajo (o una OT nueva si salió sin OT).
     const lSnap = await getDoc(doc(db, 'loaners', item.loanerId));
-    const derivacionesPrevias = (lSnap.exists() ? (lSnap.data().derivaciones ?? []) : []) as Array<Record<string, unknown>>;
-    const derivaciones = derivacionesPrevias.map(d =>
-      d.remitoId === remitoId && !d.fechaRetorno ? { ...d, fechaRetorno: now } : d,
-    );
+    const loanerPrevio = (lSnap.exists() ? lSnap.data() : {}) as Pick<Loaner, 'estado' | 'derivaciones' | 'enProveedor'>;
     const loanerPatch = deepCleanForFirestore({
-      estado: 'en_base',
-      enProveedor: null,
-      derivaciones,
+      ...patchRetornoProveedor(loanerPrevio, remitoId, now),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
     batch.update(docRef('loaners', item.loanerId), loanerPatch);
     batchAudit(batch, { action: 'update', collection: 'loaners', documentId: item.loanerId, after: loanerPatch });
     await batch.commit();
+
+    // OT/ítem de recalificación + ticket (best-effort post-commit; el sweep de
+    // loaners lo completa si falla). Import dinámico: el util importa servicios.
+    try {
+      const { recalificarTrasRetornoProveedor } = await import('../utils/loanerRecalificacion');
+      await recalificarTrasRetornoProveedor(item.loanerId, remitoId);
+    } catch (err) {
+      console.error('[marcarLoanerRetornado] recalificación no iniciada (retorno OK; la completa el sweep):', err);
+    }
 
     // Calificación pendiente del proveedor (best-effort post-commit).
     if (remito.proveedorId && remito.proveedorNombre) {

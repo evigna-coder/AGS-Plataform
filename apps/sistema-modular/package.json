@@ -27,6 +27,8 @@
     "test:entregas": "tsx scripts/test-entregas.ts",
     "test:analitica": "tsx src/utils/analitica/__tests__/presupuestosMetrics.test.ts",
     "test:landing": "tsx src/components/layout/__tests__/landingPath.test.ts",
+    "test:loaner-recalificacion": "tsx src/utils/__tests__/loanerCicloRecalificacion.test.ts",
+    "test:presupuestos-sin-oc": "tsx src/utils/__tests__/presupuestosSinOC.test.ts",
     "test:finde": "tsx src/utils/__tests__/finDeSemana.test.ts",
     "test:loaner-incompleto": "tsx src/utils/__tests__/loanerIncompleto.test.ts",
     "test:loaner-grupos": "tsx src/utils/__tests__/loanerGrupos.test.ts",
