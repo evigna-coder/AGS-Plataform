@@ -178,6 +178,48 @@ export const ordenesTrabajoService = {
     return results;
   },
 
+  /**
+   * Cola "para coordinar" EN VIVO (2026-09-21): la agenda repetía `getPending`
+   * cada 60 s mientras la pestaña estaba activa — en una jornada fueron ~470
+   * consultas y 23 minutos acumulados de espera. Mismas dos consultas y mismo
+   * recorte que `getPending`, pero con onSnapshot: la primera entrega trae la
+   * cola y después solo llegan los cambios.
+   */
+  subscribePending(callback: (ots: WorkOrder[]) => void, onError?: (err: Error) => void): () => void {
+    const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
+    const AGENDA_PENDING_DESDE = '2026-07-30';
+    const base = collection(db, 'reportes');
+    const rangoId = [where(documentId(), '>=', OT_NUMERACION_GO_LIVE), where(documentId(), '<', ':')];
+    const porEstado = new Map<string, WorkOrder>();
+    const porBorrador = new Map<string, WorkOrder>();
+    const aceptar = (data: Record<string, unknown>): boolean => {
+      if (data.estadoAdmin === 'CANCELADA') return false;
+      if (data.estadoAdmin && !PENDING_ESTADOS.includes(data.estadoAdmin as string)) return false;
+      const c = data.createdAt as { toDate?: () => Date } | string | undefined;
+      const createdIso = typeof c === 'string' ? c : c?.toDate?.()?.toISOString?.() ?? '';
+      return createdIso.slice(0, 10) >= AGENDA_PENDING_DESDE;
+    };
+    const emitir = () => {
+      const seen = new Set<string>();
+      const out: WorkOrder[] = [];
+      for (const m of [porEstado, porBorrador]) for (const [id, ot] of m) { if (!seen.has(id)) { seen.add(id); out.push(ot); } }
+      callback(out);
+    };
+    const escuchar = (filtro: QueryConstraint, destino: Map<string, WorkOrder>) =>
+      onSnapshot(query(base, filtro, ...rangoId), snap => {
+        destino.clear();
+        for (const d of snap.docs) {
+          const data = d.data() as Record<string, unknown>;
+          if (!aceptar(data)) continue;
+          destino.set(d.id, { otNumber: d.id, ...data, updatedAt: (data.updatedAt as string) || new Date().toISOString() } as WorkOrder);
+        }
+        emitir();
+      }, err => onError?.(err as Error));
+    const u1 = escuchar(where('estadoAdmin', 'in', PENDING_ESTADOS), porEstado);
+    const u2 = escuchar(where('status', '==', 'BORRADOR'), porBorrador);
+    return () => { u1(); u2(); };
+  },
+
   // Obtener todas las OTs (con filtros opcionales)
   async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
     let q = query(collection(db, 'reportes'));

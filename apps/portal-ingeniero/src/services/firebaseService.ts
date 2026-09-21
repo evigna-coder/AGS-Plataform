@@ -1267,6 +1267,8 @@ function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntr
     equipoAgsId: (data.equipoAgsId as string) ?? null,
     estadoAgenda: (data.estadoAgenda as AgendaEntry['estadoAgenda']) ?? 'pendiente',
     notas: (data.notas as string) ?? null,
+    // Detalle de la OT (2026-09-21): problema o tarea, para todos los tipos de servicio.
+    problemaFallaInicial: (data.problemaFallaInicial as string) ?? null,
     titulo: (data.titulo as string) ?? null,
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',

@@ -244,6 +244,15 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
           {equipoAgsId}
         </p>
       )}
+      {/* Detalle de la OT (2026-09-21): en un mantenimiento la tarea adicional
+          se escribe en "Problema / Falla inicial" y no se veía hasta abrir la
+          OT. Se muestra para TODOS los tipos de servicio, completo. */}
+      {ot.problemaFallaInicial && (
+        <p className={`text-[10px] text-slate-600 whitespace-pre-wrap break-words mt-0.5 ${onToggleSelect ? 'pl-5' : ''}`}
+          title={ot.problemaFallaInicial}>
+          {ot.problemaFallaInicial}
+        </p>
+      )}
     </div>
   );
 };

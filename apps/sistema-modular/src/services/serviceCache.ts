@@ -4,6 +4,27 @@ const cache = new Map<string, { data: any; timestamp: number }>();
 const TTL = 2 * 60 * 1000; // 2 minutos
 
 /**
+ * TTL más largo para catálogos que cambian poco y cuyos writes YA invalidan la
+ * clave (2026-09-21, medición de una jornada: `clientes` se bajó 15 veces en la
+ * lista de OT, `sistemas` y `establecimientos` en casi todas las pantallas,
+ * `modulos_all` —3.249 docs— dos veces por visita). Con invalidación al
+ * escribir, y propagada entre pestañas, el TTL solo acota lo que otra PC pudo
+ * cambiar sin avisar: 15 minutos es un techo razonable para un catálogo.
+ * Clave sin prefijo acá = TTL default de 2 minutos.
+ */
+const MIN = 60 * 1000;
+const TTL_POR_PREFIJO: Array<[prefijo: string, ttl: number]> = [
+  ['clientes', 15 * MIN], ['establecimientos', 15 * MIN], ['sistemas', 15 * MIN],
+  ['articulos', 15 * MIN], ['modulos_all', 15 * MIN], ['ingenieros', 15 * MIN], ['usuarios', 15 * MIN],
+  ['tipos_servicio', 30 * MIN], ['conceptos_servicio', 30 * MIN], ['categorias_equipo', 30 * MIN],
+  ['marcas', 30 * MIN], ['sectores', 30 * MIN], ['proveedores', 15 * MIN], ['posiciones_arancelarias', 30 * MIN],
+];
+function ttlDe(key: string): number {
+  for (const [prefijo, ttl] of TTL_POR_PREFIJO) if (key === prefijo || key.startsWith(prefijo + ':')) return ttl;
+  return TTL;
+}
+
+/**
  * Cross-tab: el cache vive en memoria de cada pestaña, así que invalidar en una
  * NO limpiaba las otras (editabas un cliente/categoría/artículo en la pestaña A y
  * la pestaña B seguía sirviendo el valor viejo hasta que expiraba el TTL). Un
@@ -45,7 +66,7 @@ channel?.addEventListener('message', (e: MessageEvent) => {
 /** Get cached data if still valid, or null. */
 export function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
-  if (!entry || Date.now() - entry.timestamp > TTL) {
+  if (!entry || Date.now() - entry.timestamp > ttlDe(key)) {
     cache.delete(key);
     return null;
   }

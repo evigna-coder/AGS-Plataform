@@ -46,6 +46,8 @@ export interface ReportFormState {
   // Fechas y tiempos
   fechaInicio: string;
   fechaFin: string;
+  /** La fecha del servicio ya la fijó el técnico (o se sugirió hoy y se guardó). Sin la marca, al abrir se sugiere hoy (2026-09-21). */
+  fechaServicioConfirmada: boolean;
   horaInicio: string;
   horaFin: string;
   horasTrabajadas: string;
@@ -117,6 +119,8 @@ export interface ReportState {
   codigoInternoCliente: string;
   fechaInicio: string;
   fechaFin: string;
+  /** La fecha del servicio ya la fijó el técnico (o se sugirió hoy y se guardó). Sin la marca, al abrir se sugiere hoy (2026-09-21). */
+  fechaServicioConfirmada: boolean;
   horaInicio: string;
   horaFin: string;
   horasTrabajadas: string;
@@ -180,6 +184,7 @@ export interface UseReportFormReturn {
     setCodigoInternoCliente: (value: string) => void;
     setFechaInicio: (value: string) => void;
     setFechaFin: (value: string) => void;
+    setFechaServicioConfirmada: (value: boolean) => void;
     setHoraInicio: (value: string) => void;
     setHoraFin: (value: string) => void;
     setHorasTrabajadas: (value: string) => void;
@@ -252,6 +257,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   // Vacías obligan a completarlas a mano; la validación de finalizar las exige.
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [fechaServicioConfirmada, setFechaServicioConfirmada] = useState(false);
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
   const [horasTrabajadas, setHorasTrabajadas] = useState('');
@@ -307,7 +313,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     otNumber, budgets, tipoServicio, motivoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
+    fechaInicio, fechaFin, fechaServicioConfirmada, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
@@ -321,7 +327,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     otNumber, budgets, tipoServicio, motivoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
+    fechaInicio, fechaFin, fechaServicioConfirmada, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
@@ -358,6 +364,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     codigoInternoCliente,
     fechaInicio,
     fechaFin,
+    fechaServicioConfirmada,
     horaInicio,
     horaFin,
     horasTrabajadas,
@@ -413,6 +420,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setCodigoInternoCliente,
       setFechaInicio,
       setFechaFin,
+      setFechaServicioConfirmada,
       setHoraInicio,
       setHoraFin,
       setHorasTrabajadas,

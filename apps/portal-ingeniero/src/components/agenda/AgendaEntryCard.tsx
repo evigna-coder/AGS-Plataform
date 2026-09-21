@@ -93,6 +93,13 @@ export default function AgendaEntryCard({ entry, showEngineer, otInfo }: Props) 
       {entry.establecimientoNombre && (
         <p className="text-[11px] text-slate-400">{entry.establecimientoNombre}</p>
       )}
+      {/* Detalle de la OT (2026-09-21): el problema o la tarea adicional que el
+          IST necesita ver antes de salir, para cualquier tipo de servicio. */}
+      {entry.problemaFallaInicial && (
+        <p className="text-[11px] text-slate-700 bg-slate-50 border border-slate-200 rounded px-2 py-1 whitespace-pre-wrap break-words">
+          {entry.problemaFallaInicial}
+        </p>
+      )}
       {entry.notas && (
         <p className="text-[11px] text-slate-500 italic line-clamp-2">{entry.notas}</p>
       )}

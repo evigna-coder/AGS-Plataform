@@ -678,6 +678,7 @@ export const modulosService = {
     });
 
     const ref = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), cleanedData);
+    invalidateCache('modulos_all');
     return ref.id;
   },
 
@@ -734,11 +735,13 @@ export const modulosService = {
   async update(sistemaId: string, moduloId: string, data: Partial<Omit<ModuloSistema, 'id' | 'sistemaId'>>) {
     const ref = doc(db, 'sistemas', sistemaId, 'modulos', moduloId);
     await updateDoc(ref, deepCleanForFirestore(data));
+    invalidateCache('modulos_all');
   },
 
   // Eliminar modulo (subcollection — uses deleteDoc directly)
   async delete(sistemaId: string, moduloId: string) {
     await deleteDoc(doc(db, 'sistemas', sistemaId, 'modulos', moduloId));
+    invalidateCache('modulos_all');
   },
 
   // Mover modulo a otro sistema

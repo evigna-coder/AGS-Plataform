@@ -51,7 +51,7 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
   // Las de bench con detalle de falla suman el renglón extra (2026-08-12).
   const estimatedH = entries.reduce(
     (h, e) => h + 54 + (esTrabajoEnBench(e.tipoServicio) && e.notas ? 22 : 0)
-      + (e.problemaFallaInicial && !esTrabajoEnBench(e.tipoServicio) ? 22 : 0), 16);
+      + (e.problemaFallaInicial ? 22 : 0), 16);
   const spaceBelow = vh - cellRect.bottom - 8;
   const spaceAbove = cellRect.top - 8;
   const showAbove = spaceBelow < Math.min(estimatedH, 300) && spaceAbove > spaceBelow;
@@ -129,7 +129,9 @@ export const AgendaCellPopover: FC<AgendaCellPopoverProps> = ({
                   visita de diagnóstico/reparación el tipo de servicio no dice
                   nada — hace falta saber cuál es el problema y qué llevar. Sin
                   truncar: es exactamente el dato por el que había que abrir la OT. */}
-              {entry.problemaFallaInicial && !esTrabajoEnBench(entry.tipoServicio) && (
+              {/* Para TODOS los tipos (2026-09-21), bench incluido: la tarea
+                  adicional de un mantenimiento también va acá. */}
+              {entry.problemaFallaInicial && (
                 <div className="mt-0.5 text-[10px] text-slate-600 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 whitespace-pre-wrap break-words">
                   {entry.problemaFallaInicial}
                 </div>

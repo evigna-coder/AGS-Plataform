@@ -173,16 +173,15 @@ export function useAgenda(): UseAgendaReturn {
   // pestaña se recarga en el acto (el efecto se re-arma con `isTabActive`).
   const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
   const isTabActive = useTabOverlay()?.isTabActive ?? true;
+  // En vivo (2026-09-21): antes consultaba cada 60 s; ahora escucha la cola y
+  // recibe solo los cambios. Se desengancha al dejar la pestaña.
   useEffect(() => {
     if (!isTabActive) return;
-    const load = () => ordenesTrabajoService.getPending()
-      .then(setAllCandidateOTs)
-      .catch(err => console.error('Error loading pending OTs:', err));
-    load();
-    const int = setInterval(load, 60_000);
-    const onVis = () => { if (!document.hidden) load(); };
-    document.addEventListener('visibilitychange', onVis);
-    return () => { clearInterval(int); document.removeEventListener('visibilitychange', onVis); };
+    const unsub = ordenesTrabajoService.subscribePending(
+      setAllCandidateOTs,
+      err => console.error('Error escuchando OTs pendientes:', err),
+    );
+    return () => unsub();
   }, [isTabActive]);
 
   // Mapa sistemaId → id visible para las tarjetas del sidebar (UAT 2026-07-17).

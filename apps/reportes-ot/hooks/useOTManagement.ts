@@ -185,6 +185,7 @@ export const useOTManagement = (
     setCodigoInternoCliente,
     setFechaInicio,
     setFechaFin,
+    setFechaServicioConfirmada,
     setHoraInicio,
     setHoraFin,
     setHorasTrabajadas,
@@ -295,8 +296,21 @@ export const useOTManagement = (
         setCodigoInternoCliente(data.codigoInternoCliente || '');
         // Sin fecha guardada, queda VACÍA (2026-08-25) — antes se precargaba hoy
         // y el ingeniero no siempre lo corregía. La validación de finalizar la exige.
-        setFechaInicio(data.fechaInicio || '');
-        setFechaFin(data.fechaFin || '');
+        // Fecha del servicio (2026-09-21): la OT llega del back-office con la
+        // fecha de creación o la planificada, y el técnico la dejaba pasar. Si el
+        // reporte todavía no fijó su fecha, se sugiere HOY (inicio y fin) y la
+        // marca `fechaServicioConfirmada` viaja con el autosave: al reabrir queda
+        // la primera fecha guardada. Siempre editable. Un reporte finalizado no se toca.
+        const fechaFijada = !!data.fechaServicioConfirmada || data.status === 'FINALIZADO';
+        if (fechaFijada) {
+          setFechaInicio(data.fechaInicio || '');
+          setFechaFin(data.fechaFin || '');
+        } else {
+          const hoy = new Date().toISOString().split('T')[0];
+          setFechaInicio(hoy);
+          setFechaFin(hoy);
+        }
+        setFechaServicioConfirmada(true);
         setHoraInicio(data.horaInicio || '');
         setHoraFin(data.horaFin || '');
         setHorasTrabajadas(data.horasTrabajadas || '');
@@ -441,6 +455,7 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(template));
     }
     setProtocolSelections([]);
+    setFechaServicioConfirmada(true);
     setOtsFirmaLote([]);
     setFirmaLote(null);
     setInstrumentosSeleccionados([]);
@@ -519,6 +534,7 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(templateNewReport));
     }
     setProtocolSelections([]);
+    setFechaServicioConfirmada(true);
     setOtsFirmaLote([]);
     setFirmaLote(null);
     setInstrumentosSeleccionados([]);
@@ -671,6 +687,7 @@ export const useOTManagement = (
     setProtocolTemplateId(newState.protocolTemplateId);
     setProtocolData(newState.protocolData);
     setProtocolSelections([]);
+    setFechaServicioConfirmada(true);
     setOtsFirmaLote([]);
     setFirmaLote(null);
     setInstrumentosSeleccionados([]);
