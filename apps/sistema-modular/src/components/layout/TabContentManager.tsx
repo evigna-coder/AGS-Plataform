@@ -82,6 +82,7 @@ const FichaDetail = pagina(() => import('../../pages/fichas').then(m => m.FichaD
 const LoanersList = pagina(() => import('../../pages/loaners').then(m => m.LoanersList));
 const LoanerEditor = pagina(() => import('../../pages/loaners').then(m => m.LoanerEditor));
 const LoanerDetail = pagina(() => import('../../pages/loaners').then(m => m.LoanerDetail));
+const LoanersHistorial = pagina(() => import('../../pages/loaners').then(m => m.LoanersHistorial));
 const StockHome = pagina(() => import('../../pages/stock').then(m => m.StockHome));
 const MarcasPage = pagina(() => import('../../pages/stock').then(m => m.MarcasPage));
 const IngenierosPage = pagina(() => import('../../pages/stock').then(m => m.IngenierosPage));
@@ -265,6 +266,7 @@ function AppRoutes() {
       {/* Loaners */}
       <Route path="/loaners" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanersList /></ProtectedRoute>} />
       <Route path="/loaners/nuevo" element={<Navigate to="/loaners" replace />} />
+      <Route path="/loaners/historial" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanersHistorial /></ProtectedRoute>} />
       <Route path="/loaners/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanerDetail /></ProtectedRoute>} />
       <Route path="/loaners/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanerEditor /></ProtectedRoute>} />
       {/* Stock */}

@@ -16,7 +16,7 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 import { Select } from '../../components/ui/Select';
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 
 const SERVICIO_TYPES = [
   'Calibración',

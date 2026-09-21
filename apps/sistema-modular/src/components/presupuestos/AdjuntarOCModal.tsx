@@ -6,8 +6,13 @@ import type { AdjuntoPresupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { ZonaArrastre } from '../ui/ZonaArrastre';
+import { expandirArchivosOC } from '../../utils/mailAdjunto';
 
 import { notify } from '../../utils/notify';
+
+const AVISO_OUTLOOK = 'Outlook no entrega el correo como archivo al arrastrarlo directo. Arrastralo primero al escritorio o a una carpeta (queda como .msg o .eml) y después soltá ese archivo acá.';
+
 interface Props {
   open: boolean;
   presupuestoId: string;
@@ -29,11 +34,13 @@ export const AdjuntarOCModal: React.FC<Props> = ({
   );
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (files: FileList | null) => {
+  const handleUpload = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
+      // Un correo (.msg/.eml) entra como PDF + original + lo que traía adentro (2026-09-19).
+      const lista = await expandirArchivosOC(Array.from(files), (msg, tipo) => (tipo === 'ok' ? notify.success(msg) : notify.warning(msg)));
+      for (const file of lista) {
         const path = `presupuestos/${presupuestoId}/adjuntos/${Date.now()}_${file.name}`;
         const storageRef = ref(storage, path);
         await uploadBytes(storageRef, file);
@@ -135,18 +142,22 @@ ${causa}`);
           </div>
         )}
 
-        {/* Upload */}
-        <div>
+        {/* Upload: selector o arrastre. Un correo de Outlook (.msg/.eml) se
+            convierte a PDF al soltarlo (2026-09-19). */}
+        <ZonaArrastre onArchivos={handleUpload} deshabilitado={uploading}
+          onSinArchivos={() => notify.warning(AVISO_OUTLOOK)}
+          texto="o soltá acá archivos o un correo de Outlook (.msg / .eml): el correo se convierte a PDF">
           <p className="text-[10px] font-mono font-medium text-slate-500 uppercase tracking-wide mb-1">Adjuntar archivo</p>
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.msg,.eml"
             onChange={e => handleUpload(e.target.files)}
             className="text-xs text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
           />
           {uploading && <p className="text-[10px] text-teal-600 mt-1">Subiendo...</p>}
-        </div>
+        </ZonaArrastre>
       </div>
 
       <div className="flex justify-end gap-2 mt-4">

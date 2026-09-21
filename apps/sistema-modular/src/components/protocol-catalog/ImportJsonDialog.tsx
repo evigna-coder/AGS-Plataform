@@ -7,7 +7,7 @@ import { mapSection } from '../../utils/tableCatalogJsonImport';
 import type { TableCatalogEntry } from '@ags/shared';
 
 import { Select } from '../ui/Select';
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 
 interface Props {
   onClose: () => void;

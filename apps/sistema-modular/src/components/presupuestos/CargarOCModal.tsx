@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { expandirArchivosOC } from '../../utils/mailAdjunto';
+import { notify } from '../../utils/notify';
 import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import type { OrdenCompraCliente, Presupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
@@ -44,6 +46,8 @@ function deriveTipo(filename: string): 'pdf' | 'jpg' | 'png' {
   return 'jpg';
 }
 
+const AVISO_OUTLOOK = 'Outlook no entrega el correo como archivo al arrastrarlo directo. Arrastralo primero al escritorio o a una carpeta (queda como .msg o .eml) y después soltá ese archivo acá.';
+
 export const CargarOCModal: React.FC<Props> = ({
   presupuesto,
   open,
@@ -88,8 +92,13 @@ export const CargarOCModal: React.FC<Props> = ({
     });
   };
 
+  // Un correo (.msg/.eml) entra como PDF + original + lo que traía adentro (2026-09-19).
+  const agregarArchivos = async (nuevos: File[], reemplazar: boolean) => {
+    const lista = await expandirArchivosOC(nuevos, (msg, tipo) => (tipo === 'ok' ? notify.success(msg) : notify.warning(msg)));
+    setFiles(prev => (reemplazar ? lista : [...prev, ...lista]));
+  };
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files ? Array.from(e.target.files) : []);
+    void agregarArchivos(e.target.files ? Array.from(e.target.files) : [], true);
   };
 
   const uploadFiles = async (ocId: string) => Promise.all(files.map(async (file) => {
@@ -171,6 +180,8 @@ export const CargarOCModal: React.FC<Props> = ({
             onFechaChange={setFecha}
             onNotasChange={setNotas}
             onFilesChange={handleFilesChange}
+            onArchivos={files => void agregarArchivos(files, false)}
+            onSinArchivos={() => notify.warning(AVISO_OUTLOOK)}
           />
         ) : (
           <ExistenteOCForm value={existingId} onChange={setExistingId} options={ocsOpts} />

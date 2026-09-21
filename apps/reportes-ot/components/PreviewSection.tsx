@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import type { FirmaLote } from '../types';
 import { CompanyHeader } from './CompanyHeader';
 import { CatalogTableView } from './CatalogTableView';
 import { CatalogChecklistView } from './CatalogChecklistView';
@@ -87,6 +88,8 @@ interface PreviewSectionProps {
   signatureEngineer: string | null;
   aclaracionCliente: string;
   aclaracionEspecialista: string;
+  /** Firma por lote (2026-09-21): leyenda bajo la firma del cliente. */
+  firmaLote?: FirmaLote | null;
   // Protocol
   protocolSelections: ProtocolSelection[];
   instrumentosSeleccionados: InstrumentoPatronOption[];
@@ -109,6 +112,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
     tipoServicio, motivoServicio, reporteTecnico, articulos, accionesTomar, accionesInternaOnly, budgets,
     esFacturable, tieneContrato, esGarantia,
     signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
+    firmaLote = null,
     protocolSelections, instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas, allPublishedTables, allProjects,
     adjuntos, firebase,
     setIsPreviewMode,
@@ -238,14 +242,26 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
 
               <div className="grid grid-cols-2 gap-6 mb-2">
                 <div className="flex flex-col items-center">
-                  <div className="h-14 w-full border-b border-slate-900 flex items-end justify-center pb-1">
+                  <div className="h-[68px] w-full border-b border-slate-900 flex items-end justify-center pb-1 pt-1.5">
                     {signatureClient && <img src={signatureClient} className="max-h-full max-w-full object-contain" alt="Firma Cliente" />}
                   </div>
                   <p className="font-black text-[11px] mt-1 uppercase text-center leading-none">{aclaracionCliente || "Cliente"}</p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Firma del cliente</p>
+                  {/* Firma por lote (2026-09-21): de dónde viene la firma, o a qué OT alcanza. */}
+                  {firmaLote?.autorizadaDesdeOt && (
+                    <p className="text-[8px] text-slate-500 text-center mt-0.5 leading-tight">
+                      Firma autorizada por lote desde el reporte de la OT {firmaLote.autorizadaDesdeOt}
+                      {firmaLote.fecha ? ` el ${new Date(firmaLote.fecha).toLocaleDateString('es-AR')}` : ''}
+                    </p>
+                  )}
+                  {!!firmaLote?.otsAutorizadas?.length && (
+                    <p className="text-[8px] text-slate-500 text-center mt-0.5 leading-tight">
+                      Esta firma autoriza también los reportes de las OT {firmaLote.otsAutorizadas.join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-center">
-                  <div className="h-14 w-full border-b border-slate-900 flex items-end justify-center pb-1">
+                  <div className="h-[68px] w-full border-b border-slate-900 flex items-end justify-center pb-1 pt-1.5">
                     {signatureEngineer && <img src={signatureEngineer} className="max-h-full max-w-full object-contain" alt="Firma Técnico" />}
                   </div>
                   <p className="font-black text-[11px] mt-1 uppercase text-center leading-none">{aclaracionEspecialista || "AGS Analítica"}</p>

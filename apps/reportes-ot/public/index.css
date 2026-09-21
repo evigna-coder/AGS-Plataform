@@ -446,3 +446,16 @@ body.pdf-generating .protocol-screen-wrapper {
     height: 20px;
   }
 }
+
+/* Campos obligatorios que faltan al finalizar (2026-09-21): rojo inequívoco,
+   sobre el propio input o sobre el contenedor cuando la marca va en un wrapper
+   (pad de firma, selector). Se saca sola al completar el campo. */
+.campo-faltante,
+.campo-faltante input:not([type="checkbox"]),
+.campo-faltante textarea,
+.campo-faltante select,
+.campo-faltante [contenteditable="true"] {
+  border-color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35) !important;
+}

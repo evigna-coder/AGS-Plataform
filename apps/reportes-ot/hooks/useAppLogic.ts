@@ -66,6 +66,7 @@ export function useAppLogic(
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
+    otsFirmaLote, firmaLote,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
     certificadosIngenieroSeleccionados, resolvedIngenieroId,
     destinatariosExtras, destinatariosManuales,
@@ -182,6 +183,7 @@ export function useAppLogic(
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
+    setOtsFirmaLote, setFirmaLote,
     setProtocolSelections, setInstrumentosSeleccionados, setPatronesSeleccionados, setColumnasSeleccionadas, setCertificadosIngenieroSeleccionados,
     setResolvedIngenieroId,
     setDestinatariosExtras, setDestinatariosManuales,
@@ -675,6 +677,13 @@ export function useAppLogic(
   // al step que lo contiene antes de scrollear/focusear. El `nonce` garantiza que
   // dos validaciones consecutivas sobre el mismo step disparen el efecto igual.
   const [pendingFocus, setPendingFocus] = useState<{ step: string; nonce: number } | null>(null);
+  /**
+   * Campos obligatorios que faltaban la última vez que se intentó finalizar
+   * (2026-09-21). Se pintan en rojo hasta que se completan; el set se vacía
+   * solo, campo por campo, a medida que el ingeniero los llena.
+   */
+  const [camposFaltantes, setCamposFaltantes] = useState<Set<string>>(new Set());
+  const estaVacio = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
   const pendingFocusNonce = useRef(0);
 
   const focusRequiredField = (key: string, stepKey: string) => {
@@ -697,6 +706,22 @@ export function useAppLogic(
     };
     setTimeout(() => tryFocus(8), 60);
   };
+
+  // A medida que se completan, los campos marcados dejan de estar en rojo.
+  useEffect(() => {
+    setCamposFaltantes(prev => {
+      if (prev.size === 0) return prev;
+      const valores: Record<string, unknown> = {
+        razonSocial, contacto, direccion, localidad, provincia, sistema, fechaInicio, fechaFin,
+        horasTrabajadas, reporteTecnico, aclaracionCliente, aclaracionEspecialista,
+        engineerSignature: signatureEngineer || engineerPadRef.current?.getSignature(),
+      };
+      const next = new Set([...prev].filter(k => estaVacio(valores[k])));
+      return next.size === prev.size ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [razonSocial, contacto, direccion, localidad, provincia, sistema, fechaInicio, fechaFin,
+    horasTrabajadas, reporteTecnico, aclaracionCliente, aclaracionEspecialista, signatureEngineer]);
 
   // Validación antes de confirmar firma o finalizar
   const validateBeforeClientConfirm = async (): Promise<boolean> => {
@@ -737,14 +762,16 @@ export function useAppLogic(
       { key: 'engineerSignature', label: 'Firma del especialista', value: engineerSignature, stepKey: 'firmas' },
     ];
 
-    const missing = requiredFields.find(
-      f => f.value === null || f.value === undefined || String(f.value).trim() === ''
-    );
+    const faltantes = requiredFields.filter(f => estaVacio(f.value));
+    const missing = faltantes[0];
+    // Todos los que faltan quedan marcados en rojo, no solo el primero (2026-09-21).
+    setCamposFaltantes(new Set(faltantes.map(f => f.key)));
 
     if (missing) {
+      const lista = faltantes.map(f => `• ${f.label}`).join('\n');
       modal.showAlert({
-        title: 'Falta completar un campo',
-        message: `Falta: ${missing.label}.\n\nAl cerrar este aviso te llevamos al campo.`,
+        title: faltantes.length === 1 ? 'Falta completar un campo' : `Faltan completar ${faltantes.length} campos`,
+        message: `${lista}\n\nQuedan marcados en rojo. Al cerrar este aviso te llevamos al primero.`,
         type: 'warning',
         onConfirm: () => focusRequiredField(missing.key, missing.stepKey),
       });
@@ -1288,6 +1315,7 @@ export function useAppLogic(
     setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
+    setOtsFirmaLote, setFirmaLote,
     setProtocolSelections, setInstrumentosSeleccionados,
     setPatronesSeleccionados, setColumnasSeleccionadas,
     setCertificadosIngenieroSeleccionados,
@@ -1333,6 +1361,9 @@ export function useAppLogic(
     handleGenerateRemoteSign,
     // Validación con scroll al primer campo faltante
     pendingFocus,
+    camposFaltantes,
+    // Firma por lote (2026-09-21)
+    otsFirmaLote, firmaLote,
     downloadPDF, shareReportPDF,
     duplicateOt,
     // Constants

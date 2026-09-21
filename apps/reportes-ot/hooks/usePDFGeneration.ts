@@ -745,6 +745,30 @@ export const usePDFGeneration = (
    * cierre administrativo (sistema-modular) no encontraba el PDF ni podía
    * anexarle documentos. Se recupera re-finalizando con buena conexión.
    */
+  // ── Firma por lote (2026-09-21) ──
+  /** Traza para el reporte ancla: qué OT autoriza esta firma. Sin selección, conserva la traza cargada. */
+  const firmaLoteAncla = () => {
+    const ots = (reportState.otsFirmaLote ?? []).filter(o => o && o !== otNumber);
+    return ots.length > 0
+      ? { otsAutorizadas: ots, fecha: new Date().toISOString(), aclaracionCliente: reportState.aclaracionCliente ?? null }
+      : (reportState.firmaLote ?? null);
+  };
+  /** Copia la firma del cliente a las OT autorizadas. Best-effort: si alguna falla, avisa y sigue. */
+  const propagarFirmaLote = async (firma: string | null) => {
+    const ots = (reportState.otsFirmaLote ?? []).filter(o => o && o !== otNumber);
+    if (!firma || ots.length === 0) return;
+    setGenerationStep(`Firmando ${ots.length} OT más…`);
+    try {
+      const r = await firebase.aplicarFirmaLote(ots, { signatureClient: firma, aclaracionCliente: reportState.aclaracionCliente ?? '', autorizadaDesdeOt: otNumber });
+      if (r.fallidas.length > 0) {
+        showAlert({ title: 'Firma por lote incompleta', message: `No se pudo firmar: ${r.fallidas.join(', ')}. Firmá esos reportes a mano.`, type: 'warning' });
+      }
+    } catch (err) {
+      console.error('[propagarFirmaLote]', err);
+      showAlert({ title: 'Firma por lote incompleta', message: 'La firma quedó en este reporte, pero no se pudo copiar a las otras OT. Firmalas a mano.', type: 'warning' });
+    }
+  };
+
   const uploadPdfsWithRetry = async (result: GeneratedPDFs): Promise<boolean> => {
     const ATTEMPTS = 2; // uploadReportBlob ya corta cada intento a los 90s
     for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
@@ -816,6 +840,7 @@ export const usePDFGeneration = (
         ...reportState,
         signatureClient: clientSignature,
         signatureEngineer: engineerSignature,
+        firmaLote: firmaLoteAncla(),
         status: 'FINALIZADO',
         // Phase 10 UAT fix (2026-04-22): avanzar estadoAdmin al finalizar el
         // reporte técnico para que el lifecycle del OT quede sincronizado con
@@ -832,6 +857,7 @@ export const usePDFGeneration = (
       console.log("Guardando reporte en Firestore...");
 
       await firebase.saveReport(otNumber, finalizedData);
+      await propagarFirmaLote(finalizedData.signatureClient ?? null);
 
       console.log("Guardado OK");
       console.log("Reporte guardado correctamente");
@@ -970,6 +996,7 @@ export const usePDFGeneration = (
         ...reportState,
         signatureClient: clientSig,
         signatureEngineer: engineerSig,
+        firmaLote: firmaLoteAncla(),
         status: 'FINALIZADO',
         // UAT 2026-07-17: este camino (botón de la sección de firmas) no avanzaba
         // estadoAdmin — solo handleFinalSubmit lo hacía. La OT quedaba en CREADA/
@@ -981,6 +1008,7 @@ export const usePDFGeneration = (
 
       console.log("Guardando reporte FINALIZADO", finalizedData);
       await firebase.saveReport(otNumber, finalizedData);
+      await propagarFirmaLote(finalizedData.signatureClient ?? null);
       saveSuccess = true;
       console.log("Reporte guardado exitosamente en Firestore");
 

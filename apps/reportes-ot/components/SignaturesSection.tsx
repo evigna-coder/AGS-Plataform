@@ -22,6 +22,12 @@ interface SignaturesSectionProps {
    *  (firma el remito) — el botón de finalizar aparece aunque el pad esté vacío.
    *  Entrega autorizado 2026-07-15; proveedor externo 2026-08-26. */
   tipoOT?: 'servicio' | 'entrega' | 'proveedor_externo' | 'alquiler';
+  /** Contacto de "Datos del cliente" (2026-09-21): un tilde lo copia a la aclaración de la firma. */
+  contacto?: string;
+  /** Panel de firma por lote (2026-09-21), va arriba del pad del cliente. */
+  firmaLotePanel?: React.ReactNode;
+  /** OTs que se firman con esta misma firma: cambia el texto del botón. */
+  otsFirmaLote?: string[];
 }
 
 export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
@@ -33,8 +39,13 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
   clientPadRef, engineerPadRef,
   isGenerating, generationStep, assetProgress, assetReady, onConfirmClientAndFinalize,
   tipoOT = 'servicio',
+  contacto = '',
+  firmaLotePanel = null,
+  otsFirmaLote = [],
 }) => {
   const esEntrega = tipoOT === 'entrega';
+  const contactoLimpio = contacto.trim();
+  const aclaracionEsContacto = !!contactoLimpio && aclaracionCliente.trim() === contactoLimpio;
   const firmaClienteOpcional = esEntrega || tipoOT === 'proveedor_externo';
   return (
     <div className="no-print grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -44,6 +55,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
           ${readOnly ? 'opacity-70 pointer-events-none' : ''}
         `}
       >
+        {!firmaClienteOpcional && firmaLotePanel}
         <SignaturePad
           ref={clientPadRef}
           label="Firma del Cliente"
@@ -66,7 +78,9 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             disabled={isGenerating}
             className="w-full bg-green-600 text-white rounded-xl py-2.5 text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGenerating ? (generationStep || 'Finalizando…') : (signatureClient ? 'Confirmar firma del cliente' : 'Finalizar sin firma (firma en remito)')}
+            {isGenerating ? (generationStep || 'Finalizando…') : (signatureClient
+              ? (otsFirmaLote.length > 0 ? `Confirmar firma del cliente (+${otsFirmaLote.length} OT)` : 'Confirmar firma del cliente')
+              : 'Finalizar sin firma (firma en remito)')}
           </button>
         )}
         {!readOnly && firmaClienteOpcional && !signatureClient && (
@@ -99,6 +113,19 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             }
           `}
         />
+        {/* Quien firma suele ser el contacto cargado arriba (2026-09-21): un
+            tilde lo copia; destildar lo borra para escribir otro nombre. */}
+        {!readOnly && contactoLimpio && (
+          <label className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={aclaracionEsContacto}
+              onChange={e => setAclaracionCliente(e.target.checked ? contactoLimpio : '')}
+              className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            <span>Firma el contacto: <span className="font-bold text-slate-800">{contactoLimpio}</span></span>
+          </label>
+        )}
       </div>
 
       {/* ================= FIRMA ESPECIALISTA ================= */}

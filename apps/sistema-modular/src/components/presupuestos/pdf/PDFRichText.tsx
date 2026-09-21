@@ -112,6 +112,17 @@ function stripHtml(html: string): string {
 export interface PDFRichTextProps {
   html: string | null | undefined;
   fallbackStyle?: any;
+  /** Fuente para todo el HTML (2026-09-19, PDF de correos): `stripFontSizing` borra el
+   *  font-family inline y react-pdf-html cae a la serif default. Sin este prop, todo sigue igual. */
+  fontFamily?: string;
+}
+
+const TAGS_CON_FUENTE = ['span', 'li', 'ul', 'ol', 'b', 'strong', 'i', 'em', 'u', 'a', 'td', 'th', 'table', 'br'];
+function conFuente(base: Record<string, object>, fontFamily: string): Record<string, object> {
+  const out: Record<string, object> = {};
+  for (const [tag, st] of Object.entries(base)) out[tag] = { ...st, fontFamily };
+  for (const tag of TAGS_CON_FUENTE) if (!out[tag]) out[tag] = { fontFamily };
+  return out;
 }
 
 /**
@@ -128,7 +139,7 @@ export interface PDFRichTextProps {
  *
  * Both fallbacks use stripHtml(html) so degradation is deterministic.
  */
-export function PDFRichText({ html, fallbackStyle }: PDFRichTextProps) {
+export function PDFRichText({ html, fallbackStyle, fontFamily }: PDFRichTextProps) {
   if (!html || !html.trim()) return null;
 
   // 1) stripFontSizing: borra el font-size inline pegado (giant). 2) mapFontTagsToPt:
@@ -147,7 +158,7 @@ export function PDFRichText({ html, fallbackStyle }: PDFRichTextProps) {
   let htmlNode: JSX.Element;
   try {
     htmlNode = (
-      <Html stylesheet={stylesheet} resetStyles>
+      <Html stylesheet={fontFamily ? conFuente(stylesheet, fontFamily) : stylesheet} resetStyles>
         {safeHtml}
       </Html>
     );

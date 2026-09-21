@@ -157,6 +157,7 @@ export function LoanersList() {
               filtrosAplicados={filtrosExport}
               itemsExtra={buildLoanerResumenItems({ rows: exportRows, filtrosAplicados: filtrosExport })}
             />
+            <Button size="sm" variant="outline" onClick={() => navigate('/loaners/historial')} title="Todos los préstamos, partes, derivaciones y ventas, buscables por módulo, serie, cliente o N° de parte">Historial</Button>
             <Button size="sm" variant="outline" onClick={() => setShowDerivacion(true)}>Derivar a proveedor</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
           </div>

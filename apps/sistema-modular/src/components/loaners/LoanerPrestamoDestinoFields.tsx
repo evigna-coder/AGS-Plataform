@@ -80,10 +80,14 @@ export function LoanerPrestamoDestinoFields({ value, onChange, permitirIngeniero
               </button>
             ))}
           </div>
+          {/* Aviso visible (2026-09-21, LNR-0003): la leyenda gris pasaba
+              desapercibida y una parte que iba a un cliente quedó asignada a
+              la ingeniera, sin remito. */}
           {value.destino === 'ingeniero' && (
-            <p className="text-[11px] text-slate-400 mt-1">
-              Pasa al inventario del ingeniero como una asignación, sin remito. Cuando la devuelve, la parte vuelve a la base pendiente de reinstalar.
-            </p>
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+              <p className="font-semibold">No es una entrega a cliente: no se imprime remito.</p>
+              <p className="mt-0.5">La parte pasa al inventario del ingeniero como una asignación. Cuando la devuelve, vuelve a la base pendiente de reinstalar. Si la parte va a un cliente, aunque la lleve un ingeniero, elegí "A un cliente".</p>
+            </div>
           )}
         </div>
       )}

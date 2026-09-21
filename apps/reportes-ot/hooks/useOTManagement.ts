@@ -201,6 +201,8 @@ export const useOTManagement = (
     setProtocolTemplateId,
     setProtocolData,
     setProtocolSelections,
+    setOtsFirmaLote,
+    setFirmaLote,
     setInstrumentosSeleccionados,
     setPatronesSeleccionados,
     setColumnasSeleccionadas,
@@ -316,6 +318,9 @@ export const useOTManagement = (
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
         // Tablas dinámicas del catálogo
         setProtocolSelections(data.protocolSelections || []);
+        // Firma por lote (2026-09-21): selección pendiente y traza.
+        setOtsFirmaLote(Array.isArray(data.otsFirmaLote) ? data.otsFirmaLote : []);
+        setFirmaLote(data.firmaLote || null);
         // Instrumentos/patrones seleccionados
         setInstrumentosSeleccionados(data.instrumentosSeleccionados || []);
         // Patrones seleccionados (nueva colección, por lote)
@@ -436,6 +441,8 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(template));
     }
     setProtocolSelections([]);
+    setOtsFirmaLote([]);
+    setFirmaLote(null);
     setInstrumentosSeleccionados([]);
     setPatronesSeleccionados([]);
     setColumnasSeleccionadas([]);
@@ -512,6 +519,8 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(templateNewReport));
     }
     setProtocolSelections([]);
+    setOtsFirmaLote([]);
+    setFirmaLote(null);
     setInstrumentosSeleccionados([]);
     setPatronesSeleccionados([]);
     setColumnasSeleccionadas([]);
@@ -662,6 +671,8 @@ export const useOTManagement = (
     setProtocolTemplateId(newState.protocolTemplateId);
     setProtocolData(newState.protocolData);
     setProtocolSelections([]);
+    setOtsFirmaLote([]);
+    setFirmaLote(null);
     setInstrumentosSeleccionados([]);
     setPatronesSeleccionados([]);
     setColumnasSeleccionadas([]);

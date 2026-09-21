@@ -35,6 +35,8 @@ interface ReportPreview {
   articulos?: { codigo: string; descripcion: string; cantidad: number; cantidadTexto?: string }[];
   signatureEngineer?: string;
   aclaracionEspecialista?: string;
+  aclaracionCliente?: string;
+  otsFirmaLote?: string[];
 }
 
 function PreviewField({ label, value }: { label: string; value?: string }) {
@@ -49,8 +51,11 @@ function PreviewField({ label, value }: { label: string; value?: string }) {
 
 export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, razonSocial, firebase, shareReportPDF, isSharing, showAlert }) => {
   const [signed, setSigned] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [report, setReport] = useState<ReportPreview | null>(null);
+  /** OT cuyo reporte se está previsualizando (la propia o una de las autorizadas por lote). */
+  const [previewOt, setPreviewOt] = useState<string | null>(null);
+  const [reportes, setReportes] = useState<Record<string, ReportPreview>>({});
+  /** Firma por lote (2026-09-21): OTs que esta firma autoriza, leídas del reporte. */
+  const [lote, setLote] = useState<{ ots: string[]; aclaracionCliente: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   // Firma capturada en el overlay fullscreen (se confirma desde la card).
   const [capturedSignature, setCapturedSignature] = useState<string | null>(null);
@@ -67,13 +72,26 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
   }, []);
 
   useEffect(() => {
-    if (showPreview && !report) {
+    if (previewOt && !reportes[previewOt]) {
       setLoadingPreview(true);
-      firebase.getReport(ot).then(data => {
-        if (data) setReport(data as ReportPreview);
+      firebase.getReport(previewOt).then(data => {
+        if (data) setReportes(prev => ({ ...prev, [previewOt]: data as ReportPreview }));
       }).finally(() => setLoadingPreview(false));
     }
-  }, [showPreview, report, ot, firebase]);
+  }, [previewOt, reportes, firebase]);
+
+  // Al abrir el link: qué OT autoriza esta firma (seleccionadas por el ingeniero en el reporte).
+  useEffect(() => {
+    let vigente = true;
+    firebase.getReport(ot).then(data => {
+      if (!vigente || !data) return;
+      const r = data as ReportPreview;
+      setReportes(prev => ({ ...prev, [ot]: r }));
+      const ots = (Array.isArray(r.otsFirmaLote) ? r.otsFirmaLote : []).filter(o => o && o !== ot);
+      setLote(ots.length > 0 ? { ots, aclaracionCliente: r.aclaracionCliente || '' } : null);
+    }).catch(() => {});
+    return () => { vigente = false; };
+  }, [ot, firebase]);
 
   // Cierra el overlay capturando la firma dibujada.
   const handleFinishSigning = () => {
@@ -103,6 +121,11 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
 
     try {
       await firebase.updateSignature(ot, dataUrl);
+      // Firma por lote: la misma firma va a las OT autorizadas (best-effort, la firma principal ya quedó).
+      if (lote && lote.ots.length > 0) {
+        const r = await firebase.aplicarFirmaLote(lote.ots, { signatureClient: dataUrl, aclaracionCliente: lote.aclaracionCliente, autorizadaDesdeOt: ot }).catch(() => ({ firmadas: [], fallidas: lote.ots }));
+        if (r.fallidas.length > 0) console.warn('[MobileSignatureView] firma por lote incompleta:', r.fallidas);
+      }
       setSigned(true);
 
       setTimeout(() => {
@@ -121,8 +144,8 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
   };
 
   // Vista de previsualización del reporte
-  if (showPreview) {
-    const r = report;
+  if (previewOt) {
+    const r = reportes[previewOt] ?? null;
     const direccionFull = [r?.direccion, r?.localidad, r?.provincia].filter(Boolean).join(', ');
     const modeloFull = [r?.moduloModelo, r?.moduloDescripcion, r?.moduloMarca ? `Marca: ${r.moduloMarca}` : ''].filter(Boolean).join(', ');
 
@@ -133,10 +156,10 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
           <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Reporte de Servicio</p>
-              <p className="text-lg font-black">OT N° {ot}</p>
+              <p className="text-lg font-black">OT N° {previewOt}</p>
             </div>
             <button
-              onClick={() => setShowPreview(false)}
+              onClick={() => setPreviewOt(null)}
               className="text-[10px] bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg uppercase font-bold tracking-wide transition-colors"
             >
               Volver a firmar
@@ -237,7 +260,7 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
           {/* Botón volver a firmar fijo abajo */}
           <div className="sticky bottom-0 p-4 bg-white border-t border-slate-200">
             <button
-              onClick={() => setShowPreview(false)}
+              onClick={() => setPreviewOt(null)}
               className="w-full bg-slate-900 text-white font-black py-3 rounded-xl uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition-all"
             >
               Proceder a firmar
@@ -262,8 +285,22 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
         {!signed ? (
           <div className="space-y-4">
             {/* Botón para previsualizar */}
+            {/* Firma por lote (2026-09-21): el cliente ve qué otros reportes autoriza con esta firma y puede consultarlos. */}
+            {lote && (
+              <div className="text-left rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 mb-3">
+                <p className="text-[11px] font-bold text-amber-900">Con esta firma también autoriza los reportes de:</p>
+                <ul className="mt-1 space-y-1">
+                  {lote.ots.map(o => (
+                    <li key={o} className="flex items-center justify-between text-[11px] text-amber-900">
+                      <span className="font-mono font-bold">OT {o}</span>
+                      <button type="button" onClick={() => setPreviewOt(o)} className="text-[10px] font-bold uppercase text-teal-700 underline">Ver</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <button
-              onClick={() => setShowPreview(true)}
+              onClick={() => setPreviewOt(ot)}
               className="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl uppercase text-[10px] tracking-widest hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

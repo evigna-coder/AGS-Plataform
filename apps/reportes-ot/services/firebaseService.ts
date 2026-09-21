@@ -391,6 +391,15 @@ export const listenReporte = (ot: string, callback: (data: any) => void) => {
 };
 
 /** Una OT agendada del ingeniero para el listado "OT del día". */
+/** OT del mismo cliente que puede firmarse por lote (2026-09-21). */
+export interface CandidataFirmaLote {
+  otNumber: string;
+  sistema: string;
+  tipoServicio: string;
+  fecha: string;
+  establecimiento: string | null;
+}
+
 export interface AgendaOTDelDia {
   otNumber: string;
   clienteNombre: string;
@@ -1015,6 +1024,92 @@ export class FirebaseService {
   }
 
   // ── Certificados de ingeniero ──
+
+  /**
+   * Firma por lote (2026-09-21): otras OT del MISMO cliente, agendadas al
+   * ingeniero en los días del reporte actual, cuyo reporte ya está completo
+   * (reporte técnico + firma del ingeniero) y todavía sin firma del cliente.
+   * Las "vírgenes" (sin reporte técnico) no aparecen. Best-effort: vacío si algo falla.
+   */
+  async getCandidatasFirmaLote(params: {
+    otNumber: string; razonSocial: string; fechaInicio: string; fechaFin: string;
+  }): Promise<CandidataFirmaLote[]> {
+    try {
+      const { auth } = await import('./authService');
+      const user = auth.currentUser;
+      if (!user) return [];
+      const norm = (v: string) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const cliente = norm(params.razonSocial);
+      if (!cliente) return [];
+      const rol = await this.getRolUsuario(user.uid);
+      const esSupervision = rol === 'admin';
+      const ingeniero = user.email ? await this.getIngenieroByEmail(user.email) : null;
+      const ids = [user.uid, ingeniero?.id].filter((x): x is string => !!x);
+      // Días del reporte (máximo una semana): la firma por lote es para visitas de uno o pocos días.
+      const desde = /^\d{4}-\d{2}-\d{2}$/.test(params.fechaInicio) ? params.fechaInicio : '';
+      const hasta = /^\d{4}-\d{2}-\d{2}$/.test(params.fechaFin) ? params.fechaFin : desde;
+      if (!desde) return [];
+      const dias: string[] = [];
+      for (let d = desde, i = 0; d <= hasta && i < 7; d = restarDias(d, -1), i++) dias.push(d);
+      const agenda = new Map<string, AgendaOTDelDia & { fecha: string }>();
+      for (const fecha of dias) {
+        const items = await this.getAgendaDelDia(esSupervision ? [] : ids, fecha);
+        for (const it of items) if (!agenda.has(it.otNumber)) agenda.set(it.otNumber, { ...it, fecha });
+      }
+      const mismas = [...agenda.values()].filter(it => it.otNumber !== params.otNumber && it.otNumber.includes('.')
+        && (norm(it.clienteNombre) === cliente || norm(it.clienteNombre).startsWith(cliente) || cliente.startsWith(norm(it.clienteNombre))));
+      const out: CandidataFirmaLote[] = [];
+      for (const it of mismas) {
+        const rep = await this.getReport(it.otNumber).catch(() => null) as Record<string, any> | null;
+        if (!rep) continue;
+        const completa = rep.status !== 'FINALIZADO'
+          && !!String(rep.reporteTecnico ?? '').trim()
+          && !!rep.signatureEngineer
+          && !rep.signatureClient;
+        if (!completa) continue;
+        out.push({
+          otNumber: it.otNumber,
+          sistema: rep.sistema || it.sistemaNombre || '',
+          tipoServicio: rep.tipoServicio || it.tipoServicio || '',
+          fecha: rep.fechaInicio || it.fecha,
+          establecimiento: it.establecimientoNombre,
+        });
+      }
+      return out.sort((a, b) => a.otNumber.localeCompare(b.otNumber));
+    } catch (error) {
+      console.warn('⚠️ getCandidatasFirmaLote:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Aplica la firma del cliente a las OT autorizadas por lote. Cada una queda
+   * con la misma firma y aclaración, `signedFrom: 'lote'` (la Cloud Function de
+   * aviso solo reacciona a 'mobile': un solo aviso, el de la OT ancla) y la
+   * traza `firmaLote.autorizadaDesdeOt`. Devuelve las que no se pudieron firmar.
+   */
+  async aplicarFirmaLote(ots: string[], firma: { signatureClient: string; aclaracionCliente: string; autorizadaDesdeOt: string }): Promise<{ firmadas: string[]; fallidas: string[] }> {
+    const firmadas: string[] = [];
+    const fallidas: string[] = [];
+    const fecha = new Date().toISOString();
+    for (const ot of ots) {
+      if (!ot || ot === firma.autorizadaDesdeOt) continue;
+      try {
+        await setDoc(doc(db, this.collectionName, ot), {
+          signatureClient: firma.signatureClient,
+          aclaracionCliente: firma.aclaracionCliente,
+          signedAt: Timestamp.now(),
+          signedFrom: 'lote',
+          firmaLote: { autorizadaDesdeOt: firma.autorizadaDesdeOt, fecha, aclaracionCliente: firma.aclaracionCliente },
+        }, { merge: true });
+        firmadas.push(ot);
+      } catch (error) {
+        console.error('❌ aplicarFirmaLote', ot, error);
+        fallidas.push(ot);
+      }
+    }
+    return { firmadas, fallidas };
+  }
 
   async getCertificadosIngeniero(ingenieroId: string): Promise<CertificadoIngeniero[]> {
     try {

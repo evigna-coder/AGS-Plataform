@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { CompanyHeader } from './components/CompanyHeader';
 import { MobileSignatureView } from './components/MobileSignatureView';
+import { useResaltarCamposFaltantes } from './hooks/useResaltarCamposFaltantes';
+import { FirmaLotePanel } from './components/FirmaLotePanel';
 import { OTFormSection } from './components/OTFormSection';
 import { ReservasStockCard } from './components/ReservasStockCard';
 import { SidebarPanel } from './components/SidebarPanel';
@@ -36,6 +38,8 @@ const App: React.FC = () => {
   const shouldShare = queryParams.get('share') === 'true';
 
   const app = useAppLogic(reportIdFromUrl, isModoFirma, shouldShare);
+  // Campos obligatorios que faltan, en rojo (2026-09-21).
+  useResaltarCamposFaltantes(app.camposFaltantes);
 
   // "OT del día" (2026-08-08): el ingeniero suele tener varias visitas
   // agendadas la misma fecha y para pasar de una a otra tenía que salir del
@@ -323,6 +327,10 @@ const App: React.FC = () => {
           <SignaturesSection
             key={app.formState.signaturePadGeneration}
             readOnly={app.readOnly}
+            contacto={app.contacto}
+            otsFirmaLote={app.otsFirmaLote}
+            firmaLotePanel={<FirmaLotePanel firebase={app.firebase} otNumber={app.otNumber} razonSocial={app.razonSocial}
+              fechaInicio={app.fechaInicio} fechaFin={app.fechaFin} seleccion={app.otsFirmaLote} onChange={app.setOtsFirmaLote} readOnly={app.readOnly} />}
             signatureClient={app.signatureClient} setSignatureClient={app.setSignatureClient}
             signatureEngineer={app.signatureEngineer} setSignatureEngineer={app.setSignatureEngineer}
             aclaracionCliente={app.aclaracionCliente} setAclaracionCliente={app.setAclaracionCliente}
@@ -534,8 +542,14 @@ const App: React.FC = () => {
               setDestinatariosManuales={app.setDestinatariosManuales}
               markUserInteracted={app.markUserInteracted}
             />
-            {/* Reservado en stock (2026-09-09): lo apartado para esta OT, a la vista antes de salir. */}
-            <ReservasStockCard budgets={app.budgets} />
+            {/* Reservado en stock (2026-09-09): lo apartado para esta OT, a la vista antes de salir.
+                En escritorio va debajo del formulario, al ancho de las 8 columnas (2026-09-21):
+                sin col-span caía en UNA columna de las 12 y el texto se partía letra por letra.
+                `order-last` la deja después del panel lateral solo en la grilla grande; en el
+                celular conserva su lugar. */}
+            <div className="lg:col-span-8 lg:order-last">
+              <ReservasStockCard budgets={app.budgets} />
+            </div>
             <SidebarPanel
               readOnly={app.readOnly}
               otNumber={app.otNumber}
@@ -560,6 +574,10 @@ const App: React.FC = () => {
           <SignaturesSection
             key={app.formState.signaturePadGeneration}
             readOnly={app.readOnly}
+            contacto={app.contacto}
+            otsFirmaLote={app.otsFirmaLote}
+            firmaLotePanel={<FirmaLotePanel firebase={app.firebase} otNumber={app.otNumber} razonSocial={app.razonSocial}
+              fechaInicio={app.fechaInicio} fechaFin={app.fechaFin} seleccion={app.otsFirmaLote} onChange={app.setOtsFirmaLote} readOnly={app.readOnly} />}
             signatureClient={app.signatureClient} setSignatureClient={app.setSignatureClient}
             signatureEngineer={app.signatureEngineer} setSignatureEngineer={app.setSignatureEngineer}
             aclaracionCliente={app.aclaracionCliente} setAclaracionCliente={app.setAclaracionCliente}
@@ -750,7 +768,7 @@ const App: React.FC = () => {
             articulos={app.articulos} accionesTomar={app.accionesTomar} accionesInternaOnly={app.accionesInternaOnly}
             budgets={app.budgets}
             esFacturable={app.esFacturable} tieneContrato={app.tieneContrato} esGarantia={app.esGarantia}
-            signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer}
+            signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer} firmaLote={app.firmaLote}
             aclaracionCliente={app.aclaracionCliente} aclaracionEspecialista={app.aclaracionEspecialista}
             protocolSelections={app.protocolSelections}
             instrumentosSeleccionados={app.instrumentosSeleccionados}

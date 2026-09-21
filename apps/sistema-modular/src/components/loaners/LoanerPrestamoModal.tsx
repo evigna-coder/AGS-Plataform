@@ -149,7 +149,10 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
         <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!puedeConfirmar}>
-          {saving ? 'Registrando...' : esParte ? `Confirmar prestamo de ${partes.length > 1 ? `${partes.length} partes` : 'la parte'}` : 'Confirmar prestamo'}
+          {saving ? 'Registrando...'
+            : aIngeniero ? `Asignar ${partes.length > 1 ? `${partes.length} partes` : 'la parte'} al ingeniero (sin remito)`
+            : esParte ? `Confirmar prestamo de ${partes.length > 1 ? `${partes.length} partes` : 'la parte'}${conRemito ? ' e imprimir remito' : ''}`
+            : `Confirmar prestamo${conRemito ? ' e imprimir remito' : ''}`}
         </Button>
       </div>
     }>

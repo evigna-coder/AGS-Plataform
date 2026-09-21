@@ -1,4 +1,5 @@
 import type { Presupuesto } from '@ags/shared';
+import { ZonaArrastre } from '../ui/ZonaArrastre';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
@@ -33,11 +34,14 @@ interface NuevaOCFormProps {
   onFechaChange: (v: string) => void;
   onNotasChange: (v: string) => void;
   onFilesChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Archivos soltados en la zona de arrastre (2026-09-19). */
+  onArchivos: (files: File[]) => void;
+  onSinArchivos?: () => void;
 }
 
 export const NuevaOCForm: React.FC<NuevaOCFormProps> = ({
   numero, fecha, notas, filesCount,
-  onNumeroChange, onFechaChange, onNotasChange, onFilesChange,
+  onNumeroChange, onFechaChange, onNotasChange, onFilesChange, onArchivos, onSinArchivos,
 }) => (
   <>
     <Input
@@ -55,21 +59,22 @@ export const NuevaOCForm: React.FC<NuevaOCFormProps> = ({
       onChange={e => onFechaChange(e.target.value)}
       inputSize="sm"
     />
-    <div>
+    <ZonaArrastre onArchivos={onArchivos} onSinArchivos={onSinArchivos}
+      texto="o soltá acá archivos o un correo de Outlook (.msg / .eml): el correo se convierte a PDF">
       <label className="block text-[11px] font-medium text-slate-700 mb-1">
-        Adjuntos (PDF / JPG / PNG) *
+        Adjuntos (PDF / JPG / PNG / correo) *
       </label>
       <input
         type="file"
         multiple
-        accept=".pdf,.jpg,.jpeg,.png,image/png,image/jpeg,application/pdf"
+        accept=".pdf,.jpg,.jpeg,.png,.msg,.eml,image/png,image/jpeg,application/pdf"
         onChange={onFilesChange}
         className="text-xs text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
       />
       {filesCount > 0 && (
-        <p className="text-[10px] text-slate-500 mt-1">{filesCount} archivo(s) seleccionado(s)</p>
+        <p className="text-[10px] text-slate-500 mt-1">{filesCount} archivo(s) para subir</p>
       )}
-    </div>
+    </ZonaArrastre>
     <Input
       label="Notas (opcional)"
       value={notas}

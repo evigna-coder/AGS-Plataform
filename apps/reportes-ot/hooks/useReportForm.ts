@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
+import type { FirmaLote } from '../types';
 import { Part, type ProtocolData } from '../types';
 import type { ProtocolSelection } from '../types/tableCatalog';
 import type { InstrumentoPatronOption, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
@@ -70,6 +71,10 @@ export interface ReportFormState {
 
   // Tablas dinámicas del catálogo
   protocolSelections: ProtocolSelection[];
+  /** OTs que el cliente autoriza con esta misma firma (firma por lote, 2026-09-21). Autosave. */
+  otsFirmaLote: string[];
+  /** Traza de la firma por lote (ancla u OT firmada por lote). */
+  firmaLote: FirmaLote | null;
 
   // Instrumentos/patrones utilizados (instrumentos únicamente — legacy conserva patron también)
   instrumentosSeleccionados: InstrumentoPatronOption[];
@@ -129,6 +134,10 @@ export interface ReportState {
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
   protocolSelections: ProtocolSelection[];
+  /** OTs que el cliente autoriza con esta misma firma (firma por lote, 2026-09-21). Autosave. */
+  otsFirmaLote: string[];
+  /** Traza de la firma por lote (ancla u OT firmada por lote). */
+  firmaLote: FirmaLote | null;
   /** Marca de sesión: el usuario quitó tablas del catálogo a mano (ver guard anti-vaciado en saveReporte). */
   protocolTablasQuitadasEnSesion?: boolean;
   instrumentosSeleccionados: InstrumentoPatronOption[];
@@ -187,6 +196,8 @@ export interface UseReportFormReturn {
     setProtocolTemplateId: (value: string | null) => void;
     setProtocolData: (value: ProtocolData | null) => void;
     setProtocolSelections: React.Dispatch<React.SetStateAction<ProtocolSelection[]>>;
+    setOtsFirmaLote: React.Dispatch<React.SetStateAction<string[]>>;
+    setFirmaLote: React.Dispatch<React.SetStateAction<FirmaLote | null>>;
     setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
     setPatronesSeleccionados: (value: PatronSeleccionado[]) => void;
     setColumnasSeleccionadas: (value: ColumnaSeleccionada[]) => void;
@@ -259,6 +270,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [protocolTemplateId, setProtocolTemplateId] = useState<string | null>(null);
   const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
   const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
+  const [otsFirmaLote, setOtsFirmaLote] = useState<string[]>([]);
+  const [firmaLote, setFirmaLote] = useState<FirmaLote | null>(null);
   const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<InstrumentoPatronOption[]>([]);
   const [patronesSeleccionados, setPatronesSeleccionados] = useState<PatronSeleccionado[]>([]);
   const [columnasSeleccionadas, setColumnasSeleccionadas] = useState<ColumnaSeleccionada[]>([]);
@@ -298,6 +311,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
+    otsFirmaLote, firmaLote,
     // Se lee al recomputar (cambia junto con protocolSelections al quitar una tabla).
     protocolTablasQuitadasEnSesion: tablasQuitadasEnSesion.current,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
@@ -311,6 +325,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
+    otsFirmaLote, firmaLote,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
     certificadosIngenieroSeleccionados, resolvedIngenieroId,
     destinatariosExtras, destinatariosManuales,
@@ -359,6 +374,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     protocolTemplateId,
     protocolData,
     protocolSelections,
+    otsFirmaLote,
+    firmaLote,
     instrumentosSeleccionados,
     patronesSeleccionados,
     columnasSeleccionadas,
@@ -412,6 +429,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setProtocolTemplateId,
       setProtocolData,
       setProtocolSelections,
+      setOtsFirmaLote,
+      setFirmaLote,
       setInstrumentosSeleccionados,
       setPatronesSeleccionados,
       setColumnasSeleccionadas,

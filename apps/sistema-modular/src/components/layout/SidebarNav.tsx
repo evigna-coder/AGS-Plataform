@@ -221,7 +221,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
       {menu && (
         <div
           className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[200px]"
-          style={{ left: menu.x, top: menu.y }}
+          // Acotado a la ventana (2026-09-21): al pie del sidebar el menú se
+          // abría por debajo del borde y quedaba medio oculto.
+          style={{ left: Math.min(menu.x, window.innerWidth - 230), top: Math.min(menu.y, window.innerHeight - 100) }}
           onContextMenu={(e) => e.preventDefault()}
         >
           <button

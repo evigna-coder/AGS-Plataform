@@ -32,7 +32,7 @@ const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
     </svg>
   );
 
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
 
 const STATUS_LABELS: Record<string, string> = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
