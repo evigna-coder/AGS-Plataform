@@ -1,7 +1,7 @@
 {
   "name": "@ags/sistema-modular",
   "private": true,
-  "version": "1.95.3",
+  "version": "1.95.4",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
