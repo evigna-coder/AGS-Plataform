@@ -1,11 +1,9 @@
-import type { Articulo, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
+import type { Articulo, TipoArticulo } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_LABELS } from '@ags/shared';
 import { EquivalenciaBadge } from '../../components/stock/EquivalenciaBadge';
 import { PresentacionesBadge } from '../../components/stock/PresentacionesBadge';
 
-const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
-  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro',
-  HEADSPACE: 'Headspace', DENSIMETRO: 'Densimetro', GENERAL: 'General',
-};
+const CATEGORIA_LABELS = CATEGORIA_EQUIPO_STOCK_LABELS;
 const TIPO_LABELS: Record<TipoArticulo, string> = {
   repuesto: 'Repuesto', consumible: 'Consumible', equipo: 'Equipo', columna: 'Columna',
   accesorio: 'Accesorio', muestra: 'Muestra', otro: 'Otro',

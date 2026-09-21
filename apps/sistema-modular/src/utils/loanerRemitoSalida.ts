@@ -35,6 +35,9 @@ export async function crearEImprimirRemitoSalidaLoaner(
     numero: input.numero.trim(),
     tipo: 'loaner_salida',
     estado: 'borrador',
+    // Misma marca que el préstamo (2026-09-21): sin esto la lista de remitos
+    // mostraba los de loaner sin fecha de salida.
+    fechaSalida: new Date().toISOString(),
     ingenieroId: '',
     ingenieroNombre: 'AGS Taller',
     clienteId: input.clienteId,

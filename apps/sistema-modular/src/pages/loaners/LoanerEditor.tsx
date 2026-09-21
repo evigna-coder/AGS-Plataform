@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -7,11 +7,11 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { LoanerOrigenFields } from '../../components/loaners/LoanerOrigenFields';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from '../../components/loaners/LoanerCategoriaModuloPicker';
-import type { Loaner, EstadoLoaner, CategoriaEquipoStock, OrigenLoaner } from '@ags/shared';
+import type { Loaner, EstadoLoaner, OrigenLoaner } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 import { notify } from '../../utils/notify';
-const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 
 const EMPTY_MODULO: ModuloSelection = {
   categoriaModuloId: null, categoriaModuloNombre: null,
@@ -35,7 +35,7 @@ export function LoanerEditor() {
   const [origen, setOrigen] = useState<OrigenLoaner | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
+  const catOptions = CATEGORIA_EQUIPO_STOCK_OPTIONS;
 
   useEffect(() => {
     if (!id) return;

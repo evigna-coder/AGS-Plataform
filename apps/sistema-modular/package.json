@@ -48,6 +48,8 @@
     "test:inventario-remito": "tsx src/utils/__tests__/inventarioRemitoSerie.test.ts",
     "test:reapertura-ot": "tsx src/utils/__tests__/reaperturaOT.test.ts",
     "test:cierre-stock-lineas": "tsx src/utils/__tests__/cierreStockLineas.test.ts",
+    "test:cierre-origen-agrupado": "tsx src/utils/__tests__/cierreOrigenAgrupado.test.ts",
+    "test:remito-servicio": "tsx src/utils/__tests__/resolverRemitoServicio.test.ts",
     "test:kit-prorrateo": "tsx src/utils/__tests__/kitProrrateo.test.ts",
     "test:costeo-importacion": "tsx src/utils/__tests__/costeoImportacion.test.ts",
     "test:cuotas-contrato": "tsx src/utils/__tests__/cuotasContrato.test.ts",

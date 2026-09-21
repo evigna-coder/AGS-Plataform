@@ -23,6 +23,8 @@ export interface RemitoItemOrigen {
   unidadId?: string | null;
   /** Otros remitos abiertos que refieren la MISMA unidad, para no ocultar el dato. */
   tambienEn?: string[];
+  /** Origen AGRUPADO (2026-09-21): las líneas del mismo remito que representa; `cantidad` es la suma. */
+  miembros?: RemitoItemOrigen[];
 }
 
 /**

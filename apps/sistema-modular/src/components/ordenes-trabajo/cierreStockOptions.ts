@@ -1,5 +1,6 @@
 import type { StockSelection, UnidadStock, CondicionUnidad } from '@ags/shared';
 import type { StockPosicion, PartStockInfo, PatronLoteOrigen, RemitoItemOrigen, AsignacionItemOrigen } from '../../hooks/useCierreStockUnits';
+import { agruparOrigenes, repartirEntreMiembros } from '../../utils/cierreOrigenAgrupado';
 
 const CONDICION_LABEL: Record<CondicionUnidad, string> = {
   nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacond.',
@@ -50,6 +51,31 @@ export type OrigenOption =
   | { kind: 'unidad'; value: string; label: string; sub?: string; unidad: UnidadStock }
   | { kind: 'posicion'; value: string; label: string; sub?: string; pos: StockPosicion };
 
+function opcionRemito(r: RemitoItemOrigen): OrigenOption {
+  const miembros = r.miembros ?? [r];
+  const tambienEn = Array.from(new Set(miembros.flatMap(m => m.tambienEn ?? [])));
+  return {
+    kind: 'remito',
+    // Agrupado: los ids de todas las líneas, así el value sigue siendo único.
+    value: `remito:${r.remitoId}:${miembros.map(m => m.itemId).join('+')}`,
+    label: `Remito ${r.remitoNumero} — ${r.ingenieroNombre} (×${r.cantidad})${r.serie ? ` · S/N ${r.serie}` : ''}`,
+    // La misma unidad puede venir de varios remitos abiertos: se ofrece una
+    // sola vez y acá se dice de dónde más viene (2026-08-24).
+    sub: tambienEn.length ? `también en ${tambienEn.join(', ')}` : undefined,
+    remito: r,
+  };
+}
+
+function opcionAsignacion(a: AsignacionItemOrigen): OrigenOption {
+  const miembros = a.miembros ?? [a];
+  return {
+    kind: 'asignacion',
+    value: `asignacion:${a.asignacionId}:${miembros.map(m => m.itemId).join('+')}`,
+    label: `En poder de ${a.ingenieroNombre} (×${a.cantidad})${a.serie ? ` · S/N ${a.serie}` : ''}`,
+    asignacion: a,
+  };
+}
+
 export function buildOptions(stock: PartStockInfo): OrigenOption[] {
   const opts: OrigenOption[] = [];
   for (const l of stock.patronLotes) {
@@ -57,28 +83,13 @@ export function buildOptions(stock: PartStockInfo): OrigenOption[] {
   }
   // Remitos en campo (2026-08-04): el material ya salió con un remito de salida —
   // descargarlo desde acá consume desde el remito y lo cierra si queda resuelto.
-  for (const r of stock.remitoOrigenes) {
-    opts.push({
-      kind: 'remito',
-      value: `remito:${r.remitoId}:${r.itemId}`,
-      label: `Remito ${r.remitoNumero} — ${r.ingenieroNombre} (×${r.cantidad})${r.serie ? ` · S/N ${r.serie}` : ''}`,
-      // La misma unidad puede venir de varios remitos abiertos: se ofrece una
-      // sola vez y acá se dice de dónde más viene (2026-08-24).
-      sub: r.tambienEn?.length ? `también en ${r.tambienEn.join(', ')}` : undefined,
-      remito: r,
-    });
-  }
+  // Varias líneas sin serie del mismo remito = UNA opción con la suma (2026-09-21):
+  // dos unidades que salieron juntas se eligen de una, no una por una.
+  for (const r of agruparOrigenes(stock.remitoOrigenes, r => r.remitoId)) opts.push(opcionRemito(r));
   // En poder de un ingeniero por ASIGNACIÓN (2026-08-27): consumirlo desde el
   // cierre imputa la OT en la asignación, la unidad, el remito interno y el
   // kardex — el desvío por el inventario (con la OT tipeada a mano) sobra.
-  for (const a of stock.asignacionOrigenes) {
-    opts.push({
-      kind: 'asignacion',
-      value: `asignacion:${a.asignacionId}:${a.itemId}`,
-      label: `En poder de ${a.ingenieroNombre} (×${a.cantidad})${a.serie ? ` · S/N ${a.serie}` : ''}`,
-      asignacion: a,
-    });
-  }
+  for (const a of agruparOrigenes(stock.asignacionOrigenes, a => a.asignacionId)) opts.push(opcionAsignacion(a));
   if (stock.requiereTrazabilidad) {
     for (const u of stock.unidades) {
       opts.push({ kind: 'unidad', value: `unidad:${u.id}`, label: unidadLabel(u), sub: subReservaUnidad(u), unidad: u });
@@ -204,6 +215,37 @@ export function patchFromOption(opt: OrigenOption, stock: PartStockInfo): Partia
         patronLote: null,
       };
   }
+}
+
+/**
+ * Líneas reales detrás de una opción: un origen agrupado se abre en una opción
+ * por línea de remito/asignación; el resto es su propia única línea.
+ */
+export function miembrosDeOpcion(opt: OrigenOption): OrigenOption[] {
+  if (opt.kind === 'remito' && opt.remito.miembros) return opt.remito.miembros.map(opcionRemito);
+  if (opt.kind === 'asignacion' && opt.asignacion.miembros) return opt.asignacion.miembros.map(opcionAsignacion);
+  return [opt];
+}
+
+/**
+ * Selecciones que produce elegir `opt` con `cantidad`: una por línea real,
+ * repartida en orden hasta lo pendiente de cada una. Si no hay nada que
+ * repartir (ya está todo cubierto), queda la primera línea en 0 para que el
+ * usuario cargue la cantidad a mano, como siempre.
+ */
+export function seleccionesDeOpcion(
+  opt: OrigenOption, stock: PartStockInfo, cantidad: number, base: (cantidad: number) => StockSelection,
+): StockSelection[] {
+  const miembros = miembrosDeOpcion(opt);
+  const reparto = repartirEntreMiembros(cantidad, miembros.map(disponibleDeOpcion));
+  const out = miembros.flatMap((m, i) => (reparto[i] > 0 ? [{ ...base(reparto[i]), ...patchFromOption(m, stock) }] : []));
+  return out.length > 0 ? out : [{ ...base(0), ...patchFromOption(miembros[0], stock) }];
+}
+
+/** Opción que representa una selección guardada: la suya o el grupo que la contiene. */
+export function opcionDeSeleccion(sel: StockSelection, options: OrigenOption[]): OrigenOption | undefined {
+  const v = selectionValue(sel);
+  return options.find(o => o.value === v || miembrosDeOpcion(o).some(m => m.value === v));
 }
 
 /** Value del select que refleja una selección guardada (espejo de buildOptions). */

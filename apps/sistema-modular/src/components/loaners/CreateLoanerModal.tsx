@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
@@ -8,11 +8,11 @@ import { LoanerOrigenFields } from './LoanerOrigenFields';
 import { LoanerCategoriaModuloPicker, type ModuloSelection } from './LoanerCategoriaModuloPicker';
 import { LoanerArticuloPicker } from './LoanerArticuloPicker';
 import type { Articulo, OrigenLoaner } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
 import { loanersService } from '../../services/firebaseService';
-import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
+import type { Loaner, EstadoLoaner } from '@ags/shared';
 
 import { notify } from '../../utils/notify';
-const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 
 const EMPTY_MODULO: ModuloSelection = {
   categoriaModuloId: null, categoriaModuloNombre: null,
@@ -43,7 +43,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
    */
   const [articulo, setArticulo] = useState<Articulo | null>(null);
 
-  const catOptions = useMemo(() => CATEGORIAS.map(c => ({ value: c, label: c })), []);
+  const catOptions = CATEGORIA_EQUIPO_STOCK_OPTIONS;
 
   /**
    * La descripción SALE DEL CATÁLOGO cuando hay un modelo vinculado

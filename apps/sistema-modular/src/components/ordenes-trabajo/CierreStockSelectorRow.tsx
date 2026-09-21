@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { Part, StockSelection } from '@ags/shared';
 import type { PartStockInfo } from '../../hooks/useCierreStockUnits';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { aporteDeOpcion, disponibleDeOpcion, buildOptions, patchFromOption, selectionResumen, selectionValue } from './cierreStockOptions';
+import { aporteDeOpcion, disponibleDeOpcion, buildOptions, opcionDeSeleccion, seleccionesDeOpcion, selectionResumen, selectionValue } from './cierreStockOptions';
+import { agruparSelecciones } from '../../utils/cierreOrigenAgrupado';
 import { parseDecimal } from '../../utils/parseDecimal';
 
 interface Props {
@@ -48,6 +49,10 @@ const LineaDescontada = ({ sel, onRevertir }: { sel: StockSelection; onRevertir?
  * y antes el selector solo dejaba elegir una — había que cargar el artículo tres
  * veces. Ahora se muestra un selector por origen elegido más uno vacío mientras
  * falte cubrir cantidad, y las unidades ya tomadas no se vuelven a ofrecer.
+ *
+ * Origen agrupado (2026-09-21): dos unidades del mismo remito son dos líneas
+ * del remito y dos selecciones guardadas, pero acá son UNA fila con ×2. Al
+ * elegir o cambiar la cantidad se reparte entre las líneas reales.
  */
 export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selections, onChange, disabled, onRevertir }) => {
   const options = buildOptions(stock);
@@ -66,36 +71,45 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
   // Texto crudo mientras se tipea (permite "0," sin que se pise a 0).
   const [cantStr, setCantStr] = useState<Record<number, string>>({});
 
+  // Filas visibles: las selecciones de un mismo origen agrupado van juntas.
+  const filas = agruparSelecciones(selections, s => opcionDeSeleccion(s, options)?.value ?? selectionValue(s));
+  const opcionDe = (f: number) => (filas[f] ? options.find(o => o.value === filas[f].value) : undefined);
+
   /** Tope de una fila: lo que tiene su origen. */
-  const maxDe = (index: number): number => {
-    const sel = selections[index];
-    const opt = sel ? options.find(o => o.value === selectionValue(sel)) : undefined;
+  const maxDe = (f: number): number => {
+    const opt = opcionDe(f);
     return opt ? disponibleDeOpcion(opt) : Infinity;
   };
 
-  const setCantidad = (index: number, cantidad: number) => {
-    const next = [...selections];
-    if (!next[index]) return;
-    next[index] = { ...next[index], cantidad };
+  /** Reemplaza las selecciones de la fila `f` por `nuevas`, en su lugar (o las agrega si la fila es nueva). */
+  const reemplazar = (f: number, nuevas: StockSelection[]) => {
+    const fila = filas[f];
+    if (!fila) { onChange([...selections, ...nuevas]); return; }
+    const quitar = new Set(fila.indices);
+    const next = selections.filter((_, i) => !quitar.has(i));
+    next.splice(fila.indices[0], 0, ...nuevas);
     onChange(next);
   };
 
-  /** Reemplaza (o borra, con value vacío) el origen de la fila `index`. */
-  const setOrigen = (index: number, value: string) => {
+  const setCantidad = (f: number, cantidad: number) => {
+    const fila = filas[f];
+    if (!fila) return;
+    const opt = opcionDe(f);
+    if (opt) { reemplazar(f, seleccionesDeOpcion(opt, stock, cantidad, base)); return; }
+    // Selección sin opción vigente (stock que cambió): se edita tal cual.
     const next = [...selections];
-    if (!value) {
-      next.splice(index, 1);
-      onChange(next);
-      return;
-    }
+    next[fila.indices[0]] = { ...next[fila.indices[0]], cantidad };
+    onChange(next);
+  };
+
+  /** Reemplaza (o borra, con value vacío) el origen de la fila `f`. */
+  const setOrigen = (f: number, value: string) => {
+    if (!value) { reemplazar(f, []); return; }
     const opt = options.find(o => o.value === value);
     if (!opt) return;
     // El aporte se calcula sobre lo que falta SIN contar la fila que se reemplaza.
-    const otras = selections.reduce((acc, s, i) => (i === index ? acc : acc + (s.cantidad ?? 1)), 0);
-    const cantidad = aporteDeOpcion(opt, necesarias - otras);
-    const sel = { ...base(cantidad), ...patchFromOption(opt, stock) };
-    if (index >= next.length) next.push(sel); else next[index] = sel;
-    onChange(next);
+    const otras = filas.reduce((acc, fila, i) => (i === f ? acc : acc + fila.cantidad), 0);
+    reemplazar(f, seleccionesDeOpcion(opt, stock, aporteDeOpcion(opt, necesarias - otras), base));
   };
 
   if (disabled) {
@@ -123,15 +137,15 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
   const asignacionGroup = options.filter(o => o.kind === 'asignacion');
   const stockGroup = options.filter(o => o.kind === 'unidad' || o.kind === 'posicion');
 
-  /** Opciones ofrecidas en la fila `index`: sin las ya tomadas por las otras filas. */
-  const opcionesPara = (index: number) => {
-    const tomadas = new Set(selections.filter((_, i) => i !== index).map(selectionValue));
+  /** Opciones ofrecidas en la fila `f`: sin las ya tomadas por las otras filas. */
+  const opcionesPara = (f: number) => {
+    const tomadas = new Set(filas.filter((_, i) => i !== f).map(fila => fila.value));
     const libre = (o: { value: string }) => !tomadas.has(o.value);
     // Aplanadas para el SearchableSelect (no soporta optgroups): el grupo
     // Patrón/Remito/Stock queda en subLabel. "Quitar origen" solo si esta fila
     // ya tiene algo elegido — cuando está vacía manda el placeholder.
     return [
-      ...(index < selections.length ? [{ value: '', label: '— Quitar origen —' }] : []),
+      ...(f < filas.length ? [{ value: '', label: '— Quitar origen —' }] : []),
       ...patronGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `Patrón (activo) · ${o.sub}` : 'Patrón (activo)' })),
       ...remitoGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `En campo (remito) · ${o.sub}` : 'En campo (remito)' })),
       ...asignacionGroup.filter(libre).map(o => ({ value: o.value, label: o.label, subLabel: o.sub ? `En campo (asignación) · ${o.sub}` : 'En campo (asignación)' })),
@@ -141,32 +155,32 @@ export const CierreStockSelectorRow: React.FC<Props> = ({ part, stock, selection
 
   // Un selector por origen ya elegido, más uno vacío mientras falte cubrir y
   // queden opciones libres para ofrecer.
-  const filas = [...selections.map((_, i) => i)];
-  const hayLibres = opcionesPara(selections.length).some(o => o.value !== '');
-  if (pendiente > 0 && hayLibres) filas.push(selections.length);
+  const visibles = filas.map((_, i) => i);
+  const hayLibres = opcionesPara(filas.length).some(o => o.value !== '');
+  if (pendiente > 0 && hayLibres) visibles.push(filas.length);
 
   return (
     <div className="space-y-1">
-      {filas.map(i => (
-        i < selections.length && selections[i].deducidoAt
-          ? <LineaDescontada key={i} sel={selections[i]} onRevertir={onRevertir} />
+      {visibles.map(i => (
+        i < filas.length && filas[i].deducida
+          ? <LineaDescontada key={i} sel={selections[filas[i].indices[0]]} onRevertir={onRevertir} />
           : <div key={i} className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             <SearchableSelect
-              value={i < selections.length ? selectionValue(selections[i]) : ''}
+              value={i < filas.length ? filas[i].value : ''}
               onChange={v => setOrigen(i, v)}
               options={opcionesPara(i)}
               placeholder={i === 0 ? 'Buscar origen…' : 'Agregar otro origen…'}
               size="sm"
             />
           </div>
-          {i < selections.length && (
+          {i < filas.length && (
             // Cantidad editable, con decimales (2026-09-03): antes era una
             // etiqueta fija calculada al elegir el origen, asi que no se podia
             // consumir 0,5 ni corregir cuanto se toma de cada origen.
             <input
               type="text" inputMode="decimal"
-              value={cantStr[i] ?? String(selections[i].cantidad ?? 1)}
+              value={cantStr[i] ?? String(filas[i].cantidad)}
               title={`Maximo desde este origen: ${maxDe(i)}`}
               onFocus={e => e.currentTarget.select()}
               onChange={e => {

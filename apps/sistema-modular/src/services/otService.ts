@@ -19,6 +19,7 @@ import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
 import { fichasService } from './fichasService';
 import { reservasService, remitosService } from './stockService';
+import { clasificarOTParaRemito, estadoRemitoServicioSegunOTs, type EstadoOTParaRemito } from '../utils/resolverRemitoServicio';
 import { loanersService } from './loanersService';
 import { OT_ESTADOS_CIERRE_TECNICO_PLUS } from '@ags/shared';
 import { seleccionesPendientesDeDeduccion, marcarSeleccionesDeducidas, todasDeducidas } from '../utils/cierreStockLineas';
@@ -589,33 +590,37 @@ export const ordenesTrabajoService = {
    * Idempotente (solo toca remitos en `confirmado`). Devuelve los números
    * completados.
    */
-  async completarRemitosServicioDeOT(otNumber: string): Promise<string[]> {
-    const cerrados = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
-    // Solo los remitos que llevan ESTA OT (2026-09-18): antes bajaba todos los
-    // de servicio en cada cierre para filtrar en memoria.
+  /**
+   * Resuelve los remitos de SERVICIO que llevan esta OT (2026-09-21): se
+   * completan cuando todas sus OT cerraron administrativamente y se cancelan
+   * si todas se cancelaron (regla en `utils/resolverRemitoServicio`). Se llama
+   * al cerrar, al cancelar y en el barrido de los que quedaron colgados.
+   * `estadoDeEsta` evita releer la OT que se acaba de escribir en la misma
+   * pasada; sin él, se relee. Solo los remitos que llevan ESTA OT (2026-09-18).
+   */
+  async resolverRemitosServicioDeOT(
+    otNumber: string,
+    estadoDeEsta?: EstadoOTParaRemito,
+  ): Promise<Array<{ numero: string; estado: 'completado' | 'cancelado' }>> {
     const remitos = await remitosService.getAll({ otNumber });
-    const completados: string[] = [];
+    const resueltos: Array<{ numero: string; estado: 'completado' | 'cancelado' }> = [];
     for (const r of remitos) {
       if (r.tipo !== 'servicio' || r.estado !== 'confirmado' || !(r.otNumbers ?? []).includes(otNumber)) continue;
-      // La OT que se acaba de cerrar cuenta como cerrada sin releerla.
-      const otras = (r.otNumbers ?? []).filter(n => n && n !== otNumber);
-      let todasCerradas = true;
-      for (const n of otras) {
+      const estados: EstadoOTParaRemito[] = [];
+      for (const n of (r.otNumbers ?? []).filter(Boolean)) {
+        if (n === otNumber && estadoDeEsta) { estados.push(estadoDeEsta); continue; }
         const o = await this.getByOtNumber(n);
-        if (!o) {
-          // OT inexistente: no completamos a ciegas, pero dejamos rastro — si no,
-          // el remito nunca cierra y no se entiende por qué.
-          console.warn(`[completarRemitosServicio] remito ${r.numero}: OT ${n} no existe; no se completa`);
-          todasCerradas = false;
-          break;
-        }
-        if (!cerrados.has(o.estadoAdmin as OTEstadoAdmin)) { todasCerradas = false; break; }
+        // OT inexistente: no se resuelve a ciegas, pero queda rastro — si no,
+        // el remito nunca cierra y no se entiende por qué.
+        if (!o) console.warn(`[resolverRemitosServicio] remito ${r.numero}: OT ${n} no existe; queda pendiente`);
+        estados.push(clasificarOTParaRemito(o));
       }
-      if (!todasCerradas) continue;
-      await remitosService.update(r.id, { estado: 'completado' });
-      completados.push(r.numero);
+      const estado = estadoRemitoServicioSegunOTs(estados);
+      if (!estado) continue;
+      await remitosService.update(r.id, { estado });
+      resueltos.push({ numero: r.numero, estado });
     }
-    return completados;
+    return resueltos;
   },
 
   /**
@@ -1256,6 +1261,14 @@ export const ordenesTrabajoService = {
     } catch (err) {
       console.error(`[cancelarItem] limpiando agenda de ${otNumber}:`, err);
     }
+    // El remito de servicio que respaldaba esta OT no queda esperando un cierre
+    // que no va a llegar (2026-09-21): se cancela si era su única OT viva, o se
+    // completa si las otras ya cerraron. Best-effort.
+    await this.resolverRemitosServicioDeOT(otNumber, 'cancelada')
+      .then(resueltos => {
+        if (resueltos.length > 0) console.log(`[cancelarItem] remito(s) de servicio resuelto(s): ${resueltos.map(r => `${r.numero} → ${r.estado}`).join(', ')}`);
+      })
+      .catch(err => console.error(`[cancelarItem] resolverRemitosServicioDeOT de ${otNumber}:`, err));
 
     // Devolver la visita al contrato (2026-08-17): la OT cancelada no se hizo,
     // así que no puede seguir consumiendo el cupo. Best-effort — la cancelación
@@ -2105,11 +2118,11 @@ export const ordenesTrabajoService = {
     // Remito de servicio: se completa al cerrar la ÚLTIMA OT que cubre. Fuera del
     // guard `!yaCerrada` a propósito — es idempotente, y así un reintento del
     // cierre repara el remito si la primera pasada falló. Best-effort.
-    efectos.push(this.completarRemitosServicioDeOT(otNumber)
-      .then(completados => {
-        if (completados.length > 0) console.log(`[cerrarAdmin] remito(s) de servicio completado(s): ${completados.join(', ')}`);
+    efectos.push(this.resolverRemitosServicioDeOT(otNumber, 'cerrada')
+      .then(resueltos => {
+        if (resueltos.length > 0) console.log(`[cerrarAdmin] remito(s) de servicio resuelto(s): ${resueltos.map(r => `${r.numero} → ${r.estado}`).join(', ')}`);
       })
-      .catch(err => console.error('[cerrarAdministrativamente] completarRemitosServicioDeOT failed (non-blocking):', err)));
+      .catch(err => console.error('[cerrarAdministrativamente] resolverRemitosServicioDeOT failed (non-blocking):', err)));
 
     // ── Deducción de stock al cierre — POR LÍNEA (2026-09-10, fase 2 reapertura) ──
     // Cada StockSelection lleva `deducidoAt` + `movimientoIds`; se descuentan

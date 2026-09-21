@@ -1,4 +1,5 @@
 import type { Articulo, Marca, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_LABELS } from '@ags/shared';
 import { type ExportColumn } from '../exportToExcel';
 import { filtrosAplicadosDesc } from './filtros';
 
@@ -7,10 +8,7 @@ import { filtrosAplicadosDesc } from './filtros';
  * Los label maps vivían en ArticulosListFilters; ahora la página los importa
  * de acá para que export y filtros muestren exactamente los mismos textos.
  */
-export const CATEGORIA_ARTICULO_LABELS: Record<CategoriaEquipoStock, string> = {
-  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro',
-  HEADSPACE: 'Headspace', DENSIMETRO: 'Densimetro', GENERAL: 'General',
-};
+export const CATEGORIA_ARTICULO_LABELS: Record<CategoriaEquipoStock, string> = CATEGORIA_EQUIPO_STOCK_LABELS;
 export const TIPO_ARTICULO_LABELS: Record<TipoArticulo, string> = {
   repuesto: 'Repuesto', consumible: 'Consumible', equipo: 'Equipo', columna: 'Columna',
   accesorio: 'Accesorio', muestra: 'Muestra', otro: 'Otro',

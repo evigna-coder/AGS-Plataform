@@ -1,4 +1,5 @@
 import type { Loaner } from '@ags/shared';
+import { CATEGORIAS_EQUIPO_STOCK } from '@ags/shared';
 import { ESTADO_LOANER_LABELS } from '@ags/shared';
 import { type ExportColumn, type GrupoExport } from '../exportToExcel';
 
@@ -29,7 +30,7 @@ export function buildLoanerExportRows(
 }
 
 /** Orden de las categorías de equipo en el resumen; el resto va alfabético al final. */
-const ORDEN_CATEGORIA = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
+const ORDEN_CATEGORIA: readonly string[] = CATEGORIAS_EQUIPO_STOCK;
 const SIN_CATEGORIA = 'Sin categoría';
 const SIN_TIPO = 'Sin tipo de módulo';
 

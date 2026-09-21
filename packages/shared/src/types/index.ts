@@ -3827,7 +3827,25 @@ export interface PosicionStock {
 
 export type TipoArticulo = 'repuesto' | 'consumible' | 'equipo' | 'columna' | 'accesorio' | 'muestra' | 'otro';
 
-export type CategoriaEquipoStock = 'HPLC' | 'GC' | 'MSD' | 'UV' | 'OSMOMETRO' | 'HEADSPACE' | 'DENSIMETRO' | 'GENERAL';
+/**
+ * Categorías de equipo (artículos de stock y loaners). Fuente ÚNICA (2026-09-21):
+ * antes cada modal repetía la lista a mano y los loaners quedaron con seis
+ * categorías mientras los artículos tenían ocho. Agregar acá = aparece en todos
+ * los selectores, filtros y exports. El código se guarda en Firestore; la
+ * etiqueta es lo que se muestra.
+ */
+export const CATEGORIAS_EQUIPO_STOCK = [
+  'HPLC', 'GC', 'MSD', 'UV', 'HEADSPACE', 'OSMOMETRO', 'POLARIMETRO', 'DENSIMETRO',
+  'GENERADOR', 'BOMBA_MECANICA', 'GENERAL',
+] as const;
+export type CategoriaEquipoStock = (typeof CATEGORIAS_EQUIPO_STOCK)[number];
+export const CATEGORIA_EQUIPO_STOCK_LABELS: Record<CategoriaEquipoStock, string> = {
+  HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', HEADSPACE: 'Headspace', OSMOMETRO: 'Osmómetro',
+  POLARIMETRO: 'Polarímetro', DENSIMETRO: 'Densímetro', GENERADOR: 'Generador',
+  BOMBA_MECANICA: 'Bomba mecánica', GENERAL: 'General',
+};
+/** Opciones listas para un SearchableSelect. */
+export const CATEGORIA_EQUIPO_STOCK_OPTIONS = CATEGORIAS_EQUIPO_STOCK.map(c => ({ value: c, label: CATEGORIA_EQUIPO_STOCK_LABELS[c] }));
 
 export interface TratamientoArancelario {
   derechoImportacion?: number | null;

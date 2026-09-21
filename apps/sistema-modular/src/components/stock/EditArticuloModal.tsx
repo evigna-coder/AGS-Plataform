@@ -7,7 +7,8 @@ import { EquivalenciaSection } from './EquivalenciaSection';
 import { PresentacionesSection } from './PresentacionesSection';
 import { KitComponentesSection } from './KitComponentesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
-import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
+import type { TipoArticulo, TratamientoArancelario } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
 
 import { Select } from '../ui/Select';
 interface Props {
@@ -17,7 +18,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -79,7 +79,7 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           <div>
             <label className={lbl}>Categoria</label>
             <SearchableSelect value={h.form.categoriaEquipo} onChange={v => h.set('categoriaEquipo', v)}
-              options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
+              options={CATEGORIA_EQUIPO_STOCK_OPTIONS} placeholder="Seleccionar..." />
           </div>
           <div>
             <label className={lbl}>Marca</label>

@@ -8,6 +8,7 @@ import { TrazabilidadFields } from './TrazabilidadFields';
 import { articulosService, marcasService, proveedoresService } from '../../services/firebaseService';
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../ui/Select';
@@ -23,7 +24,6 @@ interface Props {
   navigateOnCreate?: boolean;
 }
 
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -187,7 +187,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             <div>
               <label className={lbl}>Categoria equipo</label>
               <SearchableSelect value={form.categoriaEquipo} onChange={v => set('categoriaEquipo', v)}
-                options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
+                options={CATEGORIA_EQUIPO_STOCK_OPTIONS} placeholder="Seleccionar..." />
             </div>
             <div>
               <label className={lbl}>Marca</label>

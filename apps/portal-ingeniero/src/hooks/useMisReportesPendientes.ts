@@ -5,8 +5,9 @@ import { useIngenieroDocId } from './useIngenieroDocId';
 
 /**
  * Lista los borradores de reporte que el usuario actual creó desde reportes-ot
- * y aún no finalizó, más las OTs en borrador asignadas a él (aunque otra
- * persona haya empezado el reporte — 2026-09-11).
+ * y aún no finalizó, más las OTs en borrador asignadas a él que otra persona
+ * empezó (2026-09-11). Las asignadas que nadie tocó no son pendientes
+ * (2026-09-21): viven en "Mis OT".
  *
  * Para usuarios con rol `admin`, devuelve TODOS los borradores (no filtra por
  * creador) para que puedan supervisar lo pendiente del equipo. La page

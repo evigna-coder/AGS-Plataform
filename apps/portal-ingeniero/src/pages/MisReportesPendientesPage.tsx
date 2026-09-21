@@ -45,7 +45,9 @@ export default function MisReportesPendientesPage() {
     ? '...'
     : borradores.length === 0
       ? '0 pendientes'
-      : `${empezadosCount} en borrador · ${sinEmpezarCount} sin empezar${viendoTodos ? ' · vista admin' : ''}`;
+      : viendoTodos
+        ? `${empezadosCount} en borrador · ${sinEmpezarCount} sin empezar · vista admin`
+        : `${empezadosCount} en borrador`;
   const emptyMsg = viendoTodos
     ? 'No hay reportes pendientes en el equipo'
     : 'No tenés reportes pendientes';

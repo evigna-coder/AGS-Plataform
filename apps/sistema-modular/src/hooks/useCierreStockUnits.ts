@@ -57,6 +57,8 @@ export interface AsignacionItemOrigen {
   cantidad: number;
   serie: string | null;
   unidadId: string | null;
+  /** Origen AGRUPADO (2026-09-21): los ítems de la misma asignación que representa; `cantidad` es la suma. */
+  miembros?: AsignacionItemOrigen[];
 }
 
 /** Info de stock resuelta para una parte del cierre. */

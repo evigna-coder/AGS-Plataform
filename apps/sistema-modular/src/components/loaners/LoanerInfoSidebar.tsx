@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
-import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, ESTADO_PARTE_LOANER_LABELS, TIPO_ORIGEN_LOANER_LABELS, prestamoModuloActivo, prestamosDeParteActivos, partesDelPrestamo, estadoParte, idDeParte, quienTieneElPrestamo } from '@ags/shared';
+import type { Loaner, CategoriaEquipoStock } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_LABELS, ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, ESTADO_PARTE_LOANER_LABELS, TIPO_ORIGEN_LOANER_LABELS, prestamoModuloActivo, prestamosDeParteActivos, partesDelPrestamo, estadoParte, idDeParte, quienTieneElPrestamo } from '@ags/shared';
 
 interface Props {
   loaner: Loaner;
@@ -45,7 +45,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       <Card title="Equipo" compact>
         <dl className="space-y-1.5">
           <LV label="Descripcion" value={loaner.descripcion} />
-          <LV label="Categoria" value={loaner.categoriaEquipo} />
+          <LV label="Categoria" value={CATEGORIA_EQUIPO_STOCK_LABELS[loaner.categoriaEquipo as CategoriaEquipoStock] ?? loaner.categoriaEquipo} />
           <LV label="Categoria de modulo" value={loaner.categoriaModuloNombre} />
           <LV label="Modelo" value={loaner.moduloCodigo ? `${loaner.moduloCodigo}${loaner.moduloDescripcion ? ` — ${loaner.moduloDescripcion}` : ''}` : null} />
           <LV label="Serie" value={loaner.serie} />

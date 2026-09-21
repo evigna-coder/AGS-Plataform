@@ -5,8 +5,8 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
-import type { Loaner } from '@ags/shared';
-import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos, quienTieneElPrestamo, partesDelPrestamo, estadoParte } from '@ags/shared';
+import type { Loaner, CategoriaEquipoStock } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_LABELS, ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos, quienTieneElPrestamo, partesDelPrestamo, estadoParte } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -255,7 +255,7 @@ export function LoanersList() {
                         <span className="font-semibold text-teal-600 text-xs">{l.codigo}</span>
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={l.descripcion}>{l.descripcion}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(2)}`}>{l.categoriaEquipo || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(2)}`}>{(l.categoriaEquipo && (CATEGORIA_EQUIPO_STOCK_LABELS[l.categoriaEquipo as CategoriaEquipoStock] ?? l.categoriaEquipo)) || <span className="text-slate-300">—</span>}</td>
                       <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(3)}`}>{l.categoriaModuloNombre || <span className="text-slate-300">—</span>}</td>
                       <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(4)}`} title={l.moduloDescripcion ?? undefined}>{l.moduloCodigo || <span className="text-slate-300">—</span>}</td>
                       <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(5)}`}>{l.serie || <span className="text-slate-300">—</span>}</td>

@@ -7,6 +7,7 @@ import { costoComponente } from '../utils/kitProrrateo';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache, conCache } from './serviceCache';
+import { clasificarOTParaRemito, estadoRemitoServicioSegunOTs } from '../utils/resolverRemitoServicio';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -1981,10 +1982,19 @@ export const remitosService = {
     const otNumbers = Array.from(new Set(
       input.lineas.map(l => l.otNumberOrigen).filter((n): n is string => !!n),
     ));
+    // Emitido contra OT que ya cerraron (2026-09-21): nace resuelto. La regla
+    // "se completa al cerrar la OT" solo corre al cerrar, y un remito emitido
+    // después quedaba confirmado para siempre (0001-00017505).
+    let estado: EstadoRemito = 'confirmado';
+    if (otNumbers.length > 0) {
+      const { ordenesTrabajoService } = await import('./otService');
+      const ots = await Promise.all(otNumbers.map(n => ordenesTrabajoService.getByOtNumber(n).catch(() => null)));
+      estado = estadoRemitoServicioSegunOTs(ots.map(clasificarOTParaRemito)) ?? 'confirmado';
+    }
     const payload = deepCleanForFirestore({
       numero: input.numero,
       tipo: 'servicio' as const,
-      estado: 'confirmado' as const,
+      estado,
       ingenieroId: '',
       ingenieroNombre: '',
       otNumbers,

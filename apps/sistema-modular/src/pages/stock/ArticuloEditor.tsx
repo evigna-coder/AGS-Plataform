@@ -6,12 +6,12 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Articulo, Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../../components/ui/Select';
-const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'HEADSPACE', 'DENSIMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
 const UNIDAD_OPTIONS = ['unidad', 'metro', 'litro', 'ml', 'kg', 'g'];
 const ARANCEL_FIELDS: { key: keyof TratamientoArancelario; label: string }[] = [
@@ -178,7 +178,7 @@ export const ArticuloEditor = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Categoria equipo</label>
               <SearchableSelect value={categoriaEquipo} onChange={v => setCategoriaEquipo(v as CategoriaEquipoStock)}
-                options={CATEGORIA_OPTIONS.map(c => ({ value: c, label: c }))} placeholder="Seleccionar..." />
+                options={CATEGORIA_EQUIPO_STOCK_OPTIONS} placeholder="Seleccionar..." />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>

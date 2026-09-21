@@ -1129,10 +1129,14 @@ function mergeAndSort(empezados: BorradorPendiente[], sinEmpezar: BorradorPendie
 export const reportesPendientesService = {
   /**
    * Pendientes del ingeniero: mergea (1) borradores empezados por él en
-   * reportes-ot + (2) OTs asignadas a él en estado BORRADOR, las haya tocado
-   * quien las haya tocado (2026-09-11, caso Fanely / 29889.01: si otra
-   * persona abría y guardaba primero el reporte, `creadoPor` quedaba a nombre
-   * de esa persona y la OT desaparecía de la lista de su ingeniera asignada).
+   * reportes-ot + (2) OTs asignadas a él en estado BORRADOR que alguien ya
+   * empezó (2026-09-11, caso Fanely / 29889.01: si otra persona abría y
+   * guardaba primero el reporte, `creadoPor` quedaba a nombre de esa persona
+   * y la OT desaparecía de la lista de su ingeniera asignada).
+   * Las asignadas que NADIE tocó (sin `creadoPor`) NO entran (2026-09-21):
+   * "pendiente" es un reporte a medio hacer, no la cola de trabajo asignado —
+   * para eso está "Mis OT". La vista admin sí las sigue mostrando como
+   * "Sin empezar" para supervisar.
    * `ids` = [uid, id del doc en `ingenieros`]: la OT puede guardar cualquiera
    * de los dos, igual que en "Mis OT".
    * El callback se invoca cada vez que llega snapshot de cualquiera de las
@@ -1167,8 +1171,9 @@ export const reportesPendientesService = {
 
     // (2) OTs BORRADOR asignadas a este ingeniero — single-field index.
     // Filtramos en memoria por status + child-only para no requerir índice
-    // compuesto nuevo. Las que ya empezó otra persona se muestran como
-    // borrador con el nombre de quien las empezó; el merge deduplica.
+    // compuesto nuevo. Solo las que ya empezó alguien (con `creadoPor`), que
+    // se muestran como borrador con el nombre de quien las empezó; el merge
+    // deduplica. Sin `creadoPor` = nadie la tocó todavía → no es un pendiente.
     const qAsignadas = unique.length === 1
       ? query(collection(db, 'reportes'), where('ingenieroAsignadoId', '==', uid))
       : query(collection(db, 'reportes'), where('ingenieroAsignadoId', 'in', unique));
@@ -1176,12 +1181,12 @@ export const reportesPendientesService = {
       qAsignadas,
       (snap) => {
         sinEmpezar = snap.docs
-          .filter(d => (d.data() as Record<string, unknown>).status === 'BORRADOR' && d.id.includes('.'))
-          .map(d => {
+          .filter(d => {
             const data = d.data() as Record<string, unknown>;
             const creadoPor = data.creadoPor as Record<string, unknown> | undefined;
-            return creadoPor?.uid ? parseBorradorEmpezado(d.id, data) : parseSinEmpezar(d.id, data);
-          });
+            return data.status === 'BORRADOR' && d.id.includes('.') && !!creadoPor?.uid;
+          })
+          .map(d => parseBorradorEmpezado(d.id, d.data() as Record<string, unknown>));
         emit();
       },
       onError,
