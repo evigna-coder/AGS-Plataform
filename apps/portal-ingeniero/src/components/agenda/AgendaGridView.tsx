@@ -48,6 +48,10 @@ function EntryCard({ entry, otInfo }: { entry: AgendaEntry; otInfo?: OTInfoAgend
   // Acá no entra el badge de envío — la celda es de dos líneas y no hay lugar;
   // el tilde alcanza para el vistazo y el detalle está a un click.
   const cerrada = otInfo?.cerrada === true;
+  // Detalle de la OT (2026-09-21): lo que hay que hacer, a simple vista y para
+  // todos los tipos de servicio. Primero la entrada de agenda; si no lo tiene
+  // copiado, el de la OT en vivo.
+  const problema = (entry.problemaFallaInicial || otInfo?.problema || '').trim();
 
   const inner = (
     <>
@@ -68,6 +72,11 @@ function EntryCard({ entry, otInfo }: { entry: AgendaEntry; otInfo?: OTInfoAgend
       )}
       {entry.equipoAgsId && (
         <p className="text-[9px] font-mono text-slate-400 leading-tight truncate">{entry.equipoAgsId}</p>
+      )}
+      {!isManual && problema && (
+        <p className="text-[9px] text-slate-700 leading-tight mt-0.5 line-clamp-3 whitespace-pre-wrap break-words" title={problema}>
+          {problema}
+        </p>
       )}
     </>
   );

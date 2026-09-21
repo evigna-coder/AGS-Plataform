@@ -18,6 +18,8 @@ import { otService, type EnviadoPorEmail, type EnvioManual } from '../services/f
  */
 export interface OTInfoAgenda {
   cerrada: boolean;
+  /** Problema / tarea de la OT (2026-09-21): respaldo cuando la entrada de agenda no lo tiene copiado. */
+  problema?: string | null;
   envio?: EnviadoPorEmail | null;
   envioManual?: EnvioManual | null;
 }
@@ -42,6 +44,7 @@ export function useOTsAgenda(ingenieroId: string | null, activo: boolean) {
           if (!ot.otNumber) continue;
           mapa.set(ot.otNumber, {
             cerrada: esOTCerradaTecnicamente(ot),
+            problema: ot.problemaFallaInicial ?? null,
             envio: ot.enviadoPorEmail ?? null,
             envioManual: ot.envioManual ?? null,
           });

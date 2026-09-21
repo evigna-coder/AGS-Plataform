@@ -95,9 +95,9 @@ export default function AgendaEntryCard({ entry, showEngineer, otInfo }: Props) 
       )}
       {/* Detalle de la OT (2026-09-21): el problema o la tarea adicional que el
           IST necesita ver antes de salir, para cualquier tipo de servicio. */}
-      {entry.problemaFallaInicial && (
+      {(entry.problemaFallaInicial || otInfo?.problema) && (
         <p className="text-[11px] text-slate-700 bg-slate-50 border border-slate-200 rounded px-2 py-1 whitespace-pre-wrap break-words">
-          {entry.problemaFallaInicial}
+          {entry.problemaFallaInicial || otInfo?.problema}
         </p>
       )}
       {entry.notas && (
