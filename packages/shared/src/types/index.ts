@@ -1297,11 +1297,25 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   pendiente_oc: 'Aceptado — pendiente OC',
   aceptado: 'Aceptado',
   en_ejecucion: 'En ejecución',
-  pendiente_facturacion: 'Pendiente de facturación',
+  // "Listo para facturar" (2026-09-22): el estado se alcanza al cerrar la
+  // ÚLTIMA OT (trabajo terminado) y NO dice nada del aviso a facturación. Se
+  // leía como "ya enviado a facturar", que es otra cosa: ver
+  // `labelEstadoPresupuesto`, que lo distingue cuando el aviso ya se generó.
+  pendiente_facturacion: 'Listo para facturar',
   facturado: 'Facturado — pendiente de cobro',
   anulado: 'Anulado',
   finalizado: 'Finalizado',
 };
+/**
+ * Etiqueta del estado teniendo en cuenta el aviso a facturación (2026-09-22):
+ * un presupuesto "listo para facturar" con la solicitud ya generada se muestra
+ * como "Enviado a facturar". El estado en Firestore no cambia; el aviso vive
+ * en las solicitudes de facturación y cada pantalla ya sabe si lo tiene.
+ */
+export function labelEstadoPresupuesto(estado: PresupuestoEstado, avisoEnviado: boolean): string {
+  if (estado === 'pendiente_facturacion' && avisoEnviado) return 'Enviado a facturar';
+  return ESTADO_PRESUPUESTO_LABELS[estado] ?? estado;
+}
 
 export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   borrador: 'bg-slate-100 text-slate-700',

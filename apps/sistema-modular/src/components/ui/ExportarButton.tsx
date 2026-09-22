@@ -1,6 +1,6 @@
 import { MenuButton, type MenuButtonItem } from './MenuButton';
 import { exportToExcel, type ExportColumn } from '../../utils/exportToExcel';
-import { exportListadoPDF } from '../../utils/exportListadoPDF';
+import { exportListadoPDF, imprimirListadoPDF } from '../../utils/exportListadoPDF';
 
 import { notify } from '../../utils/notify';
 /**
@@ -27,6 +27,11 @@ export interface ExportarButtonProps<T> {
    * una línea para que no se confunda con los dos exports estándar.
    */
   itemsExtra?: MenuButtonItem[];
+  /**
+   * Suma "Imprimir": el mismo PDF, directo a la impresora predeterminada
+   * (2026-09-22, posiciones de stock: el listado para recorrer el depósito).
+   */
+  imprimir?: boolean;
 }
 
 /** yyyymmdd en hora local (no UTC — un export a la noche no debe saltar de día). */
@@ -36,9 +41,24 @@ function hoySlug(): string {
 }
 
 export function ExportarButton<T>({
-  columnas, data, titulo, filename, filtrosAplicados, subtitulo, orientacion, itemsExtra = [],
+  columnas, data, titulo, filename, filtrosAplicados, subtitulo, orientacion, itemsExtra = [], imprimir = false,
 }: ExportarButtonProps<T>) {
   const fname = `${filename}-${hoySlug()}`;
+  const itemImprimir: MenuButtonItem[] = imprimir ? [{
+    label: 'Imprimir',
+    separador: true,
+    onClick: () => {
+      void imprimirListadoPDF({ titulo, subtitulo, filtrosAplicados, columnas, data, filename: fname, orientacion })
+        .then(impreso => {
+          if (impreso) notify.success('Listado enviado a la impresora');
+          else notify.info('Se abrió el PDF: imprimilo con Ctrl+P');
+        })
+        .catch(err => {
+          console.error('[ExportarButton] error imprimiendo:', err);
+          notify.error('Error al imprimir el listado');
+        });
+    },
+  }] : [];
   return (
     <MenuButton
       label="Exportar"
@@ -66,6 +86,7 @@ export function ExportarButton<T>({
             });
           },
         },
+        ...itemImprimir,
         ...itemsExtra.map((it, i) => (i === 0 ? { ...it, separador: true } : it)),
       ]}
     />

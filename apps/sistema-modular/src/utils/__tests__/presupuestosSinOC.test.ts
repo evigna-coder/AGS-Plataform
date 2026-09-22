@@ -15,7 +15,9 @@ function test(nombre: string, fn: () => void) {
 
 const hoy = new Date();
 const hace = (dias: number) => {
-  const d = new Date(hoy); d.setDate(d.getDate() - dias); d.setHours(12, 0, 0, 0);
+  // A las 0:00 (no a las 12:00): la analítica cuenta períodos de 24 h enteros
+  // y a la mañana daba un día menos que el conteo por calendario (2026-09-22).
+  const d = new Date(hoy); d.setDate(d.getDate() - dias); d.setHours(0, 0, 0, 0);
   return d.toISOString();
 };
 
@@ -34,7 +36,9 @@ console.log('esPresupuestoSinOC');
 test('aprobado sin OC → sí', () => assert.equal(esPresupuestoSinOC(ppto({})), true));
 test('en ejecución sin OC → sí', () => assert.equal(esPresupuestoSinOC(ppto({ estado: 'en_ejecucion' })), true));
 test('enviado (no aprobado) → no', () => assert.equal(esPresupuestoSinOC(ppto({ estado: 'enviado' })), false));
-test('con OC cargada (número a mano) → no', () => assert.equal(esPresupuestoSinOC(ppto({ ordenCompraNumero: 'OC-77' })), false));
+test('solo el número a mano, sin archivo → sí (2026-09-22)', () => assert.equal(esPresupuestoSinOC(ppto({ ordenCompraNumero: 'OC-77' })), true));
+test('con el PDF adjunto → no', () => assert.equal(esPresupuestoSinOC(ppto({ ordenCompraNumero: 'OC-77', adjuntos: [{ tipo: 'orden_compra' }] } as Partial<Presupuesto>)), false));
+test('con OC formal vinculada → no', () => assert.equal(esPresupuestoSinOC(ppto({ ordenesCompraIds: ['oc1'] })), false));
 test('respaldo por certificación → no', () => assert.equal(esPresupuestoSinOC(ppto({ respaldoFacturacion: 'certificacion' } as Partial<Presupuesto>)), false));
 
 console.log('computeSinOC');
@@ -78,7 +82,7 @@ test('OT abierta no cuenta como trabajo hecho', () => {
   assert.equal(i?.otsCerradas.length, 0);
 });
 test('con OC no entra al mapa', () => {
-  assert.equal(computeSinOC([ppto({ id: 'a', ordenCompraNumero: 'OC-1' })], [], hoy).has('a'), false);
+  assert.equal(computeSinOC([ppto({ id: 'a', ordenesCompraIds: ['oc1'] })], [], hoy).has('a'), false);
 });
 
 console.log('colorDiasSinOC');

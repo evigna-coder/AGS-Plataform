@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AgendaEntry, Cliente, CondicionPago, Establecimiento, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { esOTCerradaTecnicamente, establecimientoPerteneceACliente, tipoOTEfectivo } from '@ags/shared';
-import { tieneOCDelCliente } from '../utils/analitica/presupuestosMetrics';
+import { tieneOCAdjunta } from '../utils/cuotasFacturacion';
 import { otsDelPresupuesto } from '../utils/otsDelPresupuesto';
 export { otsDelPresupuesto };
 import { OT_ESTADO_ORDER } from '../utils/agendaOTSync';
@@ -588,12 +588,11 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         })
         .sort()
         .map(n => ({ otNumber: n, estadoAdmin: otByNumber.get(n)!.estadoAdmin ?? ('' as const) }));
-      // tieneOCDelCliente (2026-08-06): la OC puede haber entrado por el camino
-      // liviano (AdjuntarOCModal: número + PDF adjunto), que NO estampa
-      // ordenesCompraIds — mirando solo ese array, un ppto con la OC cargada
-      // seguía figurando "Pendiente OC del cliente" (caso P3-005034-01).
+      // tieneOCAdjunta: cuenta la OC formal vinculada o el PDF adjunto del ppto
+      // (caso P3-005034-01, 2026-08-06), pero NO el número tipeado a mano
+      // (2026-09-22, caso P1-005084-01: sin archivo no figuraba pendiente).
       // Respaldo por certificación (2026-09-08): ese cliente no emite OC, no se la debe.
-      const sinOC = !tieneOCDelCliente(p) && p.respaldoFacturacion !== 'certificacion';
+      const sinOC = !tieneOCAdjunta(p) && p.respaldoFacturacion !== 'certificacion';
       const listoParaAviso = !avisoEnviado && otsPendientes.length === 0 && p.estado === 'pendiente_facturacion';
       // Antigüedad: desde el cierre administrativo MÁS ANTIGUO de sus OTs
       // (2026-09-02). Es cuando nació el derecho a facturar; el envío del ppto

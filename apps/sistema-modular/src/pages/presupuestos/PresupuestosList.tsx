@@ -9,7 +9,7 @@ import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import type { Presupuesto, PresupuestoEstado, Cliente, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente, WorkOrder } from '@ags/shared';
-import { presupuestoEstaAceptado, presupuestoAceptadoVigente, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
+import { presupuestoEstaAceptado, presupuestoAceptadoVigente, ESTADO_PRESUPUESTO_LABELS, labelEstadoPresupuesto, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { PRESUPUESTOS_EXPORT_COLUMNS, buildPresupuestoRows, buildPresupuestosFiltrosExport } from '../../utils/exports/exportPresupuestos';
 import { OCS_PENDIENTES_EXPORT_COLUMNS, buildOCPendienteRows } from '../../utils/exports/exportOCsPendientes';
 import { ExportarButton } from '../../components/ui/ExportarButton';
@@ -40,7 +40,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado, validezAplica } from '../../utils/presupuestoHelpers';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { matchesSearch } from '../../utils/searchTerms';
-import { computeTrabajoRealizado, OC_ADEUDADA_ESTADOS, tieneOCDelCliente } from '../../utils/analitica/presupuestosMetrics';
+import { computeTrabajoRealizado, OC_ADEUDADA_ESTADOS } from '../../utils/analitica/presupuestosMetrics';
 import { tieneOCAdjunta } from '../../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 import { computeSinOC } from '../../utils/presupuestosSinOC';
@@ -439,9 +439,9 @@ export const PresupuestosList = () => {
         // Respaldo por certificación (2026-09-08): el cliente no emite OC, no
         // se la debe. Se sigue desde Pend. documentación.
         if (p.respaldoFacturacion === 'certificacion') return false;
-        // tieneOCDelCliente (2026-08-06): cualquier camino de carga de OC
-        // (formal, número a mano o adjunto) saca al ppto de "OC pendiente".
-        if (tieneOCDelCliente(p)) return false;
+        // tieneOCAdjunta (2026-09-22): solo la OC formal vinculada o el PDF
+        // adjunto sacan al ppto de "OC pendiente"; el número a mano no alcanza.
+        if (tieneOCAdjunta(p)) return false;
       }
       // Solo trabajo realizado: subconjunto sin OC con OT cerrada.
       if (soloTrabajoHecho && !trabajoRealizadoIds.has(p.id)) return false;
@@ -796,7 +796,7 @@ export const PresupuestosList = () => {
                             ) : (
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
                                 title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
-                                {ESTADO_PRESUPUESTO_LABELS[p.estado]}{caret}
+                                {labelEstadoPresupuesto(p.estado, solicitudSets.activas.has(p.id))}{caret}
                               </span>
                             );
                             if (!editable) return badge;

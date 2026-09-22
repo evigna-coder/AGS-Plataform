@@ -3,6 +3,7 @@ import { LOGO_SRC } from '../components/presupuestos/pdf/logos';
 // side-effect: registra Inter para @react-pdf/renderer
 import '../components/presupuestos/pdf/pdfFonts';
 import type { ExportColumn, GrupoExport } from './exportToExcel';
+import { printRemitoSilentOrOpen } from './remitoPdfActions';
 
 /**
  * Generador GENÉRICO de PDF tabular para listados (2026-08-12).
@@ -87,6 +88,17 @@ export async function exportListadoPDF<T>(opts: ExportListadoPDFOptions<T>): Pro
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * El MISMO PDF del listado, directo a la impresora predeterminada (2026-09-22,
+ * pedido para chequear el stock físico contra el listado de posiciones sin
+ * pasar por Guardar como). En Electron imprime en silencio; en browser, o si
+ * la impresión falla, abre el PDF en pestaña para Ctrl+P.
+ * Devuelve `true` si salió por la impresora.
+ */
+export async function imprimirListadoPDF<T>(opts: ExportListadoPDFOptions<T>): Promise<boolean> {
+  return printRemitoSilentOrOpen(buildDocument(opts));
 }
 
 function buildDocument<T>(opts: ExportListadoPDFOptions<T>) {

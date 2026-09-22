@@ -1,5 +1,5 @@
 import type { Presupuesto } from '@ags/shared';
-import { ESTADO_PRESUPUESTO_COLORS, ESTADO_PRESUPUESTO_LABELS, MONEDA_SIMBOLO, OT_ESTADO_LABELS } from '@ags/shared';
+import { ESTADO_PRESUPUESTO_COLORS, labelEstadoPresupuesto, MONEDA_SIMBOLO, OT_ESTADO_LABELS } from '@ags/shared';
 import type { PresupuestoControlRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Button } from '../ui/Button';
@@ -142,7 +142,7 @@ export const PresupuestosControlTabla: React.FC<Props> = ({
               </td>
               <td className="px-3 py-2 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1">
-                  <StatusBadge label={ESTADO_PRESUPUESTO_LABELS[p.estado]} colorClass={ESTADO_PRESUPUESTO_COLORS[p.estado]} />
+                  <StatusBadge label={labelEstadoPresupuesto(p.estado, row.avisoEnviado)} colorClass={ESTADO_PRESUPUESTO_COLORS[p.estado]} />
                   {row.pagoAnticipado && (
                     <span className="text-[9px] font-mono font-semibold uppercase tracking-wide bg-purple-100 text-purple-700 rounded-full px-1.5 py-0.5"
                       title="Condición de pago anticipada — se factura antes del servicio">

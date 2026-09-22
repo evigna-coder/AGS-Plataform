@@ -1,5 +1,6 @@
 import type { Presupuesto, WorkOrder } from '@ags/shared';
-import { OC_ADEUDADA_ESTADOS, computeOCAdeudada, tieneOCDelCliente } from './analitica/presupuestosMetrics';
+import { OC_ADEUDADA_ESTADOS, computeOCAdeudada } from './analitica/presupuestosMetrics';
+import { tieneOCAdjunta } from './cuotasFacturacion';
 import { diasDesde } from './formatFecha';
 
 /**
@@ -7,9 +8,12 @@ import { diasDesde } from './formatFecha';
  * que todavía les falta la orden de compra, con o sin trabajo hecho.
  *
  * "Sin OC" = aprobado (pendiente_oc / aceptado / en_ejecucion /
- * pendiente_facturacion) sin OC cargada por ningún camino y sin respaldo por
- * certificación. Es la misma regla del filtro `ocPendiente` de la lista y de
- * la analítica (`computeOCAdeudada`), para que card, lista y export coincidan.
+ * pendiente_facturacion) sin el PAPEL de la OC (adjunto del presupuesto o OC
+ * formal vinculada) y sin respaldo por certificación. El número tipeado a mano
+ * NO alcanza (2026-09-22, caso P1-005084-01: con el número cargado y sin
+ * archivo no figuraba pendiente en ningún lado). Es la misma regla del filtro
+ * `ocPendiente` de la lista, del cierre semanal y de la analítica
+ * (`computeOCAdeudada`), para que card, lista, cierre y export coincidan.
  *
  * Por presupuesto se informa desde cuándo está aprobado (`fechaAceptacion`,
  * null en los aceptados antes de julio) y, si ya tiene OT cerrada, desde
@@ -30,7 +34,7 @@ export interface SinOCInfo {
 export function esPresupuestoSinOC(p: Pick<Presupuesto, 'estado' | 'respaldoFacturacion' | 'ordenesCompraIds' | 'ordenCompraNumero' | 'adjuntos'>): boolean {
   if (!OC_ADEUDADA_ESTADOS.has(p.estado)) return false;
   if (p.respaldoFacturacion === 'certificacion') return false;
-  return !tieneOCDelCliente(p);
+  return !tieneOCAdjunta(p);
 }
 
 export function computeSinOC(presupuestos: Presupuesto[], ots: WorkOrder[], now = new Date()): Map<string, SinOCInfo> {

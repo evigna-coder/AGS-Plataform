@@ -11,7 +11,7 @@
  */
 
 import type { Presupuesto, WorkOrder, MonedaCuota } from '@ags/shared';
-import { computeTotalsByCurrency, tieneOCDelCliente } from '../cuotasFacturacion';
+import { computeTotalsByCurrency, tieneOCDelCliente, tieneOCAdjunta } from '../cuotasFacturacion';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -353,7 +353,9 @@ function computeConTrabajo(
     // Candidatos: sin OC del cliente, en uno de los estados pedidos, no anulados.
     // (anulado por revisión ⇒ estado 'anulado' ⇒ queda afuera por el mismo check).
     if (!estados.has(p.estado)) continue;
-    if (tieneOCDelCliente(p)) continue;
+    // Con el PAPEL (2026-09-22): el número tipeado a mano ya no saca al ppto de
+    // "OC adeudada" — P1-005084-01 figuraba con OC sin tener nada cargado.
+    if (tieneOCAdjunta(p)) continue;
     if (p.respaldoFacturacion === 'certificacion') continue; // no emite OC, certifica (2026-09-08)
 
     // Servicio realizado: OT cerrada con budgets conteniendo el número del ppto,

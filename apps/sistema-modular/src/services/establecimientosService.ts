@@ -3,6 +3,42 @@ import { addDoc, updateDoc, deleteDoc } from './firebase';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
 import { invalidateCache, conCache } from './serviceCache';
+import { cambioDeDireccion, otsQueSiguenAlEstablecimiento, type OTParaPropagar } from '../utils/propagarDireccionEstablecimiento';
+
+/**
+ * Dirección nueva → OT ABIERTAS del establecimiento (2026-09-22). La OT guarda
+ * una copia de la dirección al crearse y la app de campo lee esa copia; sin
+ * esto, editar el establecimiento dejaba las OT pendientes con la dirección
+ * vieja (caso Corteva / 30187.01). Las cerradas y canceladas no se tocan.
+ * Best-effort: el establecimiento ya quedó guardado.
+ */
+async function propagarDireccionAOTsAbiertas(establecimientoId: string, data: Record<string, unknown>): Promise<number> {
+  const nueva = cambioDeDireccion(data);
+  if (!nueva) return 0;
+  const snap = await getDocs(query(collection(db, 'reportes'), where('establecimientoId', '==', establecimientoId)));
+  const ots: OTParaPropagar[] = snap.docs
+    .filter(d => d.id.includes('.')) // las hijas .NN; el padre es un agrupador
+    .map(d => {
+      const x = d.data() as Record<string, unknown>;
+      return {
+        otNumber: d.id, status: x.status as string | null, estadoAdmin: x.estadoAdmin as string | null,
+        direccion: x.direccion as string | null, localidad: x.localidad as string | null, provincia: x.provincia as string | null,
+      };
+    });
+  const cambios = otsQueSiguenAlEstablecimiento(ots, nueva);
+  // Lotes de 200: cada OT suma su asiento de auditoría en el mismo batch.
+  for (let i = 0; i < cambios.length; i += 200) {
+    const batch = createBatch();
+    for (const { otNumber, patch } of cambios.slice(i, i + 200)) {
+      const payload = cleanFirestoreData({ ...patch, ...getUpdateTrace(), updatedAt: Timestamp.now() });
+      batch.update(firestoreDocRef('reportes', otNumber), payload);
+      batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: payload });
+    }
+    await batch.commit();
+  }
+  if (cambios.length > 0) console.log(`[establecimientos] dirección propagada a ${cambios.length} OT abierta(s): ${cambios.map(c => c.otNumber).join(', ')}`);
+  return cambios.length;
+}
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
 export const contactosEstablecimientoService = {
@@ -189,6 +225,8 @@ export const establecimientosService = {
     batchAudit(batch, { action: 'update', collection: 'establecimientos', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('establecimientos');
+    await propagarDireccionAOTsAbiertas(id, data as Record<string, unknown>)
+      .catch(err => console.error(`[establecimientos] propagar dirección de ${id} a sus OT abiertas:`, err));
   },
 
   async delete(id: string) {

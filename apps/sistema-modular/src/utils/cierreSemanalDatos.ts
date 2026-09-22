@@ -1,5 +1,5 @@
 import type { CierreSemanalDatos, CierreSemanalFilaFacturacion, CierreSemanalFilaOT, CierreSemanalFilaPresupuesto, CierreSemanalResumen, Presupuesto, WorkOrder } from '@ags/shared';
-import { ESTADO_PRESUPUESTO_LABELS, MONEDA_SIMBOLO, OT_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_LABELS } from '@ags/shared';
+import { labelEstadoPresupuesto, MONEDA_SIMBOLO, OT_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_LABELS } from '@ags/shared';
 import type { AgendaControlRow, FacturacionControlRow, OTArrastreRow, PresupuestoControlRow } from '../hooks/useControlSemanal';
 
 export const ESTADO_CONTROL_LABEL: Record<string, string> = {
@@ -95,7 +95,7 @@ export function armarCierreSemanal(e: EntradasCierreSemanal): { datos: CierreSem
     numero: r.presupuesto.numero,
     cliente: `${r.clienteNombre}${r.establecimientoNombre ? ` (${r.establecimientoNombre})` : ''}`,
     total: fmtMonto(r.presupuesto.moneda, r.presupuesto.total),
-    estado: ESTADO_PRESUPUESTO_LABELS[r.presupuesto.estado] ?? r.presupuesto.estado,
+    estado: labelEstadoPresupuesto(r.presupuesto.estado, r.avisoEnviado),
     diasTrabado: r.diasTrabado,
     queFalta: queFaltaTexto(r),
     comentario: r.presupuesto.comentarioControlSemanal ?? null,

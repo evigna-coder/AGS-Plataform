@@ -129,6 +129,7 @@ export const PosicionesPage = () => {
               titulo="Posiciones de Stock"
               filename="posiciones"
               filtrosAplicados={buildPosicionesFiltrosExport({ busqueda: debouncedNombre, tipo: tipoFilter, zona: zonaFilter, showInactive })}
+              imprimir
             />
             <Button size="sm" onClick={() => setShowCreate(v => !v)}>{showCreate ? 'Cancelar' : '+ Agregar'}</Button>
           </div>
