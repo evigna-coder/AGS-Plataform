@@ -1,4 +1,5 @@
 import type { WorkOrderWithPdf } from '../../services/firebaseService';
+import { useOTResumen } from '../../contexts/OTResumenContext';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../ui/ColAlignIcon';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
@@ -40,6 +41,7 @@ const COLS = [
 ] as const;
 
 export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpenPdf, onOpenProtocol, onMarkSent, onUnmarkSent, envioBusy, fmt }: Props) {
+  const { abrir: abrirResumen } = useOTResumen();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-historial-list');
 
   return (
@@ -72,7 +74,7 @@ export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpe
             <tr key={ot.otNumber} className="hover:bg-slate-50 transition-colors">
               <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-teal-600 text-xs font-mono">OT-{ot.otNumber}</span>
+                  <button type="button" onClick={() => abrirResumen(ot.otNumber)} title="Ver resumen de la OT" className="font-semibold text-teal-600 text-xs font-mono hover:underline">OT-{ot.otNumber}</button>
                   <OTStatusBadge status={ot.status} />
                 </div>
               </td>

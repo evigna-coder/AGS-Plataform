@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useOTResumen } from '../../contexts/OTResumenContext';
 import type { AgendaEntry } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
 import { EnvioEmailBadge } from '../ui/EnvioEmailBadge';
@@ -14,6 +14,7 @@ interface Props {
 }
 
 export default function AgendaEntryCard({ entry, showEngineer, otInfo }: Props) {
+  const { abrir: abrirResumen } = useOTResumen();
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-200 text-slate-700';
   const borderColor: Record<string, string> = {
     pendiente: 'border-l-slate-400',
@@ -115,10 +116,13 @@ export default function AgendaEntryCard({ entry, showEngineer, otInfo }: Props) 
     </>
   );
 
+  // Resumen compacto (2026-09-23): mismo modal que los tickets, con "Abrir OT completa".
   return entry.otNumber ? (
-    <Link to={`/ordenes-trabajo/${entry.otNumber}`} className={`${cardCls} hover:border-teal-400 active:bg-teal-50/50 transition-colors`}>
+    <div role="button" tabIndex={0} onClick={() => abrirResumen(entry.otNumber!)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirResumen(entry.otNumber!); } }}
+      className={`${cardCls} cursor-pointer hover:border-teal-400 active:bg-teal-50/50 transition-colors`}>
       {inner}
-    </Link>
+    </div>
   ) : (
     <div className={cardCls}>{inner}</div>
   );

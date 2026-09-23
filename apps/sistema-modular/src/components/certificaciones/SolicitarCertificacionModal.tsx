@@ -6,7 +6,7 @@ import { Button } from '../ui/Button';
 import { establecimientosService } from '../../services/firebaseService';
 import { certificacionesService } from '../../services/certificacionesService';
 import { movimientosService } from '../../services/stockService';
-import { partesDeConsumos } from '../../utils/partesDeConsumosOT';
+import { itemCertificacionDesdeOT } from '../../utils/itemCertificacionDesdeOT';
 import { CertificacionItemRow } from './CertificacionItemRow';
 import { ExportarButton } from '../ui/ExportarButton';
 import { CERTIFICACION_EXPORT_COLUMNS } from '../../utils/exports/exportCertificacion';
@@ -76,16 +76,7 @@ export function SolicitarCertificacionModal({ open, onClose, onCreated, clienteI
           movimientosService.getAll({ otNumber: o.otNumber }).catch(() => [])));
         const base: Record<string, ItemCertificacion> = {};
         ots.forEach((o, i) => {
-          base[o.otNumber] = {
-            otNumber: o.otNumber,
-            estado: 'pendiente',
-            establecimientoNombre: list.find(e => e.id === o.establecimientoId)?.nombre ?? '',
-            equipo: [o.sistema, o.moduloSerie ? `S/N ${o.moduloSerie}` : null].filter(Boolean).join(' · '),
-            equipoId: o.codigoInternoCliente || '',
-            descripcionServicio: o.tipoServicio || '',
-            fechaServicio: (o.fechaInicio || o.fechaServicioAprox || '').slice(0, 10) || null,
-            partes: partesDeConsumos(consumos[i]),
-          };
+          base[o.otNumber] = itemCertificacionDesdeOT(o, list, consumos[i]);
         });
         setLineas(base);
       })

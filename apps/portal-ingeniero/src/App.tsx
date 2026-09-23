@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { OTResumenProvider } from './contexts/OTResumenContext';
 import { Spinner } from './components/ui/Spinner';
 import { ToastContainer } from './components/ui/Toast';
 import { onForegroundNotification } from './services/notificationService';
@@ -179,12 +180,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <OTResumenProvider>
         <Routes>
           {/* Ruta pública — accesible sin autenticación (landing QR) */}
           <Route path="/equipo/:agsId" element={<EquipoPublicPage />} />
           {/* Todas las demás rutas → auth gate */}
           <Route path="/*" element={<PrivateApp />} />
         </Routes>
+        </OTResumenProvider>
         <ForegroundNotificationListener />
         <TokenAutoRefresher />
         <ToastContainer />

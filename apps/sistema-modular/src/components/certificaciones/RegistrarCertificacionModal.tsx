@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import type { WorkOrder } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import type { ImporteCertificado } from '@ags/shared';
+import { MONEDA_SIMBOLO } from '@ags/shared';
 import { certificacionesService } from '../../services/certificacionesService';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -28,6 +30,8 @@ export const RegistrarCertificacionModal: React.FC<Props> = ({ open, onClose, on
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [archivo, setArchivo] = useState<File | null>(null);
   const [observaciones, setObservaciones] = useState('');
+  /** Importes certificados (2026-09-23): lo que se factura. Sin importe, se factura por el presupuesto de las OT. */
+  const [importes, setImportes] = useState<ImporteCertificado[]>([{ moneda: 'ARS', monto: 0 }, { moneda: 'USD', monto: 0 }]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +39,7 @@ export const RegistrarCertificacionModal: React.FC<Props> = ({ open, onClose, on
   useEffect(() => {
     if (!open) return;
     setNumero(''); setArchivo(null); setObservaciones(''); setError(null);
+    setImportes([{ moneda: 'ARS', monto: 0 }, { moneda: 'USD', monto: 0 }]);
     setFecha(new Date().toISOString().slice(0, 10));
     setSelected(new Set(ots.map(o => o.otNumber)));
   }, [open, ots]);
@@ -60,6 +65,7 @@ export const RegistrarCertificacionModal: React.FC<Props> = ({ open, onClose, on
         otNumbers: [...selected],
         archivo,
         observaciones: observaciones.trim() || null,
+        importes: importes.filter(i => Number.isFinite(i.monto) && i.monto !== 0),
       }, { uid: firebaseUser?.uid || '', name: usuario?.displayName });
       onCreated();
     } catch (e) {
@@ -94,6 +100,23 @@ export const RegistrarCertificacionModal: React.FC<Props> = ({ open, onClose, on
           <div>
             <span className={lbl}>Fecha</span>
             <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className={inp} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border-2 border-teal-200 bg-teal-50/40 px-3 py-2.5">
+          <p className="text-xs font-semibold text-teal-900 mb-2">Importes certificados <span className="font-normal text-teal-700/80">(lo que se factura; los servicios de contrato sin presupuesto lo necesitan)</span></p>
+          <div className="grid grid-cols-2 gap-3">
+            {importes.map((imp, i) => (
+              <div key={imp.moneda}>
+                <label className="block text-[11px] font-medium text-teal-900 mb-1">{imp.moneda === 'ARS' ? 'Pesos (ARS)' : 'Dólares (USD)'}</label>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-mono text-teal-700 w-9 shrink-0">{MONEDA_SIMBOLO[imp.moneda] || imp.moneda}</span>
+                  <input type="number" step="0.01" min={0} value={imp.monto || ''} placeholder="0,00"
+                    onChange={e => setImportes(p => p.map((x, j) => (j === i ? { ...x, monto: Number(e.target.value) || 0 } : x)))}
+                    className="w-full border border-teal-300 bg-white rounded-lg px-3 py-2 text-base text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

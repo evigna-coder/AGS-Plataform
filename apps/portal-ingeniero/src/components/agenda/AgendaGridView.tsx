@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useOTResumen } from '../../contexts/OTResumenContext';
 import type { AgendaEntry } from '@ags/shared';
 import type { OTInfoAgenda } from '../../hooks/useOTsAgenda';
 import { ESTADO_AGENDA_COLORS, ESTADO_AGENDA_LABELS } from '@ags/shared';
@@ -39,6 +39,7 @@ const BORDER_COLOR: Record<string, string> = {
 
 // Mini card shown inside each grid cell — matches AgendaEntryCard design, compact
 function EntryCard({ entry, otInfo }: { entry: AgendaEntry; otInfo?: OTInfoAgenda }) {
+  const { abrir: abrirResumen } = useOTResumen();
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-100 text-slate-600';
   const borderColor = BORDER_COLOR[entry.estadoAgenda] ?? 'border-l-slate-400';
   const isManual = !entry.otNumber;
@@ -83,9 +84,12 @@ function EntryCard({ entry, otInfo }: { entry: AgendaEntry; otInfo?: OTInfoAgend
 
   const className = `block ${cerrada ? 'bg-slate-50 opacity-70' : 'bg-white'} rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`;
 
+  // Resumen compacto (2026-09-23): mismo modal que los tickets.
   return isManual
     ? <div className={className}>{inner}</div>
-    : <Link to={`/ordenes-trabajo/${entry.otNumber}`} className={className}>{inner}</Link>;
+    : <div role="button" tabIndex={0} onClick={() => abrirResumen(entry.otNumber!)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirResumen(entry.otNumber!); } }}
+        className={`${className} cursor-pointer`}>{inner}</div>;
 }
 
 interface Props {

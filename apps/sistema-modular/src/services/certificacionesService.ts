@@ -2,6 +2,9 @@ import { doc, collection, getDocs, getDoc, query, where, Timestamp } from 'fireb
 import { db, createBatch, batchAudit, deepCleanForFirestore, getCreateTrace } from './firebase';
 import { ordenesTrabajoService } from './otService';
 import { certificacionStorageService } from './certificacionStorageService';
+import { establecimientosService } from './establecimientosService';
+import { movimientosService } from './stockService';
+import { itemCertificacionDesdeOT } from '../utils/itemCertificacionDesdeOT';
 import type { Certificacion, CertificacionRecibida, EstadoOTCertificacion, ImporteCertificado, ItemCertificacion, Presupuesto } from '@ags/shared';
 import { certificacionAbierta, itemsDeCertificacion, recibidasDeCertificacion, recibidasSinFacturar } from '@ags/shared';
 import { facturacionService } from './facturacionService';
@@ -14,6 +17,8 @@ export interface CreateCertificacionInput {
   otNumbers: string[];
   archivo?: File | null;
   observaciones?: string | null;
+  /** Importes certificados por el cliente (2026-09-23): lo que se factura. */
+  importes?: ImporteCertificado[] | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,12 +74,51 @@ export const certificacionesService = {
       archivoPath = up.storagePath;
     }
 
+    // Mismo modelo que un lote pedido y recibido (2026-09-23): el papel queda
+    // como certificación RECIBIDA, con sus importes y sin facturar, y las OT
+    // como ítems certificados. Antes el registro directo guardaba solo la
+    // lista de OT: el lote nacía "resuelto" sin nada que facturar y, si el
+    // papel no traía archivo, ni siquiera aparecía entre las abiertas — las OT
+    // se liberaban y se perdían de vista (caso YPF 30061/30062/30331, contrato
+    // sin presupuesto, donde el único camino a la factura es el importe).
+    const ahora = new Date().toISOString();
+    const recibidaId = crypto.randomUUID();
+    const importes = (input.importes ?? []).filter(i => Number.isFinite(i.monto) && i.monto !== 0);
+    const recibida: CertificacionRecibida = {
+      id: recibidaId,
+      numero: input.numero ?? null,
+      fecha: input.fecha || null,
+      archivoUrl, archivoPath,
+      archivos: archivoUrl && archivoPath ? [{ url: archivoUrl, path: archivoPath, nombre: input.archivo?.name ?? 'certificacion' }] : [],
+      importes,
+      observaciones: input.observaciones ?? null,
+      otNumbers: [...input.otNumbers],
+      solicitudesIds: [],
+    };
+    // Datos de cada OT para el resumen (establecimiento, equipo, servicio,
+    // fecha, partes), igual que en el pedido por lote. Best-effort por OT.
+    const [otsCargadas, consumosPorOt] = await Promise.all([
+      Promise.all(input.otNumbers.map(n => ordenesTrabajoService.getByOtNumber(n).catch(() => null))),
+      Promise.all(input.otNumbers.map(n => movimientosService.getAll({ otNumber: n }).catch(() => []))),
+    ]);
+    // Catálogo entero (cacheado): la OT guarda el id del establecimiento y el
+    // cliente del lote puede venir vacío o con el CUIT legacy.
+    const establecimientos = await establecimientosService.getAll().catch(() => []);
+    const items: ItemCertificacion[] = input.otNumbers.map((otNumber, i) => {
+      const ot = otsCargadas[i];
+      const base = ot ? itemCertificacionDesdeOT(ot, establecimientos, consumosPorOt[i], 'certificada') : { otNumber, estado: 'certificada' as const };
+      return { ...base, fechaResolucion: ahora, recibidaId };
+    });
     const payload = deepCleanForFirestore({
       numero: input.numero ?? null,
       clienteId: input.clienteId ?? null,
       clienteNombre: input.clienteNombre ?? null,
       fecha: input.fecha,
       otNumbers: input.otNumbers,
+      items,
+      recibidas: [recibida],
+      estado: 'recibida' as const,
+      solicitudesIds: [],
       archivoUrl,
       archivoPath,
       observaciones: input.observaciones ?? null,
@@ -94,6 +138,7 @@ export const certificacionesService = {
         await ordenesTrabajoService.update(otNumber, {
           certificacionId: id,
           certificacionNumero: input.numero ?? null,
+          certificacionArchivoUrl: archivoUrl,
         });
         liberadas.push(otNumber);
       } catch (err) {

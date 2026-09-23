@@ -1,4 +1,5 @@
 import type { WorkOrderWithPdf } from '../../services/firebaseService';
+import { useOTResumen } from '../../contexts/OTResumenContext';
 import { REPORTES_OT_URL } from '../../utils/constants';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
 import { EnvioEmailBadge } from '../ui/EnvioEmailBadge';
@@ -23,11 +24,13 @@ interface Props {
 }
 
 export default function HistorialOTCard({ ot, onMarkSent, onUnmarkSent, envioBusy }: Props) {
+  const { abrir: abrirResumen } = useOTResumen();
   return (
     <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold font-mono text-teal-600">OT-{ot.otNumber}</span>
+          <button type="button" onClick={() => abrirResumen(ot.otNumber)} title="Ver resumen de la OT"
+            className="text-xs font-semibold font-mono text-teal-600 hover:underline">OT-{ot.otNumber}</button>
           <OTStatusBadge status={ot.status} />
         </div>
         <span className="text-[11px] text-slate-400 shrink-0">{fmt(ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox)}</span>
