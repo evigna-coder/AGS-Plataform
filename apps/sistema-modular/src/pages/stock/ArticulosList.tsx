@@ -109,15 +109,23 @@ export const ArticulosList = () => {
 
   useEffect(() => { marcasService.getAll(false).then(data => setMarcas(data as Marca[])); }, []);
 
+  // UNA suscripción por visita (2026-09-22): antes cada cambio de categoría,
+  // marca o tipo re-suscribía con otra consulta y volvía a bajar el catálogo
+  // entero (4.000 docs por filtro). Ahora la consulta solo distingue
+  // activos/inactivos y categoría, marca y tipo se filtran en memoria.
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = articulosService.subscribe(
-      { categoriaEquipo: filters.categoriaEquipo || undefined, marcaId: filters.marcaId || undefined, tipo: filters.tipo || undefined, activoOnly: !filters.showInactive },
+      { activoOnly: !filters.showInactive },
       (data) => { setArticulos(data); setLoading(false); },
       (err) => { console.error('Error cargando articulos:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };
-  }, [filters.categoriaEquipo, filters.marcaId, filters.tipo, filters.showInactive]);
+  }, [filters.showInactive]);
+  const articulosFiltrados = useMemo(() => articulos.filter(a =>
+    (!filters.categoriaEquipo || a.categoriaEquipo === filters.categoriaEquipo)
+    && (!filters.marcaId || a.marcaId === filters.marcaId)
+    && (!filters.tipo || a.tipo === filters.tipo)), [articulos, filters.categoriaEquipo, filters.marcaId, filters.tipo]);
 
   const loadData = useCallback(() => {}, []);
 
@@ -140,12 +148,12 @@ export const ArticulosList = () => {
   const getMarcaNombre = (art: Articulo) => art.marcaId ? (marcas.find(m => m.id === art.marcaId)?.nombre ?? '-') : ((art as any).marca || '-');
 
   const filtered = useMemo(() => {
-    let list = articulos;
+    let list = articulosFiltrados;
     if (debouncedSearch) { list = list.filter(a => matchesSearch(debouncedSearch, a.codigo, a.descripcion, ...(a.presentaciones ?? []).map(p => p.codigoParte))); }
     // Depósito: solo los artículos con stock en el depósito elegido.
     if (filters.deposito) { list = list.filter(a => stockPorArticulo.has(a.id)); }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
-  }, [articulos, debouncedSearch, filters.deposito, stockPorArticulo, filters.sortField, filters.sortDir]);
+  }, [articulosFiltrados, debouncedSearch, filters.deposito, stockPorArticulo, filters.sortField, filters.sortDir]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });

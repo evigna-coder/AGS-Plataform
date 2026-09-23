@@ -1,6 +1,7 @@
 import type { CierreSemanalDatos, CierreSemanalFilaFacturacion, CierreSemanalFilaOT, CierreSemanalFilaPresupuesto, CierreSemanalResumen, Presupuesto, WorkOrder } from '@ags/shared';
 import { labelEstadoPresupuesto, MONEDA_SIMBOLO, OT_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_LABELS } from '@ags/shared';
 import type { AgendaControlRow, FacturacionControlRow, OTArrastreRow, PresupuestoControlRow } from '../hooks/useControlSemanal';
+import { textoInformado } from './controlSemanalInformado';
 
 export const ESTADO_CONTROL_LABEL: Record<string, string> = {
   cerrada: 'Cierre admin',
@@ -12,6 +13,7 @@ export const ESTADO_CONTROL_LABEL: Record<string, string> = {
 /** Mismo texto que la columna "Qué falta" de la pantalla (PresupuestosControlTabla). */
 export function queFaltaTexto(row: PresupuestoControlRow): string[] {
   if (row.facturadoEstaSemana) return ['Facturado esta semana'];
+  if (row.informadoSemana) return [textoInformado(row.informadoSemana)];
   if (row.avisoEnviado) return ['Aviso enviado'];
   const items: string[] = [];
   if (row.avisoParcialPct != null) items.push(`Aviso PARCIAL: ${row.avisoParcialPct}% pasado a facturar, falta el ${Math.max(0, 100 - row.avisoParcialPct)}%`);

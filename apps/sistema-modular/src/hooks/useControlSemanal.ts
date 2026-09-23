@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AgendaEntry, Cliente, CondicionPago, Establecimiento, OTEstadoAdmin, Presupuesto, SolicitudFacturacion, WorkOrder } from '@ags/shared';
 import { esOTCerradaTecnicamente, establecimientoPerteneceACliente, tipoOTEfectivo } from '@ags/shared';
 import { tieneOCAdjunta } from '../utils/cuotasFacturacion';
+import { fechaAvisoPorPresupuesto, semanaInformadoPosterior, type SemanaRango } from '../utils/controlSemanalInformado';
 import { otsDelPresupuesto } from '../utils/otsDelPresupuesto';
 export { otsDelPresupuesto };
 import { OT_ESTADO_ORDER } from '../utils/agendaOTSync';
@@ -115,6 +116,12 @@ export interface PresupuestoControlRow {
    * sección "tenía muchos" y no se distinguía qué pasaba ahora.
    */
   arrastre: boolean;
+  /**
+   * De la semana y con aviso salido en una semana POSTERIOR (2026-09-22): se
+   * queda visible en la semana del servicio como "Informado a facturación ·
+   * semana dd/mm al dd/mm". Null si no hay aviso o salió en la misma semana.
+   */
+  informadoSemana: SemanaRango | null;
   /**
    * Facturado con la factura caída en la semana visible (2026-08-27). El ppto
    * facturado sale del universo de pendientes; vuelve SOLO en esa semana, con
@@ -495,6 +502,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
     };
     const pptosConAviso = new Set(
       solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));
+    const fechaAvisoPorPpto = fechaAvisoPorPresupuesto(solicitudes);
     const condicionesAnticipadas = new Set(
       condiciones.filter(esCondicionAnticipada).map(c => c.id));
 
@@ -615,6 +623,9 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         avisoEnviado, avisoParcialPct, otsPendientes, sinOC, listoParaAviso, pagoAnticipado,
         sinOtAgendada, otsSinAgendar, agendadaOtraSemana, otsEnSemana, entregasPendientes: entregasPpto, sinAceptar,
         arrastre, facturadoEstaSemana: false,
+        informadoSemana: avisoEnviado && deLaSemana
+          ? semanaInformadoPosterior(fechaAvisoPorPpto.get(p.id), weekEnd)
+          : null,
         diasTrabado: diasDesdeISO(cierreMasViejo),
         desdeQue: cierreMasViejo ? 'cierre de la OT' : null,
       });
@@ -640,7 +651,7 @@ export function useControlSemanal(weekStart: string, weekEnd: string) {
         presupuesto: p,
         clienteNombre: clienteNombreById.get(p.clienteId) ?? '—',
         establecimientoNombre: sufijoEstablecimiento(p.clienteId, p.establecimientoId),
-        avisoEnviado: true, avisoParcialPct: null, otsPendientes: [], sinOC: false,
+        avisoEnviado: true, avisoParcialPct: null, otsPendientes: [], sinOC: false, informadoSemana: null,
         listoParaAviso: false, pagoAnticipado: false, sinOtAgendada: false, otsSinAgendar: [],
         agendadaOtraSemana: null, otsEnSemana: [], entregasPendientes: [], sinAceptar: false,
         arrastre: false, facturadoEstaSemana: true,

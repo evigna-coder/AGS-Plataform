@@ -1069,6 +1069,11 @@ export const ordenesTrabajoService = {
       await agendaService.syncProblemaFromOT(otNumber, (data.problemaFallaInicial as string | null) ?? null)
         .catch(err => console.error('[otService] syncProblemaFromOT:', err));
     }
+    // Tipo de servicio → tarjeta de agenda (2026-09-22): misma foto, mismo problema.
+    if (data.tipoServicio !== undefined) {
+      await agendaService.syncTipoServicioFromOT(otNumber, (data.tipoServicio as string | null) ?? null)
+        .catch(err => console.error('[otService] syncTipoServicioFromOT:', err));
+    }
 
     // ── Auto-sync agenda when engineer or date changes ──
     if (!opts?.skipAgendaSync && (data.ingenieroAsignadoId !== undefined || data.fechaServicioAprox !== undefined)) {

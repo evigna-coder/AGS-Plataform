@@ -9,6 +9,7 @@ import type {
   Cliente, Establecimiento,
 } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
+import { EquipoOTsCard } from '../../components/equipos/EquipoOTsCard';
 import { Button } from '../../components/ui/Button';
 import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
@@ -322,15 +323,7 @@ export const EquipoDetail = () => {
               <p className="text-xs text-slate-400">Historial de ubicaciones (proximamente)</p>
             </Card>
 
-            {/* OT history placeholder */}
-            <Card compact>
-              <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-2">Ordenes de Trabajo</p>
-              <p className="text-xs text-slate-400">
-                {sistema.otIds && sistema.otIds.length > 0
-                  ? `${sistema.otIds.length} OT(s) vinculada(s)`
-                  : 'No hay OTs vinculadas'}
-              </p>
-            </Card>
+            <EquipoOTsCard sistemaId={sistema.id} />
           </div>
         </div>
       </div>

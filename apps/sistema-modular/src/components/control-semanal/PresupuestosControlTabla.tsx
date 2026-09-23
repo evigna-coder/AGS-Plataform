@@ -5,12 +5,14 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { Button } from '../ui/Button';
 import { ComentarioInline } from './ComentarioInline';
 import { DiasTrabado } from './DiasTrabado';
+import { textoInformado } from '../../utils/controlSemanalInformado';
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 /** Por qué este presupuesto está en el control y qué falta para sacarlo. */
 const QueFalta = ({ row }: { row: PresupuestoControlRow }) => {
   if (row.facturadoEstaSemana) return <p className="text-[10px] text-emerald-700 font-semibold">✓ Facturado esta semana</p>;
+  if (row.informadoSemana) return <p className="text-[10px] text-emerald-600 font-medium">✓ {textoInformado(row.informadoSemana)}</p>;
   if (row.avisoEnviado) return <p className="text-[10px] text-emerald-600 font-medium">✓ Aviso enviado</p>;
   const items: React.ReactNode[] = [];
   // Aviso parcial (2026-08-20): se pasó una parte a facturar y falta el resto.

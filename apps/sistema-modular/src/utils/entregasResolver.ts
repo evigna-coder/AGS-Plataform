@@ -331,15 +331,23 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
 
   // 1) Indexar requerimientos por presupuestoItemId.
   const reqByItemId = new Map<string, RequerimientoCompra>();
-  // Fallback para reqs creados sin presupuestoItemId (auto-generados pre-fix
-  // 2026-07-16): matchear por (presupuestoId, articuloId). Si un ppto tiene dos
-  // items del mismo artículo el match es ambiguo — se usa solo si falla el directo.
+  // Fallback por (presupuestoId, articuloId), y se usa solo si falla el directo:
+  //   - reqs creados sin presupuestoItemId (auto-generados pre-fix 2026-07-16);
+  //   - un ppto con DOS ítems del mismo artículo y UN requerimiento consolidado
+  //     (2026-09-22, caso P1-005120-02 / 01018-60025: 3 + 3 cotizados aparte,
+  //     una sola compra de 6 en la JAS045 colgada del primer ítem — el segundo
+  //     decía "Sin stock" con la importación en preparación). Antes el fallback
+  //     solo se indexaba para reqs SIN ítem, y el consolidado no entraba.
+  // Si el ppto tiene dos ítems con dos reqs propios, cada uno matchea directo y
+  // el fallback no se usa.
   const reqByPptoArticulo = new Map<string, RequerimientoCompra>();
   for (const req of input.requerimientos) {
-    if (req.presupuestoItemId) {
-      reqByItemId.set(req.presupuestoItemId, req);
-    } else if (req.presupuestoId && req.articuloId) {
-      reqByPptoArticulo.set(`${req.presupuestoId}:${req.articuloId}`, req);
+    if (req.presupuestoItemId) reqByItemId.set(req.presupuestoItemId, req);
+    if (req.presupuestoId && req.articuloId) {
+      const clave = `${req.presupuestoId}:${req.articuloId}`;
+      // El que más cubre representa al artículo en el ppto (el consolidado).
+      const prev = reqByPptoArticulo.get(clave);
+      if (!prev || (req.cantidad ?? 0) > (prev.cantidad ?? 0)) reqByPptoArticulo.set(clave, req);
     }
   }
 

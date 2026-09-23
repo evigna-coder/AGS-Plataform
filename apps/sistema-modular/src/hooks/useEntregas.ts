@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Presupuesto, PresupuestoItem, RequerimientoCompra, Importacion, UnidadStock, OrdenCompraCliente, DireccionEntrega } from '@ags/shared';
 import { presupuestosService } from '../services/presupuestosService';
 import { unidadesService } from '../services/stockService';
@@ -8,7 +8,7 @@ import { clientesService } from '../services/clientesService';
 import { ordenesCompraClienteService } from '../services/ordenesCompraClienteService';
 import { direccionesEntregaService } from '../services/direccionesEntregaService';
 import { buildEntregaRows } from '../utils/entregasResolver';
-import type { EntregaRow } from '../utils/entregasResolver';
+import type { EntregaRow, BuildEntregaRowsInput } from '../utils/entregasResolver';
 import { deepCleanForFirestore } from '../services/firebase';
 
 type EstadoPresupuestoActivo = 'aceptado' | 'en_ejecucion' | 'finalizado';
@@ -36,6 +36,13 @@ interface UseEntregasReturn {
 
 export function useEntregas(): UseEntregasReturn {
   const [rows, setRows] = useState<EntregaRow[]>([]);
+  /**
+   * Lo último bajado para armar la grilla (2026-09-22). Al guardar una fecha
+   * o una OT se re-arma la fila en memoria con estos datos, en vez de volver
+   * a bajar presupuestos, requerimientos, OC, importaciones y unidades y
+   * mostrar el "cargando" en cada celda editada.
+   */
+  const datosRef = useRef<BuildEntregaRowsInput | null>(null);
   const [direccionesPorCliente, setDirecciones] = useState<Map<string, DireccionEntrega[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -116,7 +123,7 @@ export function useEntregas(): UseEntregasReturn {
         }
       }
 
-      const built = buildEntregaRows({
+      const datos: BuildEntregaRowsInput = {
         presupuestos,
         requerimientos: reqs as RequerimientoCompra[],
         ordenesCompra: ocsForResolver,
@@ -127,9 +134,9 @@ export function useEntregas(): UseEntregasReturn {
         stockEntregadoPorPptoArticulo,
         condicionesAnticipadas,
         ocClienteById,
-      });
-
-      setRows(built);
+      };
+      datosRef.current = datos;
+      setRows(buildEntregaRows(datos));
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       console.error('[useEntregas] load failed', e);
@@ -178,7 +185,11 @@ export function useEntregas(): UseEntregasReturn {
     // presupuestosService.update usa writes desde './firebase' (convención repo — fix Electron keyboard router).
     // Envolvemos con deepCleanForFirestore para strip undefined en campos opcionales de PresupuestoItem.
     await presupuestosService.update(presupuestoId, deepCleanForFirestore({ items: newItems }) as Partial<Presupuesto>);
-    await load();
+    // Re-armar solo con el ítem cambiado: misma fila, mismo orden, sin recarga.
+    const datos = datosRef.current;
+    if (!datos) { await load(); return; }
+    datos.presupuestos = datos.presupuestos.map(p => (p.id === presupuestoId ? { ...p, items: newItems } : p));
+    setRows(buildEntregaRows(datos));
   }, [load]);
 
   return { rows, direccionesPorCliente, reloadDirecciones, loading, error, reload: load, updateItem };

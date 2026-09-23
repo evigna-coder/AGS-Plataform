@@ -35,6 +35,9 @@ const parseFinDia = (s: string): Date | null => {
   return new Date(y, m - 1, d, 23, 59, 59, 999);
 };
 
+/** Tope de la suscripción por período (ver useEffect). */
+const LIMITE_MOVIMIENTOS = 1500;
+
 export const MovimientosPage = () => {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
@@ -125,7 +128,9 @@ export const MovimientosPage = () => {
     // El filtro por tipo se aplica client-side (ver `filtered`): en modo `desde` no se
     // combina con where('tipo') server-side para no requerir índice compuesto, y así
     // cambiar de tipo tampoco fuerza re-suscribir.
-    const queryFilters = desdeSub ? { desde: desdeSub } : {};
+    // Tope de 1.500 por período (2026-09-22): el mes entero eran 5.300 docs por
+    // visita. Si se alcanza, la página lo avisa y se afina el filtro de fechas.
+    const queryFilters = desdeSub ? { desde: desdeSub, limite: LIMITE_MOVIMIENTOS } : {};
     unsubRef.current = movimientosService.subscribe(
       queryFilters,
       (items) => { setItems(items); setLoading(false); },
@@ -188,6 +193,11 @@ export const MovimientosPage = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
+      {items.length >= LIMITE_MOVIMIENTOS && (
+        <p className="mx-5 mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5">
+          Se muestran los últimos {LIMITE_MOVIMIENTOS.toLocaleString('es-AR')} movimientos del período. Para ver más atrás, acotá las fechas o buscá por artículo.
+        </p>
+      )}
       <PageHeader
         title="Movimientos de Stock"
         subtitle="Historial de movimientos de inventario"

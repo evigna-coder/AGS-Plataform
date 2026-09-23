@@ -51,6 +51,7 @@
     "test:cierre-origen-agrupado": "tsx src/utils/__tests__/cierreOrigenAgrupado.test.ts",
     "test:remito-servicio": "tsx src/utils/__tests__/resolverRemitoServicio.test.ts",
     "test:propagar-direccion": "tsx src/utils/__tests__/propagarDireccionEstablecimiento.test.ts",
+    "test:control-informado": "tsx src/utils/__tests__/controlSemanalInformado.test.ts",
     "test:kit-prorrateo": "tsx src/utils/__tests__/kitProrrateo.test.ts",
     "test:costeo-importacion": "tsx src/utils/__tests__/costeoImportacion.test.ts",
     "test:cuotas-contrato": "tsx src/utils/__tests__/cuotasContrato.test.ts",

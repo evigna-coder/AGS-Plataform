@@ -235,11 +235,27 @@ export function useCierreStockUnits(articulos: Part[]): {
       // try/catch POR PARTE (2026-08-31): antes un error en una sola parte
       // rechazaba el Promise.all y ninguna fila recibía su stock — el cierre
       // entero mostraba "Sin stock disponible" con el header en "cargando…".
+      // Una lectura por artículo, compartida entre partes y entre los dos
+      // usos de cada parte (2026-09-22): el detalle de una OT hacía ~90
+      // consultas — cada parte pedía el artículo y DOS veces sus unidades, y
+      // varias partes repiten artículo. Las promesas se memorizan por id.
+      const unidadesPorArticulo = new Map<string, Promise<UnidadStock[]>>();
+      const unidadesDe = (id: string) => {
+        let p = unidadesPorArticulo.get(id);
+        if (!p) { p = unidadesService.getByArticulo(id).catch(() => [] as UnidadStock[]); unidadesPorArticulo.set(id, p); }
+        return p;
+      };
+      const articuloPorId = new Map<string, Promise<Articulo | null>>();
+      const articuloDe = (id: string) => {
+        let p = articuloPorId.get(id);
+        if (!p) { p = articulosService.getById(id).catch(() => null); articuloPorId.set(id, p); }
+        return p;
+      };
       await Promise.all(articulos.map(async part => {
         try {
         let articulo: Articulo | null = null;
         if (part.stockArticuloId) {
-          articulo = await articulosService.getById(part.stockArticuloId).catch(() => null);
+          articulo = await articuloDe(part.stockArticuloId);
         }
         if (!articulo && part.codigo) {
           articulo = await articulosService.getByCodigo(part.codigo).catch(() => null);
@@ -263,13 +279,13 @@ export function useCierreStockUnits(articulos: Part[]): {
         let basesExtra: Articulo[] = [];
         if (part.codigo) {
           const sinStockPropio = !articulo
-            || (await unidadesService.getByArticulo(articulo.id).catch(() => [])).length === 0;
+            || (await unidadesDe(articulo.id)).length === 0;
           if (sinStockPropio) {
             const candidatas = (await articulosService.findBasesDePresentacion(part.codigo).catch(() => []))
               .filter(c => c.base.id !== articulo?.id);
             const conStock: typeof candidatas = [];
             for (const c of candidatas) {
-              const uds = await unidadesService.getByArticulo(c.base.id).catch(() => []);
+              const uds = await unidadesDe(c.base.id);
               if (uds.some(u => u.activo !== false && (u.estado === 'disponible' || u.estado === 'reservado'))) {
                 conStock.push(c);
               }
@@ -293,7 +309,7 @@ export function useCierreStockUnits(articulos: Part[]): {
         let todasLasUnidades: UnidadStock[] = [];
         if (articulo) {
           const ids = [articulo.id, ...basesExtra.map(b => b.id)];
-          const porBase = await Promise.all(ids.map(id => unidadesService.getByArticulo(id).catch(() => [] as UnidadStock[])));
+          const porBase = await Promise.all(ids.map(id => unidadesDe(id)));
           const todas = porBase.flat();
           todasLasUnidades = todas;
           // Lo que está en un remito NO se ofrece como stock de depósito: se elige

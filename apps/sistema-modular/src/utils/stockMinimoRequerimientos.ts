@@ -76,21 +76,47 @@ export function pendienteOCPorArticulo(ocs: OrdenCompra[]): Map<string, number> 
  * Corre al montar Alertas/Requerimientos (throttled) y con force tras confirmar
  * ingresos/movimientos de stock. Devuelve cuántos creó/canceló.
  */
-export async function sweepStockMinimoRequerimientos(opts?: { force?: boolean }): Promise<{ creados: number; cancelados: number }> {
+export async function sweepStockMinimoRequerimientos(opts?: {
+  force?: boolean;
+  /**
+   * Solo estos artículos (2026-09-22): tras UN movimiento alcanza con
+   * re-contrastar el artículo movido. Sin acotar, cada movimiento bajaba el
+   * catálogo entero (4.000 artículos) y TODAS las unidades (7.400): en una
+   * visita al detalle de un minikit con tres reposiciones eran 18.000 docs.
+   * Sin `articuloIds` (Alertas/Requerimientos) sigue barriendo todo.
+   */
+  articuloIds?: string[];
+  /** Datos ya bajados por el caller (Alertas): evita repetir 3.700 unidades. */
+  precargado?: { articulos: Articulo[]; unidades: UnidadStock[]; ocs: OrdenCompra[] };
+}): Promise<{ creados: number; cancelados: number }> {
   const now = Date.now();
-  if (!opts?.force && now - lastSweep < SWEEP_INTERVAL_MS) return { creados: 0, cancelados: 0 };
-  lastSweep = now;
+  const acotado = (opts?.articuloIds ?? []).filter(Boolean);
+  if (!acotado.length) {
+    if (!opts?.force && now - lastSweep < SWEEP_INTERVAL_MS) return { creados: 0, cancelados: 0 };
+    lastSweep = now;
+  }
 
   // Reqs DEL SERVIDOR (2026-08-28, caso REQ-0040/0043): el dedupe "¿ya hay un
   // req abierto para este artículo?" decidía sobre la caché offline — una
   // respuesta vieja hizo crear un req redundante junto al del presupuesto.
   // Offline: getAllFromServer tira y el sweep se saltea (mejor que duplicar).
-  const [articulos, unidades, ocs, reqs] = await Promise.all([
-    articulosService.getAll({ activoOnly: true }),
-    unidadesService.getAll({ activoOnly: true }),
-    ordenesCompraService.getAll(),
-    requerimientosService.getAllFromServer(),
-  ]);
+  // Acotado: lecturas por artículo (la caché de Firestore es en memoria desde
+  // la fase 1 de performance, así que también llegan al servidor).
+  const [articulos, unidades, ocs, reqs] = opts?.precargado
+    ? [opts.precargado.articulos.filter(a => a.activo !== false), opts.precargado.unidades, opts.precargado.ocs, await requerimientosService.getAllFromServer()]
+    : acotado.length
+    ? await Promise.all([
+      Promise.all(acotado.map(id => articulosService.getById(id))).then(as => as.filter((a): a is Articulo => !!a && a.activo !== false)),
+      Promise.all(acotado.map(id => unidadesService.getByArticulo(id))).then(us => us.flat()),
+      ordenesCompraService.getAll(),
+      Promise.all(acotado.map(id => requerimientosService.getAll({ articuloId: id }))).then(rs => rs.flat()),
+    ])
+    : await Promise.all([
+      articulosService.getAll({ activoOnly: true }),
+      unidadesService.getAll({ activoOnly: true }),
+      ordenesCompraService.getAll(),
+      requerimientosService.getAllFromServer(),
+    ]);
 
   const dispo = disponiblePorArticulo(unidades);
   const enOC = pendienteOCPorArticulo(ocs);

@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion , limit } from 'firebase/firestore';
 import { patchRetornoProveedor } from '../utils/loanerCicloRecalificacion';
 import { runTransaction, getCurrentUserTrace } from './firebase';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito, Loaner } from '@ags/shared';
@@ -1104,7 +1104,7 @@ export const movimientosService = {
   },
 
   subscribe(
-    filters: { articuloId?: string; unidadId?: string; tipo?: string; remitoId?: string; otNumber?: string; desde?: Date } | undefined,
+    filters: { articuloId?: string; unidadId?: string; tipo?: string; remitoId?: string; otNumber?: string; desde?: Date; limite?: number } | undefined,
     callback: (items: MovimientoStock[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
@@ -1131,6 +1131,10 @@ export const movimientosService = {
     if (filters?.desde) {
       q = query(q, where('createdAt', '>=', Timestamp.fromDate(filters.desde)), orderBy('createdAt', 'desc'));
     }
+    // Tope (2026-09-22): la página de movimientos bajaba el mes entero (5.300
+    // docs) en cada visita. Con `desde` la consulta ya viene ordenada por fecha
+    // descendente, así que el tope deja los más recientes.
+    if (filters?.limite && filters?.desde) q = query(q, limit(filters.limite));
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => ({
         id: d.id,

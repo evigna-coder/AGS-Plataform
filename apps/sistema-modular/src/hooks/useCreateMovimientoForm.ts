@@ -5,6 +5,7 @@ import {
 } from '../services/firebaseService';
 import { movimientosAplicarService, type PuntoMovimiento } from '../services/movimientosAplicar';
 import { sweepStockMinimoRequerimientos } from '../utils/stockMinimoRequerimientos';
+import { onCacheInvalidated } from '../services/serviceCache';
 import type {
   Articulo, UnidadStock, PosicionStock, Minikit, Ingeniero, Proveedor,
   TipoMovimiento, TipoOrigenDestino, MovimientoStock,
@@ -118,23 +119,26 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [movimientosArticulo, setMovimientosArticulo] = useState<MovimientoStock[]>([]);
 
-  // Cargar catálogos cuando se abre. Artículos EN VIVO (subscribe): si se edita el
-  // catálogo con el modal abierto (ej. "requiere n° de serie"), se toma al instante —
-  // requiereSerie/requiereLote ya se derivan de esta lista, no hay copia congelada.
+  // Cargar catálogos cuando se abre. Artículos desde la caché (2026-09-22):
+  // antes cada apertura suscribía el catálogo entero (4.000 docs por vez, cinco
+  // aperturas en una visita = 20.000). La caché se invalida al escribir un
+  // artículo, también desde otra pestaña, y acá se vuelve a leer: si se edita
+  // "requiere n° de serie" con el modal abierto, se toma igual.
   useEffect(() => {
     if (!open) return;
-    const unsub = articulosService.subscribe(
-      undefined,
-      setArticulos,
-      (err: Error) => console.error('[useCreateMovimientoForm] articulos subscribe error:', err),
-    );
+    let vivo = true;
+    const cargar = () => articulosService.getAll()
+      .then(as => { if (vivo) setArticulos(as); })
+      .catch((err: Error) => console.error('[useCreateMovimientoForm] articulos:', err));
+    void cargar();
+    const unsub = onCacheInvalidated(prefix => { if (prefix === 'articulos') void cargar(); });
     Promise.all([
       posicionesStockService.getAll(),
       minikitsService.getAll(), ingenierosService.getAll(), proveedoresService.getAll(),
     ]).then(([p, mk, ing, prov]) => {
       setPosiciones(p); setMinikits(mk); setIngenieros(ing); setProveedores(prov);
     });
-    return () => unsub();
+    return () => { vivo = false; unsub(); };
   }, [open]);
 
   // Reset form cuando se abre (respetando locks)
@@ -438,7 +442,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
       }
       // Re-contrastar requerimientos por mínimo: un ingreso puede cubrir una falta
       // (cancela el req automático) y un egreso/consumo puede crearla. Best-effort.
-      void sweepStockMinimoRequerimientos({ force: true }).catch(e =>
+      void sweepStockMinimoRequerimientos({ force: true, articuloIds: [form.articuloId] }).catch(e =>
         console.warn('[useCreateMovimientoForm] re-contraste de requerimientos falló:', e));
       handleClose();
       onCreated();

@@ -358,6 +358,22 @@ export const agendaService = {
     }
   },
 
+  /**
+   * Tipo de servicio → entradas activas de la OT (2026-09-22). La tarjeta
+   * guarda una foto del tipo tomada al agendar; si la OT se recoordina como
+   * otro tipo (caso 30277.01: "sin consumibles" → "con consumibles"), la agenda
+   * seguía mostrando el viejo.
+   */
+  async syncTipoServicioFromOT(otNumber: string, tipoServicio: string | null): Promise<void> {
+    if (!tipoServicio) return;
+    const existing = await this.getByOtNumber(otNumber);
+    const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
+    for (const entry of active) {
+      if (entry.tipoServicio === tipoServicio) continue;
+      await this.update(entry.id, { tipoServicio });
+    }
+  },
+
   /** Sincroniza el EQUIPO mostrado en las entradas activas de una OT
    *  (2026-08-03): la tarjeta guarda una foto del equipo tomada al agendar;
    *  si el equipo de la OT se corrige después, la tarjeta quedaba mostrando

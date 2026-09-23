@@ -199,7 +199,7 @@ export function useBulkAddStock(
       }
 
       // Re-contrastar requerimientos por mínimo con el stock recién cargado. Best-effort.
-      void sweepStockMinimoRequerimientos({ force: true }).catch(err =>
+      void sweepStockMinimoRequerimientos({ force: true, articuloIds: [articulo.id] }).catch(err =>
         console.warn('[useBulkAddStock] re-contraste de requerimientos falló:', err));
 
       onCreated();

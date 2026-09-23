@@ -42,11 +42,10 @@ export const AlertasStockPage = () => {
 
   // Cambio de lógica 2026-07-25: las alertas generan su requerimiento SOLAS (sweep
   // al montar, throttled). Después del sweep se refresca el set de pendientes.
-  useEffect(() => {
-    sweepStockMinimoRequerimientos()
-      .catch(err => console.error('[AlertasStock] sweep automático falló:', err))
-      .finally(loadReqPendientes);
-  }, [loadReqPendientes]);
+  // El barrido corre con los datos que baja computeAlertas (2026-09-22): antes
+  // unidades y OC se leían dos veces por visita (3.700 + 3.700 unidades).
+  useEffect(() => { loadReqPendientes(); }, [loadReqPendientes]);
+  const sweepHecho = useRef(false);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -60,6 +59,12 @@ export const AlertasStockPage = () => {
         unidadesService.getAll({ activoOnly: true }),
         ordenesCompraService.getAll(),
       ]);
+      if (!sweepHecho.current) {
+        sweepHecho.current = true;
+        void sweepStockMinimoRequerimientos({ precargado: { articulos, unidades, ocs } })
+          .catch(err => console.error('[AlertasStock] sweep automático falló:', err))
+          .finally(loadReqPendientes);
+      }
       const dispoPorArt = disponiblePorArticulo(unidades);
       const ocPorArt = pendienteOCPorArticulo(ocs);
       const alertas: ArticuloConStock[] = [];

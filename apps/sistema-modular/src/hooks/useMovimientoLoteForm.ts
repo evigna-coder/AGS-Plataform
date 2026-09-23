@@ -251,7 +251,7 @@ export function useMovimientoLoteForm(open: boolean, onClose: () => void, onCrea
         }
       }
       // Re-contrastar requerimientos por mínimo tras mover/egresar stock. Best-effort.
-      void sweepStockMinimoRequerimientos({ force: true }).catch(e =>
+      void sweepStockMinimoRequerimientos({ force: true, articuloIds: Array.from(new Set(lineas.map(l => l.articuloId))) }).catch(e =>
         console.warn('[useMovimientoLoteForm] re-contraste de requerimientos falló:', e));
       handleClose();
       onCreated();
