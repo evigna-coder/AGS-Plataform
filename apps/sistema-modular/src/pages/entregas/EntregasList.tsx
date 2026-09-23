@@ -14,6 +14,7 @@ import { claveGrupoOC, agruparEntregasPorOC } from '../../utils/entregasPorOC';
 import type { EntregaRow } from '../../utils/entregasResolver';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { ENTREGAS_EXPORT_COLUMNS, buildEntregasFiltrosExport } from '../../utils/exports/exportEntregas';
+import { PoolEnviosBar } from '../../components/entregas/PoolEnviosBar';
 
 /** Entrada de render: fila suelta o grupo por OC completa (recibida). */
 type DisplayEntry =
@@ -168,6 +169,8 @@ export const EntregasList: React.FC = () => {
       >
         <EntregasFilters filters={filters} setFilter={setFilter} clienteOptions={clienteOptions} search={search} onSearchChange={setSearch} />
       </PageHeader>
+
+      <PoolEnviosBar rows={rows} />
 
       <div className="flex-1 min-h-0 px-5 pb-4 overflow-hidden flex flex-col">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto flex-1 mt-4">

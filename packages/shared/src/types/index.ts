@@ -2051,6 +2051,13 @@ export interface Presupuesto {
   subtotal: number;
   total: number;
   tipoCambio?: number;
+  /**
+   * Envío contemplado al cotizar (2026-09-23), en la moneda del presupuesto.
+   * Interno, no se imprime. Al aceptarse entra al pool de envíos (en dólares;
+   * un presupuesto en pesos se convierte con su `tipoCambio`). Cero o vacío =
+   * no se contempló nada: igual puede entregarse con lo que haya en el pool.
+   */
+  envioContemplado?: number | null;
   condicionPagoId?: string;
   ordenesCompraIds: string[];
   ordenCompraNumero?: string | null; // Número de OC del cliente (ej: "O-000100445302")
@@ -4241,6 +4248,14 @@ export interface UnidadStock {
   reservadoParaPresupuestoNumero?: string | null;
   reservadoParaClienteId?: string | null;
   reservadoParaClienteNombre?: string | null;
+  /**
+   * OT en la que se consumió (2026-09-23). La reserva se conserva como traza
+   * al consumir, y Entregas la usaba para dar por entregado el ítem del
+   * presupuesto: dos lámparas reservadas para Roemmers consumidas en OTs de
+   * Bagó figuraban entregadas a Roemmers. Con la OT, el visor solo cuenta lo
+   * consumido en una OT del propio presupuesto. Null en consumos anteriores.
+   */
+  consumidoEnOt?: string | null;
   /**
    * Loaner del que se extrajo esta pieza (2026-08-20). La observación ya lo dice
    * en texto, pero eso no se puede mostrar en una etiqueta ni filtrar: esto sí.
@@ -7586,3 +7601,30 @@ export function incrementQFVersion(version: string): string {
   return String(n + 1).padStart(2, '0');
 }
 
+// ── Pool de envíos (2026-09-23) ──────────────────────────────────────────────
+/**
+ * Un VIAJE de entrega a cliente pagado en pesos. Puede cubrir varios remitos y
+ * OT. `montoUSD` = `montoARS / tipoCambio` (BNA vendedor del día del viaje) y
+ * es lo que descuenta del pool de envíos. Colección `gastosEnvio`.
+ */
+export interface GastoEnvio {
+  id: string;
+  /** yyyy-mm-dd del viaje. */
+  fecha: string;
+  montoARS: number;
+  /** ARS por USD usado para valuar el viaje. */
+  tipoCambio: number;
+  montoUSD: number;
+  remitoIds: string[];
+  remitoNumeros: string[];
+  otNumbers: string[];
+  presupuestoIds: string[];
+  presupuestoNumeros: string[];
+  clienteNombre?: string | null;
+  transportista?: string | null;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+}

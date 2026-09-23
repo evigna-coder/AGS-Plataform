@@ -261,6 +261,18 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
                   {totals.totalImpuestos > 0 && <span className="text-slate-400"> (imp: {actions.fmtMoney(totals.totalImpuestos)})</span>}
                 </span>
               ) : null}
+              {form.items.some(i => i.stockArticuloId) && (
+                // Envío contemplado (2026-09-23): interno, no se imprime; entra al pool de envíos al aceptarse.
+                <label className={`inline-flex items-center gap-2 ml-3 px-2 py-1 rounded-lg border ${form.envioContemplado == null ? 'bg-amber-50 border-amber-300' : 'bg-teal-50/60 border-slate-200'}`}
+                  title={form.envioContemplado == null ? 'Obligatorio con partes de stock: cargá el costo de envío, aunque sea 0.' : 'No se imprime. Al aceptarse entra al pool de envíos de Entregas.'}>
+                  <span className="text-[10px] font-mono font-semibold text-slate-700 uppercase">Envío contemplado <span className="text-red-500">*</span></span>
+                  <input type="text" inputMode="decimal" placeholder="0"
+                    value={form.envioContemplado == null ? '' : String(form.envioContemplado)}
+                    onChange={e => { const v = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(v)) setField('envioContemplado', v === '' ? null : Number(v)); }}
+                    onFocus={e => e.currentTarget.select()}
+                    className={`w-24 text-sm font-mono text-right border rounded-lg px-2 py-1 ${form.envioContemplado == null ? 'border-amber-400 bg-white' : 'border-slate-300'}`} />
+                </label>
+              )}
             </div>
             <div className="flex gap-2 flex-wrap">
               {presupuestoEstaAceptado(form.estado) && (

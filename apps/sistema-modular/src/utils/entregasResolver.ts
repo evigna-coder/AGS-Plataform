@@ -14,6 +14,7 @@ import type {
   RequerimientoCompra,
   Importacion,
   Disponibilidad,
+  UnidadStock,
 } from '@ags/shared';
 import { cantidadEnUnidadBase, esUnidadDeServicio } from '@ags/shared';
 
@@ -342,6 +343,9 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
   // el fallback no se usa.
   const reqByPptoArticulo = new Map<string, RequerimientoCompra>();
   for (const req of input.requerimientos) {
+    // Un requerimiento cancelado no es una compra en marcha (2026-09-23): con
+    // él la fila decía "A importar" sin nada que importar.
+    if (req.estado === 'cancelado') continue;
     if (req.presupuestoItemId) reqByItemId.set(req.presupuestoItemId, req);
     if (req.presupuestoId && req.articuloId) {
       const clave = `${req.presupuestoId}:${req.articuloId}`;
@@ -394,6 +398,10 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
     if (!ppto.fechaAceptacion) continue;
     const clienteNombre = input.clienteNombreById.get(ppto.clienteId) ?? '—';
     const ocCliente = resolverOCCliente(ppto, input.ocClienteById);
+    // Lo consumido para el ppto se REPARTE entre sus ítems del mismo artículo
+    // (2026-09-23): con dos ítems de una lámpara y una sola consumida, los dos
+    // figuraban entregados porque cada uno comparaba contra el total.
+    const entregadoRestante = new Map<string, number>();
     for (const item of (ppto.items ?? [])) {
       const stockArticuloId = (item as { stockArticuloId?: string | null }).stockArticuloId ?? null;
       const req = (item.id ? reqByItemId.get(item.id) : null)
@@ -440,9 +448,13 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
       // Entregado desde stock: lo reservado para este ppto que ya se consumió
       // (cierre de OT) cubre la cantidad base del ítem.
       const cantidadBaseItem = cantidadEnUnidadBase(item.cantidad, item.presentacion);
-      const entregadoStock = stockArticuloId
-        ? (input.stockEntregadoPorPptoArticulo?.get(`${ppto.id}:${stockArticuloId}`) ?? 0)
-        : 0;
+      let entregadoStock = 0;
+      if (stockArticuloId) {
+        const clave = `${ppto.id}:${stockArticuloId}`;
+        const restante = entregadoRestante.get(clave) ?? (input.stockEntregadoPorPptoArticulo?.get(clave) ?? 0);
+        entregadoStock = Math.min(restante, cantidadBaseItem > 0 ? cantidadBaseItem : restante);
+        entregadoRestante.set(clave, restante - entregadoStock);
+      }
       const entregado = item.entregadoManual === true
         || imp?.entregado === true
         || (cantidadBaseItem > 0 && entregadoStock >= cantidadBaseItem);
@@ -507,4 +519,45 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
     }
   }
   return rows;
+}
+
+/**
+ * Mapas de stock para el visor (2026-09-23), a partir de las unidades de hoy:
+ *   - libre por artículo: disponibles en estante (no en remito);
+ *   - reservado por (presupuesto, artículo): estado reservado;
+ *   - entregado por (presupuesto, artículo): consumido/entregado con la
+ *     reserva como traza — pero SOLO si se consumió en una OT del propio
+ *     presupuesto. Una unidad reservada para un cliente y consumida en la OT
+ *     de otro (asignación rápida) no es una entrega de este presupuesto.
+ *     Sin `consumidoEnOt` (consumos anteriores al campo) se sigue contando.
+ */
+export function mapasStockEntregas(
+  unidades: Array<Pick<UnidadStock, 'activo' | 'articuloId' | 'cantidad' | 'estado' | 'ubicacion' | 'reservadoParaPresupuestoId' | 'consumidoEnOt'>>,
+  presupuestos: Array<{ id: string; otsVinculadasNumbers?: string[] | null; items?: Array<{ otNumeroVinculada?: string | null }> | null }>,
+): { stockLibrePorArticulo: Map<string, number>; stockReservadoPorPptoArticulo: Map<string, number>; stockEntregadoPorPptoArticulo: Map<string, number> } {
+  const otsPorPpto = new Map<string, Set<string>>();
+  for (const p of presupuestos) {
+    const ots = new Set<string>(p.otsVinculadasNumbers ?? []);
+    for (const it of p.items ?? []) if (it.otNumeroVinculada) ots.add(it.otNumeroVinculada);
+    otsPorPpto.set(p.id, ots);
+  }
+  const stockLibrePorArticulo = new Map<string, number>();
+  const stockReservadoPorPptoArticulo = new Map<string, number>();
+  const stockEntregadoPorPptoArticulo = new Map<string, number>();
+  for (const u of unidades) {
+    if (u.activo === false || !u.articuloId) continue;
+    const cant = u.cantidad ?? 1;
+    if (u.estado === 'disponible' && u.ubicacion?.tipo !== 'remito') {
+      stockLibrePorArticulo.set(u.articuloId, (stockLibrePorArticulo.get(u.articuloId) ?? 0) + cant);
+    } else if (u.estado === 'reservado' && u.reservadoParaPresupuestoId) {
+      const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
+      stockReservadoPorPptoArticulo.set(k, (stockReservadoPorPptoArticulo.get(k) ?? 0) + cant);
+    } else if ((u.estado === 'consumido' || u.estado === 'entregado') && u.reservadoParaPresupuestoId) {
+      const ot = u.consumidoEnOt ?? null;
+      if (ot && !(otsPorPpto.get(u.reservadoParaPresupuestoId)?.has(ot) ?? false)) continue;
+      const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
+      stockEntregadoPorPptoArticulo.set(k, (stockEntregadoPorPptoArticulo.get(k) ?? 0) + cant);
+    }
+  }
+  return { stockLibrePorArticulo, stockReservadoPorPptoArticulo, stockEntregadoPorPptoArticulo };
 }

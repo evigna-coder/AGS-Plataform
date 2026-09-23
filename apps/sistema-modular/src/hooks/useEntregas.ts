@@ -7,7 +7,7 @@ import { ordenesCompraService, condicionesPagoService } from '../services/presup
 import { clientesService } from '../services/clientesService';
 import { ordenesCompraClienteService } from '../services/ordenesCompraClienteService';
 import { direccionesEntregaService } from '../services/direccionesEntregaService';
-import { buildEntregaRows } from '../utils/entregasResolver';
+import { buildEntregaRows, mapasStockEntregas } from '../utils/entregasResolver';
 import type { EntregaRow, BuildEntregaRowsInput } from '../utils/entregasResolver';
 import { deepCleanForFirestore } from '../services/firebase';
 
@@ -103,25 +103,11 @@ export function useEntregas(): UseEntregasReturn {
       // Stock real por artículo: lo LIBRE en estante y lo ya RESERVADO para
       // cada presupuesto. Se excluye lo parado en un remito (ya salió) y lo que
       // vive en un minikit o con un ingeniero (no está para entregar en mostrador).
-      const stockLibrePorArticulo = new Map<string, number>();
-      const stockReservadoPorPptoArticulo = new Map<string, number>();
       // Entregado desde stock (2026-08-27): el consumo del cierre de OT conserva
-      // reservadoParaPresupuestoId — sumamos lo ya consumido/entregado por
-      // ppto+artículo para que la fila salga sola del visor.
-      const stockEntregadoPorPptoArticulo = new Map<string, number>();
-      for (const u of unidades as UnidadStock[]) {
-        if (u.activo === false || !u.articuloId) continue;
-        const cant = u.cantidad ?? 1;
-        if (u.estado === 'disponible' && u.ubicacion?.tipo !== 'remito') {
-          stockLibrePorArticulo.set(u.articuloId, (stockLibrePorArticulo.get(u.articuloId) ?? 0) + cant);
-        } else if (u.estado === 'reservado' && u.reservadoParaPresupuestoId) {
-          const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
-          stockReservadoPorPptoArticulo.set(k, (stockReservadoPorPptoArticulo.get(k) ?? 0) + cant);
-        } else if ((u.estado === 'consumido' || u.estado === 'entregado') && u.reservadoParaPresupuestoId) {
-          const k = `${u.reservadoParaPresupuestoId}:${u.articuloId}`;
-          stockEntregadoPorPptoArticulo.set(k, (stockEntregadoPorPptoArticulo.get(k) ?? 0) + cant);
-        }
-      }
+      // reservadoParaPresupuestoId. Desde 2026-09-23 solo cuenta si la OT del
+      // consumo es del propio presupuesto (ver `mapasStockEntregas`).
+      const { stockLibrePorArticulo, stockReservadoPorPptoArticulo, stockEntregadoPorPptoArticulo } =
+        mapasStockEntregas(unidades as UnidadStock[], presupuestos);
 
       const datos: BuildEntregaRowsInput = {
         presupuestos,

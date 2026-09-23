@@ -22,9 +22,15 @@ interface Props {
   sistemas?: Sistema[];
   /** Prefill del selector de equipo (el sistema elegido a nivel presupuesto). */
   defaultSistemaId?: string | null;
+  /**
+   * Envío contemplado (2026-09-23): se muestra bajo el total cuando hay partes
+   * de stock. Es un dato interno que alimenta el pool de envíos al aceptarse.
+   */
+  envioContemplado?: string;
+  onEnvioContempladoChange?: (v: string) => void;
 }
 
-export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, renderSubRow, sistemas, defaultSistemaId }: Props) => {
+export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda, envioContemplado, onEnvioContempladoChange, renderSubRow, sistemas, defaultSistemaId }: Props) => {
   const [showWizard, setShowWizard] = useState(false);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
@@ -196,6 +202,20 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
               )}
             </tfoot>
           </table>
+          {onEnvioContempladoChange && items.some(i => i.stockArticuloId) && (
+            <div className={`flex items-center justify-between gap-3 px-3 py-2 border-t ${(envioContemplado ?? '') === '' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50/60 border-[#E5E5E5]'}`}>
+              <div>
+                <p className="text-[10px] font-mono font-semibold uppercase tracking-wide text-slate-700">Envío contemplado ({isMixta ? 'U$S' : sym}) <span className="text-red-500">*</span></p>
+                <p className="text-[10px] text-slate-500">
+                  {(envioContemplado ?? '') === '' ? 'Obligatorio con partes de stock: cargá el costo de envío, aunque sea 0.' : 'No se imprime. Al aceptarse entra al pool de envíos de Entregas.'}
+                </p>
+              </div>
+              <input type="text" inputMode="decimal" value={envioContemplado ?? ''} placeholder="0"
+                onChange={e => { if (/^\d*[.,]?\d*$/.test(e.target.value)) onEnvioContempladoChange(e.target.value.replace(',', '.')); }}
+                onFocus={e => e.currentTarget.select()}
+                className={`w-28 text-sm font-mono text-right border rounded-lg px-2.5 py-1.5 ${(envioContemplado ?? '') === '' ? 'border-amber-400 bg-white' : 'border-slate-300'}`} />
+            </div>
+          )}
         </div>
       )}
     </div>

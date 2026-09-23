@@ -639,7 +639,7 @@ export const movimientosAplicarService = {
 
         if (consumir >= qty) {
           tx.update(unidadRef, deepCleanForFirestore({
-            estado: 'consumido' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now,
+            estado: 'consumido' as EstadoUnidad, consumidoEnOt: otNumber ?? null, ...getUpdateTrace(), updatedAt: now,
           }));
         } else if (devolver > 0) {
           tx.update(unidadRef, deepCleanForFirestore({

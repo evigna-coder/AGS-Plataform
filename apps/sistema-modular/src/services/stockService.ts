@@ -2596,6 +2596,7 @@ export const reservasService = {
 
       const unitPayload = deepCleanForFirestore({
         estado: 'consumido' as EstadoUnidad,
+        consumidoEnOt: params.otNumber ?? null,
         ...getUpdateTrace(),
         updatedAt: now.toDate().toISOString(),
       });
@@ -2728,7 +2729,7 @@ export const reservasService = {
       const qtyActual = data.cantidad ?? 1;
       const total = params.aDeducir >= qtyActual;
       tx.update(unidadRef, deepCleanForFirestore(total
-        ? { estado: 'consumido' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }
+        ? { estado: 'consumido' as EstadoUnidad, consumidoEnOt: params.otNumber ?? null, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }
         : { cantidad: qtyActual - params.aDeducir, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }));
 
       tx.set(movRef, deepCleanForFirestore({

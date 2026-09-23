@@ -23,6 +23,7 @@ import {
   computeEtaFecha,
   buildEntregaRows,
   resolverOCCliente,
+  mapasStockEntregas,
 } from '../utils/entregasResolver.ts';
 import {
   FIXTURE_NOW,
@@ -469,4 +470,51 @@ test('[ENT-18] la dirección de entrega del ítem llega a la fila', () => {
 
   assert.equal(rows[0].direccionEntregaId, 'DIR-9');
   assert.match(rows[0].direccionEntregaTexto ?? '', /Dep.sito Pilar/);
+});
+
+test('[ENT-19] un requerimiento cancelado no cuelga la fila de "A importar"', () => {
+  // Caso P1-005120-02 / 2140-0820 (2026-09-23): el único req del ítem estaba
+  // cancelado y la fila decía "A importar" sin compra en marcha.
+  const ppto = makePresupuestoBase({ id: 'PPTO-1', items: [makeItem({ id: 'ITEM-1', stockArticuloId: 'ART-1' })] });
+  const rows = buildEntregaRows({
+    presupuestos: [ppto],
+    requerimientos: [makeRequerimiento({ id: 'REQ-X', presupuestoId: 'PPTO-1', presupuestoItemId: 'ITEM-1', articuloId: 'ART-1', estado: 'cancelado' })],
+    ordenesCompra: [], importaciones: [], clienteNombreById: CLIENTE_NOMBRE_BY_ID, now: FIXTURE_NOW,
+  });
+  assert.equal(rows[0].requerimientoId, null);
+  assert.equal(rows[0].disponibilidadCalculada.clave, 'sin_stock');
+});
+
+test('[ENT-20] lo consumido para el presupuesto se reparte entre sus ítems del mismo artículo', () => {
+  // Dos ítems de una lámpara (1 + 1) y UNA consumida: antes los dos decían
+  // entregado porque cada uno comparaba contra el total del artículo.
+  const ppto = makePresupuestoBase({ id: 'PPTO-1', items: [
+    makeItem({ id: 'ITEM-A', cantidad: 1, stockArticuloId: 'ART-1' }),
+    makeItem({ id: 'ITEM-B', cantidad: 1, stockArticuloId: 'ART-1' }),
+  ] });
+  const rows = buildEntregaRows({
+    presupuestos: [ppto], requerimientos: [], ordenesCompra: [], importaciones: [], clienteNombreById: CLIENTE_NOMBRE_BY_ID, now: FIXTURE_NOW,
+    stockEntregadoPorPptoArticulo: new Map([['PPTO-1:ART-1', 1]]),
+  });
+  assert.equal(rows[0].semaforo, 'entregado');
+  assert.notEqual(rows[1].semaforo, 'entregado', 'la segunda lámpara sigue pendiente');
+});
+
+test('[ENT-21] mapasStockEntregas: la unidad reservada consumida en la OT de OTRO presupuesto no cuenta como entregada', () => {
+  // Roemmers (2026-09-23): dos lámparas reservadas para P1-005120-02 salieron
+  // por asignación rápida y se consumieron en OTs de Bagó; el visor las daba
+  // por entregadas a Roemmers.
+  const pptos = [{ id: 'PPTO-ROE', otsVinculadasNumbers: ['30176.01'], items: [] }];
+  const base = { activo: true, articuloId: 'ART-LAMP', cantidad: 1, reservadoParaPresupuestoId: 'PPTO-ROE' };
+  const m = mapasStockEntregas([
+    { ...base, estado: 'consumido', consumidoEnOt: '29930.02', ubicacion: { tipo: 'ingeniero', referenciaId: 'i', referenciaNombre: 'i' } },
+    { ...base, estado: 'consumido', consumidoEnOt: '30176.01', ubicacion: { tipo: 'ingeniero', referenciaId: 'i', referenciaNombre: 'i' } },
+    { ...base, estado: 'consumido', consumidoEnOt: null, ubicacion: { tipo: 'ingeniero', referenciaId: 'i', referenciaNombre: 'i' } },
+    { ...base, estado: 'reservado', ubicacion: { tipo: 'posicion', referenciaId: 'p', referenciaNombre: 'p' } },
+    { activo: true, articuloId: 'ART-LAMP', cantidad: 2, estado: 'disponible', ubicacion: { tipo: 'posicion', referenciaId: 'p', referenciaNombre: 'p' } },
+  ] as Parameters<typeof mapasStockEntregas>[0], pptos);
+  // Solo la de la OT propia y la legacy sin OT cuentan; la de Bagó no.
+  assert.equal(m.stockEntregadoPorPptoArticulo.get('PPTO-ROE:ART-LAMP'), 2);
+  assert.equal(m.stockReservadoPorPptoArticulo.get('PPTO-ROE:ART-LAMP'), 1);
+  assert.equal(m.stockLibrePorArticulo.get('ART-LAMP'), 2);
 });

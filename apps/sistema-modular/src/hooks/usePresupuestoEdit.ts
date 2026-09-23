@@ -33,6 +33,8 @@ export interface PresupuestoFormState {
   items: PresupuestoItem[];
   tipoCambio: number | undefined;
   condicionPagoId: string | undefined;
+  /** Envío contemplado (2026-09-23), moneda del presupuesto; null = no se contempló. */
+  envioContemplado: number | null;
   notasTecnicas: string;
   notasAdministrativas: string;
   garantia: string;
@@ -95,7 +97,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   numero: '', estado: 'borrador', tipo: 'servicio', moneda: 'USD', monedasMixta: ['ARS', 'USD'],
   origenTipo: null, origenId: null, origenRef: null,
   clienteId: '', establecimientoId: null, sistemaId: null, contactoId: null,
-  items: [], tipoCambio: undefined, condicionPagoId: undefined,
+  items: [], tipoCambio: undefined, condicionPagoId: undefined, envioContemplado: null,
   notasTecnicas: '', notasAdministrativas: '', garantia: '',
   variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
   seccionesVisibles: { ...PRESUPUESTO_SECCIONES_DEFAULT },
@@ -129,6 +131,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     clienteId: p.clienteId, establecimientoId: p.establecimientoId || null,
     sistemaId: p.sistemaId || null, contactoId: p.contactoId || null,
     items: p.items || [], tipoCambio: p.tipoCambio, condicionPagoId: p.condicionPagoId,
+    envioContemplado: p.envioContemplado ?? null,
     notasTecnicas: p.notasTecnicas || '', notasAdministrativas: p.notasAdministrativas || '',
     garantia: p.garantia || '', variacionTipoCambio: p.variacionTipoCambio || '',
     condicionesComerciales: p.condicionesComerciales || '',
@@ -299,6 +302,10 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   }, [form.items, calculateItemTaxes]);
 
   const save = useCallback(async () => {
+    // Envío contemplado (2026-09-23): con partes de stock hay que declararlo, aunque sea 0.
+    if (form.items.some(i => i.stockArticuloId) && form.envioContemplado == null) {
+      notify.warning('Cargá el envío contemplado (puede ser 0): alimenta el pool de envíos de Entregas.'); return;
+    }
     if (!presupuestoId) return;
     try {
       setSaving(true);
@@ -363,6 +370,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         subtotal: totals.subtotal, total: totals.subtotal,
         tipoCambio: form.tipoCambio || undefined,
         condicionPagoId: form.condicionPagoId || undefined,
+        envioContemplado: form.envioContemplado ?? null,
         notasTecnicas: form.notasTecnicas || null,
         notasAdministrativas: form.notasAdministrativas || null,
         garantia: form.garantia || null,

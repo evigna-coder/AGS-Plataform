@@ -82,7 +82,7 @@ export async function consumirUnidadAsignada(params: {
     const qtyActual = data.cantidad ?? 1;
     const total = params.cantidad >= qtyActual;
     tx.update(unidadRef, deepCleanForFirestore(total
-      ? { estado: 'consumido' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now }
+      ? { estado: 'consumido' as EstadoUnidad, consumidoEnOt: params.otNumber ?? null, ...getUpdateTrace(), updatedAt: now }
       : { cantidad: qtyActual - params.cantidad, ...getUpdateTrace(), updatedAt: now }));
 
     tx.set(movRef, deepCleanForFirestore({

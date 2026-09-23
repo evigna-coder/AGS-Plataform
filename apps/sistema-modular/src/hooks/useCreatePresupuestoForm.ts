@@ -25,6 +25,8 @@ export interface PresupuestoFormState {
   validezDias: number;
   condicionPagoId: string;
   tipoCambio: string;
+  /** Envío contemplado (texto del input; vacío = no se contempló). */
+  envioContemplado: string;
   notasTecnicas: string;
   notasAdministrativas: string;
   garantia: string;
@@ -40,7 +42,7 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   clienteId: '', establecimientoId: '', sistemaId: '', contactoId: '',
   tipo: 'servicio', destinoPartes: 'servicio', moneda: 'USD', monedasMixta: ['ARS', 'USD'],
   origenTipo: '', origenId: '', origenRef: '',
-  validezDias: 15, condicionPagoId: '', tipoCambio: '',
+  validezDias: 15, condicionPagoId: '', tipoCambio: '', envioContemplado: '',
   notasTecnicas: '', notasAdministrativas: '', garantia: '',
   variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
   notasComplementarias: '',
@@ -295,6 +297,10 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const handleSave = async () => {
     if (!form.clienteId) { notify.warning('Debe seleccionar un cliente'); return; }
     if (items.length === 0) { notify.warning('Agregue al menos un item'); return; }
+    // Envío contemplado (2026-09-23): con partes de stock hay que declararlo, aunque sea 0.
+    if (items.some(i => i.stockArticuloId) && (form.envioContemplado === '' || !Number.isFinite(Number(form.envioContemplado)))) {
+      notify.warning('Cargá el envío contemplado (puede ser 0): alimenta el pool de envíos de Entregas.'); return;
+    }
 
     // Phase 12 BILL-01: validate esquema before saving for non-contrato types
     if (form.tipo !== 'contrato' && esquemaFacturacion.length > 0) {
@@ -360,6 +366,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         respaldoFacturacion: clientes.find(c => c.id === form.clienteId)?.requisitoFacturacion === 'certificacion' ? 'certificacion' : 'orden_compra',
         condicionPagoId: form.condicionPagoId || undefined,
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : undefined,
+        envioContemplado: form.envioContemplado !== '' && Number.isFinite(Number(form.envioContemplado)) ? Number(form.envioContemplado) : null,
         notasTecnicas: form.notasTecnicas || undefined,
         notasAdministrativas: form.notasAdministrativas || undefined,
         garantia: form.garantia || undefined,
