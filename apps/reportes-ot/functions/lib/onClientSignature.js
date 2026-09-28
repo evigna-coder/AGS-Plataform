@@ -46,9 +46,14 @@ exports.onClientSignature = void 0;
  */
 const functions = __importStar(require("firebase-functions/v2"));
 const firestore_1 = require("firebase-admin/firestore");
-const FALLBACK_ASIGNADO_UID = 'pHDkcnzLEdX93APkPcf3ebqyOJL2';
-const FALLBACK_ASIGNADO_NOMBRE = 'Esteban Vigna';
-const TICKET_AREA = 'ing_soporte';
+const ASIGNADO_UID = 'pHDkcnzLEdX93APkPcf3ebqyOJL2';
+const ASIGNADO_NOMBRE = 'Esteban Vigna';
+// El aviso de firma va a ADMINISTRACIÓN DE SOPORTE, no a ingeniería
+// (2026-08-19). Que el cliente firme significa que el trabajo terminó y ahora
+// hay que procesarlo: cerrarlo administrativamente y facturarlo. El ingeniero
+// que acaba de hacer firmar el reporte ya lo sabe; el aviso tiene que llegarle
+// a quien todavía tiene algo que hacer.
+const TICKET_AREA = 'admin_soporte';
 const FINAL_STATES = new Set(['finalizado', 'no_concretado']);
 function hasValue(v) {
     return v !== null && v !== undefined && v !== '';
@@ -112,16 +117,19 @@ exports.onClientSignature = functions.firestore.onDocumentUpdated('reportes/{otN
     const fechaFirma = formatTimestampAR(after.signedAt);
     const motivoContacto = `[OT-${otNumber}] Cliente firmó reporte remotamente`;
     const descripcion = `${razonSocial} firmó la OT-${otNumber} desde el link de firma remota (móvil) el ${fechaFirma}.`;
-    // Resolver asignado: ingeniero de la OT o fallback Esteban.
-    let asignadoA = after.ingenieroAsignadoId || null;
-    let asignadoNombre = after.ingenieroAsignadoNombre || null;
-    if (!asignadoA) {
-        // Fallback: chequear si el usuarioMaterialesId está configurado y activo,
-        // pero por decisión del producto este aviso va a Esteban por ahora.
-        asignadoA = FALLBACK_ASIGNADO_UID;
-        asignadoNombre = FALLBACK_ASIGNADO_NOMBRE;
-        console.log(`[onClientSignature] OT ${otNumber} sin ingenieroAsignadoId, usando fallback ${asignadoNombre}`);
-    }
+    // Destinatario FIJO: administración de soporte (2026-08-19).
+    //
+    // Antes era `ingenieroAsignadoId` con Esteban de fallback. Cuando se escribió,
+    // las OTs nacían sin ingeniero asignado, así que el fallback resolvía siempre
+    // y todo llegaba a administración — parecía el comportamiento diseñado. Al
+    // empezar a crear OTs desde sistema-modular (con ingeniero elegido en la
+    // agenda) la primera rama pasó a resolver y los avisos se fueron al
+    // ingeniero, de un día para el otro y sin que cambiara una línea de código.
+    //
+    // El destino no puede depender de si la OT tiene ingeniero: es una decisión
+    // de circuito, no un dato de la OT.
+    const asignadoA = ASIGNADO_UID;
+    const asignadoNombre = ASIGNADO_NOMBRE;
     try {
         // Buscar tickets linkeados abiertos para hacer posta en lugar de crear nuevo.
         const linkedSnap = await db
@@ -144,16 +152,22 @@ exports.onClientSignature = functions.firestore.onDocumentUpdated('reportes/{otN
                 fecha: new Date().toISOString(),
                 deUsuarioId: 'system',
                 deUsuarioNombre: 'Sistema (firma cliente)',
-                aUsuarioId: targetData.asignadoA ?? null,
-                aUsuarioNombre: targetData.asignadoNombre ?? null,
-                aArea: null,
+                aUsuarioId: asignadoA,
+                aUsuarioNombre: asignadoNombre,
+                aArea: TICKET_AREA,
                 comentario: `Cliente firmó OT-${otNumber} remotamente — ${razonSocial} (${fechaFirma}).`,
                 estadoAnterior: targetData.estado,
                 estadoNuevo: targetData.estado,
                 accionRequerida: null,
             };
+            // La posta DERIVA el ticket, no solo lo comenta (2026-08-19): si se
+            // quedaba con el asignado anterior —el ingeniero, casi siempre— el aviso
+            // de la firma no le llegaba a nadie de administración.
             await target.ref.update({
                 postas: [...(targetData.postas || []), posta],
+                areaActual: TICKET_AREA,
+                asignadoA,
+                asignadoNombre,
                 updatedAt: firestore_1.Timestamp.now(),
             });
             console.log(`[onClientSignature] OT ${otNumber}: posta agregada al ticket ${target.id} (asignado=${targetData.asignadoNombre || targetData.asignadoA || 'área'})`);

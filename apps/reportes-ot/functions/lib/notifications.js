@@ -53,6 +53,8 @@ const AREA_LABELS = {
     ing_soporte: 'Ing. de soporte',
     administracion: 'Administración',
     ventas: 'Ventas',
+    compras: 'Compras',
+    materiales: 'Materiales',
     sistema: 'Sistema',
 };
 // ─── Default preferences ─────────────────────────────────────────────────────
