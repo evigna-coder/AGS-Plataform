@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Presupuesto, WorkOrder } from '@ags/shared';
-import { clientesService, ordenesTrabajoService, presupuestosService } from '../../services/firebaseService';
+import type { Cliente, Presupuesto, WorkOrder } from '@ags/shared';
+import { presupuestosService } from '../../services/firebaseService';
 import { conCache } from '../../services/serviceCache';
 import { otsDelPresupuesto } from '../../hooks/useControlSemanal';
 import { useTabs } from '../../contexts/TabsContext';
@@ -15,37 +15,31 @@ interface Row {
 const ESTADOS_CON_TRABAJO = new Set<Presupuesto['estado']>(
   ['pendiente_oc', 'aceptado', 'en_ejecucion', 'pendiente_facturacion']);
 
+interface Props {
+  /** TODAS las OTs en vivo (el listener único de `useOTListData`, sin filtros). */
+  ots: WorkOrder[];
+  clientes: Cliente[];
+}
+
 /**
  * KPI para la coordinadora (2026-08-05, en la lista de OTs): presupuestos
  * aceptados SIN ninguna OT abierta — el mismo indicador de la sección 2 del
  * control semanal. Click despliega la lista en un popover; click en un ppto
  * lo abre.
+ *
+ * Sin listener propio (2026-09-25): antes se suscribía a toda `reportes` por
+ * su cuenta porque la lista venía filtrada por cliente/sistema a nivel query.
+ * Ahora la lista escucha todo y filtra en memoria, así que este KPI comparte
+ * ese listener (y los clientes ya cargados) — una escucha de ~4.600 docs menos
+ * y una lectura de `clientes` menos por visita.
  */
-export function PresupuestosSinOtKpi() {
+export function PresupuestosSinOtKpi({ ots, clientes }: Props) {
   const { navigateInActiveTab } = useTabs();
   const [rows, setRows] = useState<Row[]>([]);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  /** TODAS las OTs, en vivo. Ver comentario del efecto. */
-  const [ots, setOts] = useState<WorkOrder[] | null>(null);
-
-  // Suscripción propia SIN filtros (2026-08-06, 2do intento): cargar las OTs
-  // una vez al montar dejaba el contador congelado (las tabs persistentes no
-  // se desmontan), pero tomar la lista de OTList era peor — esa viene filtrada
-  // por cliente/sistema a nivel query, así que con un filtro activo TODOS los
-  // pptos de otros clientes figuraban "sin OT". El KPI necesita el universo
-  // completo y vivo: subscribe(undefined).
   useEffect(() => {
-    const unsub = ordenesTrabajoService.subscribe(
-      undefined,
-      (data: WorkOrder[]) => setOts(data),
-      (err: Error) => console.error('[PresupuestosSinOtKpi] subscribe OTs:', err),
-    );
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    if (ots === null) return; // todavía sin snapshot: no calcular con lista vacía
+    if (ots.length === 0) return; // todavía sin snapshot: no calcular con lista vacía
     let cancelled = false;
     // Solo los estados con trabajo y cacheado 2 min (2026-09-18): este efecto
     // corre con CADA snapshot de OTs y antes releía los ~2.500 presupuestos
@@ -54,10 +48,7 @@ export function PresupuestosSinOtKpi() {
       const porEstado = await Promise.all([...ESTADOS_CON_TRABAJO].map(estado => presupuestosService.getAll({ estado })));
       return porEstado.flat();
     });
-    Promise.all([
-      cargarPptos(),
-      clientesService.getAll(),
-    ]).then(([pptos, clientes]: [Presupuesto[], { id: string; razonSocial: string }[]]) => {
+    cargarPptos().then(pptos => {
       if (cancelled) return;
       const nombreCliente = new Map(clientes.map(c => [c.id, c.razonSocial]));
       setRows(pptos
@@ -67,7 +58,7 @@ export function PresupuestosSinOtKpi() {
         .sort((a, b) => a.numero.localeCompare(b.numero)));
     }).catch(err => console.error('[PresupuestosSinOtKpi] load:', err));
     return () => { cancelled = true; };
-  }, [ots]);
+  }, [ots, clientes]);
 
   // Cerrar el popover al clickear afuera.
   useEffect(() => {

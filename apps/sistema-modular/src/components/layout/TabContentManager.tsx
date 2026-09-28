@@ -114,7 +114,7 @@ const AsignacionesVistaPage = pagina(() => import('../../pages/stock').then(m =>
 const AsignacionesList = pagina(() => import('../../pages/stock').then(m => m.AsignacionesList));
 const AsignacionDetail = pagina(() => import('../../pages/stock').then(m => m.AsignacionDetail));
 const InventarioIngenieroPage = pagina(() => import('../../pages/stock').then(m => m.InventarioIngenieroPage));
-const PlanificacionStockPage = pagina(() => import('../../pages/stock').then(m => m.PlanificacionStockPage));
+const PlanificacionInsumosPage = pagina(() => import('../../pages/stock').then(m => m.PlanificacionInsumosPage));
 const IngresoEmpresasList = pagina(() => import('../../pages/ingreso-empresas').then(m => m.IngresoEmpresasList));
 const DispositivosList = pagina(() => import('../../pages/dispositivos').then(m => m.DispositivosList));
 const VehiculosList = pagina(() => import('../../pages/vehiculos').then(m => m.VehiculosList));
@@ -303,8 +303,8 @@ function AppRoutes() {
       <Route path="/stock/posiciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesPage /></ProtectedRoute>} />
       <Route path="/stock/posiciones-arancelarias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesArancelariasPage /></ProtectedRoute>} />
       <Route path="/stock/marcas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MarcasPage /></ProtectedRoute>} />
-      {/* RBAC locked to ['admin', 'admin_soporte'] per 09-RESEARCH.md — planificacion is planner/Comex only */}
-      <Route path="/stock/planificacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte']}><PlanificacionStockPage /></ProtectedRoute>} />
+      {/* Planificación de insumos críticos (2026-09-28) — planner/Comex only */}
+      <Route path="/stock/planificacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte']}><PlanificacionInsumosPage /></ProtectedRoute>} />
       <Route path="/stock/asignaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesVistaPage /></ProtectedRoute>} />
       <Route path="/stock/asignaciones/historial" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesList /></ProtectedRoute>} />
       <Route path="/stock/asignaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionDetail /></ProtectedRoute>} />

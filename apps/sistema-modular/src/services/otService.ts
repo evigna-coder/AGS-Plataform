@@ -10,9 +10,9 @@ import { db, storage, createBatch, docRef, batchAudit, logBusinessEvent, getCrea
 import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
+import { OT_NUMERACION_GO_LIVE } from '../utils/otGoLive';
 
 /** Primer número de OT del go-live de numeración (2026-07-30). Los IDs de `reportes` son el número de OT. */
-const OT_NUMERACION_GO_LIVE = '29779';
 import { clientesService } from './clientesService';
 import { getAdminSoporteAssignee, getRevisarCierreAssignee } from './personalService';
 import { agendaService } from './agendaService';

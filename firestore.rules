@@ -208,6 +208,7 @@ service cloud.firestore {
     match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
     match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }
     match /consumibles_por_modulo/{moduloId}      { allow read, write: if esStaff(); }
+    match /perfiles_consumo/{perfilId}             { allow read, write: if esStaff(); }
     // Fichas de propiedad del cliente (equipos en el bench de AGS). Un CLIENTE lee las
     // suyas (por clienteId, campo requerido); write sigue siendo solo de staff.
     match /fichasPropiedad/{fichaId} {

@@ -2271,6 +2271,63 @@ export interface ConsumiblesPorModulo {
   updatedByName?: string | null;
 }
 
+// --- Planificación de insumos críticos (2026-09-28) ---
+
+export const GRUPOS_PLANIFICACION = ['HPLC', 'GC', 'ESPECIALES', 'LAMPARAS'] as const;
+export type GrupoPlanificacion = (typeof GRUPOS_PLANIFICACION)[number];
+export const GRUPO_PLANIFICACION_LABELS: Record<GrupoPlanificacion, string> = {
+  HPLC: 'HPLC', GC: 'GC', ESPECIALES: 'Especiales', LAMPARAS: 'Lámparas',
+};
+
+/**
+ * A qué equipos aplica un perfil de consumo. El consumo depende de la
+ * CONFIGURACIÓN del equipo, no de su categoría (decisión 2026-09-27):
+ *  - `modulo`: por modelo de módulo (prefijo Agilent: G1311, G1367, G7129…).
+ *    En HPLC solo bomba e inyector consumen críticos.
+ *  - `gc`: por marca, detector, puerto de inyección. La cantidad de puertos
+ *    determina los liners (`PerfilConsumoItem.porPuerto`).
+ *  - `categoria`: fallback por categoría de equipo, para equipos cuya
+ *    configuración todavía no está cargada. Siempre aditivo.
+ */
+export interface CriterioPerfilConsumo {
+  ambito: 'modulo' | 'gc' | 'categoria';
+  /** `modulo`: prefijo del código de módulo; matchea contra nombre/descripción del módulo. */
+  codigoModulo?: string | null;
+  /** `gc`: texto de marca (matchea contra marca de los módulos o el nombre del equipo). Vacío = cualquiera. */
+  marca?: string | null;
+  /** `gc`: detector requerido (DetectorType). Vacío = cualquiera. */
+  detector?: DetectorType | null;
+  /** `gc`: tipo de puerto de inyección requerido (InletType). Vacío = cualquiera. */
+  inlet?: InletType | null;
+  /** `categoria`: id de `categorias_equipo`. */
+  categoriaId?: string | null;
+}
+
+export interface PerfilConsumoItem {
+  articuloId: string;
+  /** Desnormalizado para mostrar sin resolver el catálogo. */
+  articuloCodigo: string;
+  cantidadPorServicio: number;
+  /** Se multiplica por la cantidad de puertos de inyección del equipo (liners, septa). */
+  porPuerto?: boolean | null;
+}
+
+/** Doc de `perfiles_consumo`: qué insumos críticos consume un mantenimiento preventivo según el equipo. */
+export interface PerfilConsumo {
+  id: string;
+  nombre: string;
+  criterio: CriterioPerfilConsumo;
+  items: PerfilConsumoItem[];
+  activo: boolean;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 // --- Facturación ---
 
 export type SolicitudFacturacionEstado = 'pendiente' | 'enviada' | 'facturada' | 'cobrada' | 'anulada';
@@ -4012,6 +4069,13 @@ export interface Articulo {
   updatedByName?: string | null;
   /** Snapshot del stock extendido, poblado por Cloud Function (09-02). Optional — no breaking. */
   resumenStock?: StockAmplio | null;
+  /**
+   * Insumo crítico que entra en la Planificación de insumos (2026-09-28): los
+   * ~50 artículos que "tienen que estar sí o sí". Solo estos se proyectan.
+   */
+  planificable?: boolean | null;
+  /** Grupo de la planificación (HPLC, GC, especiales, lámparas). Solo si `planificable`. */
+  grupoPlanificacion?: GrupoPlanificacion | null;
   /**
    * Phase 13 STKE-01 — vinculación 1→1 con artículo de uso. Tipo: ArticuloEquivalencia[].
    * Vive en el artículo de COMPRA. En v1 a lo sumo un elemento (la forma array deja la puerta abierta a futuro).

@@ -232,6 +232,22 @@ export const articulosService = {
     } as Articulo;
   },
 
+  /**
+   * Insumos críticos de la Planificación (2026-09-28): `planificable === true`.
+   * Son ~50 docs; cacheado bajo el prefijo `articulos` para que cualquier
+   * update lo invalide junto con las demás variantes.
+   */
+  async getPlanificables(): Promise<Articulo[]> {
+    return conCache<Articulo[]>('articulos:planificables', async () => {
+      const q = query(collection(db, 'articulos'), where('planificable', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }) as Articulo)
+        .filter(a => a.activo !== false)
+        .sort((a, b) => a.codigo.localeCompare(b.codigo));
+    });
+  },
+
   async getByCodigo(codigo: string): Promise<Articulo | null> {
     const q = query(collection(db, 'articulos'), where('codigo', '==', codigo));
     const snap = await getDocs(q);

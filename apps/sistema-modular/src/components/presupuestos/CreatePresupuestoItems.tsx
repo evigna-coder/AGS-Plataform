@@ -202,20 +202,27 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
               )}
             </tfoot>
           </table>
-          {onEnvioContempladoChange && items.some(i => i.stockArticuloId) && (
-            <div className={`flex items-center justify-between gap-3 px-3 py-2 border-t ${(envioContemplado ?? '') === '' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50/60 border-[#E5E5E5]'}`}>
-              <div>
-                <p className="text-[10px] font-mono font-semibold uppercase tracking-wide text-slate-700">Envío contemplado ({isMixta ? 'U$S' : sym}) <span className="text-red-500">*</span></p>
-                <p className="text-[10px] text-slate-500">
-                  {(envioContemplado ?? '') === '' ? 'Obligatorio con partes de stock: cargá el costo de envío, aunque sea 0.' : 'No se imprime. Al aceptarse entra al pool de envíos de Entregas.'}
-                </p>
+          {onEnvioContempladoChange && (() => {
+            // Envío contemplado en TODOS los tipos de servicio (2026-09-28): antes
+            // solo aparecía con partes de stock. Sigue siendo obligatorio solo en
+            // ese caso; en un servicio puro es opcional (vacío = sin envío).
+            const obligatorio = items.some(i => i.stockArticuloId);
+            const falta = obligatorio && (envioContemplado ?? '') === '';
+            return (
+              <div className={`flex items-center justify-between gap-3 px-3 py-2 border-t ${falta ? 'bg-amber-50 border-amber-200' : 'bg-teal-50/60 border-[#E5E5E5]'}`}>
+                <div>
+                  <p className="text-[10px] font-mono font-semibold uppercase tracking-wide text-slate-700">Envío contemplado ({isMixta ? 'U$S' : sym}) {obligatorio && <span className="text-red-500">*</span>}</p>
+                  <p className="text-[10px] text-slate-500">
+                    {falta ? 'Obligatorio con partes de stock: cargá el costo de envío, aunque sea 0.' : 'No se imprime. Al aceptarse entra al pool de envíos de Entregas.'}
+                  </p>
+                </div>
+                <input type="text" inputMode="decimal" value={envioContemplado ?? ''} placeholder="0"
+                  onChange={e => { if (/^\d*[.,]?\d*$/.test(e.target.value)) onEnvioContempladoChange(e.target.value.replace(',', '.')); }}
+                  onFocus={e => e.currentTarget.select()}
+                  className={`w-28 text-sm font-mono text-right border rounded-lg px-2.5 py-1.5 ${falta ? 'border-amber-400 bg-white' : 'border-slate-300'}`} />
               </div>
-              <input type="text" inputMode="decimal" value={envioContemplado ?? ''} placeholder="0"
-                onChange={e => { if (/^\d*[.,]?\d*$/.test(e.target.value)) onEnvioContempladoChange(e.target.value.replace(',', '.')); }}
-                onFocus={e => e.currentTarget.select()}
-                className={`w-28 text-sm font-mono text-right border rounded-lg px-2.5 py-1.5 ${(envioContemplado ?? '') === '' ? 'border-amber-400 bg-white' : 'border-slate-300'}`} />
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

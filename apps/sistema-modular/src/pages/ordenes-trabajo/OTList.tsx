@@ -212,7 +212,7 @@ export const OTList = () => {
             />
           </div>
           {/* Pptos aceptados sin OT abierta (pedido coordinadora 2026-08-05) */}
-          <PresupuestosSinOtKpi />
+          <PresupuestosSinOtKpi ots={ordenes} clientes={clientes} />
         </div>
       )}
 

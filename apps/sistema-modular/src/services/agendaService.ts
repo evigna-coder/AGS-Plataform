@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { addDoc, setDoc, updateDoc, deleteDoc } from './firebase';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
+import { OT_NUMERACION_GO_LIVE } from '../utils/otGoLive';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
 /** ID visible del equipo: código interno del CLIENTE, fallback agsVisibleId
@@ -165,7 +166,18 @@ export const agendaService = {
    * salir de esa semana (bug UAT 2026-07-30).
    */
   subscribeOtNumbersAsignados(callback: (otNumbers: Set<string>) => void): () => void {
-    return onSnapshot(collection(db, 'agendaEntries'), snap => {
+    // Solo entradas de OTs de la numeración nueva (2026-09-25): la cola que
+    // descuenta con este set ya se recorta a `documentId() >= go-live`, así que
+    // las entradas de OTs viejas nunca se usaban y eran la mitad de la colección
+    // (~3.000 docs escuchados para consultar ~1.500). Rango por `otNumber`
+    // (string: "30351.01" > "29779", y ':' es el primer carácter después de
+    // los dígitos) — índice simple, sin compuesto.
+    const q = query(
+      collection(db, 'agendaEntries'),
+      where('otNumber', '>=', OT_NUMERACION_GO_LIVE),
+      where('otNumber', '<', ':'),
+    );
+    return onSnapshot(q, snap => {
       const s = new Set<string>();
       for (const d of snap.docs) {
         const data = d.data();

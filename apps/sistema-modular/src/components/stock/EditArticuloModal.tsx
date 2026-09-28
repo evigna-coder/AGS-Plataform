@@ -8,7 +8,7 @@ import { PresentacionesSection } from './PresentacionesSection';
 import { KitComponentesSection } from './KitComponentesSection';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import type { TipoArticulo, TratamientoArancelario } from '@ags/shared';
-import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS, GRUPOS_PLANIFICACION, GRUPO_PLANIFICACION_LABELS } from '@ags/shared';
 
 import { Select } from '../ui/Select';
 interface Props {
@@ -104,6 +104,16 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           <div>
             <label className={lbl}>Stock min.</label>
             <input type="number" value={h.form.stockMinimo} onChange={e => h.set('stockMinimo', Number(e.target.value) || 0)} className={inputCls} />
+          </div>
+          <div>
+            <label className={lbl}>Planificación</label>
+            <div className="flex items-center gap-1.5">
+              <input type="checkbox" checked={h.form.planificable} onChange={e => h.set('planificable', e.target.checked)} title="Insumo crítico: entra en la Planificación de insumos" />
+              <Select value={h.form.grupoPlanificacion} onChange={e => h.set('grupoPlanificacion', e.target.value)} className="w-full" disabled={!h.form.planificable}>
+                <option value="">Grupo…</option>
+                {GRUPOS_PLANIFICACION.map(g => <option key={g} value={g}>{GRUPO_PLANIFICACION_LABELS[g]}</option>)}
+              </Select>
+            </div>
           </div>
           <div>
             <label className={lbl}>Precio ref.</label>

@@ -29,4 +29,4 @@ export { AsignacionesVistaPage } from './AsignacionesVistaPage';
 export { AsignacionesList } from './AsignacionesList';
 export { AsignacionDetail } from './AsignacionDetail';
 export { InventarioIngenieroPage } from './InventarioIngenieroPage';
-export { PlanificacionStockPage } from './PlanificacionStockPage';
+export { PlanificacionInsumosPage } from './PlanificacionInsumosPage';

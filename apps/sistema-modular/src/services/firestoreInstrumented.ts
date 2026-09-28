@@ -20,17 +20,36 @@ import {
   type Query,
   type QuerySnapshot,
 } from 'firebase/firestore';
-import { registrarLectura } from '../utils/perfReads';
+import { pantallaActual, registrarLectura } from '../utils/perfReads';
 
 export * from 'firebase/firestore';
 
-/** Nombre de colección de una referencia o consulta, sin depender de internals del SDK. */
+/**
+ * Nombre de colección de una referencia o consulta. Para una Query se mira la
+ * forma interna del SDK (`_query.path` / `_query.collectionGroup`) con guardas:
+ * si el SDK la cambia, cae al camino anterior (path del primer doc devuelto).
+ * Sin esto un `collectionGroup('modulos')` figuraba como
+ * `sistemas/<primer id>/modulos` y parecía un solo equipo con 3.250 módulos
+ * (2026-09-25); y una consulta vacía no decía qué colección era.
+ */
 function coleccionDe(ref: unknown, snap?: QuerySnapshot | DocumentSnapshot): string {
-  const r = ref as { path?: string; type?: string };
+  const r = ref as {
+    path?: string;
+    type?: string;
+    _query?: { collectionGroup?: string | null; path?: { segments?: string[]; canonicalString?: () => string } };
+  };
   if (typeof r?.path === 'string') {
     // DocumentReference: 'coleccion/id' → 'coleccion'. CollectionReference: ya es la colección.
     const partes = r.path.split('/');
     return r.type === 'document' || partes.length % 2 === 0 ? partes.slice(0, -1).join('/') : r.path;
+  }
+  const q = r?._query;
+  if (q) {
+    if (typeof q.collectionGroup === 'string' && q.collectionGroup) return `*/${q.collectionGroup}`;
+    const segs = q.path?.segments;
+    if (Array.isArray(segs) && segs.length > 0) return segs.join('/');
+    const canon = q.path?.canonicalString?.();
+    if (canon) return canon;
   }
   const qs = snap as QuerySnapshot | undefined;
   const primero = qs?.docs?.[0];
@@ -38,17 +57,21 @@ function coleccionDe(ref: unknown, snap?: QuerySnapshot | DocumentSnapshot): str
   return '(consulta sin resultados)';
 }
 
+// La pantalla se captura al INICIAR la lectura: si el usuario cambia de
+// pestaña mientras la consulta viaja, se le carga a quien la pidió.
 export const getDoc: typeof _getDoc = (async (ref: DocumentReference) => {
   const t0 = performance.now();
+  const pantalla = pantallaActual();
   const snap = await _getDoc(ref);
-  registrarLectura(coleccionDe(ref), snap.exists() ? 1 : 0, performance.now() - t0);
+  registrarLectura(coleccionDe(ref), snap.exists() ? 1 : 0, performance.now() - t0, 'get', pantalla);
   return snap;
 }) as typeof _getDoc;
 
 export const getDocs: typeof _getDocs = (async (q: Query) => {
   const t0 = performance.now();
+  const pantalla = pantallaActual();
   const snap = await _getDocs(q);
-  registrarLectura(coleccionDe(q, snap), snap.size, performance.now() - t0);
+  registrarLectura(coleccionDe(q, snap), snap.size, performance.now() - t0, 'get', pantalla);
   return snap;
 }) as typeof _getDocs;
 
@@ -58,11 +81,20 @@ export const onSnapshot: typeof _onSnapshot = ((ref: unknown, ...rest: unknown[]
   if (idx === -1) return (_onSnapshot as any)(ref, ...rest);
   const original = rest[idx] as (snap: any) => void;
   const t0 = performance.now();
+  // El listener pertenece a la pantalla que se suscribió: sus entregas se le
+  // cargan a ella aunque la pestaña haya quedado en segundo plano.
+  const pantalla = pantallaActual();
   let primera = true;
   rest[idx] = (snap: QuerySnapshot | DocumentSnapshot) => {
     const docs = 'size' in snap ? snap.size : (snap.exists() ? 1 : 0);
-    // La primera entrega mide el arranque del listener; las siguientes son deltas.
-    registrarLectura(coleccionDe(ref, snap as QuerySnapshot), primera ? docs : ('docChanges' in snap ? snap.docChanges().length : docs), primera ? performance.now() - t0 : 0, 'snapshot');
+    // La primera entrega mide el arranque del listener (cuenta como consulta);
+    // las siguientes son deltas y cuentan como actualizaciones.
+    if (primera) {
+      registrarLectura(coleccionDe(ref, snap as QuerySnapshot), docs, performance.now() - t0, 'snapshot', pantalla);
+    } else {
+      const delta = 'docChanges' in snap ? snap.docChanges().length : docs;
+      registrarLectura(coleccionDe(ref, snap as QuerySnapshot), delta, 0, 'actualizacion', pantalla);
+    }
     primera = false;
     original(snap);
   };

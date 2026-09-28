@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState, Fragment } from 'react';
 import { useImportaciones } from '../../hooks/useImportaciones';
 import { ImportacionModal } from '../../components/stock/ImportacionModal';
 import { ImportacionItemsPanel } from '../../components/stock/ImportacionItemsPanel';
-import { articulosService } from '../../services/stockService';
+import { useArticulosImportacionesExpandidas } from '../../hooks/useArticulosImportacionesExpandidas';
 import { ImportacionAccionCell } from '../../components/stock/ImportacionAccionCell';
-import type { Articulo } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -35,19 +34,13 @@ export const ImportacionesList = () => {
 
   // Detalle desplegable por fila (2026-08-07): artículos con factor individual.
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
-  const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
   const toggleExpand = (id: string) => setExpandidas(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
 
-  // Catálogo de artículos para recomputar el costeo del panel (una vez, cacheado).
-  useEffect(() => {
-    articulosService.getAll()
-      .then(arts => setArticulosById(new Map(arts.map(a => [a.id, a]))))
-      .catch(err => console.error('[ImportacionesList] artículos:', err));
-  }, []);
+  const articulosById = useArticulosImportacionesExpandidas(importaciones, expandidas);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);

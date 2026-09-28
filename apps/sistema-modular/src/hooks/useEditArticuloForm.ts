@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { articulosService, marcasService, proveedoresService } from '../services/firebaseService';
-import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion, KitComponente } from '@ags/shared';
+import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion, KitComponente, GrupoPlanificacion } from '@ags/shared';
 
 import { notify } from '../utils/notify';
 export interface ArticuloFormState {
@@ -10,6 +10,8 @@ export interface ArticuloFormState {
   posicionArancelaria: string; tratamiento: TratamientoArancelario; notas: string; origen: string;
   requiereNumeroSerie: boolean; requiereNumeroLote: boolean; presentaciones: Presentacion[];
   kitComponentes: KitComponente[];
+  /** Insumo crítico de la Planificación de insumos + su grupo (2026-09-28). */
+  planificable: boolean; grupoPlanificacion: GrupoPlanificacion | '';
 }
 
 export const EMPTY_ARTICULO_FORM: ArticuloFormState = {
@@ -17,6 +19,7 @@ export const EMPTY_ARTICULO_FORM: ArticuloFormState = {
   unidadMedida: 'unidad', stockMinimo: 0, precioReferencia: null, monedaPrecio: 'USD',
   proveedorIds: [], posicionArancelaria: '', tratamiento: {}, notas: '', origen: '',
   requiereNumeroSerie: false, requiereNumeroLote: false, presentaciones: [], kitComponentes: [],
+  planificable: false, grupoPlanificacion: '',
 };
 
 export const formatPA = (raw: string): string => {
@@ -61,6 +64,8 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         requiereNumeroLote: art.requiereNumeroLote ?? false,
         presentaciones: art.presentaciones ?? [],
         kitComponentes: art.kitComponentes ?? [],
+        planificable: art.planificable === true,
+        grupoPlanificacion: art.grupoPlanificacion ?? '',
       });
       if (art.posicionArancelaria) setComexOpen(true);
       setLoading(false);
@@ -140,6 +145,8 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         kitComponentes: kitLimpio,
         // Índice plano componente→kit (array-contains) para el sweep de mínimos.
         kitComponenteIds: kitLimpio.map(c => c.articuloId),
+        planificable: form.planificable,
+        grupoPlanificacion: form.planificable && form.grupoPlanificacion ? form.grupoPlanificacion : null,
       });
       handleClose();
       onSaved();

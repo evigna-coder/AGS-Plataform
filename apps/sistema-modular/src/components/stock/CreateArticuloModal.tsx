@@ -7,8 +7,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { TrazabilidadFields } from './TrazabilidadFields';
 import { articulosService, marcasService, proveedoresService } from '../../services/firebaseService';
 import { usePosicionArancelariaPicker } from '../../hooks/usePosicionArancelariaPicker';
-import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
-import { CATEGORIA_EQUIPO_STOCK_OPTIONS } from '@ags/shared';
+import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, GrupoPlanificacion } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_OPTIONS, GRUPOS_PLANIFICACION, GRUPO_PLANIFICACION_LABELS } from '@ags/shared';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../ui/Select';
@@ -52,6 +52,7 @@ const emptyForm = {
   proveedorIds: [] as string[], posicionArancelaria: '', tratamiento: {} as TratamientoArancelario,
   requiereNumeroSerie: false, requiereNumeroLote: false,
   notas: '',
+  planificable: false, grupoPlanificacion: '' as GrupoPlanificacion | '',
 };
 
 type ArticuloModalPreset = Partial<typeof emptyForm>;
@@ -138,6 +139,8 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
         requiereNumeroSerie: form.requiereNumeroSerie,
         requiereNumeroLote: form.requiereNumeroLote,
         notas: form.notas.trim() || null, activo: true,
+        planificable: form.planificable,
+        grupoPlanificacion: form.planificable && form.grupoPlanificacion ? form.grupoPlanificacion : null,
       };
       const newId = await articulosService.create(data);
       handleClose();
@@ -208,6 +211,16 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
             </div>
             <Input inputSize="sm" label="Stock minimo" type="number" value={String(form.stockMinimo)}
               onChange={e => set('stockMinimo', Number(e.target.value) || 0)} />
+            <div>
+              <label className={lbl}>Planificación</label>
+              <div className="flex items-center gap-1.5">
+                <input type="checkbox" checked={form.planificable} onChange={e => set('planificable', e.target.checked)} title="Insumo crítico: entra en la Planificación de insumos" />
+                <Select value={form.grupoPlanificacion} onChange={e => set('grupoPlanificacion', e.target.value)} className="w-full" disabled={!form.planificable}>
+                  <option value="">Grupo…</option>
+                  {GRUPOS_PLANIFICACION.map(g => <option key={g} value={g}>{GRUPO_PLANIFICACION_LABELS[g]}</option>)}
+                </Select>
+              </div>
+            </div>
           </div>
           <div className="mt-3">
             <TrazabilidadFields

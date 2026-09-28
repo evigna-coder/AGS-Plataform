@@ -81,26 +81,23 @@ export function useOTListData(filters: OTListFilters) {
   // Carga reference data una vez al montar.
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Firestore query filters para suscripción de OTs.
-  const otQueryFilters = useMemo(() => {
-    const f: { clienteId?: string; sistemaId?: string } = {};
-    if (filters.clienteId) f.clienteId = filters.clienteId;
-    if (filters.sistemaId) f.sistemaId = filters.sistemaId;
-    return Object.keys(f).length > 0 ? f : undefined;
-  }, [filters.clienteId, filters.sistemaId]);
-
-  // Real-time OT subscription
+  // UN solo listener sobre toda la colección, siempre (2026-09-25). Antes el
+  // filtro cliente/sistema iba a la query y se re-suscribía con cada cambio;
+  // como el KPI "pptos sin OT" necesita el universo completo en vivo, tenía su
+  // PROPIO listener sin filtros → dos escuchas de ~4.600 docs en la misma
+  // pantalla. Ahora la lista trae todo una vez y filtra en memoria; el KPI
+  // recibe `ordenes` por prop. Cliente/sistema se aplican en `filtradasBase`.
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = ordenesTrabajoService.subscribe(
-      otQueryFilters,
+      undefined,
       // Adjuntar la fecha de asignación (= agendada) una vez por snapshot: la usan
       // la columna "Asignada" (sort) y el filtro por tipoFecha.
       (data) => { setOrdenes(data.map(ot => ({ ...ot, fechaAsignacion: ot.fechaServicioAprox ?? '' }))); setLoading(false); },
       (err) => { console.error('Error OTs:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };
-  }, [otQueryFilters]);
+  }, []);
 
   // Parents con al menos 1 child. Estructural — no depende de filtros.
   const parentsWithChildren = useMemo(() => {
@@ -174,6 +171,9 @@ export function useOTListData(filters: OTListFilters) {
   // debe vaciar los contadores de las demás.
   const filtradasBase = useMemo<WorkOrderConAsignacion[]>(() => {
     let list = ordenes;
+    // Cliente/sistema en memoria (antes iban a la query — ver el listener).
+    if (filters.clienteId) list = list.filter(ot => ot.clienteId === filters.clienteId);
+    if (filters.sistemaId) list = list.filter(ot => ot.sistemaId === filters.sistemaId);
     const q = filters.busqueda.trim();
     const hasSearch = !!q;
     if (hasSearch) {
@@ -229,7 +229,7 @@ export function useOTListData(filters: OTListFilters) {
     return list;
   }, [
     ordenes, parentsWithChildren, sistemaBuscableById, establecimientoNombreById,
-    filters.tipoServicio, filters.ingenieroId,
+    filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId,
     filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
     filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
     filters.busqueda, filters.busquedaDescripcion,

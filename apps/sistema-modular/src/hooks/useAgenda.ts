@@ -209,23 +209,45 @@ export function useAgenda(): UseAgendaReturn {
   // la cola, así que son pocas lecturas. Un padre que ya tiene hijas no deja
   // de tenerlas: se recuerda por sesión y en cada refresco (60 s) solo se
   // consultan los padres nuevos (2026-09-11).
+  // También se recuerdan los padres SIN hijas (2026-09-25): antes solo se
+  // guardaban los confirmados, así que cada padre huérfano se volvía a
+  // consultar en CADA entrega del listener (dos por arranque, una por cada
+  // OT que cambiaba) — cientos de consultas por sesión para la misma respuesta.
+  // Un padre sin hijas puede ganar una más tarde: si la hija está pendiente
+  // aparece en `allCandidateOTs` y se detecta sin consultar; si nació y ya
+  // cerró técnicamente, el negativo vence a los 10 min y se vuelve a mirar.
   const [padresConHijas, setPadresConHijas] = useState<Set<string>>(new Set());
   const padresConfirmados = useRef<Set<string>>(new Set());
+  const padresSinHijasHasta = useRef<Map<string, number>>(new Map());
+  const NEGATIVO_TTL_MS = 10 * 60 * 1000;
   useEffect(() => {
     const candidatosPadre = allCandidateOTs
       .filter(ot => !ot.otNumber.includes('.'))
       .map(ot => ot.otNumber);
     if (candidatosPadre.length === 0) { setPadresConHijas(new Set()); return; }
+    // Hijas que ya están en la cola confirman a su padre sin ir a Firestore.
+    for (const ot of allCandidateOTs) {
+      if (ot.otNumber.includes('.')) padresConfirmados.current.add(ot.otNumber.split('.')[0]);
+    }
     let cancelled = false;
-    const aConsultar = candidatosPadre.filter(num => !padresConfirmados.current.has(num));
+    const ahora = Date.now();
+    const aConsultar = candidatosPadre.filter(num =>
+      !padresConfirmados.current.has(num) && (padresSinHijasHasta.current.get(num) ?? 0) < ahora);
+    const emitir = () => {
+      if (!cancelled) setPadresConHijas(new Set(candidatosPadre.filter(num => padresConfirmados.current.has(num))));
+    };
+    if (aConsultar.length === 0) { emitir(); return; }
     Promise.all(aConsultar.map(async num => {
       try {
         const hijas = await ordenesTrabajoService.getItemsByOtPadre(num);
-        return hijas.length > 0 ? num : null;
-      } catch { return null; }
+        return { num, tiene: hijas.length > 0 };
+      } catch { return { num, tiene: null }; }
     })).then(res => {
-      for (const num of res) if (num) padresConfirmados.current.add(num);
-      if (!cancelled) setPadresConHijas(new Set(candidatosPadre.filter(num => padresConfirmados.current.has(num))));
+      for (const r of res) {
+        if (r.tiene) padresConfirmados.current.add(r.num);
+        else if (r.tiene === false) padresSinHijasHasta.current.set(r.num, Date.now() + NEGATIVO_TTL_MS);
+      }
+      emitir();
     });
     return () => { cancelled = true; };
   }, [allCandidateOTs]);
