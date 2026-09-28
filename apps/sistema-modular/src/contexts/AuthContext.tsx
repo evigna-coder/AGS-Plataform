@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import type { User } from 'firebase/auth';
-import type { UsuarioAGS, UserRole, ModuloId } from '@ags/shared';
+import type { UsuarioAGS, UserRole, ModuloId, PreferenciasUsuario } from '@ags/shared';
 import { canAccessModulo as _canAccessModulo } from '@ags/shared';
 import { onAuthStateChanged, isAllowedDomain, signOut } from '../services/authService';
 import { usuariosService } from '../services/firebaseService';
@@ -9,6 +9,13 @@ import { setCurrentUser } from '../services/currentUser';
 interface AuthContextValue {
   firebaseUser: User | null;
   usuario: UsuarioAGS | null;
+  /**
+   * Mezcla preferencias de pantalla en el usuario EN MEMORIA (2026-09-28). La
+   * escritura a Firestore la hace `usePreferenciaUsuario`; sin esto, al remontar
+   * una pantalla el hook arrancaba del perfil cargado en el login y la vista
+   * elegida (quincenal en Pagos VEP) volvía al default.
+   */
+  actualizarPreferencias: (patch: Partial<PreferenciasUsuario>) => void;
   loading: boolean;
   authError: string | null;
   /** Email rechazado por dominio incorrecto (para mostrar en LoginPage). null = sin error de dominio. */
@@ -24,6 +31,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   firebaseUser: null,
   usuario: null,
+  actualizarPreferencias: () => {},
   loading: true,
   authError: null,
   domainError: null,
@@ -108,8 +116,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return _canAccessModulo(usuario, modulo);
   };
 
+  const actualizarPreferencias = useCallback((patch: Partial<PreferenciasUsuario>) => {
+    setUsuario(prev => prev ? { ...prev, preferencias: { ...(prev.preferencias ?? {}), ...patch } } : prev);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, domainError, isAuthenticated, isPending, isDisabled, hasRole, canAccess }}>
+    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, domainError, isAuthenticated, isPending, isDisabled, hasRole, canAccess, actualizarPreferencias }}>
       {children}
     </AuthContext.Provider>
   );

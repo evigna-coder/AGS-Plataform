@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ordenesCompraService } from '../services/firebaseService';
-import type { OrdenCompra } from '@ags/shared';
+import { importacionesService, ordenesCompraService } from '../services/firebaseService';
+import type { Importacion, OrdenCompra } from '@ags/shared';
 
 interface OCFilters {
   estado?: string;
@@ -10,6 +10,13 @@ interface OCFilters {
 
 export function useOrdenesCompra() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
+  /**
+   * Importaciones por OC (2026-09-28): para marcar en la lista qué OC de
+   * importación ya tiene su importación creada. Se deriva de
+   * `Importacion.ordenCompraId` (el `importacionId` de la OC nunca se escribe);
+   * las canceladas no cuentan.
+   */
+  const [importacionesPorOC, setImportacionesPorOC] = useState<Map<string, Importacion[]>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,8 +24,17 @@ export function useOrdenesCompra() {
     setLoading(true);
     setError(null);
     try {
-      const data = await ordenesCompraService.getAll(filters);
+      const [data, importaciones] = await Promise.all([
+        ordenesCompraService.getAll(filters),
+        importacionesService.getAll().catch(err => { console.error('[useOrdenesCompra] importaciones:', err); return [] as Importacion[]; }),
+      ]);
       setOrdenes(data);
+      const porOC = new Map<string, Importacion[]>();
+      for (const imp of importaciones) {
+        if (!imp.ordenCompraId || imp.estado === 'cancelado') continue;
+        porOC.set(imp.ordenCompraId, [...(porOC.get(imp.ordenCompraId) ?? []), imp]);
+      }
+      setImportacionesPorOC(porOC);
     } catch (err) {
       console.error('Error listando órdenes de compra:', err);
       setError('Error al cargar órdenes de compra');
@@ -56,7 +72,7 @@ export function useOrdenesCompra() {
   }, []);
 
   return {
-    ordenes, loading, error,
+    ordenes, importacionesPorOC, loading, error,
     loadOrdenes, createOrden, updateOrden, deleteOrden,
   };
 }

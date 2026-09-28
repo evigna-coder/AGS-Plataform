@@ -14,7 +14,7 @@ export function usePreferenciaUsuario<K extends keyof PreferenciasUsuario>(
   clave: K,
   valorDefault: NonNullable<PreferenciasUsuario[K]>,
 ): [NonNullable<PreferenciasUsuario[K]>, (patch: Partial<NonNullable<PreferenciasUsuario[K]>>) => void] {
-  const { usuario } = useAuth();
+  const { usuario, actualizarPreferencias } = useAuth();
   const [valor, setValor] = useState<NonNullable<PreferenciasUsuario[K]>>(() => ({
     ...valorDefault,
     ...((usuario?.preferencias?.[clave] ?? {}) as Partial<NonNullable<PreferenciasUsuario[K]>>),
@@ -23,13 +23,16 @@ export function usePreferenciaUsuario<K extends keyof PreferenciasUsuario>(
   const set = useCallback((patch: Partial<NonNullable<PreferenciasUsuario[K]>>) => {
     setValor(prev => {
       const next = { ...prev, ...patch };
+      // También en el usuario en memoria: si la pantalla se desmonta y vuelve
+      // (ir a una orden y volver), el estado inicial sale de ahí (2026-09-28).
+      actualizarPreferencias({ [clave]: next } as Partial<PreferenciasUsuario>);
       if (usuario?.id) {
         usuariosService.updatePreferencias(usuario.id, { [clave]: next } as Partial<PreferenciasUsuario>)
           .catch(err => console.warn('[usePreferenciaUsuario] no se pudo guardar la preferencia', clave, err));
       }
       return next;
     });
-  }, [clave, usuario?.id]);
+  }, [clave, usuario?.id, actualizarPreferencias]);
 
   return [valor, set];
 }

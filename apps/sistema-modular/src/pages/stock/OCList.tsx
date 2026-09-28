@@ -34,7 +34,7 @@ const FILTER_SCHEMA = {
 const ESTADOS_OC_TERMINALES: EstadoOC[] = ['recibida', 'cancelada'];
 
 export const OCList = () => {
-  const { ordenes, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
+  const { ordenes, importacionesPorOC, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('oc-list');
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
@@ -209,6 +209,17 @@ export const OCList = () => {
                       </td>
                       <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLORS[o.tipo]}`}>{TIPO_LABELS[o.tipo]}</span>
+                        {/* Marca de importación creada (2026-09-28): solo para OC de importación no canceladas. */}
+                        {o.tipo === 'importacion' && o.estado !== 'cancelada' && (() => {
+                          const imps = importacionesPorOC.get(o.id) ?? [];
+                          return imps.length > 0 ? (
+                            <span className="block mt-0.5 text-[10px] font-mono text-teal-700 truncate" title={imps.map(i => `${i.numero} · ${i.estado}`).join(', ')}>
+                              {imps.map(i => i.numero).join(', ')}
+                            </span>
+                          ) : (
+                            <span className="block mt-0.5 text-[10px] font-medium text-amber-600" title="Esta OC de importación todavía no tiene importación creada">Sin importación</span>
+                          );
+                        })()}
                       </td>
                       <td className={`px-4 py-2 ${getAlignClass(2)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_OC_COLORS[o.estado]}`}>{ESTADO_OC_LABELS[o.estado]}</span>
