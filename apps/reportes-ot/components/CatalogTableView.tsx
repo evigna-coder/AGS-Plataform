@@ -608,14 +608,40 @@ function renderDefaultCell(
 
   if (col.type === 'checkbox') {
     const checked = rawValue === 'true' || rawValue === '1';
-    if (isPrint) return <span className="text-[11px]">{checked ? '☑' : '☐'}</span>;
+    // Tilde grande y con color cuando está marcado: en la tabla de Conclusión (CO) el
+    // cliente no distinguía qué opción quedó elegida (pedido dirección 2026-09-28).
+    // Se dibuja como caja CSS (no glifo ☑/☐): el font-size de la tabla/columna se aplica
+    // con !important a todo el <td> y dejaba el tilde diminuto en el PDF.
+    if (isPrint) {
+      return (
+        <span
+          aria-label={checked ? 'Sí' : 'No'}
+          style={{
+            display: 'inline-block', position: 'relative', verticalAlign: 'middle',
+            width: 16, height: 16, borderRadius: 3, boxSizing: 'border-box',
+            border: checked ? '2px solid #047857' : '1.5px solid #94a3b8',
+            background: checked ? '#047857' : '#ffffff',
+          }}
+        >
+          {checked && (
+            <span
+              style={{
+                position: 'absolute', left: 4, top: 0.5, width: 5, height: 9,
+                borderStyle: 'solid', borderColor: '#ffffff', borderWidth: '0 2.5px 2.5px 0',
+                transform: 'rotate(45deg)',
+              }}
+            />
+          )}
+        </span>
+      );
+    }
     return (
       <input
         type="checkbox"
         checked={checked}
         disabled={readOnly}
         onChange={(e) => onChange(rowId, col.key, e.target.checked ? 'true' : 'false')}
-        className="w-4 h-4 accent-blue-600 cursor-pointer disabled:cursor-default"
+        className="w-5 h-5 accent-emerald-600 cursor-pointer disabled:cursor-default"
       />
     );
   }
@@ -2479,12 +2505,24 @@ export const CatalogTableView: React.FC<Props> = ({
               const canRemoveTemplate = !!table.allowRowDeletion && !isExtra && !isDup && !!onRemoveRow && !readOnly && !isPrint;
               const groupStart = isGroupStart(idx);
               const boundaryAbove = hasMergeBoundaryAbove(idx);
+              // Fila con casilla tildada (ej. tabla "Conclusión" de las CO): se resalta entera
+              // y pisa el zebra, para que no quede ambiguo qué opción se eligió.
+              const isCheckedRow = visibleColumns.some(c => {
+                if (c.type !== 'checkbox') return false;
+                const v = selection.filledData[row.rowId]?.[c.key];
+                return v === 'true' || v === '1';
+              });
+              const checkedRowClass = isCheckedRow
+                ? (isPrint ? 'bg-emerald-50 font-semibold text-emerald-900' : 'bg-emerald-50 font-semibold text-emerald-900 hover:bg-emerald-100 transition-colors')
+                : null;
               return (
                 <tr
                   key={row.rowId}
-                  className={isPrint
-                    ? `border-b border-slate-200${idx % 2 === 0 ? '' : ' bg-slate-50'}`
-                    : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
+                  className={checkedRowClass
+                    ? `${isPrint ? 'border-b border-slate-200 ' : ''}${checkedRowClass}`
+                    : isPrint
+                      ? `border-b border-slate-200${idx % 2 === 0 ? '' : ' bg-slate-50'}`
+                      : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                   }
                 >
                   {(() => {
@@ -2527,7 +2565,7 @@ export const CatalogTableView: React.FC<Props> = ({
                             `${isPrint ? 'text-[10px]' : 'text-xs'}${effectiveLastColIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
                             // Celda combinada verticalmente: fondo opaco para tapar el zebra-striping
                             // de las filas cubiertas (si no, las líneas de fila la atraviesan y no se unifica).
-                            isSpanning ? 'bg-white' : '',
+                            isSpanning ? (isCheckedRow ? 'bg-emerald-50' : 'bg-white') : '',
                             alignCls,
                             !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? (canDuplicate && showRemoveAction ? 'relative pr-8' : 'relative pr-4') : '',
