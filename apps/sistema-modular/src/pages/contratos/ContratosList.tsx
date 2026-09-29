@@ -6,7 +6,7 @@ import { matchesSearch } from '../../utils/searchTerms';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import type { Contrato, Cliente, EstadoContrato } from '@ags/shared';
-import { ESTADO_CONTRATO_LABELS, ESTADO_CONTRATO_COLORS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
+import { ESTADO_CONTRATO_LABELS, ESTADO_CONTRATO_COLORS, TIPO_LIMITE_CONTRATO_LABELS, useFilasCambiadas } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -75,6 +75,9 @@ export const ContratosList = () => {
   const fmtDate = (iso: string) => iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
   const hasFilters = filters.cliente || filters.estado || filters.search;
   const filtrosExport = buildContratosFiltrosExport(filters, clientes.find(c => c.id === filters.cliente)?.razonSocial);
+
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtrados, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
 
   return (
     <div className="space-y-4">
@@ -147,7 +150,7 @@ export const ContratosList = () => {
                 {filtrados.map(c => {
                   const visitasRestantes = c.tipoLimite === 'visitas' && c.maxVisitas !== null ? c.maxVisitas - c.visitasUsadas : null;
                   return (
-                    <tr key={c.id} onClick={() => navigate(`/contratos/${c.id}`)} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
+                    <tr key={c.id} onClick={() => navigate(`/contratos/${c.id}`)} className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors ${cambiadas.has(String((c as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                       <td className={`px-3 py-2 font-mono font-medium text-teal-700 ${getAlignClass(0)}`}>{c.numero}</td>
                       <td className={`px-3 py-2 text-slate-700 max-w-[200px] truncate ${getAlignClass(1)}`}>{c.clienteNombre}</td>
                       <td className={`px-3 py-2 text-slate-500 whitespace-nowrap ${getAlignClass(2)}`}>{fmtDate(c.fechaInicio)} — {fmtDate(c.fechaFin)}</td>

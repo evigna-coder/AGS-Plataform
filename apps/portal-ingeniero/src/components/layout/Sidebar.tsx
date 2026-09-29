@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useIndicadorDeslizante } from '@ags/shared';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 import { canAccessModulo, type ModuloId } from '@ags/shared';
@@ -40,6 +42,11 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { usuario, hasRole } = useAuth();
+  // Píldora activa que viaja entre opciones (2026-09-29). NavLink marca el
+  // activo con aria-current="page".
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  const { pos: pill } = useIndicadorDeslizante(navRef, 'a[aria-current="page"]', [pathname, collapsed]);
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const canRecepcion = hasRole('admin', 'admin_soporte');
   const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
@@ -67,15 +74,18 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(item => (
+      <nav ref={navRef} className="relative flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+        <span aria-hidden className="pointer-events-none absolute rounded-lg bg-teal-600 border-l-2 border-teal-300 motion-safe:transition-[top,height,width,opacity] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.25,1,0.5,1)]"
+          style={{ top: pill.top, left: pill.left, width: pill.width, height: pill.height, opacity: pill.visible ? 1 : 0 }} />
+        {navItems.map((item, i) => (
           <NavLink
             key={item.to}
             to={item.to}
+            style={{ animationDelay: `${Math.min(i, 10) * 20}ms` }}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              `relative z-10 flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors duration-200 motion-safe:animate-nav-in ${
                 isActive
-                  ? 'bg-teal-600 text-white border-l-2 border-teal-300 pl-[10px]'
+                  ? 'text-white motion-reduce:bg-teal-600'
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`
             }

@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { articulosService, unidadesService, ordenesCompraService } from '../../services/firebaseService';
@@ -95,6 +96,9 @@ export const AlertasStockPage = () => {
     return () => { unsubRef.current?.(); };
   }, [computeAlertas]);
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sorted, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -140,7 +144,7 @@ export const AlertasStockPage = () => {
                 </thead>
                 <tbody>
                   {sorted.map(art => (
-                    <tr key={art.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr key={art.id} className={`border-b border-slate-100 hover:bg-slate-50 ${cambiadas.has(String((art as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                       <td className="px-4 py-2">
                         <Link to={`/stock/articulos/${art.id}`} className="font-mono text-xs text-teal-600 hover:underline font-medium">
                           {art.codigo}

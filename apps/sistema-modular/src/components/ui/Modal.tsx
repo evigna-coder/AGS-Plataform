@@ -238,7 +238,7 @@ export const Modal: React.FC<ModalProps> = ({
       // Scoped: absolute dentro del wrapper relative de la pestaña — cubre solo
       // el área del tab; TabBar y sidebar quedan clickeables y el modal se
       // oculta junto con la pestaña. Fallback: fixed fullscreen clásico.
-      className={`${scoped ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-[70] p-4`}
+      className={`${scoped ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-[70] p-4 motion-safe:animate-fade-in`}
       // role="dialog" solo cuando es visible: useLayoutKeyboardShortcuts usa
       // querySelector('[role="dialog"]') para suprimir Escape-back, y un modal
       // de una pestaña OCULTA no debe bloquear el Escape de la activa.
@@ -249,7 +249,9 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         ref={dialogRef}
-        className={`w-full bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col relative ${
+        // Entra escalando de 0.96 a 1 con fundido (2026-09-29); sin resorte, que
+        // en un modal que se abre cincuenta veces al día cansa.
+        className={`w-full bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col relative motion-safe:animate-modal-in ${
           maximized ? 'max-w-none h-full max-h-full' : `${widthMap[maxWidth]} max-h-[90vh]`
         }`}
         style={{ left: `${offset.x}px`, top: `${offset.y}px` }}

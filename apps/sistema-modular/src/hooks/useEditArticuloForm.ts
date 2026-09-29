@@ -3,6 +3,7 @@ import { articulosService, marcasService, proveedoresService } from '../services
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario, Presentacion, KitComponente, GrupoPlanificacion } from '@ags/shared';
 
 import { notify } from '../utils/notify';
+import { useFeedbackGuardado } from './useFeedbackGuardado';
 export interface ArticuloFormState {
   codigo: string; descripcion: string; categoriaEquipo: CategoriaEquipoStock;
   marcaId: string; tipo: TipoArticulo; unidadMedida: string; stockMinimo: number;
@@ -34,6 +35,7 @@ export const formatPA = (raw: string): string => {
 
 export function useEditArticuloForm(open: boolean, articuloId: string | null, onClose: () => void, onSaved: () => void) {
   const [saving, setSaving] = useState(false);
+  const fb = useFeedbackGuardado();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ArticuloFormState>(EMPTY_ARTICULO_FORM);
   const [codigoDupWarning, setCodigoDupWarning] = useState('');
@@ -126,6 +128,7 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
       .map(c => ({ ...c, cantidadPorKit: Number(c.cantidadPorKit), participacionPct: c.participacionPct == null ? null : Number(c.participacionPct) }));
     setSaving(true);
     try {
+      await fb.correr(async () => {
       await articulosService.update(articuloId, {
         codigo: form.codigo.trim(), descripcion: form.descripcion.trim(),
         categoriaEquipo: form.categoriaEquipo, marcaId: form.marcaId, tipo: form.tipo,
@@ -148,14 +151,13 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         planificable: form.planificable,
         grupoPlanificacion: form.planificable && form.grupoPlanificacion ? form.grupoPlanificacion : null,
       });
-      handleClose();
-      onSaved();
+      }, () => { handleClose(); onSaved(); });
     } catch { notify.error('Error al guardar el articulo'); }
     finally { setSaving(false); }
   };
 
   return {
-    saving, loading, form, set, codigoDupWarning, comexOpen, setComexOpen,
+    saving, estadoGuardado: fb.estado, loading, form, set, codigoDupWarning, comexOpen, setComexOpen,
     marcas, proveedores, toggleProveedor, updateTratamiento,
     addPresentacion, updatePresentacion, removePresentacion,
     addKitComponente, updateKitComponente, removeKitComponente, replaceKitComponentes,

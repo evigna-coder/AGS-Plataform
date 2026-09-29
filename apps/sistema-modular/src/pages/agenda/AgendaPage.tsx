@@ -1,4 +1,6 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { useFilasCambiadas } from '@ags/shared';
+import { AgendaCambiosProvider } from '../../contexts/AgendaCambiosContext';
 import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { esAgendaInterior, ESTADO_AGENDA_INTERIOR } from '@ags/shared';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
@@ -1115,6 +1117,10 @@ export const AgendaPage: FC = () => {
           : null
     : null;
 
+  // Entradas que acaban de cambiar en vivo (2026-09-29): anillo teal en la celda.
+  const entriesCambiadas = useFilasCambiadas(entries, e => e.id,
+    e => `${e.estadoAgenda}|${e.fechaInicio}|${e.fechaFin}|${e.quarterStart}|${e.quarterEnd}|${e.ingenieroId}|${e.otNumber ?? ''}`);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <AgendaHeader
@@ -1201,23 +1207,25 @@ export const AgendaPage: FC = () => {
                 onNext={goToNext}
               />
             ) : (
-              <AgendaGrid
-                ingenieros={ingenieros}
-                visibleDays={visibleDays}
-                zoom={zoomLevel}
-                entries={entries}
-                selectedCellKey={selectedCellKey}
-                selectionRange={selectionRange}
-                onCellClick={handleCellClick}
-                onEntryClick={handleEntryClick}
-                onWeekClick={handleWeekClick}
-                onCellContextMenu={handleContextMenu}
-                onCellDoubleClick={handleCellDoubleClick}
-                feriados={feriados}
-                onToggleFeriado={toggleFeriado}
-                notas={notas}
-                diasAgs={diasAgs}
-              />
+              <AgendaCambiosProvider cambiadas={entriesCambiadas}>
+                <AgendaGrid
+                  ingenieros={ingenieros}
+                  visibleDays={visibleDays}
+                  zoom={zoomLevel}
+                  entries={entries}
+                  selectedCellKey={selectedCellKey}
+                  selectionRange={selectionRange}
+                  onCellClick={handleCellClick}
+                  onEntryClick={handleEntryClick}
+                  onWeekClick={handleWeekClick}
+                  onCellContextMenu={handleContextMenu}
+                  onCellDoubleClick={handleCellDoubleClick}
+                  feriados={feriados}
+                  onToggleFeriado={toggleFeriado}
+                  notas={notas}
+                  diasAgs={diasAgs}
+                />
+              </AgendaCambiosProvider>
             )}
           </div>
 

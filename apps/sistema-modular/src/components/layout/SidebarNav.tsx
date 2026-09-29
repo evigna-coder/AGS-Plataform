@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useIndicadorDeslizante } from '@ags/shared';
 import { useTabs, getNavMeta } from '../../contexts/TabsContext';
 import { useNavigation, NavItem } from './navigation';
 
@@ -13,6 +14,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
   const pathname = activeTabPath.split('?')[0];
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  // Indicador de foco fluido (2026-09-29): UNA barra teal que viaja hasta el
+  // ítem activo (la hoja si está a la vista; si no, el grupo que la contiene).
+  const navRef = useRef<HTMLElement>(null);
+  const { pos: barra } = useIndicadorDeslizante(navRef, ['[data-nav-active="leaf"]', '[data-nav-active="group"]'], [pathname, collapsed, expandedGroups]);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string; label: string; icon: string } | null>(null);
 
   /** Recursivo: el grupo se auto-expande cuando la ruta activa cae adentro suyo (a cualquier profundidad). */
@@ -73,6 +78,32 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
     return renderLeafNode(item, depth);
   };
 
+  // Microanimaciones (2026-09-29). Todo con `motion-safe:`: si el sistema
+  // operativo pide menos movimiento, queda el comportamiento anterior.
+  /** Label que se pliega al contraer el menú en vez de desaparecer de golpe. */
+  const labelCls = `leading-tight whitespace-nowrap overflow-hidden motion-safe:transition-[max-width,opacity] motion-safe:duration-200 ${
+    collapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
+  }`;
+  /**
+   * Hijos de un grupo: se despliegan con altura animada (grid 0fr → 1fr) y
+   * entran escalonados. Quedan montados aunque el grupo esté cerrado para
+   * poder animar el cierre; `key` los remonta al abrir para que la entrada
+   * se repita.
+   */
+  const renderHijos = (children: NavItem[], abierto: boolean, depth: number, extra = '') => (
+    <div className={`grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 ease-out ${abierto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+      <div className="overflow-hidden min-h-0">
+        <div key={abierto ? 'abierto' : 'cerrado'} className={`${extra} space-y-0.5 mt-0.5`}>
+          {children.map((c, i) => (
+            <div key={c.path} className={abierto ? 'motion-safe:animate-nav-in' : ''} style={abierto ? { animationDelay: `${Math.min(i, 8) * 25}ms` } : undefined}>
+              {renderNode(c, depth)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   // ── Top-level leaf ──
   const renderTopLeaf = (item: NavItem) => {
     const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
@@ -83,15 +114,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         onClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
         onAuxClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
         onContextMenu={(e) => handleContextMenu(e, item.path, item.name, item.icon)}
-        className={`flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
+        data-nav-active={isActive ? 'leaf' : undefined}
+        className={`group flex items-center gap-3 py-2 px-3 text-sm transition-colors duration-200 border-l-2 border-transparent ${
           isActive
-            ? 'border-teal-500 bg-slate-800 text-white font-medium'
-            : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+            ? 'bg-slate-800 text-white font-medium'
+            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
         }`}
         title={collapsed ? item.name : 'Click derecho: opciones'}
       >
-        <span className="text-base leading-none shrink-0">{item.icon}</span>
-        {!collapsed && <span className="leading-tight whitespace-nowrap">{item.name}</span>}
+        <span className="text-base leading-none shrink-0 motion-safe:transition-transform motion-safe:duration-200 group-hover:scale-110">{item.icon}</span>
+        <span className={labelCls}>{item.name}</span>
       </a>
     );
   };
@@ -114,14 +146,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
           onAuxClick={(e) => handleNavClick(e, item.path)}
           onContextMenu={(e) => handleContextMenu(e, item.path, item.name, item.icon)}
           title="Click derecho: opciones"
-          className={`flex items-center gap-2 py-1.5 ${basePadding} pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
+          data-nav-active={isActive ? 'leaf' : undefined}
+          className={`group flex items-center gap-2 py-1.5 ${basePadding} pr-3 text-xs transition-colors duration-200 border-l-2 border-transparent whitespace-nowrap ${
             isActive
-              ? 'border-teal-500 bg-slate-800 text-white font-medium'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+              ? 'bg-slate-800 text-white font-medium'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
           }`}
         >
-          {item.icon && <span className="text-sm leading-none shrink-0">{item.icon}</span>}
-          <span>{item.name}</span>
+          {item.icon && <span className="text-sm leading-none shrink-0 motion-safe:transition-transform motion-safe:duration-200 group-hover:scale-110">{item.icon}</span>}
+          {/* Sin ícono (la mayoría de Stock) el texto es lo único que puede moverse: se desliza 4px al hover. */}
+          <span className="motion-safe:transition-transform motion-safe:duration-200 group-hover:translate-x-1">{item.name}</span>
         </a>
       </div>
     );
@@ -142,26 +176,19 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
       <div key={item.path}>
         <button
           onClick={() => collapsed ? onCollapse(false) : toggleGroup(item)}
-          className={`w-full flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
+          data-nav-active={isActive ? 'group' : undefined}
+          className={`group w-full flex items-center gap-3 py-2 px-3 text-sm transition-colors duration-200 border-l-2 border-transparent ${
             isActive
-              ? 'border-teal-500 bg-slate-800 text-white font-medium'
-              : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+              ? 'bg-slate-800 text-white font-medium'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
           }`}
           title={collapsed ? item.name : undefined}
         >
-          <span className="text-base leading-none shrink-0">{item.icon}</span>
-          {!collapsed && (
-            <>
-              <span className="leading-tight flex-1 text-left whitespace-nowrap">{item.name}</span>
-              <span className={`text-[10px] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
-            </>
-          )}
+          <span className="text-base leading-none shrink-0 motion-safe:transition-transform motion-safe:duration-200 group-hover:scale-110">{item.icon}</span>
+          <span className={`${labelCls} flex-1 text-left`}>{item.name}</span>
+          <span className={`text-[10px] motion-safe:transition-[transform,opacity] motion-safe:duration-200 ${isExpanded ? 'rotate-180' : ''} ${collapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>▾</span>
         </button>
-        {isExpanded && !collapsed && (
-          <div className="ml-2 space-y-0.5 mt-0.5">
-            {item.children!.map(c => renderNode(c, 1))}
-          </div>
-        )}
+        {renderHijos(item.children!, isExpanded && !collapsed, 1, 'ml-2')}
       </div>
     );
   };
@@ -178,21 +205,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         )}
         <button
           onClick={() => toggleGroup(item)}
-          className={`w-full flex items-center gap-2 py-1.5 ${item.icon ? 'pl-7' : 'pl-10'} pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
+          className={`group w-full flex items-center gap-2 py-1.5 ${item.icon ? 'pl-7' : 'pl-10'} pr-3 text-xs transition-colors duration-200 border-l-2 border-transparent whitespace-nowrap ${
             isActive
-              ? 'border-teal-500 text-white font-medium'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+              ? 'text-white font-medium'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
           }`}
         >
-          {item.icon && <span className="text-sm leading-none shrink-0">{item.icon}</span>}
-          <span className="flex-1 text-left">{item.name}</span>
-          <span className={`text-[10px] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
+          {item.icon && <span className="text-sm leading-none shrink-0 motion-safe:transition-transform motion-safe:duration-200 group-hover:scale-110">{item.icon}</span>}
+          <span className="flex-1 text-left motion-safe:transition-transform motion-safe:duration-200 group-hover:translate-x-1">{item.name}</span>
+          <span className={`text-[10px] motion-safe:transition-transform motion-safe:duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
         </button>
-        {isExpanded && (
-          <div className="space-y-0.5 mt-0.5">
-            {item.children!.map(c => renderNode(c, depth + 1))}
-          </div>
-        )}
+        {renderHijos(item.children!, isExpanded, depth + 1)}
       </div>
     );
   };
@@ -208,7 +231,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
           collapsed ? 'w-14' : 'w-56'
         }`}
       >
-        <nav className="flex-1 px-2 py-4 space-y-0.5">
+        <nav ref={navRef} className="relative flex-1 px-2 py-4 space-y-0.5">
+          <span aria-hidden className="pointer-events-none absolute w-0.5 bg-teal-500 rounded-r motion-safe:transition-[top,height,opacity] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.25,1,0.5,1)]"
+            style={{ top: barra.top, height: barra.height, left: barra.left, opacity: barra.visible ? 1 : 0 }} />
           {visibleNav.map(item => renderNode(item, 0))}
         </nav>
         {/* Versión visible (2026-08-06): diagnóstico de "PCs clavadas" sin adivinar. */}

@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { proveedoresService } from '../../services/firebaseService';
@@ -61,6 +62,9 @@ export const ProveedoresPage = () => {
     catch { notify.error('Error al eliminar'); }
   };
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sorted, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -113,7 +117,7 @@ export const ProveedoresPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sorted.map(p => (
-                  <tr key={p.id} className={`hover:bg-slate-50 ${!p.activo ? 'opacity-50' : ''}`}>
+                  <tr key={p.id} className={`hover:bg-slate-50 ${!p.activo ? 'opacity-50' : ''} ${cambiadas.has(String((p as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className="px-4 py-2">
                       <span className="font-medium text-slate-900 text-xs">{p.nombre}</span>
                       {p.email && <div className="text-[11px] text-slate-400">{p.email}</div>}

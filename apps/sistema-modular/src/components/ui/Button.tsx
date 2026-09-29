@@ -6,13 +6,32 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   /** React 19: ref-as-prop — llega al <button> nativo vía spread. */
   ref?: React.Ref<HTMLButtonElement>;
+  /**
+   * Feedback de guardado (2026-09-29): `guardando` muestra un spinner y
+   * deshabilita; `listo` muestra un tilde por un instante antes de que el
+   * modal se cierre. Los formularios lo manejan con `useFeedbackGuardado`.
+   */
+  estado?: 'idle' | 'guardando' | 'listo';
 }
+
+const Spinner = () => (
+  <svg className="w-3.5 h-3.5 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+const Tilde = () => (
+  <svg className="w-3.5 h-3.5 shrink-0 motion-safe:animate-nav-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+);
 
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   className = '',
   children,
+  estado = 'idle',
   ...props
 }) => {
   const baseStyles =
@@ -32,12 +51,17 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-5 py-2.5 text-sm rounded-xl gap-2',
   };
 
+  const listo = estado === 'listo';
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${listo && variant === 'primary' ? '!bg-emerald-600 hover:!bg-emerald-600' : ''} ${className}`}
       {...props}
+      disabled={props.disabled || estado !== 'idle'}
+      aria-busy={estado === 'guardando' || undefined}
     >
-      {children}
+      {estado === 'guardando' && <Spinner />}
+      {listo && <Tilde />}
+      {estado === 'guardando' ? 'Guardando…' : listo ? 'Listo' : children}
     </button>
   );
 };

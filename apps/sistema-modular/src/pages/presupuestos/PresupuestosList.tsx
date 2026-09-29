@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useFilasCambiadas } from '@ags/shared';
 import { presupuestosService, clientesService, usuariosService, facturacionService, ordenesTrabajoService } from '../../services/firebaseService';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -480,6 +481,9 @@ export const PresupuestosList = () => {
     }
     return result;
   }, [presupuestos, filters, debouncedSearch, solicitudSets, trabajoRealizadoIds, modoSinOC, soloTrabajoHecho, sinOCMap]);
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29): estado, OC, facturación.
+  const cambiadas = useFilasCambiadas(presupuestosFiltrados, p => p.id,
+    p => `${p.estado}|${p.facturacionEstado ?? ''}|${(p.otsVinculadasNumbers ?? []).length}|${String(p.updatedAt ?? '')}`);
 
   // Memoizado: identidad estable de options para el SearchableSelect.
   const clienteOptions = useMemo(() => [{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))], [clientes]);
@@ -763,7 +767,7 @@ export const PresupuestosList = () => {
                     : null;
                   const daysContact = getDaysUntilContacto(p.proximoContacto);
                   return (
-                    <tr key={p.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(p)}`}
+                    <tr key={p.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(p)} ${cambiadas.has(p.id) ? 'motion-safe:animate-fila-cambio' : ''}`}
                       onClick={() => floatingPres.open(p.id, loadData)}>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                         <span className="font-semibold text-teal-600 text-[10px]">{p.numero}</span>

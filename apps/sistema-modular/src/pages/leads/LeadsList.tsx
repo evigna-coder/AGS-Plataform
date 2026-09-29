@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -235,6 +236,8 @@ export const LeadsList = () => {
     });
     return sorted;
   }, [leadsFiltered, sortKey, sortDir]);
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(leadsSorted, l => l.id, l => `${l.estado}|${l.asignadoA ?? ''}|${l.areaActual ?? ''}|${String(l.updatedAt ?? '')}`);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -435,7 +438,7 @@ export const LeadsList = () => {
                   const daysOpen = getDaysOpen(lead.createdAt);
                   const daysUntil = getDaysUntilContacto(lead.proximoContacto);
                   return (
-                    <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
+                    <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)} ${cambiadas.has(lead.id) ? 'motion-safe:animate-fila-cambio' : ''}`}
                       onClick={() => navigate(`/leads/${lead.id}`)}>
                       {!isHidden(0) && (
                         <td className={tdCls(0, 'px-3 py-2 overflow-hidden')}>

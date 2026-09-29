@@ -77,13 +77,13 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
         {!showCierreAdmin && (
-          <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading || h.readOnly}>
-            {h.saving ? 'Guardando...' : 'Guardar'}
+          <Button size="sm" onClick={h.handleSave} disabled={h.loading || h.readOnly} estado={h.estadoGuardado}>
+            Guardar
           </Button>
         )}
         {showCierreAdmin && h.form.estadoAdmin !== 'FINALIZADO' && (
-          <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading}>
-            {h.saving ? 'Guardando...' : 'Guardar cambios'}
+          <Button size="sm" onClick={h.handleSave} disabled={h.loading} estado={h.estadoGuardado}>
+            Guardar cambios
           </Button>
         )}
       </>}>

@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { posicionesArancelariasService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -172,6 +173,9 @@ export const PosicionesArancelariasPage = () => {
       className="border border-slate-300 rounded px-2 py-1 text-xs w-20" />
   );
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sorted, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Posiciones Arancelarias" subtitle="Catalogo de posiciones y tratamientos arancelarios" count={sorted.length}
@@ -251,7 +255,7 @@ export const PosicionesArancelariasPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {sorted.map(p => (
-                  <tr key={p.id} className={!p.activo ? 'opacity-50' : ''}>
+                  <tr key={p.id} className={`${!p.activo ? 'opacity-50' : ''} ${cambiadas.has(String((p as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     {editingId === p.id ? (
                       <EditRow form={editForm} setForm={setEditForm} onSave={() => handleUpdate(p.id)} onCancel={() => setEditingId(null)} numInput={numInput} />
                     ) : (

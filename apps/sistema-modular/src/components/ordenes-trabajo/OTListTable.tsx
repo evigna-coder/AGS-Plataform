@@ -1,5 +1,6 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import type { WorkOrder, Sistema } from '@ags/shared';
+import { useFilasCambiadas } from '@ags/shared';
 import { SortableHeader, type SortDir } from '../ui/SortableHeader';
 import { ColAlignIcon } from '../ui/ColAlignIcon';
 import type { ColAlign } from '../../hooks/useResizableColumns';
@@ -115,6 +116,11 @@ export const OTListTable: React.FC<Props> = ({
   toggleCol, showAllCols,
 }) => {
   const sufijoEstab = useEstablecimientoSuffix();
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29): estado,
+  // ingeniero, fecha agendada, envío del reporte o cualquier edición.
+  const otsVisibles = useMemo(() => grouped.map(g => g.ot), [grouped]);
+  const cambiadas = useFilasCambiadas(otsVisibles, ot => ot.otNumber,
+    ot => `${ot.estadoAdmin ?? ''}|${ot.status}|${ot.ingenieroAsignadoId ?? ''}|${ot.fechaServicioAprox ?? ''}|${String(ot.updatedAt ?? '')}`);
   // Columnas de datos visibles (las ocultas se filtran por idx lógico).
   const visibleCols = OT_DATA_COLUMNS.filter(c => !isHidden(c.idx));
   const hasHidden = OT_DATA_COLUMNS.some(c => isHidden(c.idx));
@@ -193,7 +199,7 @@ export const OTListTable: React.FC<Props> = ({
             const ctx: CellCtx = { isItem, sistemaNombre: sistema?.nombre || '', sufijoEstab };
             return (
               <tr key={ot.otNumber}
-                className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'}`}
+                className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'} ${cambiadas.has(ot.otNumber) ? 'motion-safe:animate-fila-cambio' : ''}`}
                 onClick={() => onRowClick(ot, hasItems)}>
                 <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
                   <input type="checkbox" checked={selectedOTs.has(ot.otNumber)}

@@ -32,12 +32,12 @@ export function Modal({ open, onClose, title, children, footer, maxWidth = 'md' 
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-3"
+      className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-3 motion-safe:animate-fade-in"
       onMouseDown={e => { backdropMouseDown = e.target === e.currentTarget; }}
       onMouseUp={e => { if (backdropMouseDown && e.target === e.currentTarget) onClose(); backdropMouseDown = false; }}
     >
       <div
-        className={`w-full ${WIDTHS[maxWidth]} bg-white sm:rounded-xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh]`}
+        className={`w-full ${WIDTHS[maxWidth]} bg-white sm:rounded-xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh] max-sm:motion-safe:animate-sheet-up sm:motion-safe:animate-modal-in`}
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-slate-100">

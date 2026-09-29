@@ -10,6 +10,8 @@ export * from './services/reaperturaOT';
 // Exportar hooks compartidos
 export * from './hooks/useResizableColumns';
 export * from './hooks/useUrlFilters';
+export * from './hooks/useIndicadorDeslizante';
+export * from './hooks/useFilasCambiadas';
 
 // Exportar utilidades compartidas
 export * from './utils';

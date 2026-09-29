@@ -5,7 +5,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { matchesSearch } from '../../utils/searchTerms';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
-import { establecimientoPerteneceACliente } from '@ags/shared';
+import { establecimientoPerteneceACliente, useFilasCambiadas } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -248,6 +248,9 @@ export const EquiposList = () => {
   );
   const filtrosExport = buildEquiposFiltrosExport(filters, categorias);
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sistemasFiltrados, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Equipos / Sistemas" count={isInitialLoad ? undefined : sistemasFiltrados.length}
@@ -355,7 +358,7 @@ export const EquiposList = () => {
                   const est = estMap[sistema.establecimientoId || ''];
                   const clienteName = clienteMap[est?.clienteCuit ?? sistema.clienteId ?? ''];
                   return (
-                    <tr key={sistema.id} className={`hover:bg-slate-50 transition-colors ${selected.has(sistema.id) ? 'bg-teal-50' : ''}`}>
+                    <tr key={sistema.id} className={`hover:bg-slate-50 transition-colors ${selected.has(sistema.id) ? 'bg-teal-50' : ''} ${cambiadas.has(String((sistema as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                       <td className="px-3 py-2 w-8">
                         <input type="checkbox" checked={selected.has(sistema.id)}
                           onChange={() => toggleSelect(sistema.id)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />

@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { QFDocumento, QFEstado } from '@ags/shared';
 import { qfDocumentosService } from '../../services/qfDocumentosService';
@@ -172,6 +173,9 @@ export function QFDocumentosList() {
   // Default widths in % (must sum ~ 100% considering hidden ones)
   const defaultPct = ['11%', '20%', '8%', '22%', '10%', '14%', '15%'];
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sorted, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -242,7 +246,7 @@ export function QFDocumentosList() {
                   const h = d.historial;
                   const ultimaRevision = (h && h.length > 0 ? h[h.length - 1].cambios : '') ?? '';
                   return (
-                    <tr key={d.id} className="hover:bg-slate-50">
+                    <tr key={d.id} className={`hover:bg-slate-50 ${cambiadas.has(String((d as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                       {!isHidden(0) && (
                         <td className={`px-3 py-2 font-mono text-xs font-semibold text-teal-700 truncate ${tdAlign(0)}`} title={`${d.numeroCompleto}.${d.versionActual}`}>
                           {d.numeroCompleto}.{d.versionActual}

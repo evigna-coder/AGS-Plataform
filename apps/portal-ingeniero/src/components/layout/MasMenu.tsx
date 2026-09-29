@@ -48,22 +48,23 @@ export default function MasMenu({ open, onClose }: MasMenuProps) {
   return (
     <div className="fixed inset-0 z-50 md:hidden" onClick={onClose}>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-black/40 motion-safe:animate-fade-in" />
       {/* Sheet */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 pb-8"
+        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 pb-8 motion-safe:animate-sheet-up"
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2 mb-2">Más opciones</p>
         <nav className="space-y-1">
-          {items.map(item => (
+          {items.map((item, i) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={onClose}
+              style={{ animationDelay: `${60 + Math.min(i, 8) * 25}ms` }}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors duration-200 motion-safe:animate-nav-in ${
                   isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'
                 }`
               }

@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { unidadesService, articulosService } from '../../services/firebaseService';
 import { posicionesStockService, reservasService } from '../../services/stockService';
@@ -232,6 +233,9 @@ export const UnidadesList = () => {
   const thBase = 'relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider';
   const resizer = (i: number) => <div onMouseDown={e => onResizeStart(i, e)} onDoubleClick={() => onAutoFit(i)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />;
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -339,7 +343,7 @@ export const UnidadesList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(u => (
-                  <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
+                  <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''} ${cambiadas.has(String((u as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className={`px-4 py-2 ${getAlignClass(0)}`}>
                       <button type="button" onClick={() => setVerArticuloId(u.articuloId)}
                         className="font-mono text-xs font-semibold text-teal-600 hover:underline">{u.articuloCodigo}</button>

@@ -9,6 +9,7 @@ import { perfilesConsumoService } from '../../services/perfilesConsumoService';
 import { articulosService } from '../../services/stockService';
 import { notify } from '../../utils/notify';
 import type { ModeloModuloOpcion } from '../../hooks/usePlanificacionInsumos';
+import { useFeedbackGuardado } from '../../hooks/useFeedbackGuardado';
 
 interface Props {
   open: boolean;
@@ -43,7 +44,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
   const [items, setItems] = useState<PerfilConsumoItem[]>([]);
   const [notas, setNotas] = useState('');
   const [activo, setActivo] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const fb = useFeedbackGuardado();
+  const saving = fb.estado !== 'idle';
   // Insumos y partes legibles desde el catálogo de stock (2026-09-28): el perfil
   // se arma con cualquier artículo, no solo con los ya planificables. El que se
   // agrega y no era planificable se marca al guardar (sin grupo).
@@ -85,8 +87,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
 
   const guardar = async () => {
     if (!puede || saving) return;
-    setSaving(true);
     try {
+      await fb.correr(async () => {
       const data = {
         nombre: nombre.trim(),
         criterio: {
@@ -111,12 +113,9 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
         onPlanificablesChanged?.();
       }
       notify.success(perfil ? 'Perfil actualizado' : 'Perfil creado');
-      onSaved();
-      onClose();
+      }, () => { onSaved(); onClose(); });
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'No se pudo guardar el perfil');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -135,7 +134,7 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
     <Modal open={open} onClose={onClose} title={perfil ? 'Editar perfil de consumo' : 'Nuevo perfil de consumo'} maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={guardar} disabled={!puede || saving}>{saving ? 'Guardando…' : 'Guardar'}</Button>
+        <Button size="sm" onClick={guardar} disabled={!puede} estado={fb.estado}>Guardar</Button>
       </>}>
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">

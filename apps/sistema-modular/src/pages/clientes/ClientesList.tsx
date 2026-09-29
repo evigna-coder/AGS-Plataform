@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
@@ -168,6 +169,9 @@ export const ClientesList = () => {
   );
   const filtrosExport = buildClientesFiltrosExport(filters);
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(deferredFiltered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Clientes" count={isInitialLoad ? undefined : filtered.length}
@@ -246,7 +250,7 @@ export const ClientesList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {deferredFiltered.map((cliente) => (
-                  <tr key={cliente.id} className={`hover:bg-slate-50 transition-colors ${selected.has(cliente.id) ? 'bg-teal-50' : ''}`}>
+                  <tr key={cliente.id} className={`hover:bg-slate-50 transition-colors ${selected.has(cliente.id) ? 'bg-teal-50' : ''} ${cambiadas.has(String((cliente as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className="px-3 py-2 w-8">
                       <input type="checkbox" checked={selected.has(cliente.id)}
                         onChange={() => toggleSelect(cliente.id)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />

@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { DispositivoModal } from '../../components/dispositivos/DispositivoModal';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
-import { softwareDeDispositivo, dispositivoTieneSoftware } from '@ags/shared';
+import { softwareDeDispositivo, dispositivoTieneSoftware, useFilasCambiadas } from '@ags/shared';
 import { DispositivoSoftwareCell } from '../../components/dispositivos/DispositivoSoftwareCell';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
@@ -93,6 +93,9 @@ export const DispositivosList = () => {
 
   const isInitialLoad = loading && items.length === 0;
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -149,7 +152,7 @@ export const DispositivosList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(d => (
-                  <tr key={d.id} className="hover:bg-slate-50">
+                  <tr key={d.id} className={`hover:bg-slate-50 ${cambiadas.has(String((d as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className={`px-4 py-2 ${getAlignClass(0)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[d.tipo]}`}>
                         {TIPO_LABELS[d.tipo]}

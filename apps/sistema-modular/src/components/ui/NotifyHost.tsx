@@ -22,13 +22,24 @@ const MAX_VISIBLES = 5;
  * cada uno se va solo según su tipo; los errores quedan más tiempo y se
  * pueden cerrar a mano. Se monta una vez en `App`.
  */
+const SALIDA_MS = 200;
+
 export function NotifyHost() {
   const [items, setItems] = useState<NotifyItem[]>([]);
+  // Ids que están saliendo: se quedan SALIDA_MS con la animación de salida y recién ahí se sacan (2026-09-29).
+  const [saliendo, setSaliendo] = useState<Set<number>>(new Set());
+  const cerrar = (id: number) => {
+    setSaliendo(prev => new Set(prev).add(id));
+    window.setTimeout(() => {
+      setItems(prev => prev.filter(i => i.id !== id));
+      setSaliendo(prev => { const n = new Set(prev); n.delete(id); return n; });
+    }, SALIDA_MS);
+  };
 
   useEffect(() => {
     registerNotifyHost(item => {
       setItems(prev => [...prev.slice(-(MAX_VISIBLES - 1)), item]);
-      window.setTimeout(() => setItems(prev => prev.filter(i => i.id !== item.id)), item.duration);
+      window.setTimeout(() => cerrar(item.id), item.duration);
     });
     return () => registerNotifyHost(null);
   }, []);
@@ -40,7 +51,7 @@ export function NotifyHost() {
         const e = ESTILO[item.kind];
         return (
           <div key={item.id} role={item.kind === 'error' ? 'alert' : 'status'}
-            className="pointer-events-auto flex bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden animate-slide-in">
+            className={`pointer-events-auto flex bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden ${saliendo.has(item.id) ? 'motion-safe:animate-toast-out' : 'motion-safe:animate-toast-in'}`}>
             <div className={`w-1 shrink-0 ${e.barra}`} />
             <div className="flex items-start gap-2.5 px-3 py-2.5 flex-1 min-w-0">
               <svg className={`w-4 h-4 mt-0.5 shrink-0 ${e.icono}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -51,7 +62,7 @@ export function NotifyHost() {
                 <p className="text-xs text-slate-800 whitespace-pre-wrap break-words">{item.message}</p>
               </div>
               <button type="button" aria-label="Cerrar"
-                onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))}
+                onClick={() => cerrar(item.id)}
                 className="text-slate-400 hover:text-slate-600 p-0.5 shrink-0">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

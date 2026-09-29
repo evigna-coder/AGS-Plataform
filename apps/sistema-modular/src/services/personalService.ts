@@ -255,6 +255,9 @@ export const usuariosService = {
         // usuario individualmente. SIN esto, canAccess() siempre cae a los
         // defaults del rol y los unticks en /usuarios/{id} se ignoraban.
         permisos: d.permisos ?? null,
+        // Preferencias de pantalla (2026-09-29): sin esto se guardaban en Firestore
+        // pero el perfil cargado al login no las traía y "no quedaban grabadas".
+        preferencias: d.preferencias ?? null,
         createdAt: d.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
@@ -282,6 +285,7 @@ export const usuariosService = {
     return {
       id: snap.id, email: d.email, displayName: d.displayName, photoURL: d.photoURL ?? null,
       role: d.role ?? null, status: d.status, permisos: d.permisos ?? null,
+      preferencias: d.preferencias ?? null,
       createdAt: d.createdAt?.toDate?.()?.toISOString() ?? '', updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? '',
       lastLoginAt: d.lastLoginAt?.toDate?.()?.toISOString() ?? '',
     } as UsuarioAGS;

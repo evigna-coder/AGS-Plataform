@@ -1,3 +1,4 @@
+import { useFilasCambiadas } from '@ags/shared';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { minikitsService } from '../../services/firebaseService';
@@ -110,6 +111,9 @@ export const MinikitsList = () => {
     }
   };
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sortedMinikits, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -221,7 +225,7 @@ export const MinikitsList = () => {
                   // One-click (pedido 2026-08-03): la fila entera abre el detalle;
                   // las acciones frenan la propagación.
                   <tr key={mk.id} onClick={() => navigate(`/stock/minikits/${mk.id}`)}
-                    className={`hover:bg-slate-50 cursor-pointer ${!mk.activo ? 'opacity-50' : ''}`}>
+                    className={`hover:bg-slate-50 cursor-pointer ${!mk.activo ? 'opacity-50' : ''} ${cambiadas.has(String((mk as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className={`px-2 py-2 ${getAlignClass(0)}`}>
                       <span className="font-mono font-semibold text-teal-600 text-xs whitespace-nowrap">{mk.codigo}</span>
                     </td>

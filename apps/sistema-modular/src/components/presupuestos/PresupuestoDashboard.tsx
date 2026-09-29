@@ -40,7 +40,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
   // sola línea. Al sumar Borradores pasaron a ser 7 (2026-08-19): se achicaron
   // padding, gap y cuerpo del número para que sigan entrando sin envolver.
   const cardCls = (kpi: KpiFilter) =>
-    `h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-colors overflow-hidden ${
+    `h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-[color,border-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md overflow-hidden ${
       activeKpi === kpi
         ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30'
         : 'border-slate-200 hover:border-teal-300'
@@ -54,7 +54,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       {/* Ver todos (2026-08-05): limpia el drill-down de cards Y el filtro de
           estado — las cards "tapaban" al desplegable y no había cómo salir. */}
       <button type="button" onClick={onVerTodos}
-        className={`h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-colors ${
+        className={`h-full bg-white border rounded-lg px-1.5 py-1 text-left w-full transition-[color,border-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md ${
           verTodosActivo ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'
         }`}
         title="Quitar filtros de cards y estado — ver todos los presupuestos">

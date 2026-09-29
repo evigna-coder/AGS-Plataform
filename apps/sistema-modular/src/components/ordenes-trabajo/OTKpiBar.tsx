@@ -55,7 +55,7 @@ export const OTKpiBar: React.FC<Props> = ({ kpis, estadoActivo, onFiltrar }) => 
             // el usuario queda encerrado en el filtro que eligió.
             onClick={() => onFiltrar(activo ? '' : kpi.filtro)}
             title={kpi.title}
-            className={`bg-white border rounded-lg px-3 py-1.5 min-w-[80px] text-left transition-colors ${
+            className={`bg-white border rounded-lg px-3 py-1.5 min-w-[80px] text-left transition-[color,border-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md ${
               activo ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'
             }`}
           >

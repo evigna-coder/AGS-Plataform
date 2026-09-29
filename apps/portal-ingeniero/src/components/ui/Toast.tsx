@@ -33,18 +33,24 @@ export function ToastContainer() {
     return () => { addToastGlobal = null; };
   }, [addToast]);
 
+  // Salida animada (2026-09-29): el toast se desvanece hacia la derecha 200 ms y recién ahí se saca.
+  const [saliendo, setSaliendo] = useState<Set<string>>(new Set());
+  const dismiss = useCallback((id: string) => {
+    setSaliendo(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      setSaliendo(prev => { const n = new Set(prev); n.delete(id); return n; });
+    }, 200);
+  }, []);
+
   // Auto-dismiss
   useEffect(() => {
     if (toasts.length === 0) return;
     const timer = setTimeout(() => {
-      setToasts(prev => prev.filter(t => Date.now() - t.timestamp < TOAST_DURATION));
+      toasts.filter(t => Date.now() - t.timestamp >= TOAST_DURATION).forEach(t => dismiss(t.id));
     }, TOAST_DURATION);
     return () => clearTimeout(timer);
-  }, [toasts]);
-
-  const dismiss = (id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  }, [toasts, dismiss]);
 
   const handleClick = (toast: ToastItem) => {
     dismiss(toast.id);
@@ -61,7 +67,7 @@ export function ToastContainer() {
         <div
           key={toast.id}
           onClick={() => handleClick(toast)}
-          className="pointer-events-auto bg-white border border-slate-200 rounded-xl shadow-lg p-3 cursor-pointer hover:bg-slate-50 transition-all animate-slide-in"
+          className={`pointer-events-auto bg-white border border-slate-200 rounded-xl shadow-lg p-3 cursor-pointer hover:bg-slate-50 transition-colors ${saliendo.has(toast.id) ? 'motion-safe:animate-toast-out' : 'motion-safe:animate-toast-in'}`}
         >
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">

@@ -17,8 +17,7 @@ import { Modal } from '../../components/ui/Modal';
 import type { UsuarioAGS, UserRole, AppId, ModuloId, UserPermissionsOverride } from '@ags/shared';
 import {
   USER_ROLE_LABELS, USER_STATUS_LABELS, USER_STATUS_COLORS,
-  ROLE_DEFAULTS, APP_LABELS, getUserPermissions, PERMISOS_VERSION,
-} from '@ags/shared';
+  ROLE_DEFAULTS, APP_LABELS, getUserPermissions, PERMISOS_VERSION, useFilasCambiadas } from '@ags/shared';
 import { PermisosModulosTree } from '../../components/usuarios/PermisosModulosTree';
 
 import { notify } from '../../utils/notify';
@@ -77,6 +76,9 @@ export const UsuariosList = () => {
 
   const isInitialLoad = loading && users.length === 0;
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(sortedUsers, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Usuarios" subtitle="Gestion de usuarios, roles y permisos" count={isInitialLoad ? undefined : users.length}
@@ -124,7 +126,7 @@ export const UsuariosList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedUsers.map(u => (
-                  <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.status === 'deshabilitado' ? 'opacity-50' : ''}`}>
+                  <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.status === 'deshabilitado' ? 'opacity-50' : ''} ${cambiadas.has(String((u as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className="px-3 py-2.5">
                       {u.photoURL ? (
                         <img src={u.photoURL} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />

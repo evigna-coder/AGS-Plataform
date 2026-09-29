@@ -10,7 +10,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateFichaModal } from '../../components/fichas/CreateFichaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { FichaPropiedad, EstadoFicha, Cliente } from '@ags/shared';
-import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
+import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS, useFilasCambiadas } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -189,6 +189,9 @@ export function FichasList() {
 
   const isInitialLoad = loading && fichas.length === 0;
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -314,7 +317,7 @@ export function FichasList() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(f => (
-                  <tr key={f.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/fichas/${f.id}`)}>
+                  <tr key={f.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${cambiadas.has(String((f as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`} onClick={() => navigate(`/fichas/${f.id}`)}>
                     <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                       <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>

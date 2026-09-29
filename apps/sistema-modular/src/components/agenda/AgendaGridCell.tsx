@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { AgendaCellPopover } from './AgendaCellPopover';
+import { useEntryCambiada } from '../../contexts/AgendaCambiosContext';
 import { colorDeCeldaAgenda } from '../../utils/agendaCellColor';
 
 interface AgendaGridCellProps {
@@ -63,6 +64,8 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
 }) => {
   const hasEntry = !!entryId;
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
+  // Destello de la entrada que acaba de cambiar en vivo (2026-09-29).
+  const cambiada = useEntryCambiada(entryId);
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: droppableId });
 
   // Only the start cell of an entry is draggable (for moving)
@@ -121,6 +124,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         ref={setNodeRef}
         {...(hasEntry && isStart ? { ...listeners, ...attributes } : {})}
         className={`${borderClass} cursor-pointer transition-colors relative
+          ${cambiada ? 'motion-safe:animate-celda-cambio' : ''}
           ${hasEntry ? bg : isDiaAgs ? 'bg-cyan-200/70' : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
           ${rounded}
           ${isToday && !hasEntry && !isFeriado && !isDiaAgs ? 'bg-teal-50/40' : ''}

@@ -36,13 +36,22 @@ export default function BottomNav() {
             key={tab.to}
             to={tab.to}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[10px] font-medium transition-colors ${
+              `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[10px] font-medium transition-colors duration-200 ${
                 isActive ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'
               }`
             }
           >
-            {tab.icon}
-            {tab.label}
+            {({ isActive }) => (
+              <>
+                {/* Píldora que aparece detrás del ícono activo y leve "pop" (2026-09-29). */}
+                <span className={`flex items-center justify-center rounded-full px-3 py-0.5 motion-safe:transition-[background-color,transform] motion-safe:duration-200 ${
+                  isActive ? 'bg-teal-50 motion-safe:scale-110' : 'bg-transparent'
+                }`}>
+                  {tab.icon}
+                </span>
+                {tab.label}
+              </>
+            )}
           </NavLink>
         ))}
         <button

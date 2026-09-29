@@ -15,6 +15,7 @@ import { establecimientoPerteneceACliente, establecimientoUnicoId, otSinAgenda }
 import { esFinDeSemana, mensajeFinDeSemana } from '../utils/finDeSemana';
 
 import { notify } from '../utils/notify';
+import { useFeedbackGuardado } from './useFeedbackGuardado';
 export interface EditOTFormState {
   clienteId: string;
   /** Editable desde 2026-08-09: el modal no tenia el campo, asi que una OT
@@ -76,6 +77,7 @@ const INITIAL_FORM: EditOTFormState = {
 export function useEditOTForm(open: boolean, otNumber: string, onClose: () => void, onSaved: () => void) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const fb = useFeedbackGuardado();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
@@ -499,8 +501,9 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         }
       }
 
-      onSaved();
-      onClose();
+      setSaving(false);
+      // Tilde verde un instante antes de cerrar (2026-09-29).
+      await fb.correr(async () => {}, () => { onSaved(); onClose(); });
     } catch { notify.error('Error al guardar'); }
     finally { setSaving(false); }
   };
@@ -545,7 +548,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const sinAgendaOT = otSinAgenda({ tipoOT: otOriginal?.tipoOT ?? null, tipoServicio: form.tipoServicio });
 
   return {
-    loading, saving, form, set, readOnly, sinAgendaOT,
+    loading, saving, estadoGuardado: (saving ? 'guardando' : fb.estado) as import('./useFeedbackGuardado').EstadoGuardado, form, set, readOnly, sinAgendaOT,
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
     establecimientosFiltrados, selectCliente,
     otOriginal, handleSave, openInReportesOT, handlePresupuestoChange,

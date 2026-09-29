@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { Loaner, CategoriaEquipoStock } from '@ags/shared';
-import { CATEGORIA_EQUIPO_STOCK_LABELS, ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos, quienTieneElPrestamo, partesDelPrestamo, estadoParte } from '@ags/shared';
+import { CATEGORIA_EQUIPO_STOCK_LABELS, ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS, loanerEstaIncompleto, loanerPartesFaltantes, prestamoModuloActivo, prestamosDeParteActivos, quienTieneElPrestamo, partesDelPrestamo, estadoParte, useFilasCambiadas } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -141,6 +141,9 @@ export function LoanersList() {
     'Incluye inactivos': filters.showInactivos,
   });
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -250,7 +253,7 @@ export function LoanersList() {
                   const diasProveedor = l.enProveedor ? diasDesde(l.enProveedor.fechaEnvio) : null;
 
                   return (
-                    <tr key={l.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/loaners/${l.id}`)}>
+                    <tr key={l.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${cambiadas.has(String((l as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`} onClick={() => navigate(`/loaners/${l.id}`)}>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                         <span className="font-semibold text-teal-600 text-xs">{l.codigo}</span>
                       </td>

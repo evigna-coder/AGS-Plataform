@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IngresoEmpresaModal } from '../../components/ingreso-empresas/IngresoEmpresaModal';
 import type { IngresoEmpresa, TipoIngresoCliente, DocumentoIngresoStatus } from '@ags/shared';
-import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS } from '@ags/shared';
+import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS, useFilasCambiadas } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ExportarButton } from '../../components/ui/ExportarButton';
 import { INGRESO_EMPRESAS_EXPORT_COLUMNS } from '../../utils/exports/exportIngresoEmpresas';
@@ -89,6 +89,9 @@ export const IngresoEmpresasList = () => {
 
   const isInitialLoad = loading && items.length === 0;
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -168,7 +171,7 @@ export const IngresoEmpresasList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50">
+                  <tr key={item.id} className={`hover:bg-slate-50 ${cambiadas.has(String((item as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className={`px-3 py-2 text-xs font-medium text-slate-900 sticky left-0 bg-white z-10 whitespace-nowrap ${getAlignClass(0)}`}>
                       <button onClick={() => handleEdit(item)} className="text-teal-700 hover:underline text-left">{item.clienteNombre}</button>
                     </td>

@@ -57,8 +57,8 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
       maxWidth="lg"
       footer={<>
         <Button variant="secondary" size="sm" onClick={h.handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={h.handleSave} disabled={h.saving || !!h.codigoDupWarning}>
-          {h.saving ? 'Guardando...' : 'Guardar'}
+        <Button estado={h.estadoGuardado} size="sm" onClick={h.handleSave} disabled={h.saving || !!h.codigoDupWarning}>
+          Guardar
         </Button>
       </>}>
       <div className="space-y-3">

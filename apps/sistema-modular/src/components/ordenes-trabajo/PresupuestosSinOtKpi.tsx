@@ -76,7 +76,7 @@ export function PresupuestosSinOtKpi({ ots, clientes }: Props) {
     <div ref={wrapRef} className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className={`bg-white border rounded-lg px-3 py-1.5 min-w-[80px] text-left transition-colors ${
+        className={`bg-white border rounded-lg px-3 py-1.5 min-w-[80px] text-left transition-[color,border-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md ${
           open ? 'border-orange-400 ring-1 ring-orange-300' : 'border-orange-200 hover:border-orange-400'
         }`}
         title="Presupuestos aceptados sin ninguna OT abierta — crear OT o entregar partes"

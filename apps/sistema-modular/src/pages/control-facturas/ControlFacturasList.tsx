@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { FACTURA_ESTADO_LABELS, FACTURA_ESTADO_COLORS } from '@ags/shared';
+import { FACTURA_ESTADO_LABELS, FACTURA_ESTADO_COLORS, useFilasCambiadas } from '@ags/shared';
 import type { Factura } from '@ags/shared';
 import { facturasService } from '../../services/facturasService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -128,6 +128,9 @@ export const ControlFacturasList = () => {
     finally { setBusyId(null); }
   };
 
+  // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
+  const cambiadas = useFilasCambiadas(filtered, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -195,7 +198,7 @@ export const ControlFacturasList = () => {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(f => (
                   <tr key={f.id} data-factura-row={f.id}
-                    className={filters.factura === f.id ? 'bg-teal-50 ring-1 ring-inset ring-teal-300' : 'hover:bg-slate-50'}>
+                    className={`${filters.factura === f.id ? 'bg-teal-50 ring-1 ring-inset ring-teal-300' : 'hover:bg-slate-50'} ${cambiadas.has(String((f as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
                     <td className="px-3 py-2 text-[11px] font-mono text-slate-500 whitespace-nowrap">{f.numero ?? '—'}</td>
                     <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{formatFecha(f.createdAt)}</td>
                     <td className="px-3 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">

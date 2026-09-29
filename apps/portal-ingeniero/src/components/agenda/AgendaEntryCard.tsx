@@ -120,7 +120,7 @@ export default function AgendaEntryCard({ entry, showEngineer, otInfo }: Props) 
   return entry.otNumber ? (
     <div role="button" tabIndex={0} onClick={() => abrirResumen(entry.otNumber!)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirResumen(entry.otNumber!); } }}
-      className={`${cardCls} cursor-pointer hover:border-teal-400 active:bg-teal-50/50 transition-colors`}>
+      className={`${cardCls} cursor-pointer hover:border-teal-400 active:bg-teal-50/50 transition-[border-color,background-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md`}>
       {inner}
     </div>
   ) : (
