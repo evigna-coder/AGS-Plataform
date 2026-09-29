@@ -12,7 +12,7 @@ import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/Accord
  * Soporta: rangos (95 – 105), NMT/NLT, >, <, >=, <=, número exacto, N/A.
  * Retorna: 'PASS' | 'FAIL' | 'NA' | '' (vacío = no se pudo determinar)
  */
-function computeConclusion(resultado: string, spec: string, nominal?: string): 'PASS' | 'FAIL' | 'NA' | '' {
+export function computeConclusion(resultado: string, spec: string, nominal?: string): 'PASS' | 'FAIL' | 'NA' | '' {
   const r = resultado.trim();
   if (!r) return '';
 
@@ -32,6 +32,10 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     const m = str.match(/([+-]?\d+[.,]\d+|[+-]?\d+)/);
     return m ? parseFloat(m[0].replace(',', '.')) : NaN;
   };
+  // Las restas en binario arrastran ruido (51.1 - 50.3 = 0.8000000000000043) y un
+  // resultado exactamente en el límite daba FAIL. Se redondea la diferencia a 9
+  // decimales antes de comparar: muy por debajo de cualquier resolución de instrumento.
+  const absDiff = (a: number, b: number): number => Math.round(Math.abs(a - b) * 1e9) / 1e9;
 
   // Rango con operadores: "≥ -1.0 ≤+5.0°C" | ">= -1.0 <= 5.0"
   // Soporta cualquier variante de ≥/>=/>  y ≤/<=/< con números positivos o negativos
@@ -72,7 +76,7 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     const nominalNum = parseFloat(pmInlineMatch[1].replace(',', '.'));
     const tolerance = parseFloat(pmInlineMatch[2].replace(',', '.'));
     if (!isNaN(nominalNum) && !isNaN(tolerance)) {
-      return Math.abs(numR - nominalNum) <= tolerance ? 'PASS' : 'FAIL';
+      return absDiff(numR, nominalNum) <= tolerance ? 'PASS' : 'FAIL';
     }
   }
 
@@ -83,7 +87,7 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     if (isNaN(tolerance)) return '';
     // If nominal value provided, compare delta from nominal; otherwise treat resultado as delta
     const numNominal = nominal ? extractNum(nominal) : NaN;
-    const delta = !isNaN(numNominal) ? Math.abs(numR - numNominal) : Math.abs(numR);
+    const delta = !isNaN(numNominal) ? absDiff(numR, numNominal) : Math.abs(numR);
     return delta <= tolerance ? 'PASS' : 'FAIL';
   }
 
