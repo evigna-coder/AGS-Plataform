@@ -82,7 +82,7 @@ export const OTList = () => {
     busquedaDescripcion: filters.busquedaDescripcion,
   });
 
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden, toggleCol, showAllCols } = useResizableColumns('ot-list-v2');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden, toggleCol, showAllCols } = useResizableColumns('ot-list-v3');
 
   // Índice de términos de módulo (modelo / descripción / serie) por sistema, para
   // que el buscador del filtro encuentre un equipo por su módulo. Se carga a

@@ -4,6 +4,7 @@ import type { AgendaControlEstado, AgendaControlRow } from '../../hooks/useContr
 import { StatusBadge } from '../ui/StatusBadge';
 import { EmptyState } from '../ui/EmptyState';
 import { DiasTrabado } from './DiasTrabado';
+import { ComentarioInline } from './ComentarioInline';
 
 interface Props {
   rows: AgendaControlRow[];
@@ -14,6 +15,8 @@ interface Props {
   /** Cuántas se sacaron a mano, para poder reponerlas. */
   excluidas?: number;
   onVerExcluidas?: () => void;
+  /** Comentario del control sobre la OT: se guarda en la OT y la sigue a otras semanas (2026-09-29). */
+  onSaveComentario?: (otNumber: string, comentario: string) => Promise<void>;
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -42,7 +45,7 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone: strin
   </div>
 );
 
-export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, onExcluir, excluidas, onVerExcluidas }) => (
+export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, onExcluir, excluidas, onVerExcluidas, onSaveComentario }) => (
   <section className="space-y-2">
     <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
       1 · Agenda de la semana vs. cierre de OTs
@@ -70,6 +73,7 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
               <th className={thClass}>Estado</th>
               <th className={thClass}>Trabada</th>
               <th className={thClass}>Motivo</th>
+              {onSaveComentario && <th className={`${thClass} w-56`}>Comentario</th>}
               <th className={thClass} />
             </tr>
           </thead>
@@ -125,6 +129,14 @@ export const AgendaControlSection: React.FC<Props> = ({ rows, kpis, onOpenOT, on
                       ? <span className="text-slate-300">—</span>
                       : motivos.map((m, i) => <p key={i} className={estado === 'sin_realizar' ? 'text-red-600' : 'text-amber-600'}>{m}</p>)}
                   </td>
+                  {onSaveComentario && (
+                    <td className="px-2 py-1.5">
+                      {ot ? (
+                        <ComentarioInline key={`${ot.otNumber}:${ot.comentarioControlSemanal ?? ''}`} id={ot.otNumber}
+                          valor={ot.comentarioControlSemanal ?? ''} placeholder="Comentario…" onSave={onSaveComentario} />
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                  )}
                   {/* Sacar del control (2026-08-19): una visita que se
                       recoordinó cierra en OTRA semana. Para la agenda las dos
                       son ciertas; para el control solo importa la del cierre. */}

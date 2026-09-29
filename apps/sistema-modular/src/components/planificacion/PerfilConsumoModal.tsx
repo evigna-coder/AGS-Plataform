@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Articulo, CriterioPerfilConsumo, DetectorType, InletType, PerfilConsumo, PerfilConsumoItem } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -6,15 +6,23 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { perfilesConsumoService } from '../../services/perfilesConsumoService';
+import { articulosService } from '../../services/stockService';
 import { notify } from '../../utils/notify';
+import type { ModeloModuloOpcion } from '../../hooks/usePlanificacionInsumos';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   perfil: PerfilConsumo | null;
+  /** Insumos planificables: los que ya están en la planificación. */
   articulos: Articulo[];
   categorias: Array<{ id: string; nombre: string }>;
+  /** Modelos de módulo y marcas legibles desde Equipos (catálogo + módulos cargados). */
+  modelosModulo: ModeloModuloOpcion[];
+  marcas: string[];
+  /** Avisar que hubo artículos nuevos marcados planificables al guardar. */
+  onPlanificablesChanged?: () => void;
 }
 
 const DETECTORES: DetectorType[] = ['FID', 'NCD', 'NPD', 'FPD', 'ECD', 'uECD', 'SCD', 'TCD', 'MSD'];
@@ -29,13 +37,26 @@ const VACIO: CriterioPerfilConsumo = { ambito: 'modulo', codigoModulo: '' };
  * marca/detector/puerto, o categoría) y qué insumos críticos consume cada
  * mantenimiento preventivo. Solo se eligen artículos planificables.
  */
-export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, categorias }: Props) {
+export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, categorias, modelosModulo, marcas, onPlanificablesChanged }: Props) {
   const [nombre, setNombre] = useState('');
   const [criterio, setCriterio] = useState<CriterioPerfilConsumo>(VACIO);
   const [items, setItems] = useState<PerfilConsumoItem[]>([]);
   const [notas, setNotas] = useState('');
   const [activo, setActivo] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Insumos y partes legibles desde el catálogo de stock (2026-09-28): el perfil
+  // se arma con cualquier artículo, no solo con los ya planificables. El que se
+  // agrega y no era planificable se marca al guardar (sin grupo).
+  const [catalogo, setCatalogo] = useState<Articulo[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    articulosService.getAll().then(setCatalogo).catch(err => console.error('[PerfilConsumoModal] catálogo:', err));
+  }, [open]);
+  const catalogoById = useMemo(() => {
+    const m = new Map(catalogo.map(a => [a.id, a]));
+    for (const a of articulos) m.set(a.id, a);
+    return m;
+  }, [catalogo, articulos]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +71,7 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
   const cambiarAmbito = (ambito: CriterioPerfilConsumo['ambito']) => setCriterio({ ambito });
 
   const agregarItem = (articuloId: string) => {
-    const a = articulos.find(x => x.id === articuloId);
+    const a = catalogoById.get(articuloId);
     if (!a || items.some(i => i.articuloId === articuloId)) return;
     setItems(prev => [...prev, { articuloId: a.id, articuloCodigo: a.codigo, cantidadPorServicio: 1, porPuerto: null }]);
   };
@@ -82,6 +103,13 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
       };
       if (perfil) await perfilesConsumoService.update(perfil.id, data);
       else await perfilesConsumoService.create(data);
+      // Lo que entra a un perfil pasa a ser planificable: si no, la tabla no lo mostraría.
+      const nuevos = items.filter(i => !articulos.some(a => a.id === i.articuloId));
+      if (nuevos.length > 0) {
+        await Promise.all(nuevos.map(i => articulosService.update(i.articuloId, { planificable: true })));
+        notify.info(`${nuevos.length} artículo${nuevos.length === 1 ? '' : 's'} marcado${nuevos.length === 1 ? '' : 's'} como planificable${nuevos.length === 1 ? '' : 's'} (sin grupo)`);
+        onPlanificablesChanged?.();
+      }
       notify.success(perfil ? 'Perfil actualizado' : 'Perfil creado');
       onSaved();
       onClose();
@@ -92,7 +120,15 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
     }
   };
 
-  const disponibles = articulos.filter(a => !items.some(i => i.articuloId === a.id));
+  const disponibles = useMemo(() => {
+    const elegidos = new Set(items.map(i => i.articuloId));
+    const planificables = new Set(articulos.map(a => a.id));
+    const base = catalogo.length > 0 ? catalogo : articulos;
+    // Planificables primero, después el resto del catálogo.
+    return [...base].filter(a => !elegidos.has(a.id) && a.activo !== false)
+      .sort((a, b) => Number(planificables.has(b.id)) - Number(planificables.has(a.id)) || a.codigo.localeCompare(b.codigo))
+      .map(a => ({ value: a.id, label: `${a.codigo} · ${a.descripcion}`, subLabel: planificables.has(a.id) ? 'planificable' : undefined }));
+  }, [catalogo, articulos, items]);
   const esGc = criterio.ambito === 'gc';
 
   return (
@@ -118,13 +154,24 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
 
         {criterio.ambito === 'modulo' && (
           <div>
-            <Input inputSize="sm" label="Código de módulo (prefijo)" value={criterio.codigoModulo ?? ''} onChange={e => setC('codigoModulo', e.target.value)}
-              placeholder="G1311" description="Matchea contra el nombre o la descripción de los módulos del equipo: G1311 cubre G1311A y G1311B." />
+            <label className={lbl}>Modelo de módulo</label>
+            <SearchableSelect value={criterio.codigoModulo ?? ''} onChange={v => setC('codigoModulo', v)} size="sm" creatable createLabel="Usar código"
+              placeholder="Elegí un modelo (catálogo o cargado en equipos)…"
+              options={modelosModulo.map(m => ({
+                value: m.codigo,
+                label: `${m.codigo} · ${m.descripcion}`,
+                subLabel: [m.marca, m.enEquipos > 0 ? `${m.enEquipos} en equipos` : 'solo catálogo'].filter(Boolean).join(' · '),
+              }))} />
+            <p className="text-[10px] text-slate-400 mt-1">Aplica a todo módulo cuyo nombre o descripción empiece con ese código: G1311 cubre G1311A y G1311B. Dos módulos iguales consumen el doble.</p>
           </div>
         )}
         {esGc && (
           <div className="grid grid-cols-3 gap-3">
-            <Input inputSize="sm" label="Marca" value={criterio.marca ?? ''} onChange={e => setC('marca', e.target.value)} placeholder="Agilent, JAS…" />
+            <div>
+              <label className={lbl}>Marca</label>
+              <SearchableSelect value={criterio.marca ?? ''} onChange={v => setC('marca', v || null)} size="sm" creatable createLabel="Usar marca"
+                placeholder="Cualquiera" options={[{ value: '', label: 'Cualquiera' }, ...marcas.map(m => ({ value: m, label: m }))]} />
+            </div>
             <div>
               <label className={lbl}>Detector</label>
               <Select value={criterio.detector ?? ''} onChange={e => setC('detector', (e.target.value || null) as DetectorType | null)} className="w-full">
@@ -140,7 +187,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
               </Select>
             </div>
             <p className="col-span-3 text-[10px] text-slate-400">
-              Se lee la configuración GC del equipo. Un ítem "por puerto" se multiplica por la cantidad de puertos (todos, o solo los del tipo elegido).
+              Se lee la configuración GC del equipo (marca de sus módulos, detectores y puertos de inyección front / back / aux). Un ítem "por puerto"
+              se multiplica por la cantidad de puertos cargados en el equipo: con 2 puertos son 2 unidades por servicio (o solo los del tipo elegido).
             </p>
           </div>
         )}
@@ -157,8 +205,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Insumos por servicio</span>
             <div className="w-72">
-              <SearchableSelect value="" onChange={agregarItem} size="sm" placeholder="+ Agregar insumo planificable…"
-                options={disponibles.map(a => ({ value: a.id, label: `${a.codigo} · ${a.descripcion}` }))} emptyMessage="Sin planificables libres" />
+              <SearchableSelect value="" onChange={agregarItem} size="sm" placeholder="+ Agregar insumo o parte del catálogo…"
+                options={disponibles} emptyMessage="Sin resultados en el catálogo" />
             </div>
           </div>
           {items.length === 0 ? (
@@ -166,7 +214,7 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
           ) : (
             <div className="space-y-1">
               {items.map(i => {
-                const a = articulos.find(x => x.id === i.articuloId);
+                const a = catalogoById.get(i.articuloId);
                 return (
                   <div key={i.articuloId} className={`grid ${esGc ? 'grid-cols-[1fr_90px_100px_24px]' : 'grid-cols-[1fr_90px_24px]'} gap-2 items-center`}>
                     <span className="text-xs text-slate-700 truncate"><span className="font-mono">{i.articuloCodigo}</span> <span className="text-slate-400">{a?.descripcion}</span></span>

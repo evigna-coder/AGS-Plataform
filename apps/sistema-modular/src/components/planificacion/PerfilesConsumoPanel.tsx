@@ -6,6 +6,7 @@ import { confirmar } from '../ui/ConfirmDialog';
 import { perfilesConsumoService } from '../../services/perfilesConsumoService';
 import { notify } from '../../utils/notify';
 import { PerfilConsumoModal } from './PerfilConsumoModal';
+import type { ModeloModuloOpcion } from '../../hooks/usePlanificacionInsumos';
 
 interface Props {
   perfiles: PerfilConsumo[];
@@ -13,7 +14,11 @@ interface Props {
   perfilesCatalogo: PerfilConsumo[];
   articulos: Articulo[];
   categorias: Array<{ id: string; nombre: string }>;
+  modelosModulo: ModeloModuloOpcion[];
+  marcas: string[];
   onChanged: () => void;
+  /** Se marcaron artículos nuevos como planificables: recargar la planificación. */
+  onPlanificablesChanged: () => void;
 }
 
 function describirCriterio(p: PerfilConsumo, categorias: Props['categorias']): string {
@@ -24,7 +29,7 @@ function describirCriterio(p: PerfilConsumo, categorias: Props['categorias']): s
 }
 
 /** Lista de perfiles de consumo con alta, edición y baja. */
-export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, categorias, onChanged }: Props) {
+export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, categorias, modelosModulo, marcas, onChanged, onPlanificablesChanged }: Props) {
   const [editando, setEditando] = useState<PerfilConsumo | null | undefined>(undefined); // undefined = cerrado, null = nuevo
 
   const borrar = async (p: PerfilConsumo) => {
@@ -90,7 +95,8 @@ export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, ca
         )}
       </div>
       <PerfilConsumoModal open={editando !== undefined} onClose={() => setEditando(undefined)} onSaved={onChanged}
-        perfil={editando ?? null} articulos={articulos} categorias={categorias} />
+        perfil={editando ?? null} articulos={articulos} categorias={categorias} modelosModulo={modelosModulo} marcas={marcas}
+        onPlanificablesChanged={onPlanificablesChanged} />
     </div>
   );
 }

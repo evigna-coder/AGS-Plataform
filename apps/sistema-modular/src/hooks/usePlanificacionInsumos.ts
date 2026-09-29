@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Articulo, PerfilConsumo } from '@ags/shared';
 import {
-  categoriasEquipoService, clientesService, contratosService, establecimientosService,
+  categoriasEquipoService, categoriasModuloService, clientesService, contratosService, establecimientosService,
   importacionesService, modulosService, ordenesCompraService, ordenesTrabajoService,
   sistemasService, unidadesService, articulosService, agendaService,
 } from '../services/firebaseService';
@@ -15,6 +15,42 @@ import {
 
 /** Todo lo que el motor necesita menos el horizonte (que cambia sin recargar). */
 type Datos = Omit<EntradaMotor, 'hoy' | 'horizonteMeses' | 'agenda'> & { agendaPorAnio: Map<number, EntradaMotor['agenda']> };
+
+/** Opción de modelo de módulo para el criterio de un perfil (catálogo + lo cargado en equipos). */
+export interface ModeloModuloOpcion { codigo: string; descripcion: string; marca?: string | null; enEquipos: number }
+
+/**
+ * Modelos y marcas legibles desde Equipos (2026-09-28, pedido del usuario): el
+ * perfil se arma eligiendo, no tipeando. Modelos = catálogo `categorias_modulo`
+ * más los códigos que aparecen en los módulos reales (nombre tipo "G1311B");
+ * marcas = las de los módulos cargados, las más usadas primero.
+ */
+function opcionesDesdeEquipos(
+  catalogo: Awaited<ReturnType<typeof categoriasModuloService.getAll>>,
+  modulos: Array<{ nombre: string; descripcion?: string; marca?: string }>,
+): { modelos: ModeloModuloOpcion[]; marcas: string[] } {
+  const porCodigo = new Map<string, ModeloModuloOpcion>();
+  for (const cat of catalogo) for (const m of cat.modelos ?? []) {
+    const codigo = m.codigo.trim().toUpperCase();
+    if (codigo) porCodigo.set(codigo, { codigo, descripcion: `${m.descripcion}${cat.nombre ? ` · ${cat.nombre}` : ''}`, marca: m.marca ?? null, enEquipos: 0 });
+  }
+  const marcas = new Map<string, number>();
+  for (const mod of modulos) {
+    const marca = mod.marca?.trim();
+    if (marca) marcas.set(marca, (marcas.get(marca) ?? 0) + 1);
+    // Código de modelo en el nombre o la descripción ("G1311B", "G7129A").
+    const texto = `${mod.nombre} ${mod.descripcion ?? ''}`.toUpperCase();
+    const cod = texto.match(/\b[A-Z]{1,2}\d{3,5}[A-Z]?\b/)?.[0];
+    if (!cod) continue;
+    const existente = porCodigo.get(cod);
+    if (existente) existente.enEquipos += 1;
+    else porCodigo.set(cod, { codigo: cod, descripcion: mod.nombre, marca: marca || null, enEquipos: 1 });
+  }
+  return {
+    modelos: [...porCodigo.values()].sort((a, b) => a.codigo.localeCompare(b.codigo)),
+    marcas: [...marcas.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m),
+  };
+}
 
 const hoyYMD = () => new Date().toISOString().slice(0, 10);
 
@@ -47,6 +83,7 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
   const [perfiles, setPerfiles] = useState<PerfilConsumo[]>([]);
   const [perfilesCatalogo, setPerfilesCatalogo] = useState<PerfilConsumo[]>([]);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [opciones, setOpciones] = useState<{ modelos: ModeloModuloOpcion[]; marcas: string[] }>({ modelos: [], marcas: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -66,13 +103,14 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
     const hoy = hoyYMD();
     const anios = new Set(mesesDesde(hoy, 12).map(m => Number(m.slice(0, 4))));
     (async () => {
-      const [planificables, propios, catalogo, sistemas, modulos, categorias, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await Promise.all([
+      const [planificables, propios, catalogo, sistemas, modulos, categorias, catalogoModulos, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await Promise.all([
         articulosService.getPlanificables(),
         perfilesConsumoService.getAll(),
         consumiblesPorModuloService.getAll(),
         sistemasService.getAll({ activosOnly: true }),
         modulosService.getAllGrouped(),
         categoriasEquipoService.getAll(),
+        categoriasModuloService.getAll().catch(() => []),
         establecimientosService.getAll(),
         clientesService.getAll(),
         ordenesTrabajoService.getAll(),
@@ -95,6 +133,7 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
       const agendaPorAnio = new Map<number, EntradaMotor['agenda']>();
       [...anios].forEach((a, i) => agendaPorAnio.set(a, (agendas[i] ?? []).map(e => ({ otNumber: e.otNumber, fechaInicio: e.fechaInicio, estadoAgenda: e.estadoAgenda }))));
       setArticulos(planificables);
+      setOpciones(opcionesDesdeEquipos(catalogoModulos, modulos));
       setPerfiles(propios);
       setPerfilesCatalogo(perfilesDesdeCatalogo(catalogo, planificables));
       setDatos({
@@ -143,5 +182,5 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
     return planificarInsumos({ ...resto, hoy, horizonteMeses, agenda, perfiles: [...perfiles, ...perfilesCatalogo] });
   }, [datos, perfiles, perfilesCatalogo, horizonteMeses]);
 
-  return { resultado, articulos, perfiles, perfilesCatalogo, categorias: datos?.categorias ?? [], loading, error, recargar, recargarPerfiles };
+  return { resultado, articulos, perfiles, perfilesCatalogo, categorias: datos?.categorias ?? [], modelosModulo: opciones.modelos, marcas: opciones.marcas, loading, error, recargar, recargarPerfiles };
 }

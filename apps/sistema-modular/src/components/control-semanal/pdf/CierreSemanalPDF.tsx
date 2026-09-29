@@ -64,6 +64,7 @@ const colsOT: Col[] = [
   { h: 'ESTADO', w: 70, get: r => r.estado, estilo: r => (r.estado === 'Sin realizar' ? s.rojo : r.estado === 'Sin cierre admin' ? s.ambar : nada) },
   { h: 'TRABADA', w: 38, get: r => dias(r.diasTrabado), estilo: r => colorDias(r.diasTrabado) },
   { h: 'MOTIVO', get: r => r.motivos.join(' · ') },
+  { h: 'COMENTARIO', w: 110, get: r => r.comentario ?? '', estilo: () => s.muted },
 ];
 const colsEntregas: Col[] = [
   { h: 'OT', w: 48, get: r => r.otNumber },

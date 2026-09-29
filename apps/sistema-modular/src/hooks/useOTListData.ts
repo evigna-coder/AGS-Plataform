@@ -7,13 +7,14 @@ import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
 import { fechaLocalYMD } from '../utils/formatFecha';
 import { matchesSearch } from '../utils/searchTerms';
 import { useEstablecimientoNombreById } from './useEstablecimientoSuffix';
+import { envioEstadoDe, type EnvioEstado } from '../components/ordenes-trabajo/OTEnvioCell';
 
 import { notify } from '../utils/notify';
 /** WorkOrder + fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox,
  *  la que se setea al asignar en agenda — definición de Esteban, UAT 2026-07-17).
  *  Se adjunta al cargar el snapshot para que el sort (sortByField) y el filtro por
  *  tipoFecha la traten como un campo más. Tipo local — no va a @ags/shared. */
-type WorkOrderConAsignacion = WorkOrder & { fechaAsignacion: string };
+type WorkOrderConAsignacion = WorkOrder & { fechaAsignacion: string; envioEstado: EnvioEstado };
 
 export interface OTListFilters {
   clienteId: string;
@@ -93,7 +94,7 @@ export function useOTListData(filters: OTListFilters) {
       undefined,
       // Adjuntar la fecha de asignación (= agendada) una vez por snapshot: la usan
       // la columna "Asignada" (sort) y el filtro por tipoFecha.
-      (data) => { setOrdenes(data.map(ot => ({ ...ot, fechaAsignacion: ot.fechaServicioAprox ?? '' }))); setLoading(false); },
+      (data) => { setOrdenes(data.map(ot => ({ ...ot, fechaAsignacion: ot.fechaServicioAprox ?? '', envioEstado: envioEstadoDe(ot) }))); setLoading(false); },
       (err) => { console.error('Error OTs:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };

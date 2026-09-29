@@ -1,6 +1,7 @@
 import type { AgendaControlEstado, OTArrastreRow } from '../../hooks/useControlSemanal';
 import { StatusBadge } from '../ui/StatusBadge';
 import { DiasTrabado } from './DiasTrabado';
+import { ComentarioInline } from './ComentarioInline';
 
 interface Props {
   rows: OTArrastreRow[];
@@ -9,6 +10,8 @@ interface Props {
   onExcluir?: (otNumber: string) => void;
   excluidas?: number;
   onVerExcluidas?: () => void;
+  /** Comentario del control sobre la OT (vive en la OT, por eso aparece acá aunque venga de otra semana). */
+  onSaveComentario?: (otNumber: string, comentario: string) => Promise<void>;
 }
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -37,7 +40,7 @@ const fmtFecha = (iso: string | null) => {
  * antigüedad — lo más trabado arriba.
  */
 export const OTArrastreSection: React.FC<Props> = ({
-  rows, onOpenOT, onExcluir, excluidas, onVerExcluidas,
+  rows, onOpenOT, onExcluir, excluidas, onVerExcluidas, onSaveComentario,
 }) => (
   <section className="space-y-2">
     <div className="flex items-center justify-between">
@@ -68,6 +71,7 @@ export const OTArrastreSection: React.FC<Props> = ({
               <th className={thClass}>Estado</th>
               <th className={thClass}>Trabada</th>
               <th className={thClass}>Motivo</th>
+              {onSaveComentario && <th className={`${thClass} w-56`}>Comentario</th>}
               <th className={thClass} />
             </tr>
           </thead>
@@ -111,6 +115,12 @@ export const OTArrastreSection: React.FC<Props> = ({
                         <p key={i} className={estado === 'sin_realizar' ? 'text-red-600' : 'text-amber-600'}>{m}</p>
                       ))}
                   </td>
+                  {onSaveComentario && (
+                    <td className="px-2 py-1.5">
+                      <ComentarioInline key={`${ot.otNumber}:${ot.comentarioControlSemanal ?? ''}`} id={ot.otNumber}
+                        valor={ot.comentarioControlSemanal ?? ''} placeholder="Comentario…" onSave={onSaveComentario} />
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     {onExcluir && (
                       <button onClick={() => onExcluir(ot.otNumber)}

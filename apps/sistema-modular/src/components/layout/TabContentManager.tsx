@@ -115,6 +115,7 @@ const AsignacionesList = pagina(() => import('../../pages/stock').then(m => m.As
 const AsignacionDetail = pagina(() => import('../../pages/stock').then(m => m.AsignacionDetail));
 const InventarioIngenieroPage = pagina(() => import('../../pages/stock').then(m => m.InventarioIngenieroPage));
 const PlanificacionInsumosPage = pagina(() => import('../../pages/stock').then(m => m.PlanificacionInsumosPage));
+const InventarioAnualPage = pagina(() => import('../../pages/stock').then(m => m.InventarioAnualPage));
 const IngresoEmpresasList = pagina(() => import('../../pages/ingreso-empresas').then(m => m.IngresoEmpresasList));
 const DispositivosList = pagina(() => import('../../pages/dispositivos').then(m => m.DispositivosList));
 const VehiculosList = pagina(() => import('../../pages/vehiculos').then(m => m.VehiculosList));
@@ -303,6 +304,7 @@ function AppRoutes() {
       <Route path="/stock/posiciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesPage /></ProtectedRoute>} />
       <Route path="/stock/posiciones-arancelarias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesArancelariasPage /></ProtectedRoute>} />
       <Route path="/stock/marcas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MarcasPage /></ProtectedRoute>} />
+      <Route path="/stock/inventario-anual" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><InventarioAnualPage /></ProtectedRoute>} />
       {/* Planificación de insumos críticos (2026-09-28) — planner/Comex only */}
       <Route path="/stock/planificacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte']}><PlanificacionInsumosPage /></ProtectedRoute>} />
       <Route path="/stock/asignaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesVistaPage /></ProtectedRoute>} />

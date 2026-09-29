@@ -312,6 +312,8 @@ export interface WorkOrder {
    * es adonde se trasladó. Por eso la exclusión guarda de qué semana se sacó.
    */
   controlSemanalExcluidoSemanas?: string[];
+  /** Comentario del control semanal sobre la OT (2026-09-29). Vive en la OT: la sigue si arrastra a otra semana. */
+  comentarioControlSemanal?: string | null;
   requisitoFacturacionPendiente?: RequisitoFacturacion | null;
   /** Certificación del cliente que liberó esta OT (clientes 'certificacion'). Trazabilidad. */
   certificacionId?: string | null;
@@ -1665,6 +1667,8 @@ export interface AdminConfigFlujos {
 export interface CierreSemanalFilaOT {
   otNumber: string; cliente: string; ingeniero: string; fecha: string; servicio: string;
   estado: string; diasTrabado: number | null; motivos: string[];
+  /** Comentario del control sobre la OT (2026-09-29). */
+  comentario?: string | null;
 }
 export interface CierreSemanalFilaEntrega {
   otNumber: string; cliente: string; servicio: string; presupuestos: string[]; valor: string; estado: string; creada: string;
@@ -4077,6 +4081,12 @@ export interface Articulo {
   /** Grupo de la planificación (HPLC, GC, especiales, lámparas). Solo si `planificable`. */
   grupoPlanificacion?: GrupoPlanificacion | null;
   /**
+   * Inventario anual (2026-09-29): el usuario confirmó que es vendible aunque
+   * el código termine en B/C o alguna unidad tenga condición no vendible.
+   * Persiste de un año al otro.
+   */
+  vendibleConfirmado?: boolean | null;
+  /**
    * Phase 13 STKE-01 — vinculación 1→1 con artículo de uso. Tipo: ArticuloEquivalencia[].
    * Vive en el artículo de COMPRA. En v1 a lo sumo un elemento (la forma array deja la puerta abierta a futuro).
    * Use `articulosService.linkEquivalencia/unlinkEquivalencia` para mutarlo — no escribir directo.
@@ -5900,6 +5910,9 @@ export interface RequerimientoCompra {
   condicional?: boolean;
   /** Razón de cancelación automática (p.ej. al anular el presupuesto origen). */
   canceladoPor?: 'presupuesto_anulado' | 'manual' | string | null;
+  /** Motivo escrito al cancelar a mano desde el detalle (2026-09-28). */
+  motivoCancelacion?: string | null;
+  fechaCancelacion?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;
@@ -6530,6 +6543,7 @@ export const ALL_MODULOS = [
   // Stock · Operación
   'stock-unidades', 'stock-minikits', 'stock-minikits-faltantes', 'stock-asignaciones',
   'stock-asignaciones-historial', 'stock-remitos', 'stock-movimientos', 'stock-consumos', 'stock-alertas',
+  'stock-inventario-anual',
   // Stock · Compras
   'stock-requerimientos', 'stock-planificacion', 'stock-ordenes-compra', 'stock-importaciones', 'pagos', 'entregas',
   // Stock · Activos
@@ -6552,7 +6566,7 @@ export type ModuloId = typeof ALL_MODULOS[number];
  */
 const MODULOS_GRUESOS: Record<string, ModuloId[]> = {
   'stock-operacion': ['stock-unidades', 'stock-minikits', 'stock-minikits-faltantes', 'stock-asignaciones',
-    'stock-asignaciones-historial', 'stock-remitos', 'stock-movimientos', 'stock-consumos', 'stock-alertas'],
+    'stock-asignaciones-historial', 'stock-remitos', 'stock-movimientos', 'stock-consumos', 'stock-alertas', 'stock-inventario-anual'],
   'stock-compras': ['stock-requerimientos', 'stock-planificacion', 'stock-ordenes-compra', 'stock-importaciones', 'entregas'],
   'stock-catalogos': ['stock-articulos', 'stock-proveedores', 'stock-posiciones', 'stock-posiciones-arancelarias', 'stock-marcas'],
   // Módulos que SIGUEN existiendo pero antes arrastraban sub-pantallas.
@@ -6630,6 +6644,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/stock/movimientos': 'stock-movimientos',
   '/stock/consumos': 'stock-consumos',
   '/stock/alertas': 'stock-alertas',
+  '/stock/inventario-anual': 'stock-inventario-anual',
   '/stock/requerimientos': 'stock-requerimientos',
   '/stock/planificacion': 'stock-planificacion',
   '/stock/ordenes-compra': 'stock-ordenes-compra',
@@ -6691,6 +6706,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'stock-movimientos': 'Movimientos',
   'stock-consumos': 'Consumos por equipo',
   'stock-alertas': 'Alertas',
+  'stock-inventario-anual': 'Inventario anual',
   'stock-requerimientos': 'Requerimientos',
   'stock-planificacion': 'Planificación',
   'stock-ordenes-compra': 'Ordenes de Compra',
@@ -6871,6 +6887,8 @@ export interface UsuarioAGS {
 export interface PreferenciasUsuario {
   /** Pagos VEP: período de las tarjetas y qué mostrar. */
   pagosVep?: { vista: 'semanal' | 'quincenal' | 'mensual'; tipo: '' | 'vep' | 'giro' } | null;
+  /** Menú lateral (2026-09-29): se contrae solo a los íconos 2 s después de salir del mouse. */
+  sidebar?: { autoOcultar: boolean } | null;
 }
 
 // --- Notification Preferences ---

@@ -6,6 +6,7 @@ import type { ColAlign } from '../../hooks/useResizableColumns';
 import { OTStatusBadge } from './OTStatusBadge';
 import { OTReporteButton } from './OTReporteButton';
 import { OTImprimirButton } from './OTImprimirButton';
+import { OTEnvioCell } from './OTEnvioCell';
 import type { GroupedOT } from '../../hooks/useOTListData';
 import { useEstablecimientoSuffix } from '../../hooks/useEstablecimientoSuffix';
 import { fechaLocalYMD, formatFechaAR } from '../../utils/formatFecha';
@@ -73,6 +74,11 @@ export const OT_DATA_COLUMNS: DataColumn[] = [
     render: (ot) => <span className="text-xs text-slate-500">{formatDate(ot.fechaCierre)}</span> },
   { idx: 12, label: 'Estado', field: 'estadoAdmin', width: 96,
     render: (ot) => <OTStatusBadge ot={ot} /> },
+  // Envío del reporte al cliente (2026-09-29): el aviso del portal, acá para
+  // que administración de soporte lo controle desde la lista. `envioEstado`
+  // viene adjuntado en useOTListData para poder ordenar.
+  { idx: 14, label: 'Envío reporte', field: 'envioEstado', width: 150,
+    render: (ot) => <OTEnvioCell ot={ot} /> },
 ];
 
 interface Props {

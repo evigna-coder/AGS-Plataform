@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
       port: 3001,
       host: '0.0.0.0',
       strictPort: true,
+      // No mirar la salida del build ni del empaquetado (2026-09-29): un
+      // `vite build` o `electron-builder` corriendo en paralelo vacía `dist/`
+      // y el watcher del dev server moría con exit 1, llevándose a Electron
+      // (`concurrently -k`). El dev no lee nada de esas carpetas.
+      watch: { ignored: ['**/dist/**', '**/release/**', '**/functions/**'] },
     },
     base: './', // Importante para Electron: rutas relativas
     plugins: [

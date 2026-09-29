@@ -30,3 +30,4 @@ export { AsignacionesList } from './AsignacionesList';
 export { AsignacionDetail } from './AsignacionDetail';
 export { InventarioIngenieroPage } from './InventarioIngenieroPage';
 export { PlanificacionInsumosPage } from './PlanificacionInsumosPage';
+export { InventarioAnualPage } from './InventarioAnualPage';

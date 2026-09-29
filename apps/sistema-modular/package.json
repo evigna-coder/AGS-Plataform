@@ -58,6 +58,7 @@
     "test:cuotas-contrato": "tsx src/utils/__tests__/cuotasContrato.test.ts",
     "test:contrato-cupo": "tsx src/utils/__tests__/contratoCupo.test.ts",
     "test:planificacion-insumos": "tsx src/utils/__tests__/planificacionInsumos.test.ts",
+    "test:inventario-anual": "tsx src/utils/__tests__/inventarioAnual.test.ts",
     "test:contrato-servicios": "tsx src/components/presupuestos/contrato/__tests__/materializarServicios.test.ts",
     "test:control-antiguedad": "tsx src/utils/__tests__/controlSemanalAntiguedad.test.ts",
     "test:agenda-revert-ot": "tsx src/utils/__tests__/agendaRevertOT.test.ts",

@@ -66,6 +66,7 @@ export const navigation: NavItem[] = [
           { name: 'Movimientos', path: '/stock/movimientos', modulo: 'stock-movimientos' },
           { name: 'Consumos por equipo', path: '/stock/consumos', modulo: 'stock-consumos' },
           { name: 'Alertas', path: '/stock/alertas', modulo: 'stock-alertas' },
+          { name: 'Inventario anual', path: '/stock/inventario-anual', modulo: 'stock-inventario-anual' },
         ],
       },
       {

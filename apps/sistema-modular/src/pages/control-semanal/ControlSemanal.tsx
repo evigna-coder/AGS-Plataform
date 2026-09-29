@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { addWeeks, parseISO, subWeeks } from 'date-fns';
 import type { Presupuesto } from '@ags/shared';
-import { presupuestosService } from '../../services/firebaseService';
+import { presupuestosService, ordenesTrabajoService } from '../../services/firebaseService';
 import { useControlSemanal } from '../../hooks/useControlSemanal';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useAuth } from '../../contexts/AuthContext';
@@ -66,6 +66,12 @@ export const ControlSemanal = () => {
   const saveComentarioPresupuesto = async (presupuestoId: string, comentario: string) => {
     try { await presupuestosService.update(presupuestoId, { comentarioControlSemanal: comentario || null }); }
     catch (err) { console.error('[ControlSemanal] comentario ppto:', err); notify.error('No se pudo guardar el comentario'); }
+  };
+  // En la OT (2026-09-29): al vivir en el doc, el comentario acompaña a la OT
+  // si arrastra a la semana siguiente (sección 1c) y sale en el PDF del cierre.
+  const saveComentarioOT = async (otNumber: string, comentario: string) => {
+    try { await ordenesTrabajoService.update(otNumber, { comentarioControlSemanal: comentario || null }, { skipAgendaSync: true }); }
+    catch (err) { console.error('[ControlSemanal] comentario OT:', err); notify.error('No se pudo guardar el comentario'); }
   };
   const saveComentarioSolicitud = async (solicitudId: string, comentario: string) => {
     try { await facturacionService.update(solicitudId, { comentarioControl: comentario || null }); }
@@ -190,6 +196,7 @@ export const ControlSemanal = () => {
               onExcluir={quitarDelControl}
               excluidas={agendaExcluidas.length}
               onVerExcluidas={reponerExcluidas}
+              onSaveComentario={saveComentarioOT}
             />
             <OTArrastreSection
               rows={otsArrastre}
@@ -197,6 +204,7 @@ export const ControlSemanal = () => {
               onExcluir={quitarArrastreDelControl}
               excluidas={otsArrastreExcluidas.length}
               onVerExcluidas={reponerArrastres}
+              onSaveComentario={saveComentarioOT}
             />
             <EntregasControlSection
               entregas={entregasPendientes}

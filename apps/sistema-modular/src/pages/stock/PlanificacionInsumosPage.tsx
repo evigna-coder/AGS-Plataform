@@ -112,7 +112,8 @@ export function PlanificacionInsumosPage() {
         ) : p.loading ? (
           <LoadingState message="Leyendo agenda, contratos, compras y stock…" rows={8} />
         ) : filters.vista === 'perfiles' ? (
-          <PerfilesConsumoPanel perfiles={p.perfiles} perfilesCatalogo={p.perfilesCatalogo} articulos={p.articulos} categorias={p.categorias} onChanged={p.recargarPerfiles} />
+          <PerfilesConsumoPanel perfiles={p.perfiles} perfilesCatalogo={p.perfilesCatalogo} articulos={p.articulos} categorias={p.categorias}
+            modelosModulo={p.modelosModulo} marcas={p.marcas} onChanged={p.recargarPerfiles} onPlanificablesChanged={p.recargar} />
         ) : p.articulos.length === 0 ? (
           <EmptyState message="Todavía no hay insumos planificables" hint="Marcá los artículos críticos para empezar a proyectar."
             action={<Button size="sm" onClick={() => setPlanificablesOpen(true)}>Elegir insumos</Button>} />

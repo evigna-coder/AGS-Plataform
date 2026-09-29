@@ -80,6 +80,7 @@ export function armarCierreSemanal(e: EntradasCierreSemanal): { datos: CierreSem
       estado: ESTADO_CONTROL_LABEL[r.estado] ?? r.estado,
       diasTrabado: r.diasTrabado,
       motivos: r.motivos,
+      comentario: (esAgenda ? r.ot?.comentarioControlSemanal : r.ot.comentarioControlSemanal) ?? null,
     };
   };
   const ots = e.agendaRows.map(filaOT);

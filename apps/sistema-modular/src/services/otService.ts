@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, orderBy, startAt, endAt, Timestamp, type QueryConstraint } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, query, where, documentId, orderBy, startAt, endAt, Timestamp, deleteField, type QueryConstraint } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte, RequisitoFacturacion } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS, presupuestoEstaAceptado } from '@ags/shared';
@@ -919,6 +919,25 @@ export const ordenesTrabajoService = {
   /** `opts.skipAgendaSync`: para updates que VIENEN de la agenda (mover una
    *  entrada por DnD, 2026-08-03) — el rebote agenda→OT→agenda de syncFromOT
    *  colapsaría a un día el span de la entrada recién movida. */
+  /**
+   * Marca el reporte como "entregado por otro medio" (2026-09-29, mismo campo
+   * que el portal): escribe `envioManual` en `reportes/{otNumber}` sin tocar
+   * `enviadoPorEmail`, para no perder la traza del intento real. La lista en
+   * vivo refleja el cambio sola.
+   */
+  async marcarEnvioManual(otNumber: string): Promise<void> {
+    const trace = getCurrentUserTrace();
+    await setDoc(doc(db, 'reportes', otNumber), {
+      envioManual: { marcadoPorUid: trace?.uid ?? null, marcadoPorNombre: trace?.name ?? null, fecha: new Date().toISOString() },
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+  },
+
+  /** Deshace la marca manual y deja a la vista el estado real (error / sin envío). */
+  async quitarEnvioManual(otNumber: string): Promise<void> {
+    await setDoc(doc(db, 'reportes', otNumber), { envioManual: deleteField(), updatedAt: Timestamp.now() }, { merge: true });
+  },
+
   async update(otNumber: string, data: Partial<WorkOrder>, opts?: { skipAgendaSync?: boolean }) {
     // D7: si data.estadoAdmin está presente, validar que la transición sea legal.
     // Antes el dropdown del EditOTModal podía mover de cualquier estado a cualquier

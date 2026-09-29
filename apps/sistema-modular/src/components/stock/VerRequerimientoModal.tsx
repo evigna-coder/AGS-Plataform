@@ -6,6 +6,10 @@
  * Además permite ASIGNAR el requerimiento a un proveedor en firme (campo
  * `proveedorId`, distinto del sugerido). La asignación habilita que el proveedor
  * vea el requerimiento en su portal (las reglas Firestore scopean por ese campo).
+ *
+ * Y CANCELAR a mano con motivo (2026-09-28): hasta ahora `cancelado` solo lo
+ * ponía el sistema al anular el presupuesto, y los requerimientos de entregas
+ * hechas antes del go-live quedaban colgados como pendientes.
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -14,6 +18,7 @@ import { ESTADO_REQUERIMIENTO_COLORS, ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUER
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { usePrompt } from '../ui/PromptDialog';
 import { requerimientosService } from '../../services/firebaseService';
 import { URGENCIA_COLORS, URGENCIA_LABELS } from '../../pages/stock/RequerimientoRow';
 
@@ -40,6 +45,34 @@ const fmtFecha = (iso?: string | null) =>
 export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], onClose }) => {
   const [asignadoId, setAsignadoId] = useState<string>(req?.proveedorId ?? '');
   const [saving, setSaving] = useState(false);
+  const prompt = usePrompt();
+
+  // Solo lo que todavía no entró a una compra: en_compra/comprado se resuelven por la OC.
+  const puedeCancelar = !!req && (req.estado === 'pendiente' || req.estado === 'aprobado');
+  const handleCancelar = async () => {
+    if (!req) return;
+    const motivo = await prompt({
+      title: `Cancelar ${req.numero}`,
+      label: 'Motivo de la cancelación',
+      placeholder: 'Ej.: entregado antes del go-live, el consumo salió como egreso manual',
+      required: true, multiline: true, confirmLabel: 'Cancelar requerimiento',
+    });
+    if (motivo == null) return;
+    setSaving(true);
+    try {
+      await requerimientosService.update(req.id, {
+        estado: 'cancelado', canceladoPor: 'manual',
+        motivoCancelacion: motivo.trim(), fechaCancelacion: new Date().toISOString(),
+      });
+      notify.success(`${req.numero} cancelado`);
+      onClose();
+    } catch (err) {
+      console.error('[VerRequerimientoModal] cancelar:', err);
+      notify.error('No se pudo cancelar el requerimiento.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleAssign = async (provId: string) => {
     if (!req) return;
@@ -63,7 +96,14 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], 
   return (
     <Modal open onClose={onClose} title={req.numero} maxWidth="md"
       subtitle={`${req.articuloCodigo ?? ''} — ${req.articuloDescripcion}`.trim()}
-      footer={<Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>}>
+      footer={<>
+        {puedeCancelar && (
+          <Button variant="danger" size="sm" onClick={handleCancelar} disabled={saving} title="Marca el requerimiento como cancelado, con motivo. No toca stock ni presupuesto.">
+            Cancelar requerimiento
+          </Button>
+        )}
+        <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
+      </>}>
       <div className="space-y-4 py-1">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_REQUERIMIENTO_COLORS[req.estado] ?? 'bg-slate-100 text-slate-500'}`}>
@@ -158,10 +198,15 @@ export const VerRequerimientoModal: React.FC<Props> = ({ req, proveedores = [], 
           </Field>
         </div>
 
-        {(req.motivo || req.notas) && (
+        {(req.motivo || req.notas || req.motivoCancelacion) && (
           <div className="space-y-2 border-t border-slate-100 pt-3">
             {req.motivo && <Field label="Motivo">{req.motivo}</Field>}
             {req.notas && <Field label="Notas">{req.notas}</Field>}
+            {req.motivoCancelacion && (
+              <Field label={`Cancelado${req.fechaCancelacion ? ` el ${fmtFecha(req.fechaCancelacion)}` : ''}`}>
+                <span className="text-red-700">{req.motivoCancelacion}</span>
+              </Field>
+            )}
           </div>
         )}
       </div>
