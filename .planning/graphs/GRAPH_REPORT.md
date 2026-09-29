@@ -1,23 +1,23 @@
-# Graph Report - Ags plataform  (2026-07-13)
+# Graph Report - Ags plataform  (2026-09-29)
 
 ## Corpus Check
-- 2361 files · ~2,325,988 words
+- 2938 files · ~6,215,422 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 18260 nodes · 28051 edges · 1638 communities (1327 shown, 311 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 215 edges (avg confidence: 0.74)
+- 22767 nodes · 40575 edges · 1749 communities (1435 shown, 314 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 434 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `396c4cf0`
+- Built from commit: `de97987d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - index.ts
 - useConfirm
-- firebaseService.ts
+- SearchableSelect.tsx
 - PresupuestosList.tsx
 - Articulo
 - index.ts
@@ -59,7 +59,7 @@
 - PDF Processing Advanced Reference
 - PDF Processing Advanced Reference
 - dependencies
-- presupuestosService.ts
+- migrar-desde-excel.ts
 - plan-phase.md
 - PDF Processing Advanced Reference
 - PDF Processing Advanced Reference
@@ -139,7 +139,7 @@
 - AI-SPEC — Phase {N}: {phase_name}
 - run_loop
 - PagosVEPPage.tsx
-- usePDFGeneration.ts
+- AdjuntoMeta
 - MobileSignatureView.tsx
 - firestore-assert.ts
 - useImportacionForm.ts
@@ -158,7 +158,7 @@
 - Phase 8 Research — Flujo Automático de Derivación
 - Process
 - compilerOptions
-- useTabs
+- TabsContext.tsx
 - PDFContratoDetail.tsx
 - useEnviarOrdenCompra.ts
 - command: "npx eslint --fix $FILE 2>/dev/null || true"
@@ -191,7 +191,7 @@
 - Phase 14 Plan 08: Release Prep Gate Summary
 - Research Summary — Circuito Comercial Completo v2.0
 - generate_review.py
-- qfDocumentos.ts
+- QFDocumento
 - index.ts
 - ProtocolView.tsx
 - scripts
@@ -209,7 +209,7 @@
 - Generating PDFs with React-PDF
 - webauthnClient.ts
 - Solución: Error de Permisos de Firestore
-- ChecklistEditor.tsx
+- TableCatalogEntry
 - Verification Patterns
 - Forensics Workflow
 - Verification Patterns
@@ -241,7 +241,7 @@
 - Phase 08 Plan 03: FLOW-01 Auto-ticket + FLOW-06 Base (pendingActions + retry retroactivo) Summary
 - AGS Plataform — System Guide
 - Creation Log: Systematic Debugging Skill
-- InstrumentoSelectorPanel.tsx
+- ColumnaRow.tsx
 - compilerOptions
 - pnpm CLI Commands
 - pnpm Hooks
@@ -337,7 +337,7 @@
 - Implementation Decisions
 - reportes-ot — Read-only audit
 - Root Cause Tracing
-- ProtocolPaginatedPreview.tsx
+- OTDetail.tsx
 - CONTEXTO_CHATGPT_INSTRUCCIONES_PROYECTO.md
 - PROMPT_CHATGPT_ALCANCE_Y_SELECTOR_TABLAS.md
 - pnpm Peer Dependencies
@@ -407,10 +407,10 @@
 - DOCXSchemaValidator
 - get_soffice_env
 - DOCXSchemaValidator
-- DatosBasicosStep.tsx
-- QFDocumento
+- HistorialFilterBar.tsx
+- useUrlFilters.ts
 - leads.ts
-- UploadQueueManager
+- OTColumnsMenu.tsx
 - notifications.ts
 - normalizeCompositeConclusionesTable
 - build
@@ -508,7 +508,7 @@
 - Análisis del Proyecto Reportes-OT
 - pnpm Configuration
 - Rolldown Migration (Vite 8)
-- Layout.tsx
+- useTabs
 - useRelinkearArticulos.ts
 - Domain-Aware Probing Patterns
 - Deviation Rule Examples
@@ -644,7 +644,7 @@
 - React Best Practices
 - Environment API (Vite 6+)
 - 13-oc-cliente-flow.spec.ts
-- PendienteTipo
+- pendientesService.ts
 - RemitoOverlayPDF.tsx
 - compilerOptions
 - gsd-executor.md
@@ -916,7 +916,7 @@
 - Hooks Implementados (Fase 1 - COMPLETADA)
 - ✅ Checklist de Refactorización
 - 🎯 Plan de Acción Recomendado
-- InstrumentosPDFSection.tsx
+- usePDFGeneration.ts
 - Resumen de diseño – Protocolos como anexo (estilo informe A4)
 - Solicitud a administradores: permitir WebAuthn en producción
 - Fase 1: Seguridad Crítica (Antes de Producción)
@@ -1315,127 +1315,224 @@
 - 05-01-PLAN.md
 - 16-02-PLAN.md
 - 16-03-PLAN.md
+- PresupuestoReservasSection.tsx
+- compilerOptions
+- usePresupuestoDashboardMetrics.ts
+- ocRequerimientosService.ts
+- UploadQueueManager
+- 2. Antes y después, circuito por circuito
+- BienvenidaPage.tsx
+- loanerRecalificacion.ts
+- RequerimientosList.tsx
+- EquipoDetail.tsx
+- mailAdjunto.ts
+- LoanersHistorial.tsx
+- reaperturaOT.ts
+- package.json
+- CierreSemanalPDF.tsx
+- useBackgroundTasks
+- NotasPrecioButton.tsx
+- types.ts
+- OrdenDetailPage.tsx
+- entregasResolver.ts
+- FichasList
+- PlanificacionInsumosPage.tsx
+- cierreSemanalDatos.ts
+- El sistema en marcha
+- App.tsx
+- types.ts
+- OTPrintablePDF.tsx
+- useAgendaUndo.ts
+- useStockUnidadesMigration.ts
+- loanerIncompleto.test.ts
+- remitoLineas.test.ts
+- Reapertura de OT — análisis y diseño (2026-09-10)
+- AuthContext.tsx
+- perfReads.ts
+- ProtocolCatalogPage.tsx
+- useAsignacionesVista.ts
+- 1. Circuitos de negocio
+- presupuestosSinOC.ts
+- PosicionesArancelariasPage.tsx
+- LoginPage.tsx
+- AuthContext.tsx
+- useBulkAddressValidation.ts
+- Auditoría técnica — Circuito de stock (pre go-live agosto 2026)
+- Advanced Validation for Business Logic
+- Documentación de procedimientos de calidad
+- Anexo. Detalle de los 694 equipos con problemas
+- AnaliticaPresupuestos.tsx
+- 15-checklist-stock-ot.spec.ts
+- LoanerInfoSidebar.tsx
+- AsignarItemsPanel.tsx
+- useStockPosicionesMigration.ts
+- Fases
+- useStockMigration.ts
+- loanerCicloRecalificacion.ts
+- LoanerPrestamosSection.tsx
+- Estrategia de tiempos de respuesta (2026-09-11)
+- Planificación de insumos críticos (reemplaza `/stock/planificacion`)
+- Fases
+- ModuloId
+- previsionesFechas.ts
+- ImportacionAccionCell.tsx
+- index.ts
+- equipos.ts
+- landingPath.test.ts
+- AnaliticaKpiRow.tsx
+- PosicionesPage.tsx
+- propagarDireccionEstablecimiento.ts
+- Trabajo sin conexión y sincronización — App de informes de campo
+- Graph Report - Ags plataform  (2026-07-13)
+- compilerOptions
+- mock.ts
+- detalle.ts
+- compilerOptions
+- DispositivoFotos.tsx
+- Dispositivo
+- aggregatePipeline
+- distanciaInterior.ts
+- EntornosEditor.tsx
+- graph-modulos.py
+- 11-full-business-cycle.spec.ts
+- PoolEnviosDetalleModal.tsx
+- LoanerExtraccionesSection.tsx
+- TipoEquipoNestedEditors.tsx
+- Ausencias (reemplazo de Who's Off)
+- build.mjs
+- useGoogleOAuth
+- Tanda UAT sesión Fanely (2026-07-17) — 12 pedidos
+- Frontend Design
+- Continuidad operativa y control del sistema
+- Antes y después
+- useGenerarOC.ts
+- Web Interface Guidelines
+- PrestamoLoaner
+- comprimirFoto.ts
+- Sparkline.tsx
+- firebase-e2e.ts
+- Core entity hierarchy
 
 ## God Nodes (most connected - your core abstractions)
-1. `Button()` - 229 edges
-2. `useConfirm()` - 134 edges
-3. `Card()` - 119 edges
-4. `SearchableSelect()` - 97 edges
-5. `Modal()` - 95 edges
-6. `Input` - 94 edges
-7. `v()` - 87 edges
-8. `useUrlFilters()` - 81 edges
-9. `useNavigateBack()` - 80 edges
-10. `Cliente` - 80 edges
+1. `Communities (1638 total, 311 thin omitted)` - 990 edges
+2. `Button()` - 292 edges
+3. `notify` - 200 edges
+4. `useConfirm()` - 183 edges
+5. `v()` - 141 edges
+6. `SearchableSelect()` - 135 edges
+7. `Modal()` - 132 edges
+8. `Card()` - 116 edges
+9. `Select` - 115 edges
+10. `WorkOrder` - 112 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `App()` --indirect_call--> `v()`  [INFERRED]
-  App.tsx → apps/sistema-modular/src/pages/admin/AuditoriaPage.tsx
-- `ArticuloAutocomplete()` --indirect_call--> `handler()`  [INFERRED]
-  apps/reportes-ot/components/ServiceReportSection.tsx → api/webauthn/[...path].js
+  App.tsx → apps/sistema-modular/src/utils/auditHumano.ts
 - `captureNextDialog()` --indirect_call--> `handler()`  [INFERRED]
   apps/sistema-modular/e2e/14-40-patron-bom-editor.spec.ts → api/webauthn/[...path].js
 - `useInstallPrompt()` --indirect_call--> `handler()`  [INFERRED]
   apps/portal-ingeniero/src/hooks/useInstallPrompt.ts → api/webauthn/[...path].js
 - `AgendaPage()` --indirect_call--> `handler()`  [INFERRED]
   apps/portal-ingeniero/src/pages/AgendaPage.tsx → api/webauthn/[...path].js
+- `ReportesPage()` --indirect_call--> `handler()`  [INFERRED]
+  apps/portal-ingeniero/src/pages/ReportesPage.tsx → api/webauthn/[...path].js
 
 ## Import Cycles
 - None detected.
 
-## Communities (1638 total, 311 thin omitted)
+## Communities (1749 total, 314 thin omitted)
 
 ### Community 0 - "index.ts"
 Cohesion: 0.02
-Nodes (195): ModuloModal(), Props, emptyForm, ModuloFormData, ModulosList(), ModulosListProps, MoveModuloModal(), QREquipoModalProps (+187 more)
+Nodes (178): emptyForm, Props, Props, AREAS, CargarFacturaModalProps, DispositivoModal(), getEmpty(), TIPO_OPTIONS (+170 more)
 
 ### Community 1 - "useConfirm"
-Cohesion: 0.03
-Nodes (213): QFDocumentosPage(), CreateContratoModal(), Props, DispositivoModal(), getEmpty(), Props, TIPO_OPTIONS, TabRouterBridge() (+205 more)
+Cohesion: 0.06
+Nodes (117): FichaProximaAccionButton(), IngresoEmpresaModal(), ConceptosServicioModal(), GenerarSolicitudCuotaModal(), SincronizarBibliotecaButton(), OCNotasModal(), PresentacionSearchHint(), AggRow (+109 more)
 
-### Community 2 - "firebaseService.ts"
-Cohesion: 0.03
-Nodes (168): Props, UseOTManagementReturn, ClienteMainContent(), ClienteMainContentProps, CreateEquipoModal(), Props, EditFormProps, EquipoInfoSidebar() (+160 more)
+### Community 2 - "SearchableSelect.tsx"
+Cohesion: 0.02
+Nodes (215): Props, AgendaReservaModal(), AgendaReservaModalProps, Props, ClienteMainContent(), ClienteMainContentProps, ContratoCupoSection(), Props (+207 more)
 
 ### Community 3 - "PresupuestosList.tsx"
-Cohesion: 0.03
-Nodes (112): ContactosTicketSection(), DerivarLeadModal(), FinalizarLeadModal(), getMotivosParaMotivoLlamado(), MotivoCierre, MOTIVOS_NO_VENTAS, MOTIVOS_VENTAS, LeadQuickNoteModal() (+104 more)
+Cohesion: 0.02
+Nodes (124): AgregarRecibidaModal(), Props, CertificacionesAbiertasSection(), CHIP, Props, TONOS, CertificacionItemRow(), Props (+116 more)
 
 ### Community 4 - "Articulo"
-Cohesion: 0.03
-Nodes (110): LoanerArticuloPicker(), Props, CierreStockSelector(), CONDICION_LABEL, Props, unidadLabel(), Props, BulkAddStockModal() (+102 more)
+Cohesion: 0.01
+Nodes (244): CargarFacturaModal(), ContactosTicketSection(), newId(), Props, CierreStockSelector(), Props, Props, ConvertirStockAPatronModal() (+236 more)
 
 ### Community 5 - "index.ts"
 Cohesion: 0.02
-Nodes (119): Props, DETECTOR_OPTIONS, GCPortsGridProps, INLET_OPTIONS, IngresoEmpresaModal(), Props, STATUS_OPTIONS, Props (+111 more)
+Nodes (125): AgendaPendingSidebar(), AgendaPendingSidebarProps, DraggableOTCard(), DraggableOTCardProps, esEntrega(), Props, CreatePendienteModal(), FormState (+117 more)
 
 ### Community 6 - "RemitoDetail.tsx"
-Cohesion: 0.04
-Nodes (75): CrearRemitoDesdeInventarioModal(), getItemCodigo(), getItemDesc(), itemKey(), Props, TIPO_ITEM_OPTIONS, TIPO_REMITO_OPTIONS, CreateRemitoModal() (+67 more)
+Cohesion: 0.03
+Nodes (136): LoanerParteRow(), Props, DESTINO_VACIO, DestinoPrestamo, LoanerPrestamoModal(), PrestamoLoanerDatos, toDateInput(), Alcance (+128 more)
 
 ### Community 7 - "LeadsList.tsx"
-Cohesion: 0.06
-Nodes (73): CrearLeadModal(), MOTIVOS, Props, useIsMobile(), DerivarTicketModal(), Props, ESTADO_TABS, EstadoFilterValue (+65 more)
+Cohesion: 0.05
+Nodes (95): CrearLeadModal(), MOTIVOS, Props, useIsMobile(), DerivarTicketModal(), Props, FinalizarLeadModal(), Props (+87 more)
 
 ### Community 8 - "useAuth"
 Cohesion: 0.05
-Nodes (62): ForegroundNotificationListener(), PrivateApp(), AppShell(), BottomNav(), ICON(), Tab, InstallBanner(), MasMenu() (+54 more)
+Nodes (57): ForegroundNotificationListener(), PrivateApp(), AppShell(), BottomNav(), ICON(), Tab, InstallBanner(), MasMenu() (+49 more)
 
 ### Community 9 - "InstrumentosList.tsx"
-Cohesion: 0.05
-Nodes (67): CreateColumnaModal(), emptyForm, Props, CreateInstrumentoModal(), emptyForm, Props, DerivarCalibracionModal(), EMPTY_PARTY (+59 more)
+Cohesion: 0.03
+Nodes (105): CreateInstrumentoModal(), DerivarCalibracionModal(), Props, DerivarInstrumentosPicker(), instrumentoDescripcionRemito(), instrumentoResumen(), Props, ALL_CAT_LABELS (+97 more)
 
 ### Community 10 - "patronBom.test.ts"
-Cohesion: 0.05
-Nodes (68): buildRows(), ESTADO_COLOR, ESTADO_LABEL, fmtFechaAR(), PatronesListPDF(), Props, Row, styles (+60 more)
+Cohesion: 0.06
+Nodes (54): ConsumidoRow, ReadOnlyInfo, RowMode, useCierrePatronesConsumidos(), UseCierrePatronesConsumidosResult, PatronComponentesAlertBanner(), PatronComponentesAlertBannerProps, ProblematicEntry (+46 more)
 
 ### Community 11 - "PreviewSection.tsx"
-Cohesion: 0.07
-Nodes (55): PartesFormProps, AdjuntosPDFSection(), PAGE_STYLE, buildNASet(), CatalogChecklistView(), Props, RESULTADO_COLORS, RESULTADO_LABELS (+47 more)
+Cohesion: 0.05
+Nodes (84): AdjuntosPDFSection(), PAGE_STYLE, Props, buildNASet(), CatalogChecklistView(), Props, RESULTADO_COLORS, RESULTADO_LABELS (+76 more)
 
 ### Community 12 - "articulosService"
-Cohesion: 0.05
-Nodes (60): CreateFichaModal(), ItemDraft, newDraft(), Props, draftFromItem(), EditFichaModal(), ItemDraft, newDraft() (+52 more)
+Cohesion: 0.03
+Nodes (99): CreateFichaModal(), Props, EditFichaModal(), Props, FichaClienteOrigenSection(), FichaDerivacionSection(), Props, FichaFotosSection() (+91 more)
 
 ### Community 13 - "Lead"
-Cohesion: 0.06
-Nodes (50): ContactosTicketSection(), emptyForm, newId(), Props, Props, RESULTADOS, formatSize(), isImage() (+42 more)
+Cohesion: 0.09
+Nodes (19): OTFirmasTab(), OTReporteTab(), PartesForm(), PartesFormProps, SignaturePad, SignaturePadHandle, SignaturePadProps, useNavigateBack() (+11 more)
 
 ### Community 14 - "ProtocolCatalogPage.tsx"
-Cohesion: 0.05
-Nodes (55): BulkAddModelosModal(), Props, HeaderTableEditor(), newColumn(), newRow(), Props, ModelosPicker(), Props (+47 more)
+Cohesion: 0.04
+Nodes (77): Props, HeaderTableEditor(), newColumn(), newRow(), Props, ImportJsonDialog(), ImportMode, Props (+69 more)
 
 ### Community 15 - "ImportacionDatos.tsx"
-Cohesion: 0.05
-Nodes (58): ConceptoRow, ConceptosMigrationSummary, ConceptosParsedData, MigrationStep, parseConceptos(), readSheet(), useConceptosMigration(), validateConceptos() (+50 more)
+Cohesion: 0.10
+Nodes (18): ConceptoRow, ConceptosMigrationSummary, ConceptosParsedData, MigrationStep, parseConceptos(), readSheet(), useConceptosMigration(), validateConceptos() (+10 more)
 
 ### Community 16 - "firebase.ts"
-Cohesion: 0.09
-Nodes (40): calificacionesService, DEFAULT_SECTORES, columnasService, hydrate(), toISO(), parseContrato(), toISO(), getCreateTrace() (+32 more)
+Cohesion: 0.03
+Nodes (162): EstadoPresupuestoActivo, ESTADOS_ACTIVOS, useIngresarStock(), RowProps, AREAS_CON_RESPONSABLE, ConfigFlujosPage(), EMPTY_COMEX_OPTION, ADMIN_CONFIG_DEFAULTS (+154 more)
 
 ### Community 17 - "App.tsx"
-Cohesion: 0.06
-Nodes (46): App(), DuplicateOptions, DuplicateOTModal(), DuplicateOTModalProps, MobileMenu(), MobileMenuProps, ObservationsBillingSection(), ObservationsBillingSectionProps (+38 more)
+Cohesion: 0.04
+Nodes (55): App(), DuplicateOptions, DuplicateOTModal(), DuplicateOTModalProps, MobileMenu(), MobileMenuProps, ObservationsBillingSection(), ObservationsBillingSectionProps (+47 more)
 
 ### Community 18 - "init.ts"
 Cohesion: 0.07
 Nodes (54): ASSETS_DIR, __dirname, initCommand(), InitOptions, templateInstall(), tryGitHubInstall(), updateCommand(), UpdateOptions (+46 more)
 
 ### Community 19 - "ReporteVentasInsumosModal.tsx"
-Cohesion: 0.08
-Nodes (52): COL_WIDTHS, Props, ReporteVentasInsumosPDF(), resultadoStyle(), styles, totalWidth, downloadPdfBlob(), Preset (+44 more)
+Cohesion: 0.16
+Nodes (25): COL_WIDTHS, Props, ReporteVentasInsumosPDF(), resultadoStyle(), styles, totalWidth, downloadPdfBlob(), Preset (+17 more)
 
 ### Community 20 - "Importacion"
-Cohesion: 0.06
-Nodes (47): Props, Props, Props, Props, Props, ImportacionItemsSectionProps, Props, Props (+39 more)
+Cohesion: 0.09
+Nodes (27): PresupuestoOCCard(), EntregaItemPatch, EntregaOCProveedorCell(), EntregaOCGroupRow(), Props, EntregaRowComponent(), formatDate(), formatMoney() (+19 more)
 
 ### Community 21 - "cuotasFacturacion.ts"
-Cohesion: 0.08
-Nodes (49): Props, CuotasDelEsquemaSection(), ESTADO_BADGE, HITO_LABELS, Props, EsquemaCuotaRow(), HITO_LABELS, HITO_OPTIONS (+41 more)
+Cohesion: 0.07
+Nodes (60): renumerarGrupos(), Props, Props, CuotasDelEsquemaSection(), ESTADO_BADGE, HITO_LABELS, Props, EsquemaCuotaRow() (+52 more)
 
 ### Community 22 - "CreateClienteModal.tsx"
 Cohesion: 0.06
-Nodes (44): AddressAutocomplete(), AddressAutocompleteProps, AutocompleteResult, getComponent(), loadGoogleMapsScript(), BulkCuitValidationModal(), CuitValidationRow, Props (+36 more)
+Nodes (54): AddressAutocomplete(), AddressAutocompleteProps, AutocompleteResult, COMPLEMENTO_PATTERNS, extraerComplemento(), getComponent(), loadGoogleMapsScript(), BulkCuitValidationModal() (+46 more)
 
 ### Community 23 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.03
@@ -1446,12 +1543,12 @@ Cohesion: 0.03
 Nodes (58): After Checkpoint, Balance Research and Reasoning, Binary Search / Divide and Conquer, Checkpoint Format, CHECKPOINT REACHED, Checkpoint Types, Combining Techniques, command: "npx eslint --fix $FILE 2>/dev/null || true" (+50 more)
 
 ### Community 25 - "FirebaseService"
-Cohesion: 0.06
-Nodes (24): Props, TableSelectorPanel(), UseAutosaveOptions, FormSetters, ManualFields, useEntitySelectors(), firebaseConfig, FirebaseService (+16 more)
+Cohesion: 0.05
+Nodes (36): fechaCorta(), FirmaLotePanel(), Props, fechaLabel(), OTsDelDiaPanel(), Props, mensajeDeError(), useAutosave() (+28 more)
 
 ### Community 26 - "OrdenCompraModal.tsx"
-Cohesion: 0.07
-Nodes (41): Props, ItemEmbarqueSelector(), Props, SelectedItem, OCAddItemWizard(), Props, Step, STEP_TITLE (+33 more)
+Cohesion: 0.02
+Nodes (153): CreateLoanerModal(), PlanificablesModal(), ImportacionAduanaSection(), Props, ImportacionDocumentosSection(), Props, tipoLabel(), TIPOS_DOCUMENTO (+145 more)
 
 ### Community 27 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.04
@@ -1467,23 +1564,23 @@ Nodes (40): BM25, detect_domain(), _load_csv(), Lowercase, split, remove punctua
 
 ### Community 30 - "equivalenciasService.ts"
 Cohesion: 0.07
-Nodes (38): newId(), useEquivalenciaSection(), UseEquivalenciaSectionParams, applyUpdate(), desagregarUnidades(), fetchArticulo(), fetchOriginPointingTo(), getFirebaseModules() (+30 more)
+Nodes (37): EquivalenciaSection(), useEquivalenciaSection(), applyUpdate(), desagregarUnidades(), fetchArticulo(), fetchOriginPointingTo(), getFirebaseModules(), linkEquivalencia() (+29 more)
 
 ### Community 31 - "HistorialPage.tsx"
 Cohesion: 0.06
-Nodes (33): HistorialOTCard(), openPDF(), openProtocol(), Props, COLS, HistorialTable(), Props, OTStatusBadge() (+25 more)
+Nodes (38): HistorialOTCard(), openPDF(), openProtocol(), Props, COLS, Props, OTStatusBadge(), OTStatusBadgeProps (+30 more)
 
 ### Community 32 - "CreateArticuloModal.tsx"
-Cohesion: 0.06
-Nodes (41): ARANCEL_FIELDS, CATEGORIA_OPTIONS, CreateArticuloModal(), emptyForm, formatPosicionArancelaria(), Props, TIPO_OPTIONS, UNIDAD_OPTIONS (+33 more)
+Cohesion: 0.05
+Nodes (53): CreateColumnaModal(), CreateContratoModal(), DireccionesEntregaModal(), LoanerVentaModal(), RemitoItemsEditor(), CreateArticuloModal(), formatPosicionArancelaria(), ViewArticuloModal() (+45 more)
 
 ### Community 33 - "stockAmplioService.ts"
 Cohesion: 0.07
-Nodes (38): PresupuestoItemSearch(), Props, Props, IMPORTANT: Renders exactly TWO sections — OCs pendientes + Requerimientos condic, StockAmplioBreakdownDrawer(), Props, StockAmplioIndicator(), useStockAmplio() (+30 more)
+Nodes (41): Props, IMPORTANT: Renders exactly TWO sections — OCs pendientes + Requerimientos condic, useStockAmplio(), UseStockAmplioResult, itemRequiresImportacionFromUnidades(), armarStockAmplio(), atpUnidades(), computeStockAmplioBulk() (+33 more)
 
 ### Community 34 - "RecepcionPage.tsx"
-Cohesion: 0.08
-Nodes (33): BuscarOTStep(), CapturaFotosStep(), Props, FotoCard(), FotoCardUploaded(), Props, UploadQueueIndicator(), usePendingCount() (+25 more)
+Cohesion: 0.05
+Nodes (83): CapturaFotosLoaner(), Props, CapturaFotosMercaderia(), Props, CapturaFotosStep(), Props, DatosBasicosForm, DatosBasicosStep() (+75 more)
 
 ### Community 35 - "keywords"
 Cohesion: 0.04
@@ -1498,12 +1595,12 @@ Cohesion: 0.04
 Nodes (48): Agenda, Audit — Domain Logic Correctness, Contratos, Cross-cutting, Equipos / Sistemas / Módulos, Facturación, OT (Órdenes de Trabajo), [P0] `aceptado` transition path makes auto-reservation + auto-requerimientos block dead code (+40 more)
 
 ### Community 38 - "firebaseService.ts"
-Cohesion: 0.06
-Nodes (31): EnvioEmailBadge(), fmtFecha(), OTDetalleTab(), Props, useSistemaContext(), getCurrentUserTrace(), firebaseConfig, functions (+23 more)
+Cohesion: 0.05
+Nodes (37): formatSize(), isImage(), LeadAdjuntosSection(), Props, BuscarOTStep(), Props, EquipoPublicPage(), EquipoView (+29 more)
 
 ### Community 39 - "PresupuestoItem"
-Cohesion: 0.10
-Nodes (35): AddItemModal(), AddItemModalProps, categoriaOptions(), BulkAplicarDisponibilidadButton(), BulkAplicarDisponibilidadButtonProps, ArticuloCatalog, CreatePresupuestoItems(), EMPTY_ITEM (+27 more)
+Cohesion: 0.11
+Nodes (22): BulkAplicarDisponibilidadButton(), BulkAplicarDisponibilidadButtonProps, ItemsTable(), DISP_OPTIONS, DispOption, PresupuestoDisponibilidadFields(), PresupuestoDisponibilidadFieldsProps, categoriaOptions() (+14 more)
 
 ### Community 40 - "Phase 2: Comex — Importaciones y Despachos - Research"
 Cohesion: 0.04
@@ -1521,9 +1618,9 @@ Nodes (46): 1. For Large PDFs, 2. For Text Extraction, 3. For Image Extraction, 
 Cohesion: 0.04
 Nodes (46): dependencies, cloudflared, firebase, @google/genai, html2canvas, lottie-web, pdf-lib, pdfjs-dist (+38 more)
 
-### Community 44 - "presupuestosService.ts"
-Cohesion: 0.09
-Nodes (29): RowProps, ADMIN_CONFIG_DEFAULTS, adminConfigService, agendaService, _agsIdCache, appendPendingActionInline(), notifyCoordinadorOTBestEffort(), getCurrentUserTrace() (+21 more)
+### Community 44 - "migrar-desde-excel.ts"
+Cohesion: 0.16
+Nodes (20): ClienteRow, EstablecimientoRow, main(), MigrationReport, ModuloRow, normalizeCuit(), num(), parseClientes() (+12 more)
 
 ### Community 45 - "plan-phase.md"
 Cohesion: 0.04
@@ -1546,28 +1643,28 @@ Cohesion: 0.04
 Nodes (46): Alternatives Considered, Anti-Patterns to Avoid, Architecture Patterns, Claude's Discretion, Code Examples, Common Pitfalls, Core (ya en uso en el repo — no se introducen libs nuevas), Deferred Ideas (OUT OF SCOPE) (+38 more)
 
 ### Community 50 - "buildAnexosFromPresupuesto.ts"
-Cohesion: 0.10
-Nodes (37): findPlantillaForSistema(), EnviarAnexosSection(), Props, buildDefaultBody(), EnviarPresupuestoModal(), Props, A, AnexoConsumiblesData (+29 more)
+Cohesion: 0.13
+Nodes (23): findPlantillaForSistema(), Props, A, AnexoConsumiblesData, AnexoConsumiblesPDF(), AnexoModuloEntry, formatFecha(), AnexoBuildResult (+15 more)
 
 ### Community 51 - "useExcelMigration.ts"
-Cohesion: 0.07
-Nodes (42): ClienteRow, EstablecimientoRow, MigrationStep, MigrationSummary, ModuloRow, num(), parseClientes(), ParsedData (+34 more)
+Cohesion: 0.17
+Nodes (19): ClienteRow, EstablecimientoRow, MigrationStep, ModuloRow, num(), parseClientes(), ParsedData, parseEstablecimientos() (+11 more)
 
 ### Community 52 - "✅ Paso 5: Checklist de Funcionalidades a Probar"
 Cohesion: 0.04
 Nodes (44): 1.1 Navegar al directorio del proyecto, 1.2 Verificar si node_modules existe, 2.1 Instalar con npm, 2.2 Verificar instalación, 3.1 Verificar si existe .env.local, 3.2 Variables de entorno requeridas, 3.3 Crear o editar .env.local, 4.1 Ejecutar el servidor (+36 more)
 
 ### Community 53 - "protocolNormalizers.ts"
-Cohesion: 0.11
-Nodes (44): coerceLastColumnToInput(), COLUMN_WIDTHS_COMPOSITE, ensureConclusionesCheckboxGroup(), findGroupStartRowIndex(), getCellText(), getConclusionesColumnIndices(), getContinuationRowCells(), getEffectiveHeaders() (+36 more)
+Cohesion: 0.09
+Nodes (59): cleanTitleHeader(), coerceLastColumnToInput(), COLUMN_WIDTHS_COMPOSITE, ensureCompositeConclusionesIntegrity(), ensureConclusionesCheckboxGroup(), extractTitleFromTitleRow(), findGroupStartRowIndex(), formatTitleTwoLines() (+51 more)
 
 ### Community 54 - "AgendaPage.tsx"
-Cohesion: 0.08
-Nodes (34): EmptyState(), EmptyStateProps, PageHeader(), PageHeaderProps, sizes, Spinner(), SpinnerProps, addDays() (+26 more)
+Cohesion: 0.07
+Nodes (42): AgendaEntryCard(), Props, QUARTER_LABELS, addDays(), AgendaGridView(), BORDER_COLOR, EntryCard(), formatDate() (+34 more)
 
 ### Community 55 - "useSendReportByEmail.ts"
 Cohesion: 0.08
-Nodes (36): hasConsentedBefore(), loadCachedToken(), markConsented(), saveCachedToken(), TokenState, useGoogleOAuth(), ConfirmOptions, DeliveryFn (+28 more)
+Nodes (36): clearConsented(), hasConsentedBefore(), loadCachedToken(), markConsented(), saveCachedToken(), TokenState, useGoogleOAuth(), ConfirmOptions (+28 more)
 
 ### Community 56 - "Release checklist — sistema-modular"
 Cohesion: 0.05
@@ -1639,7 +1736,7 @@ Nodes (40): Audit — Services & Firestore data access, Cache invalidation gaps,
 
 ### Community 73 - "dependencies"
 Cohesion: 0.05
-Nodes (40): dependencies, date-fns, @dnd-kit/core, @dnd-kit/utilities, electron-updater, firebase, google-auth-library, jszip (+32 more)
+Nodes (44): dependencies, date-fns, @dnd-kit/core, @dnd-kit/utilities, electron-updater, firebase, google-auth-library, jszip (+36 more)
 
 ### Community 74 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.05
@@ -1663,7 +1760,7 @@ Nodes (39): 1. Cached OAuth token stale race (HIGH likelihood, LOW impact), 2. C
 
 ### Community 79 - "scripts"
 Cohesion: 0.05
-Nodes (38): @ast-grep/cli, @firebase/rules-unit-testing, dependencies, google-auth-library, description, devDependencies, @ast-grep/cli, firebase (+30 more)
+Nodes (42): @ast-grep/cli, @firebase/rules-unit-testing, dependencies, google-auth-library, description, devDependencies, @ast-grep/cli, firebase (+34 more)
 
 ### Community 80 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.05
@@ -1674,8 +1771,8 @@ Cohesion: 0.05
 Nodes (37): All Excel files, Assumptions Placement, Best Practices, Code Style Guidelines, Color Coding Standards, Common Pitfalls, Common Workflow, ✅ CORRECT - Using Excel Formulas (+29 more)
 
 ### Community 82 - "dashboardService.ts"
-Cohesion: 0.09
-Nodes (31): Props, LoadingState(), LoadingStateProps, KpiCard(), KpiCardProps, toneClasses, valueTone, COLORS (+23 more)
+Cohesion: 0.15
+Nodes (15): COLORS, OTFunnelChart(), OTFunnelChartProps, AREA_COLORS, AREA_ORDER, LABELS, TicketAreaBars(), TicketAreaBarsProps (+7 more)
 
 ### Community 83 - "plan-phase.md"
 Cohesion: 0.05
@@ -1691,7 +1788,7 @@ Nodes (37): All Excel files, Assumptions Placement, Best Practices, Code Style G
 
 ### Community 86 - "devDependencies"
 Cohesion: 0.05
-Nodes (36): @ags/shared, dependencies, @ags/shared, firebase, react, react-dom, react-router-dom, devDependencies (+28 more)
+Nodes (36): dependencies, @ags/shared, firebase, react, react-dom, react-router-dom, devDependencies, autoprefixer (+28 more)
 
 ### Community 87 - "Plan de Refactorización - Reportes OT"
 Cohesion: 0.05
@@ -1714,8 +1811,8 @@ Cohesion: 0.05
 Nodes (36): 1. PRICING LOGIC PITFALLS, 2. EVENT-DRIVEN DERIVACIÓN PITFALLS, 3. STOCK PLANNING PITFALLS, 4. MULTI-CURRENCY PITFALLS (MIXTA USD + ARS), 5. MAIL / OAUTH PITFALLS, 6. TESTING PLAYWRIGHT PITFALLS, 7. MIGRATION PITFALLS (Datos Legados), Domain Pitfalls — Circuito Comercial Completo (+28 more)
 
 ### Community 92 - "tableCatalogJsonImport.ts"
-Cohesion: 0.10
-Nodes (32): ImportJsonDialog(), ImportMode, Props, SYS_TYPES, Props, TablePreview(), AutoRule, buildColumnsFromSubTable() (+24 more)
+Cohesion: 0.00
+Nodes (990): Communities (1638 total, 311 thin omitted), Community 0 - "index.ts", Community 1000 - "fill_pdf_form_with_annotations.py", Community 1001 - "Deferred Items — Phase 05", Community 1002 - "Standard Stack", Community 1003 - "Sources", Community 1007 - "Svg", Community 1008 - "Styling" (+982 more)
 
 ### Community 93 - "AGS Plataform"
 Cohesion: 0.06
@@ -1779,11 +1876,11 @@ Nodes (34): Advanced: Blind comparison, Anatomy of a Skill, Capture Intent, Clau
 
 ### Community 108 - "ProtocolTable.tsx"
 Cohesion: 0.11
-Nodes (27): cellText(), ConclusionesPills(), DataRowCard(), getRowNumber(), getRowPreview(), hasConclusionesGroup(), isCompositeHeaderRow(), isConclusionesSubheaderRow() (+19 more)
+Nodes (28): cellText(), ConclusionesPills(), DataRowCard(), getRowNumber(), getRowPreview(), hasConclusionesGroup(), isCompositeHeaderRow(), isConclusionesSubheaderRow() (+20 more)
 
 ### Community 109 - "PlantillasTextoModal.tsx"
-Cohesion: 0.11
-Nodes (29): PlantillaRow(), PlantillaRowProps, SeccionKey, stripHtmlPreview(), FormShape, PlantillasTextoModal(), Props, SeccionKey (+21 more)
+Cohesion: 0.09
+Nodes (34): NotasTecnicasPlantillas(), Props, PlantillaRow(), PlantillaRowProps, SeccionKey, stripHtmlPreview(), FormShape, PlantillasTextoModal() (+26 more)
 
 ### Community 110 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.06
@@ -1826,7 +1923,7 @@ Cohesion: 0.10
 Nodes (27): generate_html(), main(), Generate HTML report from loop output data. If auto_refresh is True, adds a meta, _call_claude(), improve_description(), main(), Path, Run `claude -p` with the prompt on stdin and return the text response.      Pr (+19 more)
 
 ### Community 120 - "authService.ts"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (20): AuthGate(), AuthGateProps, AuthPhase, DomainErrorScreen(), BaseComponent, _ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState (+12 more)
 
 ### Community 121 - "AI-SPEC — Phase {N}: {phase_name}"
@@ -1838,12 +1935,12 @@ Cohesion: 0.10
 Nodes (27): generate_html(), main(), Generate HTML report from loop output data. If auto_refresh is True, adds a meta, _call_claude(), improve_description(), main(), Path, Run `claude -p` with the prompt on stdin and return the text response.      Pr (+19 more)
 
 ### Community 123 - "PagosVEPPage.tsx"
-Cohesion: 0.14
-Nodes (24): EventoRow(), fmt(), MESES, MesSection(), PagosVEPPage(), importacionesService, fmt(), MesCard() (+16 more)
+Cohesion: 0.08
+Nodes (47): EventoRow(), fmt(), MESES, MesSection(), PagosVEPPage(), importacionesService, pagosExteriorService, FlujoFondosFiltros() (+39 more)
 
-### Community 124 - "usePDFGeneration.ts"
-Cohesion: 0.11
-Nodes (18): Props, AdjuntosSection(), Props, PdfAdjuntoPreview(), Props, RenderedPage, useAdjuntoPdfThumbnails(), A4_POINTS (+10 more)
+### Community 124 - "AdjuntoMeta"
+Cohesion: 0.13
+Nodes (16): AdjuntosSection(), Props, PdfAdjuntoPreview(), Props, RenderedPage, useAdjuntoPdfThumbnails(), A4_POINTS, dataUrlToUint8Array() (+8 more)
 
 ### Community 125 - "MobileSignatureView.tsx"
 Cohesion: 0.09
@@ -1851,11 +1948,11 @@ Nodes (20): AppModals(), AppModalsProps, CompanyHeader(), CompanyLogo(), HeaderP
 
 ### Community 126 - "firestore-assert.ts"
 Cohesion: 0.11
-Nodes (18): TODAY, NOTE: `getTicketEstado(id)` requiere leadId — spec placeholder., getMailQueueDocs(), getPendingActions(), getPresupuesto(), getPresupuestoEsquema(), getRequerimientosByPresupuesto(), getSolicitudesFacturacion() (+10 more)
+Nodes (27): patchUsuarioSeguimiento(), ensureAgs(), getAdminConfigFlujos(), getDocById(), getMailQueueDocs(), getMailQueueDocsByOt(), getOCCliente(), getOCsByPresupuesto() (+19 more)
 
 ### Community 127 - "useImportacionForm.ts"
-Cohesion: 0.11
-Nodes (24): conceptoLabel(), ImportacionGastosEditor(), Props, Row(), ImportacionGastosSection(), MONEDAS, Props, ProrrateoPreview() (+16 more)
+Cohesion: 0.38
+Nodes (4): BnaTipoCambioHint(), Props, CotizacionDolar, cotizacionesService
 
 ### Community 128 - "compilerOptions"
 Cohesion: 0.07
@@ -1917,17 +2014,17 @@ Nodes (27): Analyzing Benchmark Results, Categories for Suggestions, Guidelines,
 Cohesion: 0.07
 Nodes (27): compilerOptions, allowImportingTsExtensions, baseUrl, isolatedModules, jsx, lib, module, moduleResolution (+19 more)
 
-### Community 143 - "useTabs"
-Cohesion: 0.12
-Nodes (22): SidebarNav(), SidebarNavProps, TabBar(), TabContentManager(), PresupuestoOTsVinculadas(), Props, ESTADO_STYLES, PresupuestoRequerimientosSection() (+14 more)
+### Community 143 - "TabsContext.tsx"
+Cohesion: 0.16
+Nodes (19): useLandingPath(), useNavigation(), SidebarNav(), SidebarNavProps, AppRoutes(), buildInitialTabs(), computeSublabel(), generateTabId() (+11 more)
 
 ### Community 144 - "PDFContratoDetail.tsx"
-Cohesion: 0.19
-Nodes (20): PDFContratoAceptacion(), PDFContratoCondicionesText(), PDFContratoCuotas(), PDFContratoCover(), ItemRow(), PDFContratoDetail(), NOTE: do NOT wrap={false} on the outer card — con 21 sistemas y módulos,, SistemaCard() (+12 more)
+Cohesion: 0.15
+Nodes (25): PDFContratoAceptacion(), PDFContratoCondicionesText(), PDFContratoCuotas(), PDFContratoNotasTecnicas(), PDFContratoCover(), ItemRow(), PDFContratoDetail(), SistemaCard() (+17 more)
 
 ### Community 145 - "useEnviarOrdenCompra.ts"
-Cohesion: 0.12
-Nodes (22): downloadOrdenCompraPDF(), generateOrdenCompraPDF(), COLORS, fmtDate(), fmtMoney(), MONEDA_SYM, OrdenCompraPDF(), S (+14 more)
+Cohesion: 0.10
+Nodes (28): EnviarAnexosSection(), buildDefaultBody(), EnviarPresupuestoModal(), Props, generateAnexoConsumiblesPDF(), buildRecipientOptions(), EnviarOrdenCompraModal(), splitEmails() (+20 more)
 
 ### Community 146 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.07
@@ -1954,8 +2051,8 @@ Cohesion: 0.07
 Nodes (26): 1. Design Token Hierarchy, 2. Component Architecture, Advanced v4 Patterns, Best Practices, Container Queries, Core Concepts, Custom Utilities with `@utility`, Do's (+18 more)
 
 ### Community 152 - "cuotasFacturacion.ts"
-Cohesion: 0.13
-Nodes (24): FIXTURE_30_70_ACEPTADO, FIXTURE_30_70_BORRADOR, FIXTURE_30_70_TODAS_OTS_CERRADAS, FIXTURE_ANULADA_REGEN, FIXTURE_COBRADA_MIRROR, FIXTURE_CUOTAS_EQUAL_SAME_ORDER, FIXTURE_CUOTAS_EQUAL_SHUFFLED_KEYS, FIXTURE_CUOTAS_NOT_EQUAL (+16 more)
+Cohesion: 0.10
+Nodes (32): run(), FIXTURE_30_70_ACEPTADO, FIXTURE_30_70_BORRADOR, FIXTURE_30_70_TODAS_OTS_CERRADAS, FIXTURE_ANULADA_REGEN, FIXTURE_COBRADA_MIRROR, FIXTURE_CUOTAS_EQUAL_SAME_ORDER, FIXTURE_CUOTAS_EQUAL_SHUFFLED_KEYS (+24 more)
 
 ### Community 153 - "audit-milestone.md"
 Cohesion: 0.07
@@ -1982,12 +2079,12 @@ Cohesion: 0.07
 Nodes (26): 1. Direct Firestore from components / hooks (P0), 2. List pages using `useState` for filters instead of `useUrlFilters` (P1), 3. Components > 250 lines (P1), 4. Cross-app duplication (P1), 5. Modal API misuse (P1), 6. Pattern divergence (P2), 7. Dead components (P2), Audit: Components, Hooks, Pages (sistema-modular + portal-ingeniero) (+18 more)
 
 ### Community 159 - "OTFormSection.tsx"
-Cohesion: 0.13
-Nodes (18): getGoogleAccessToken(), getHeader(), getUserFirebaseToken(), handler(), MultiSelectCell(), OTFormSection(), OTFormSectionProps, PreviewSection() (+10 more)
+Cohesion: 0.33
+Nodes (8): getGoogleAccessToken(), getHeader(), getUserFirebaseToken(), handler(), ReportesPage(), MultiSelectCell(), ArticuloAutocomplete(), useIsMobile()
 
 ### Community 160 - "AgendaEntry"
-Cohesion: 0.12
-Nodes (18): Props, QUARTER_LABELS, AgendaCellPopover(), AgendaCellPopoverProps, BORDER, Q, AgendaEntryChipProps, AgendaGridCellProps (+10 more)
+Cohesion: 0.07
+Nodes (39): AgendaAlmanaqueCard(), BORDE, Props, Props, AgendaBuscador(), AgendaBuscadorProps, formatFecha(), AgendaCellPopover() (+31 more)
 
 ### Community 161 - "Changelog - Reportes OT"
 Cohesion: 0.08
@@ -1995,11 +2092,11 @@ Nodes (25): 1. **Bug en Duplicación de OT - OT Finalizada**, 1. **Firma del Esp
 
 ### Community 162 - "patronBom.ts"
 Cohesion: 0.14
-Nodes (20): captureNextDialog(), ConsumirOutcome, ConsumirParams, CleanupOpts, cleanupPatronBomFixture(), getMovimientosPatronByOt(), getPatron(), getReporteOT() (+12 more)
+Nodes (21): captureNextDialog(), ConsumirOutcome, ConsumirParams, CleanupOpts, cleanupPatronBomFixture(), ensureAgs(), getMovimientosPatronByOt(), getPatron() (+13 more)
 
 ### Community 163 - "PresupuestoPDFEstandar.tsx"
-Cohesion: 0.10
-Nodes (14): baseStyles, COLORS, agruparPorSistemaSimple(), GrupoSistemaPDF, GrupoSistemaSimple, fmt(), formatDate(), itemCols (+6 more)
+Cohesion: 0.07
+Nodes (41): CertificacionLotePDF(), COLS, fechaCorta(), fmt(), fmtCant(), s, BloqueDetalle, collectBloquesDetalle() (+33 more)
 
 ### Community 164 - "Multi-Agent Code Review Orchestration Tool"
 Cohesion: 0.08
@@ -2014,8 +2111,8 @@ Cohesion: 0.08
 Nodes (26): Base64 Encoding Pattern, Computed vs Stored Fields, Document Enum Values, Enums, Expose Database IDs Separately, Field Cohesion, Global IDs, ID Design (+18 more)
 
 ### Community 167 - "index.ts"
-Cohesion: 0.10
-Nodes (18): db, EquipoPublico, getEquipoPublico, SoftwarePublico, helloPing, db, onOTCerrada, auth (+10 more)
+Cohesion: 0.08
+Nodes (22): db, EquipoPublico, getEquipoPublico, SoftwarePublico, helloPing, db, onOTCerrada, auth (+14 more)
 
 ### Community 168 - "package.json"
 Cohesion: 0.09
@@ -2049,25 +2146,25 @@ Nodes (24): Anti-features (NO construir), Confidence Assessment, Deferred to v2.
 Cohesion: 0.15
 Nodes (19): build_run(), embed_file(), find_runs(), _find_runs_recursive(), generate_html(), get_mime_type(), _kill_port(), load_previous_iteration() (+11 more)
 
-### Community 176 - "qfDocumentos.ts"
-Cohesion: 0.11
-Nodes (18): Props, Props, Props, Props, QFFilterBar(), CreateQFInput, makeQfDocumentosService(), QFDocumentosServiceDeps (+10 more)
+### Community 176 - "QFDocumento"
+Cohesion: 0.06
+Nodes (43): EditarQFModal(), Props, formatFecha(), HistorialDrawer(), Props, NuevaVersionModal(), Props, NuevoQFModal() (+35 more)
 
 ### Community 177 - "index.ts"
-Cohesion: 0.14
-Nodes (16): PageBreakGuides(), ProtocolChecklist(), ProtocolChecklistProps, ProtocolLayout(), ProtocolLayoutProps, ProtocolPage(), ProtocolResultBlock(), ProtocolResultBlockProps (+8 more)
+Cohesion: 0.06
+Nodes (44): PageBreakGuides(), ProtocolChecklist(), ProtocolChecklistProps, ProtocolLayout(), ProtocolLayoutProps, ProtocolPage(), ProtocolResultBlock(), ProtocolResultBlockProps (+36 more)
 
 ### Community 178 - "ProtocolView.tsx"
-Cohesion: 0.12
-Nodes (19): ProtocolSignaturesSection(), ProtocolSignaturesSectionProps, getUsefulHeightPx(), isChecklistSection(), isCompositeConclusionesTableSection(), isSignaturesSection(), isTableSection(), isTextSection() (+11 more)
+Cohesion: 0.02
+Nodes (119): buildLoanerResumenItems(), ESTADOS, LoanersFiltersBar(), parseEstados(), Props, ExportarButtonProps, MenuButton(), MenuButtonItem (+111 more)
 
 ### Community 179 - "scripts"
-Cohesion: 0.08
-Nodes (24): scripts, build, build:desktop, build:web, dev, dev:electron, e2e, e2e:full (+16 more)
+Cohesion: 0.03
+Nodes (67): scripts, build, build:desktop, build:web, dev, dev:electron, e2e, e2e:full (+59 more)
 
 ### Community 180 - "AuditoriaPage.tsx"
 Cohesion: 0.14
-Nodes (21): ACTION_BADGE, ACTION_TABS, ACTION_VERB_BY_TYPE, actionBadgeLabel(), AuditoriaPage(), COLLECTION_LABELS, collectionLabel(), describeAction() (+13 more)
+Nodes (29): AuditoriaDetalle(), ACTION_BADGE, ACTION_TABS, AuditoriaPage(), FILTER_SCHEMA, formatTs(), AuditFilters, auditService (+21 more)
 
 ### Community 181 - "Core Workflow"
 Cohesion: 0.08
@@ -2094,8 +2191,8 @@ Cohesion: 0.09
 Nodes (22): 1. Dependency Scanning, 2. Secret Detection, 3. OWASP Top 10 Static Analysis, 4. Language-Specific Checks, Anti-Pattern: Audit Fatigue, Anti-Pattern: Fix Without Understanding, Anti-Pattern: One-Time Audit, Anti-Pattern: Security by Obscurity (+14 more)
 
 ### Community 187 - "ImportacionIngresarStockModal.tsx"
-Cohesion: 0.18
-Nodes (18): fmt(), ImportacionCosteoPanel(), Props, ImportacionIngresarStockModal(), initState(), IngresarStockItemRow(), IngresoItemState, Props (+10 more)
+Cohesion: 0.60
+Nodes (4): fmt(), ImportacionCosteoPanel(), Props, CosteoImportacion
 
 ### Community 188 - "Verification Overrides"
 Cohesion: 0.09
@@ -2121,9 +2218,9 @@ Nodes (18): MfaEnrollModal(), MfaEnrollModalProps, isMobileDevice(), WebAuthnMod
 Cohesion: 0.09
 Nodes (21): 1. Verifica que las reglas se desplegaron, 2. Verifica el formato de la OT, 3. Verifica que el documento existe, 4. Revisa la consola del navegador, 5. Verifica las credenciales, 📝 Cambios Realizados en las Reglas, 🔴 Error, Método 1: Consola de Firebase (+13 more)
 
-### Community 194 - "ChecklistEditor.tsx"
-Cohesion: 0.14
-Nodes (18): ChecklistEditor(), DEPTH_COLORS, DEPTH_LABELS, ItemFormProps, newItem(), TYPE_LABELS, EmbeddedTableEditor(), buildColumnLines() (+10 more)
+### Community 194 - "TableCatalogEntry"
+Cohesion: 0.13
+Nodes (19): ChecklistEditor(), DEPTH_COLORS, DEPTH_LABELS, ItemFormProps, newItem(), Props, TYPE_LABELS, EmbeddedTableEditor() (+11 more)
 
 ### Community 195 - "Verification Patterns"
 Cohesion: 0.09
@@ -2186,16 +2283,16 @@ Cohesion: 0.10
 Nodes (20): 1. Lista de Leads (`/leads`), 2. Crear Lead (`/leads/nuevo`), 3. Detalle de Lead (`/leads/:id`), 🎨 Características, 🔧 Configuración Necesaria, Desarrollo, Electron (Desktop), Error: "Firebase not initialized" (+12 more)
 
 ### Community 212 - "navigation.ts"
-Cohesion: 0.16
-Nodes (15): DESKTOP_MVP_ALLOWED, getAllModulePaths(), getNavigation(), isMvpDefault(), isPathFlagAllowed(), ModuleEntry, navigation, useNavigation() (+7 more)
+Cohesion: 0.09
+Nodes (23): DESKTOP_MVP_ALLOWED, getAllModulePaths(), getNavigation(), isMvpDefault(), isPathFlagAllowed(), ModuleEntry, navigation, FeatureFlagsContext (+15 more)
 
 ### Community 213 - "PresupuestoItemsTableContrato.tsx"
-Cohesion: 0.21
-Nodes (16): AgregarSistemaContratoModal(), ArticuloInlineAutocomplete(), ArticuloMini, Props, buildItemsFromPlantilla(), groupItemsForContrato(), makeSubItem(), nextGrupoNumber() (+8 more)
+Cohesion: 0.10
+Nodes (30): AgregarSistemaContratoModal(), buildItemsFromPlantilla(), buildItemSueltoDesdeCargaCompleta(), buildItemVisitasContrato(), groupItemsForContrato(), makeSubItem(), materializarServiciosPorSistema(), nextGrupoNumber() (+22 more)
 
 ### Community 214 - "AgendaPage.tsx"
-Cohesion: 0.25
-Nodes (16): snapToCursor(), useAgendaDnd(), UseAgendaDndArgs, AgendaKeyboardCallbacks, useAgendaKeyboard(), AgendaPage(), findEntriesAtCell(), formatDateKey() (+8 more)
+Cohesion: 0.09
+Nodes (35): AgendaAlmanaqueView(), DIAS, indexarPorIngenieroYDia(), FlechasLaterales(), AgendaHeader(), AgendaHeaderProps, AgendaVista, MESES (+27 more)
 
 ### Community 215 - "AI Evaluation Reference"
 Cohesion: 0.10
@@ -2233,9 +2330,9 @@ Nodes (19): AGS Plataform — System Guide, App Relationships, Architecture Over
 Cohesion: 0.10
 Nodes (19): Bulletproofing Elements, Creation Log: Systematic Debugging Skill, Enhancement 1: TDD Reference, Extraction Decisions, Final Outcome, Initial Version, Iterations, Key Insight (+11 more)
 
-### Community 226 - "InstrumentoSelectorPanel.tsx"
-Cohesion: 0.13
-Nodes (15): ColumnasTab(), ESTADO_BADGE, estadoCert(), InstrumentoRow(), InstrumentoSelectorPanel(), PatronesTab(), Tab, ColumnaRow() (+7 more)
+### Community 226 - "ColumnaRow.tsx"
+Cohesion: 0.02
+Nodes (107): AccionesPendientesPage, AgendaPage, AlertasStockPage, AnaliticaPresupuestos, ArticuloDetail, ArticuloEditor, ArticulosList, AsignacionDetail (+99 more)
 
 ### Community 227 - "compilerOptions"
 Cohesion: 0.10
@@ -2250,16 +2347,16 @@ Cohesion: 0.10
 Nodes (19): Add Missing Peer Dependency, afterAllResolved Hook, Apply to All Packages, Common Patterns, Conditional by Package Name, Context Object, Debug hooks, Debug Resolution (+11 more)
 
 ### Community 230 - "agendaDateUtils.ts"
-Cohesion: 0.19
-Nodes (16): AgendaHeader(), AgendaHeaderProps, useAgenda(), UseAgendaReturn, agendaNotasService, feriadosService, buildCellOccupationMap(), calculateEntryColumns() (+8 more)
+Cohesion: 0.05
+Nodes (54): FRow(), GCard(), ConfiguracionCard(), EquipoCard(), TareasPendientesCard(), KitIngenieroCard(), TIPO_LABEL, TIPOS_VISIBLES (+46 more)
 
 ### Community 231 - "FichaFotosSection.tsx"
-Cohesion: 0.17
-Nodes (15): FichaFotosSection(), Props, Drawer(), DrawerProps, fotoStorageService, createFolder(), driveRequest(), findFolder() (+7 more)
+Cohesion: 0.54
+Nodes (7): createFolder(), driveRequest(), findFolder(), getFichaFolderId(), getRootFolderId(), getToken(), googleDriveService
 
 ### Community 232 - "authService.ts"
-Cohesion: 0.16
-Nodes (14): AuthProvider(), AccessDeniedPage(), LoginPage(), NotFoundPage(), PendingApprovalPage(), auth, ElectronAuthAPI, isAllowedDomain() (+6 more)
+Cohesion: 0.15
+Nodes (15): ProtectedRoute(), AuthProvider(), AccessDeniedPage(), LoginPage(), NotFoundPage(), PendingApprovalPage(), auth, ElectronAuthAPI (+7 more)
 
 ### Community 233 - "checkpoints.md"
 Cohesion: 0.10
@@ -2318,8 +2415,8 @@ Cohesion: 0.11
 Nodes (18): AGS Sistema Modular - Aplicación de Escritorio, 📦 Build, Build Aplicación de Escritorio, Build Web, 🖥️ Características de la Aplicación, 🔧 Configuración, Configuración de Electron, 🚀 Desarrollo (+10 more)
 
 ### Community 247 - "AgendaWeekBlock.tsx"
-Cohesion: 0.18
-Nodes (16): AgendaGrid(), AgendaGridProps, AgendaGridCell, AgendaGridRow, AgendaGridRowProps, AgendaWeekBlock, AgendaWeekBlockProps, ZOOM_SIZES (+8 more)
+Cohesion: 0.08
+Nodes (47): AgendaGrid(), AgendaGridProps, AgendaGridRow, AgendaGridRowProps, AgendaWeekBlock, AgendaWeekBlockProps, ZOOM_SIZES, conMarcaInterior() (+39 more)
 
 ### Community 248 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.11
@@ -2414,16 +2511,16 @@ Cohesion: 0.18
 Nodes (11): Finding, main(), OWASPScanner, Path, Security finding data class, Scan a single file for vulnerabilities, Recursively scan a directory, Get summary counts by severity (+3 more)
 
 ### Community 271 - "ViaticosPage.tsx"
-Cohesion: 0.18
-Nodes (15): formatMoney(), HistorialViaticosModal(), MESES, Props, useViaticos(), formatMoney(), MESES, ViaticosPage() (+7 more)
+Cohesion: 0.10
+Nodes (24): fmtFecha(), OTResumenModal(), Props, Modal(), ModalProps, WIDTHS, formatMoney(), HistorialViaticosModal() (+16 more)
 
 ### Community 272 - "Informe: Protocolos en la app de reportes OT (contexto para ChatGPT)"
 Cohesion: 0.11
 Nodes (17): 1. Contexto del proyecto, 2. Objetivo: protocolos como hojas anexo, 3.1 Documentación, 3.2 Script de conversión Word → JSON, 3.3 Estado del código en la app, 3. Qué existe hoy, 4. Por qué se revirtió la implementación anterior, 5. Pasos a seguir (resumen del plan 3–5 días) (+9 more)
 
 ### Community 273 - "index.ts"
-Cohesion: 0.12
-Nodes (9): afip, afipApp, app, webauthn, webauthnRouter, processMailQueue, FINAL_STATES, onClientSignature (+1 more)
+Cohesion: 0.29
+Nodes (3): FINAL_STATES, onClientSignature, ReportLike
 
 ### Community 274 - "📋 Pasos para Configurar"
 Cohesion: 0.11
@@ -2434,8 +2531,8 @@ Cohesion: 0.11
 Nodes (17): 10. Notas Importantes, 1. Resumen Ejecutivo, 2. Estructura del Proyecto, 3. Modelo de Datos (Firestore), 4. Tipos TypeScript (Modelo de Datos Completo), 5. Rutas de la Aplicación, 6. Servicios Disponibles (firebaseService.ts), 7. Estado de Implementación (+9 more)
 
 ### Community 276 - "test-base.ts"
-Cohesion: 0.26
-Nodes (7): ADMIN_ROUTES, ALL_SIDEBAR_ITEMS, STOCK_SUBITEMS, __dirname, test, timestamp(), USER_DATA_DIR
+Cohesion: 0.22
+Nodes (9): ADMIN_ROUTES, ALL_SIDEBAR_ITEMS, STOCK_SUBITEMS, __dirname, ROUTE_MAP, STOCK_ROUTE_MAP, test, timestamp() (+1 more)
 
 ### Community 277 - "✅ Resumen de Implementación - Sistema Modular"
 Cohesion: 0.11
@@ -2443,7 +2540,7 @@ Nodes (17): ✅ Checklist de Verificación, 🎯 Comandos Útiles, ✅ Completad
 
 ### Community 278 - "PDFRichText.tsx"
 Cohesion: 0.14
-Nodes (11): FONT_SIZE_MAP, mapFontTagsToPt(), PDFRichText(), PDFRichTextProps, preserveLineBreaks(), stripFontSizing(), stripHtml(), stylesheet (+3 more)
+Nodes (12): conFuente(), mapFontTagsToPt(), PDFRichText(), PDFRichTextProps, preserveLineBreaks(), stripFontSizing(), stripHtml(), stylesheet (+4 more)
 
 ### Community 279 - "Reapply Local Patches Workflow"
 Cohesion: 0.11
@@ -2455,11 +2552,11 @@ Nodes (17): 1. Problema, 2. Objetivo, 3. Cambios al modelo, 4. Cambios al servic
 
 ### Community 281 - "AGS Plataform — System Guide"
 Cohesion: 0.11
-Nodes (18): AGS Plataform — System Guide, App relationships, Architecture overview, Business flow (current — verify against memory before quoting), Core entity hierarchy, Design system — Editorial Teal, For more depth, Hard rules (la pirámide de enforcement) (+10 more)
+Nodes (19): AGS Plataform — System Guide, App relationships, Architecture overview, Business flow (current — verify against memory before quoting), Design system — Editorial Teal, For more depth, Hard rules (la pirámide de enforcement), Modules in sistema-modular (current) (+11 more)
 
 ### Community 282 - "List Page Conventions — AGS Platform (Unified)"
-Cohesion: 0.11
-Nodes (17): Action buttons, Cell types, Checklist for New List Pages, Date Formatting, Empty State, Filter System (2 rows), HARD RULES, List Page Conventions — AGS Platform (Unified) (+9 more)
+Cohesion: 0.10
+Nodes (19): Action buttons, Avisos y confirmaciones, Cell types, Checklist for New List Pages, Date Formatting, Empty State, Filter System (2 rows), HARD RULES (+11 more)
 
 ### Community 283 - "Monorepo Setup"
 Cohesion: 0.11
@@ -2538,12 +2635,12 @@ Cohesion: 0.21
 Nodes (16): applyDocxMerges(), args, basename, enrichTableRows(), getConclusionesColumnIndices(), getDocxTableMerges(), htmlToTemplate(), inferEquipmentType() (+8 more)
 
 ### Community 302 - "App.tsx"
-Cohesion: 0.19
-Nodes (12): AuthGate(), LeadNotificationListener(), QRNotificationListener(), ConfirmDialogProvider(), UpdateAPI, UpdateBanner(), Window, detectAndNotifyChanges() (+4 more)
+Cohesion: 0.11
+Nodes (21): AuthGate(), LeadNotificationListener(), QRNotificationListener(), ConfirmDialogProvider(), PendingConfirm, ESTILO, ICONO, NotifyHost() (+13 more)
 
 ### Community 303 - "reportePdfService.ts"
-Cohesion: 0.19
-Nodes (14): CierrePDFPreview(), Props, DocumentosAdicionalesReporte(), fmtSize(), Props, A4, ACCEPTED_MIMES, appendDocumentToReportPdf() (+6 more)
+Cohesion: 0.04
+Nodes (70): EquipoOTsCard(), fecha(), LoanerOTsSection(), Props, CierreMaterialesBlock(), Props, CierrePatronesConsumidosSection(), CierrePDFPreview() (+62 more)
 
 ### Community 304 - "command: "npx eslint --fix $FILE 2>/dev/null || true""
 Cohesion: 0.12
@@ -2586,8 +2683,8 @@ Cohesion: 0.25
 Nodes (16): _can_merge(), _consolidate_text(), _find_elements(), _first_child_run(), _get_child(), _get_children(), _is_adjacent(), _is_run() (+8 more)
 
 ### Community 314 - "backup-renamed.mjs"
-Cohesion: 0.14
-Nodes (14): arg, auditPresuMap, certMap, fetchFolder(), FS_DIR, leadMap, log(), nd (+6 more)
+Cohesion: 0.16
+Nodes (12): arg, certMap, fetchFolder(), FS_DIR, leadMap, log(), nd, NDJSON (+4 more)
 
 ### Community 315 - "Phase 9 Plan 01: StockAmplio Core + Bug Fix + Wave 0 Tests Summary"
 Cohesion: 0.12
@@ -2617,9 +2714,9 @@ Nodes (16): [P0] Hard-coded ticket assignee user-id in field-tech app, [P0] Non-
 Cohesion: 0.12
 Nodes (15): 1. Observe the Symptom, 2. Find Immediate Cause, 3. Ask: What Called This?, 4. Keep Tracing Up, 5. Find Original Trigger, Adding Stack Traces, Finding Which Test Causes Pollution, Key Principle (+7 more)
 
-### Community 322 - "ProtocolPaginatedPreview.tsx"
-Cohesion: 0.15
-Nodes (12): AGS_VARIABLES, ContentItem, fmtDate(), getPageHeaderTitle(), InstrumentosTable(), PAGE_PADDING, PageDef, Props (+4 more)
+### Community 322 - "OTDetail.tsx"
+Cohesion: 0.05
+Nodes (54): GCPortsGridProps, hoyYMD(), opcionesDesdeEquipos(), perfilesDesdeCatalogo(), usePlanificacionInsumos(), claveCupo(), consumoDelAnio(), CUENTA_PARA_CUPO() (+46 more)
 
 ### Community 323 - "CONTEXTO_CHATGPT_INSTRUCCIONES_PROYECTO.md"
 Cohesion: 0.12
@@ -2635,7 +2732,7 @@ Nodes (15): Adding Peer Dependencies via Hooks, Allow Multiple Major Versions, a
 
 ### Community 326 - "loanersVentaHelpers.ts"
 Cohesion: 0.18
-Nodes (11): registrarVenta, __setTestFirestore(), buildRegistrarVenta(), _registrarVentaInProd(), _registrarVentaInTest(), RegistrarVentaResult, buildFixturePreVinculado(), buildFixtureSinArticulo() (+3 more)
+Nodes (15): Props, getFirebaseModules(), registrarVenta, __setTestFirestore(), buildRegistrarVenta(), _registrarVentaInProd(), _registrarVentaInTest(), RegistrarVentaParams (+7 more)
 
 ### Community 327 - "gsd-debug-session-manager.md"
 Cohesion: 0.12
@@ -2762,8 +2859,8 @@ Cohesion: 0.13
 Nodes (14): A) Google Workspace Sign-In, B) WebAuthn (plataforma), C) Seguridad y almacenamiento, D) UX, Entregables por PR, Especificaciones técnicas, Implementación MFA - Plan de PRs, Notas de migración (PR1) (+6 more)
 
 ### Community 358 - "middleware.ts"
-Cohesion: 0.21
-Nodes (9): RATE_LIMIT, AuthContext, checkRateLimit(), getDb(), getFirebaseToken(), rateLimitKey(), requireAdmin(), requireAllowedDomain() (+1 more)
+Cohesion: 0.12
+Nodes (15): RATE_LIMIT, afip, afipApp, app, webauthn, webauthnRouter, processMailQueue, AuthContext (+7 more)
 
 ### Community 359 - "pnpm Workspaces"
 Cohesion: 0.13
@@ -2798,8 +2895,8 @@ Cohesion: 0.13
 Nodes (14): Design Rationale, Dynamic Routing with Failure-Tier Escalation (#3024), Model Profiles, Per-Agent Overrides, Per-Phase-Type Model Map (#3023), Phase-type → agent mapping, Profile Definitions, Profile Philosophy (+6 more)
 
 ### Community 367 - "Plan: Seguridad para habilitar el QR a clientes"
-Cohesion: 0.13
-Nodes (14): A.1 — Equipo público vía Cloud Function (AHORA), A.2 — Alta de ticket vía Cloud Function (AHORA), A.3 — Firma remota con token (DIFERIDA — toca app congelada), Estado verificado (2026-06-23), Fase A — Cerrar los 3 accesos públicos, Fase B — Identidad de cliente (custom claims), Fase C — Reglas de aislamiento multi-cliente, Fase D — Superficie pública definida (+6 more)
+Cohesion: 0.08
+Nodes (22): Autenticación recomendada, Estado: reglas cliente F1 DEPLOYADAS A PRODUCCIÓN (2026-07-25), Estado: reglas + provisioning PROVEEDOR F1 — DEPLOYADO A PRODUCCIÓN (2026-07-26), Fuentes autoritativas (confirmadas), Plan por fases (cablear Firebase real sobre esta base), Portal Cliente — Revisión de seguridad (login + conexión Firebase), Riesgos (rankeados) — cerrar antes de exponer cada dato, Tabla de reglas — colección → gap → predicado a agregar (+14 more)
 
 ### Community 368 - "Firebase Authentication Web SDK"
 Cohesion: 0.13
@@ -2889,29 +2986,33 @@ Nodes (14): Accomplishments, Auto-fixed Issues, Confirmation of Plan Invariants,
 Cohesion: 0.22
 Nodes (12): _ensure_shim(), get_soffice_env(), _needs_shim(), CompletedProcess, Path, Helper for running LibreOffice (soffice) in environments where AF_UNIX sockets, run_soffice(), has_gtimeout() (+4 more)
 
-### Community 392 - "DatosBasicosStep.tsx"
-Cohesion: 0.16
-Nodes (10): Cliente, LookbackOption, Props, TipoServicio, DatosBasicosForm, DatosBasicosStep(), Props, SearchableSelect() (+2 more)
+### Community 392 - "HistorialFilterBar.tsx"
+Cohesion: 0.05
+Nodes (46): ContactosSectionProps, Props, Props, MonedasMixtaPicker(), Props, TODAS, BuildDataExtras, buildPresupuestoPDFData() (+38 more)
 
-### Community 393 - "QFDocumento"
-Cohesion: 0.19
-Nodes (12): Props, formatFecha(), HistorialDrawer(), Props, Props, Props, Props, formatFecha() (+4 more)
+### Community 393 - "useUrlFilters.ts"
+Cohesion: 0.40
+Nodes (4): FilterDef, FilterSchema, FilterType, InferValues
 
 ### Community 394 - "leads.ts"
-Cohesion: 0.21
-Nodes (13): parseLead(), hydrateContactosTicket(), migrateLeadArea(), migrateLeadEstado(), migrateMotivoLlamado(), OT_TO_LEAD_ESTADO, parseLeadDoc(), PRESUPUESTO_ESTADO_LABELS (+5 more)
+Cohesion: 0.09
+Nodes (26): Cliente, LookbackOption, Props, TipoServicio, ContactosTicketSection(), emptyForm, newId(), Props (+18 more)
+
+### Community 395 - "OTColumnsMenu.tsx"
+Cohesion: 0.05
+Nodes (52): CreateOTModal(), NewItemOTModal(), OTBulkActionsBar(), ColumnToggle, OTColumnsMenu(), Props, fmt(), OTFiltersBar() (+44 more)
 
 ### Community 396 - "notifications.ts"
 Cohesion: 0.16
 Nodes (12): AREA_LABELS, DEFAULT_PREFS, NotificationEvent, NotificationPreferences, NotificationType, onLeadWritten, Posta, resolveAreaUserIds() (+4 more)
 
 ### Community 397 - "normalizeCompositeConclusionesTable"
-Cohesion: 0.24
-Nodes (14): cleanTitleHeader(), ensureCompositeConclusionesIntegrity(), extractTitleFromTitleRow(), formatTitleTwoLines(), getCellTextLoose(), HEADER_WORDS_TITLE_RAW, isSectionTitleLikeRowSec19(), isTitleRowComposite() (+6 more)
+Cohesion: 0.08
+Nodes (47): ESTADO_COLORS, ESTADO_LABELS, ProveedorCalificacionPanel(), CalificacionesList(), FILTER_SCHEMA, agruparPorEvento(), CalificacionesTable(), CicloTab (+39 more)
 
 ### Community 398 - "build"
-Cohesion: 0.14
-Nodes (13): build, appId, directories, files, productName, win, buildResources, output (+5 more)
+Cohesion: 0.07
+Nodes (27): build, appId, asarUnpack, directories, files, nsis, productName, publish (+19 more)
 
 ### Community 399 - "buffer"
 Cohesion: 0.16
@@ -3281,9 +3382,9 @@ Nodes (11): Common pnpm Settings, Configuration Hierarchy, Environment Variables
 Cohesion: 0.17
 Nodes (12): Config Migration, Custom Transform Targets, esbuild → oxc, Gradual Migration, JSX Configuration, New Capabilities, Overriding Vite in Frameworks, Performance Impact (+4 more)
 
-### Community 493 - "Layout.tsx"
-Cohesion: 0.24
-Nodes (8): BackgroundTasksIndicator(), TASK_LABELS, Layout(), MODULE_ROOTS, useLayoutKeyboardShortcuts(), NotificationButton(), MinimizedModalsBar(), subscribe()
+### Community 493 - "useTabs"
+Cohesion: 0.07
+Nodes (31): EditPresupuestoModal, FloatingPresupuesto(), Layout(), MODULE_ROOTS, TabBar(), precargarModulosEnIdle(), TabContentManager(), useLayoutKeyboardShortcuts() (+23 more)
 
 ### Community 494 - "useRelinkearArticulos.ts"
 Cohesion: 0.24
@@ -3590,8 +3691,8 @@ Cohesion: 0.20
 Nodes (10): Commands, Core, DevTools, Keyboard, Mouse, Navigation, Network, Save as (+2 more)
 
 ### Community 572 - "AgendaGridView.tsx"
-Cohesion: 0.33
-Nodes (8): addDays(), AgendaGridView(), BORDER_COLOR, formatDate(), formatWeekLabel(), isToday(), Props, WEEKDAYS
+Cohesion: 0.07
+Nodes (39): GenerarRemitoDevolucionModal(), RemitoOverlayItem, ElegibleItem, emptyParte(), ItemMode, ParteInput, Props, RemitoItemPicker() (+31 more)
 
 ### Community 573 - "compilerOptions"
 Cohesion: 0.20
@@ -3606,8 +3707,8 @@ Cohesion: 0.20
 Nodes (10): 6.1 Animate SVG Wrapper Instead of SVG Element, 6.2 CSS content-visibility for Long Lists, 6.3 Hoist Static JSX Elements, 6.4 Optimize SVG Precision, 6.5 Prevent Hydration Mismatch Without Flickering, 6.6 Suppress Expected Hydration Mismatches, 6.7 Use Activity Component for Show/Hide, 6.8 Use Explicit Conditional Rendering (+2 more)
 
 ### Community 576 - "ArticulosListRow.tsx"
-Cohesion: 0.22
-Nodes (7): EquivalenciaBadge(), Props, ArticulosListRow(), CATEGORIA_LABELS, EquivalenciaDualDisplay, Props, TIPO_LABELS
+Cohesion: 0.18
+Nodes (11): EquivalenciaBadge(), Props, PresentacionesBadge(), HoverTooltip(), Props, ArticulosListRow(), DualExpansionRow(), EquivalenciaDualDisplay (+3 more)
 
 ### Community 577 - "gsd-ui-checker.md"
 Cohesion: 0.20
@@ -3806,16 +3907,16 @@ Cohesion: 0.22
 Nodes (9): Backward Compatibility, Basic Configuration, Concept, Custom Environment Instances, Environment API (Vite 6+), Environment Options, Multiple Environments, Plugin Environment Access (+1 more)
 
 ### Community 628 - "13-oc-cliente-flow.spec.ts"
-Cohesion: 0.25
-Nodes (8): __dirname, ensureOcSamplePdf(), FIXTURES_DIR, OC_PDF_PATH, NOTE: `'oc_recibida'` aún no está en el union `TicketEstado` (plan 08-01, NOTE: `'oc_recibida'` se agrega al union en plan 08-01; cast hasta entonces., getOCCliente(), getOCsByPresupuesto()
+Cohesion: 0.40
+Nodes (4): __dirname, ensureOcSamplePdf(), FIXTURES_DIR, OC_PDF_PATH
 
-### Community 629 - "PendienteTipo"
-Cohesion: 0.36
-Nodes (7): FormState, UsePendientesFilters, UsePendientesReturn, PendienteFilters, PendienteEstado, PendienteResolucionDocType, PendienteTipo
+### Community 629 - "pendientesService.ts"
+Cohesion: 0.09
+Nodes (40): CuotaFilaRow(), ESTADO_COLOR, ESTADO_LABEL, fmtDia(), fmtMes(), Props, MarcarFacturadaExternaModal(), Props (+32 more)
 
 ### Community 630 - "RemitoOverlayPDF.tsx"
-Cohesion: 0.25
-Nodes (8): COL_X, PaginaProps, PaginaRemito(), RemitoOverlayDestinatario, RemitoOverlayItem, RemitoOverlayPDFProps, styles, valuePos()
+Cohesion: 0.11
+Nodes (20): Campo(), COL_X, componerDescripcionRemito(), DY_TRANSPORTISTA, MAX_LINEA_CARACTERES, OBS_BOX, PaginaProps, PaginaRemito() (+12 more)
 
 ### Community 631 - "compilerOptions"
 Cohesion: 0.22
@@ -3994,16 +4095,16 @@ Cohesion: 0.25
 Nodes (8): Advanced: Multiple Operations, Clear All localStorage, Delete Single Item, Get Single Value, List All localStorage Items, Local Storage, Set JSON Value, Set Value
 
 ### Community 676 - "SignaturePad.tsx"
-Cohesion: 0.25
-Nodes (3): SignaturePad, SignaturePadHandle, SignaturePadProps
+Cohesion: 0.05
+Nodes (39): dependencies, @ags/shared, firebase, lucide-react, react, react-dom, react-router-dom, devDependencies (+31 more)
 
 ### Community 677 - "ErrorBoundary"
-Cohesion: 0.25
-Nodes (3): ErrorBoundary, Props, State
+Cohesion: 0.05
+Nodes (39): dependencies, @ags/shared, firebase, lucide-react, react, react-dom, react-router-dom, devDependencies (+31 more)
 
 ### Community 678 - "pdfGenerator.ts"
-Cohesion: 0.39
-Nodes (4): buildTemplate(), fmt(), generateOTPdf(), Html2PdfInstance
+Cohesion: 0.12
+Nodes (30): aporteDeOpcion(), buildOptions(), CONDICION_LABEL, disponibleDeOpcion(), loteLabel(), miembrosDeOpcion(), opcionAsignacion(), opcionDeSeleccion() (+22 more)
 
 ### Community 679 - "Contexto para nuevo chat con ChatGPT – Protocolos y reportes OT"
 Cohesion: 0.25
@@ -4030,8 +4131,8 @@ Cohesion: 0.25
 Nodes (7): Compatibilidad hacia atrás, Fases de despliegue, Migración: CUIT como ID de Cliente + Establecimientos, Resumen del cambio de modelo, Script de migración, Uso del script, Validaciones post-migración
 
 ### Community 685 - "equivalencias.ts"
-Cohesion: 0.39
-Nodes (5): db, firebaseConfig, navigateToArticulosList(), openArticuloDetail(), seedEquivalenciaPair()
+Cohesion: 0.57
+Nodes (5): cleanupEquivalenciaPair(), ensureAgs(), navigateToArticulosList(), openArticuloDetail(), seedEquivalenciaPair()
 
 ### Community 687 - "generate-report.ts"
 Cohesion: 0.29
@@ -4042,16 +4143,16 @@ Cohesion: 0.36
 Nodes (7): __dirname, isDryRun, isRun, main(), normalizeCuit(), normalizeRazonSocial(), stripUndefined()
 
 ### Community 689 - "IngenieroCertificados.tsx"
-Cohesion: 0.29
-Nodes (7): CATEGORIAS, ESTADO_BADGE, ESTADO_LABEL, estadoCert(), IngenieroCertificados(), Props, certificadosIngenieroService
+Cohesion: 0.10
+Nodes (31): CONDICION_LABEL, InventarioAnualTabla(), Props, usd(), useInventarioAnual(), FILTER_SCHEMA, InventarioAnualPage(), ordenar() (+23 more)
 
 ### Community 690 - "FloatingPresupuestoContext.tsx"
-Cohesion: 0.36
-Nodes (6): FloatingPresupuesto(), FloatingPresupuestoContext, FloatingPresupuestoContextValue, FloatingPresupuestoProvider(), FloatingPresupuestoState, useFloatingPresupuesto()
+Cohesion: 0.13
+Nodes (28): CategoriasPresupuestoModal(), ACTIVE_PIPELINE_STATES, PresupuestosList(), computeTrabajoRealizado(), buildOCPendienteRows(), OCPendienteExportRow, OCS_PENDIENTES_EXPORT_COLUMNS, buildPresupuestoRows() (+20 more)
 
 ### Community 691 - "OCItemsEditTable.tsx"
-Cohesion: 0.29
-Nodes (6): IVA_OPCIONES, MONEDA_SYM, OCItemsEditTable(), Props, MoneyInput(), Props
+Cohesion: 0.11
+Nodes (25): ArticuloInlineAutocomplete(), ArticuloMini, Props, ContratoItemRow(), Props, Props, SubItemDetalleModal(), Props (+17 more)
 
 ### Community 692 - "- before_write"
 Cohesion: 0.25
@@ -4226,8 +4327,8 @@ Cohesion: 0.29
 Nodes (6): A06:2021 - Vulnerable and Outdated Components, Detection Commands, OWASP Top 10 2021 Reference Guide, Quick Reference Table, Remediation, What It Is
 
 ### Community 735 - "VoiceTextarea.tsx"
-Cohesion: 0.38
-Nodes (5): VoiceTextarea(), VoiceTextareaProps, SpeechToTextOptions, SpeechToTextReturn, useSpeechToText()
+Cohesion: 0.06
+Nodes (24): args, BASE, categorias, clientes, condicionesPago, contactos, dumpPath, establecimientos (+16 more)
 
 ### Community 736 - "vercel.json"
 Cohesion: 0.29
@@ -4570,12 +4671,12 @@ Cohesion: 0.33
 Nodes (5): main, name, private, type, version
 
 ### Community 823 - "nsis"
-Cohesion: 0.33
-Nodes (6): nsis, createDesktopShortcut, createStartMenuShortcut, oneClick, runAfterFinish, shortcutName
+Cohesion: 0.14
+Nodes (22): CierreSemanalAutoGenerador(), Props, classifyEntry(), esCondicionAnticipada(), esEntregaOAlquilerOT(), esEntregaOT(), ESTADOS_CON_TRABAJO, useControlSemanal() (+14 more)
 
 ### Community 824 - "publish"
-Cohesion: 0.33
-Nodes (6): publish, owner, private, provider, releaseType, repo
+Cohesion: 0.16
+Nodes (22): fmtARS(), fmtUSD(), PoolEnviosBar(), fmtUSD(), PptoEnvioOption, Props, RegistrarEnvioModal(), usePoolEnvios() (+14 more)
 
 ### Community 825 - "fix-inyectores.mjs"
 Cohesion: 0.40
@@ -4586,16 +4687,16 @@ Cohesion: 0.47
 Nodes (5): buildContactosArrayFromFlat(), __dirname, isRun, main(), stripUndefined()
 
 ### Community 827 - "AgendaPendingSidebar.tsx"
-Cohesion: 0.33
-Nodes (4): AgendaPendingSidebar(), AgendaPendingSidebarProps, DraggableOTCardProps, ESTADO_BADGE
+Cohesion: 0.13
+Nodes (25): acumularMonto(), AGING_BUCKETS, AgingEnviadoRow, AgingResult, buildBuckets(), computeAgingEnviados(), computeConTrabajo(), computePeriodo() (+17 more)
 
 ### Community 828 - "DateInput.tsx"
-Cohesion: 0.53
-Nodes (5): DateInput(), DateInputProps, displayToIso(), formatDigits(), isoToDisplay()
+Cohesion: 0.09
+Nodes (26): AnaliticaFiltros(), iso(), DateInput(), DateInputProps, displayToIso(), formatDigits(), isoToDisplay(), ConsumoRow (+18 more)
 
 ### Community 829 - "seedPlantillas.ts"
 Cohesion: 0.40
-Nodes (5): gen(), hplcServicios(), PLANTILLAS_INICIALES, PlantillaSeed, tiposEquipoService
+Nodes (5): gen(), hplcServicios(), PLANTILLAS_INICIALES, PlantillaSeed, seedPlantillasIniciales()
 
 ### Community 830 - "vite-env.d.ts"
 Cohesion: 0.33
@@ -4877,9 +4978,9 @@ Nodes (5): ✅ Checklist de Refactorización, Componentes, Hooks, Mejoras, Utils
 Cohesion: 0.40
 Nodes (5): Fase Corto Plazo (Próximas 2 Semanas), Fase Inmediata (Esta Semana), Fase Largo Plazo (Futuro), Fase Medio Plazo (Próximo Mes), 🎯 Plan de Acción Recomendado
 
-### Community 901 - "InstrumentosPDFSection.tsx"
-Cohesion: 0.40
-Nodes (4): InstrumentosPDFSection(), Props, tdStyle, thStyle
+### Community 901 - "usePDFGeneration.ts"
+Cohesion: 0.07
+Nodes (28): 0. Hallazgos de investigación (código real, verificado 2026-07-17), 1.1 Enviados en el período, 1.2 Aprobados en el período + tiempo de aprobación, 1.3 Aging de no aprobados (enviados abiertos), 1.4 OC adeudada con servicio ya realizado, 1. Métricas fase 1 — definiciones exactas, 2. Diseño de UI, 3. Arquitectura (+20 more)
 
 ### Community 902 - "Resumen de diseño – Protocolos como anexo (estilo informe A4)"
 Cohesion: 0.40
@@ -4902,16 +5003,16 @@ Cohesion: 0.40
 Nodes (4): data, __dirname, jsonPath, raw
 
 ### Community 907 - "protocolNormalizers.test.ts"
-Cohesion: 0.60
-Nodes (4): ProtocolTableSection, getCellText(), isHeaderRow(), isSubheaderRow()
+Cohesion: 0.07
+Nodes (27): compilerOptions, allowImportingTsExtensions, baseUrl, isolatedModules, jsx, lib, module, moduleResolution (+19 more)
 
 ### Community 908 - "4. Client-Side Data Fetching"
 Cohesion: 0.40
 Nodes (5): 4.1 Deduplicate Global Event Listeners, 4.2 Use Passive Event Listeners for Scrolling Performance, 4.3 Use SWR for Automatic Deduplication, 4.4 Version and Minimize localStorage Data, 4. Client-Side Data Fetching
 
 ### Community 910 - "OTReporteButton.tsx"
-Cohesion: 0.70
-Nodes (4): openReportesApp(), openUrl(), OTReporteButton(), Props
+Cohesion: 0.21
+Nodes (19): abrirConVisorDelSistema(), enElectron(), OTReporteButton(), Props, useCierreSemanal(), CierresSemanalesList(), fecha(), cierreSemanalService (+11 more)
 
 ### Community 911 - "gsd-advisor-researcher.md"
 Cohesion: 0.40
@@ -5285,6 +5386,10 @@ Nodes (3): Common Style Properties, Styling, Supported Units
 Cohesion: 0.67
 Nodes (3): Complejidad Actual, 📊 Métricas del Código, Reducción Esperada
 
+### Community 1016 - "StatusBadge.tsx"
+Cohesion: 0.08
+Nodes (32): AgendaControlSection(), ESTADO_UI, fmtFecha(), Props, TareasSinOTSection(), ComentarioInline(), DiasTrabado(), EntregasControlSection() (+24 more)
+
 ### Community 1032 - "8.5. Chunked Planning Mode"
 Cohesion: 0.67
 Nodes (3): 8.5.1 Outline Phase (outline-only mode, ~2 min), 8.5.2 Per-Plan Tasks (single-plan mode, ~3-5 min each), 8.5. Chunked Planning Mode
@@ -5301,25 +5406,393 @@ Nodes (3): Svg, SVG Presentation Attributes, SVG Shape Elements
 Cohesion: 0.67
 Nodes (3): Common Style Properties, Styling, Supported Units
 
+### Community 1638 - "PresupuestoReservasSection.tsx"
+Cohesion: 0.11
+Nodes (17): App(), GatedApp(), AccountChip(), AppShell(), LogoutButton(), MobileTopBar(), Brand(), NAV_ITEMS (+9 more)
+
+### Community 1639 - "compilerOptions"
+Cohesion: 0.07
+Nodes (27): compilerOptions, allowImportingTsExtensions, baseUrl, isolatedModules, jsx, lib, module, moduleResolution (+19 more)
+
+### Community 1640 - "usePresupuestoDashboardMetrics.ts"
+Cohesion: 0.15
+Nodes (19): PresupuestosSinOtKpi(), KpiFilter, PresupuestoDashboard(), OT_CERRADA_SET, usePresupuestoDashboardMetrics(), ACEPTADO_FAM, ACertificar, computeACertificar() (+11 more)
+
+### Community 1641 - "ocRequerimientosService.ts"
+Cohesion: 0.17
+Nodes (22): ConciliarRequerimientosModal(), detalleReq(), Props, Props, ocRequerimientosService, repartosDeSeleccion(), aplicarSeleccionAItems(), candidatosConciliacion() (+14 more)
+
+### Community 1642 - "UploadQueueManager"
+Cohesion: 0.18
+Nodes (6): UploadQueueIndicator(), pendingFotoTargetLabel(), UploadQueueManager, comprimir(), comprimirFotoParaSubida(), crearFuente()
+
+### Community 1643 - "2. Antes y después, circuito por circuito"
+Cohesion: 0.07
+Nodes (26): 1. Resumen, 2.10 Entregas: el visor de cumplimiento, 2.11 El equipo del cliente en nuestro laboratorio, 2.12 Los equipos de préstamo, 2.13 Cierre, facturación y cobranza, 2.14 Los controles y los avisos, 2.1 El informe de servicio, 2.2 Los protocolos (+18 more)
+
+### Community 1644 - "BienvenidaPage.tsx"
+Cohesion: 0.11
+Nodes (17): ActivityCard(), ChipDef, HeroCard(), HeroCardProps, QuickAccessGrid(), QuickCard, Sparkline(), SparklineProps (+9 more)
+
+### Community 1645 - "loanerRecalificacion.ts"
+Cohesion: 0.16
+Nodes (22): LoanerRetornoProveedorButton(), EnvioEstado, envioEstadoDe(), OTEnvioCell(), idDeOrigen(), patchRetornoProveedor(), anotarOT(), crearItemRecalificacion() (+14 more)
+
+### Community 1646 - "RequerimientosList.tsx"
+Cohesion: 0.15
+Nodes (21): CreateRequerimientoModal(), fmtDate(), OrdenCompraModal(), EditableField, EditingCell, useRequerimientoInlineEdit(), ORIGEN_COLORS, RequerimientoRow() (+13 more)
+
+### Community 1647 - "EquipoDetail.tsx"
+Cohesion: 0.13
+Nodes (16): DOT, BenchBlock(), DOT, OtHistoryChart(), Props, Badge(), BadgeProps, BadgeTone (+8 more)
+
+### Community 1648 - "mailAdjunto.ts"
+Cohesion: 0.15
+Nodes (18): postal-mime, fechaLarga(), MailPDF(), s, convertirMailAPdf(), MailConvertido, nombreDePdf(), decodificar() (+10 more)
+
+### Community 1649 - "LoanersHistorial.tsx"
+Cohesion: 0.14
+Nodes (18): ESTADO_CLS, ESTADO_LABEL, FILTER_SCHEMA, formatDate(), LoanersHistorial(), TABS, armarMovimientosLoaners(), EstadoMovimientoLoaner (+10 more)
+
+### Community 1650 - "reaperturaOT.ts"
+Cohesion: 0.15
+Nodes (20): ReabrirOTModal(), buildTicketAvisoReaperturaTecnica(), chunk(), decidirFacturacionAlReabrir(), destinoReapertura(), FacturacionBloqueadaOT, PdfAnteriorOT, presupuestosDeOT() (+12 more)
+
+### Community 1651 - "package.json"
+Cohesion: 0.09
+Nodes (22): esbuild, dependencies, react, react-dom, react-pdf-html, @react-pdf/renderer, description, devDependencies (+14 more)
+
+### Community 1652 - "CierreSemanalPDF.tsx"
+Cohesion: 0.11
+Nodes (17): CierreSemanalPDF(), Col, colsEntregas, colsFact, colsOT, colsPpto, Estilo, fecha() (+9 more)
+
+### Community 1653 - "useBackgroundTasks"
+Cohesion: 0.13
+Nodes (17): BackgroundTasksIndicator(), TASK_LABELS, BackgroundTask, BackgroundTasksContext, BackgroundTasksContextType, BackgroundTasksProvider(), TaskProgress, useBackgroundTasks() (+9 more)
+
+### Community 1654 - "NotasPrecioButton.tsx"
+Cohesion: 0.20
+Nodes (17): buildRows(), ESTADOS_APROBADO, FactorHistoryButton(), FactorRow, fmtFecha(), Props, NotasPrecioButton(), Props (+9 more)
+
+### Community 1655 - "types.ts"
+Cohesion: 0.13
+Nodes (16): CategoriaIcon(), MAP, EquipoDetail(), DOT, EquipoListProps, LifecycleStepper(), Props, EN_BENCH (+8 more)
+
+### Community 1656 - "OrdenDetailPage.tsx"
+Cohesion: 0.18
+Nodes (14): Badge(), Button(), ButtonProps, Size, SIZES, Variant, VARIANTS, Card() (+6 more)
+
+### Community 1657 - "entregasResolver.ts"
+Cohesion: 0.17
+Nodes (17): CLIENTE_NOMBRE_BY_ID, FIXTURE_NOW, makeImportacion(), makeItem(), makeOC(), makePresupuestoBase(), makeRequerimiento(), buildEntregaRows() (+9 more)
+
+### Community 1658 - "FichasList"
+Cohesion: 0.12
+Nodes (13): Props, FichasList(), firstItemModelo(), firstItemSerie(), summarizeItems(), derivacionesActivasDeFicha(), estadoVisibleDeFicha(), FICHAS_EXPORT_COLUMNS (+5 more)
+
+### Community 1659 - "PlanificacionInsumosPage.tsx"
+Cohesion: 0.20
+Nodes (16): ORIGEN_CLASE, PlanificacionDetalleDrawer(), Props, claseStock(), PlanificacionTabla(), Props, FILTER_SCHEMA, HORIZONTES (+8 more)
+
+### Community 1660 - "cierreSemanalDatos.ts"
+Cohesion: 0.16
+Nodes (17): armarCierreSemanal(), diaDe(), ESTADO_CONTROL_LABEL, fmtMonto(), nombreCliente(), queFaltaTexto(), ddmm(), fechaAvisoPorPresupuesto() (+9 more)
+
+### Community 1661 - "El sistema en marcha"
+Cohesion: 0.10
+Nodes (20): 1. Resumen ejecutivo, 2. Agenda propuesta (45 minutos), 3. El recorrido módulo por módulo, 4. Los controles — la lámina central, 5. Cifras del período, 6. Lo que viene, 7. Material de apoyo para la mesa, ⭐ Asignaciones — detenerse (+12 more)
+
+### Community 1662 - "App.tsx"
+Cohesion: 0.16
+Nodes (12): App(), GatedApp(), AccountChip(), AppShell(), LogoutButton(), MobileTopBar(), Brand(), NAV_ITEMS (+4 more)
+
+### Community 1663 - "types.ts"
+Cohesion: 0.16
+Nodes (15): ICON_COLOR, ICONS, KpiCard(), OrdenesCard(), BadgeProps, BadgeTone, TONE_DOT, TONE_PILL (+7 more)
+
+### Community 1664 - "OTPrintablePDF.tsx"
+Cohesion: 0.14
+Nodes (12): OTImprimirButton(), Props, OTConfiguracionSection(), Props, serieFw(), texto(), C, s (+4 more)
+
+### Community 1665 - "useAgendaUndo.ts"
+Cohesion: 0.20
+Nodes (15): DatosCrear, useAgendaUndo(), propagarEstadoAgendaAOT(), reasignarOTDesdeAgenda(), AccionAgenda, datosParaRecrear(), describirPaso(), etiquetaDeshacer() (+7 more)
+
+### Community 1666 - "useStockUnidadesMigration.ts"
+Cohesion: 0.17
+Nodes (18): getOrCreateSinAsignar(), loadArticulos(), loadPosiciones(), MigrationStep, num(), parseUnidades(), readSheet(), UnidadesMigrationSummary (+10 more)
+
+### Community 1667 - "loanerIncompleto.test.ts"
+Cohesion: 0.14
+Nodes (16): LoanerDetail(), dosPartes, enBase, ing, modulo, parteInop, parteSuelta, parteVuelta (+8 more)
+
+### Community 1668 - "remitoLineas.test.ts"
+Cohesion: 0.10
+Nodes (17): articulo, base, dTermo, EST12, largaConSerie, legacy, MAX_LINEA, minikit (+9 more)
+
+### Community 1669 - "Reapertura de OT — análisis y diseño (2026-09-10)"
+Cohesion: 0.10
+Nodes (19): 1. El problema, 2.1 Reabrir existente, 2.2 Efectos del cierre ADMINISTRATIVO (`otService.cerrarAdministrativamente`, 1574-2091), 2.3 Stock, 2.4 Facturación, presupuestos, tickets, 2.5 Cierre TÉCNICO (reportes-ot, superficie congelada), 2. Qué hay hoy (relevamiento del 2026-09-10), 3. Principios del diseño (+11 more)
+
+### Community 1670 - "AuthContext.tsx"
+Cohesion: 0.19
+Nodes (16): AuthContext, AuthProvider(), AuthState, initials(), toProveedor(), ProveedorPortal, googleProvider, loginEmail() (+8 more)
+
+### Community 1671 - "perfReads.ts"
+Cohesion: 0.13
+Nodes (14): TabRouterBridge(), getDoc, getDocs, onSnapshot, LecturaStats, marcarPantalla(), pantallaActual(), pantallas (+6 more)
+
+### Community 1672 - "ProtocolCatalogPage.tsx"
+Cohesion: 0.13
+Nodes (15): BulkAddModelosModal(), ProjectSelector, ColAlignIconProps, ALIGN_LABELS, ALIGN_PATHS, ColMenu, ColMenuHandle, Props (+7 more)
+
+### Community 1673 - "useAsignacionesVista.ts"
+Cohesion: 0.18
+Nodes (15): AsignarMaterialModal(), AREA_LABELS, fmtFecha(), IngenieroCard(), iniciales(), Props, TIPO_LABELS, codigoItemEnCampo() (+7 more)
+
+### Community 1674 - "1. Circuitos de negocio"
+Cohesion: 0.11
+Nodes (18): 1.1 El ciclo comercial no se cierra solo — CRÍTICO, 1.2 El aviso a facturación nunca sale por correo — CRÍTICO, 1.3 El estado "pendiente de OC" no mueve el ticket — ALTO, 1.4 Las visitas de contrato se consumen y no se devuelven — ALTO, 1.5 Las guardas de calendario están solo de un lado — MEDIO, 1.6 Cancelar la última OT deja el presupuesto en ejecución — MEDIO, 1.7 Lo que sí está bien resuelto, 1.8 Punto abierto (+10 more)
+
+### Community 1675 - "presupuestosSinOC.ts"
+Cohesion: 0.19
+Nodes (13): CeldaAprobadoSinOC(), CeldaTrabajoHechoSinOC(), Dias(), fechaCorta(), computeOCAdeudada(), OC_ADEUDADA_ESTADOS, tieneOCAdjunta(), colorDiasSinOC() (+5 more)
+
+### Community 1676 - "PosicionesArancelariasPage.tsx"
+Cohesion: 0.18
+Nodes (15): EditRow(), emptyForm, FILTER_SCHEMA, fmtNum(), fmtPct(), formatCodigoSIM(), FormState, fromItem() (+7 more)
+
+### Community 1677 - "LoginPage.tsx"
+Cohesion: 0.15
+Nodes (12): GoogleGlyph(), LoginBrandPanel(), Point, POINTS, Button(), ButtonProps, Size, SIZES (+4 more)
+
+### Community 1678 - "AuthContext.tsx"
+Cohesion: 0.21
+Nodes (14): AuthContext, AuthProvider(), initials(), toCliente(), googleProvider, loginEmail(), loginGoogle(), logoutFirebase() (+6 more)
+
+### Community 1679 - "useBulkAddressValidation.ts"
+Cohesion: 0.23
+Nodes (13): BulkAddressValidationModal(), Props, BulkValidationTable(), Props, AddressValidationRow, buildSearchAddress(), computeDiffs(), FieldDiff (+5 more)
+
+### Community 1680 - "Auditoría técnica — Circuito de stock (pre go-live agosto 2026)"
+Cohesion: 0.12
+Nodes (16): 1. Veredicto general, 2. Hallazgos priorizados, 3. Mapa de flujos — ¿qué deja MovimientoStock?, 4. Qué debe llenar la migración de stock (Excel → Firestore), 5. Qué probaría en vivo antes del go-live (en orden), Actualización 2026-07-20 (tarde) — remediación COMPLETA, Antes de las unidades, Auditoría técnica — Circuito de stock (pre go-live agosto 2026) (+8 more)
+
+### Community 1681 - "Advanced Validation for Business Logic"
+Cohesion: 0.12
+Nodes (16): 1. Enforce Enum Values, 2. Validate State Transitions, 3. Strict Path and Relationship Scoping, 4. Secure Counter Updates, 5. **CRITICAL** Ensure Application Validity, Advanced Validation for Business Logic, Critical Constraints, Critical Directives for Secure Generation (+8 more)
+
+### Community 1682 - "Documentación de procedimientos de calidad"
+Cohesion: 0.12
+Nodes (16): 1. Resumen ejecutivo, 2.1 Procedimientos de gestión — vigentes y mantenidos, 2.2 Procedimientos operativos — congelados, 2.3 Los procedimientos operativos están además incompletos, 2.4 Numeración: dos esquemas conviviendo, 2.5 Otros hallazgos formales, 2. Estado del cuerpo documental, 3.1 Procesos sin ningún procedimiento (+8 more)
+
+### Community 1683 - "Anexo. Detalle de los 694 equipos con problemas"
+Cohesion: 0.12
+Nodes (16): A. Asignación directa: el nombre ya es un modelo del catálogo, A. Asignación directa: el nombre ya es un modelo del catálogo, Anexo. Detalle de los 694 equipos con problemas, B. Variante de escritura: renombrar al modelo del catálogo y asignar categoría, B. Variante de escritura: renombrar al modelo del catálogo y asignar categoría, C. Falta precisar el modelo: el catálogo distingue variantes que el nombre no indica, C. Falta precisar el modelo: el catálogo distingue variantes que el nombre no indica, Criterio de evaluación (+8 more)
+
+### Community 1684 - "AnaliticaPresupuestos.tsx"
+Cohesion: 0.22
+Nodes (13): AgingTable(), AgingTableRow, Props, AnaliticaUrlFilters, EnviadosAceptadosChart(), Props, useAnaliticaPresupuestos(), AnaliticaPresupuestos() (+5 more)
+
+### Community 1686 - "LoanerInfoSidebar.tsx"
+Cohesion: 0.24
+Nodes (12): LoanerInfoSidebar(), Props, CHIP, fmt(), LoanerPrestamoPartesCell(), useLoanerPrestamos(), ESTADO_PARTE_LOANER_LABELS, estadoParte() (+4 more)
+
+### Community 1687 - "AsignarItemsPanel.tsx"
+Cohesion: 0.22
+Nodes (12): AsignarItemsPanel(), columnaPayload(), dispositivoPayload(), instrumentoPayload(), minikitPayload(), patronPayload(), Props, TabKey (+4 more)
+
+### Community 1688 - "useStockPosicionesMigration.ts"
+Cohesion: 0.20
+Nodes (13): MigrationStep, normalizeTipo(), parsePosiciones(), PosicionesMigrationSummary, PosicionesParsedData, PosicionRow, readSheet(), TIPOS_VALIDOS (+5 more)
+
+### Community 1689 - "Fases"
+Cohesion: 0.13
+Nodes (14): Activo reusable: la cola del portal, Diagnóstico (verificado en el código, no supuesto), Fase 1 — Que la app no mienta *(chica, independiente, arreglá algo que YA pasa)*, Fase 2 — Lectura offline, Fase 3-bis — App instalable *(ADELANTADA desde el final, 2026-08-13)*, Fase 3 — Precarga ("Preparar salida"), Fase 4 — Caché persistente de archivos (certificados), Fase 5-bis — Sincronización oportunista *(pedido explícito de dirección, 2026-08-13)* (+6 more)
+
+### Community 1690 - "useStockMigration.ts"
+Cohesion: 0.20
+Nodes (12): ArticuloRow, formatPosicionArancelaria(), MigrationStep, parseArticulos(), readSheet(), StockMigrationSummary, StockParsedData, useStockMigration() (+4 more)
+
+### Community 1691 - "loanerCicloRecalificacion.ts"
+Cohesion: 0.25
+Nodes (8): fechaDeOrigen(), origenPendienteDeRecalificacion(), OrigenRecalificacion, otCierraElCiclo(), otDeOrigen(), otRecalificacionVigente(), requiereDeOrigen(), ultimosOrigenes()
+
+### Community 1692 - "LoanerPrestamosSection.tsx"
+Cohesion: 0.29
+Nodes (10): dias(), LoanerDerivacionesSection(), Props, LoanerPrestamosSection(), diasDesde(), semaforoPrestamoCls(), semaforoProveedorCls(), esPrestamoDeParte() (+2 more)
+
+### Community 1693 - "Estrategia de tiempos de respuesta (2026-09-11)"
+Cohesion: 0.15
+Nodes (12): 1. Qué encontré (evidencia, no hipótesis), 2. Principio, 3. Fases, 4. Qué NO hacer, 5. Cómo se mide el éxito, Estrategia de tiempos de respuesta (2026-09-11), Fase 0 — Línea base (1 día), Fase 1 — Gana en todas las pantallas (2-3 días) (+4 more)
+
+### Community 1694 - "Planificación de insumos críticos (reemplaza `/stock/planificacion`)"
+Cohesion: 0.15
+Nodes (12): Abierto, Datos nuevos, Decisiones tomadas (2026-09-27), Demanda por mes (motor), Etapas, Implementación etapa 1 (2026-09-28), Listas de críticos (dictadas por el usuario, 2026-09-27), Modelo propuesto (+4 more)
+
+### Community 1695 - "Fases"
+Cohesion: 0.15
+Nodes (12): Cambio de tipo (`packages/shared`), Fase 1 — Tipos + edición del artículo  *(reversible, no toca stock)*, Fase 2 — Compra / ingreso por presentación, Fase 3 — Presupuesto / venta por presentación  *(módulo comercial — sensible)*, Fase 4 — Migración manual/asistida  *(producción — backup + dry-run)*, Fase 5 — Retirar modelo viejo, Fases, Fuera de alcance (+4 more)
+
+### Community 1696 - "ModuloId"
+Cohesion: 0.24
+Nodes (10): NavItem, arbolDePermisos(), PermisoGrupo, Grupo(), idsDe(), PermisosModulosTree(), Props, STOCK_LANDING (+2 more)
+
+### Community 1697 - "previsionesFechas.ts"
+Cohesion: 0.39
+Nodes (11): ReprogramarPrevisionModal(), calcularFechasPrevision(), diasDelMes(), diffDias(), esDiaNoHabil(), fmt(), mismaFechaAnioSiguiente(), pad2() (+3 more)
+
+### Community 1698 - "ImportacionAccionCell.tsx"
+Cohesion: 0.23
+Nodes (10): hoyISO(), ImportacionAccionCell(), MENSAJE_PASO, PasoConfirmacion, Props, proximaConfirmacion(), ESTADOS, FILTER_SCHEMA (+2 more)
+
+### Community 1699 - "index.ts"
+Cohesion: 0.20
+Nodes (11): textoReservaParaOT(), CORP_SUFFIXES, findClienteCandidatesByRazonSocial(), ItemConMontos, MonedaConcreta, MontoItemMoneda, normalizeRazonSocial(), otPortadoraDeReserva() (+3 more)
+
+### Community 1700 - "equipos.ts"
+Cohesion: 0.27
+Nodes (8): EquipoList(), DETALLES, RESUMENES, SEG_UV, useEquipoDetalle(), useEquipos(), SeguimientoEvento, EquiposPage()
+
+### Community 1701 - "landingPath.test.ts"
+Cohesion: 0.24
+Nodes (7): collectVisibleLeafPaths(), resolveLandingPath(), NavItem, clientes, presupuestos, qf, tickets
+
+### Community 1702 - "AnaliticaKpiRow.tsx"
+Cohesion: 0.25
+Nodes (9): AnaliticaKpiRow(), fmtPct(), Props, KpiCard(), KpiCardProps, toneClasses, valueTone, MontoPorMoneda (+1 more)
+
+### Community 1703 - "PosicionesPage.tsx"
+Cohesion: 0.24
+Nodes (7): buildTree(), usePosicionesTree(), emptyForm, FormState, RowProps, TIPO_OPTIONS, TipoPosicionStock
+
+### Community 1704 - "propagarDireccionEstablecimiento.ts"
+Cohesion: 0.25
+Nodes (8): CAMPOS, DireccionEstablecimiento, ESTADOS_CERRADOS, otAbierta(), OTParaPropagar, otsQueSiguenAlEstablecimiento(), nueva, vieja
+
+### Community 1705 - "Trabajo sin conexión y sincronización — App de informes de campo"
+Cohesion: 0.18
+Nodes (10): Cómo llegan los datos al sistema, Instalación de la aplicación en los teléfonos, Lo que queda fuera del alcance, Plan por etapas, Preparación antes de salir, Resumen ejecutivo, Riesgos y recaudos, Sincronización automática al recuperar señal (+2 more)
+
+### Community 1706 - "Graph Report - Ags plataform  (2026-07-13)"
+Cohesion: 0.18
+Nodes (10): Community Hubs (Navigation), Corpus Check, God Nodes (most connected - your core abstractions), Graph Freshness, Graph Report - Ags plataform  (2026-07-13), Import Cycles, Knowledge Gaps, Suggested Questions (+2 more)
+
+### Community 1707 - "compilerOptions"
+Cohesion: 0.20
+Nodes (9): compilerOptions, allowSyntheticDefaultImports, composite, module, moduleResolution, skipLibCheck, strict, include (+1 more)
+
+### Community 1708 - "mock.ts"
+Cohesion: 0.29
+Nodes (7): RequerimientosCard(), MOCK_DASHBOARD, MOCK_PROVEEDOR, useDashboard(), DashboardData, OrdenesListPage(), RequerimientosListPage()
+
+### Community 1709 - "detalle.ts"
+Cohesion: 0.24
+Nodes (9): ORDENES, REQUERIMIENTOS, useOrden(), useRequerimiento(), OrdenDetalle, RequerimientoDetalle, OrdenDetailPage(), parsePrecio() (+1 more)
+
+### Community 1710 - "compilerOptions"
+Cohesion: 0.20
+Nodes (9): compilerOptions, allowSyntheticDefaultImports, composite, module, moduleResolution, skipLibCheck, strict, include (+1 more)
+
+### Community 1711 - "DispositivoFotos.tsx"
+Cohesion: 0.27
+Nodes (7): CARAS, DispositivoFotos(), FotoDispositivo, Props, CaraFotoDispositivo, dispositivoFotoStorageService, MIME_POR_EXTENSION
+
+### Community 1712 - "Dispositivo"
+Cohesion: 0.24
+Nodes (8): Props, DispositivoSoftwareCell(), DISPOSITIVOS_EXPORT_COLUMNS, TIPO_DISPOSITIVO_LABELS, Dispositivo, dispositivoTieneSoftware(), softwareDeDispositivo(), TipoDispositivo
+
+### Community 1713 - "aggregatePipeline"
+Cohesion: 0.27
+Nodes (10): aggregateCalibracion(), aggregateOperacion(), aggregatePipeline(), aggregateTickets(), daysAgo(), daysFromNow(), ESTADOS_OT_ABIERTOS, safeTs() (+2 more)
+
+### Community 1714 - "distanciaInterior.ts"
+Cohesion: 0.29
+Nodes (9): CABA, CLASIFICACION_COLORS, CLASIFICACION_LABELS, ClasificacionUbicacion, clasificarUbicacion(), distanciaKm(), esInteriorPorDistancia(), estadoAgendaInicialPorUbicacion() (+1 more)
+
+### Community 1715 - "EntornosEditor.tsx"
+Cohesion: 0.36
+Nodes (7): EntornoCard(), Props, EntornosEditor(), Props, EntornoDispositivo, SoftwareDispositivo, vmsDeEntorno()
+
+### Community 1716 - "graph-modulos.py"
+Cohesion: 0.33
+Nodes (8): aggregate(), disp_r(), group_of(), layout(), main(), Mapa de módulos interactivo a partir del knowledge graph de Graphify.  Agrega, Radio en pantalla — debe coincidir con R() del HTML., Mapea un source file a (app, grupo). None = excluir del mapa.
+
+### Community 1718 - "PoolEnviosDetalleModal.tsx"
+Cohesion: 0.39
+Nodes (7): fmtARS(), fmtFecha(), fmtUSD(), POOL_ENVIOS_EXPORT_COLUMNS, PoolEnviosDetalleModal(), Props, MovimientoPoolEnvios
+
+### Community 1719 - "LoanerExtraccionesSection.tsx"
+Cohesion: 0.43
+Nodes (6): DestinoLinea(), LoanerExtraccionesSection(), Props, DestinoPieza, useDestinoExtracciones(), ExtraccionLoaner
+
+### Community 1720 - "TipoEquipoNestedEditors.tsx"
+Cohesion: 0.29
+Nodes (7): ComponentesEditor(), ServiciosEditor(), FormData, TIPO_SERVICIO_PLANTILLA_LABELS, TipoEquipoComponente, TipoEquipoServicio, TipoServicioPlantilla
+
+### Community 1721 - "Ausencias (reemplazo de Who's Off)"
+Cohesion: 0.25
+Nodes (7): A confirmar, Ausencias (reemplazo de Who's Off), Decisiones lockeadas (Coco, 2026-09-18), Esfuerzo estimado, Modelo propuesto, Pantallas, Seguridad
+
+### Community 1722 - "build.mjs"
+Cohesion: 0.25
+Nodes (7): appSrc, firebaseStubPlugin, here, repo, sharedIndex, sharedUtils, ttfAsPathPlugin
+
+### Community 1723 - "useGoogleOAuth"
+Cohesion: 0.48
+Nodes (6): hasConsentedBefore(), loadCachedToken(), markConsented(), saveCachedToken(), TokenState, useGoogleOAuth()
+
+### Community 1724 - "Tanda UAT sesión Fanely (2026-07-17) — 12 pedidos"
+Cohesion: 0.29
+Nodes (6): En curso paralelo, Grandes (diseño primero), Medianos (diseño corto + implementar en esta ronda), Preguntas pendientes para Esteban, Rápidos / claros (implementar ya), Tanda UAT sesión Fanely (2026-07-17) — 12 pedidos
+
+### Community 1725 - "Frontend Design"
+Cohesion: 0.29
+Nodes (6): Design principles, Frontend Design, Ground your designs in the subject matter, More on writing in design, Process: plan, review against the brief, build, critique, Restraint and self-critique
+
+### Community 1726 - "Continuidad operativa y control del sistema"
+Cohesion: 0.29
+Nodes (6): Continuidad operativa y control del sistema, Cómo se publica una versión nueva, Plan de continuidad propuesto, Puntos a cerrar para garantizar la continuidad, Qué es cada componente y de quién es, Resumen ejecutivo
+
+### Community 1727 - "Antes y después"
+Cohesion: 0.33
+Nodes (5): 1. Qué cambió, módulo por módulo, 2. Los registros previstos por los procedimientos: dónde se llevaban y dónde se llevan, 3. Lo que la auditoría puede verificar en pantalla, Antes y después, Resumen por módulo y por procedimiento — Auditoría ISO 9001:2015
+
+### Community 1728 - "useGenerarOC.ts"
+Cohesion: 0.70
+Nodes (4): reqToItemOC(), reqToNotaLinea(), useGenerarOC(), advanceTicketsToMateriales()
+
+### Community 1729 - "Web Interface Guidelines"
+Cohesion: 0.40
+Nodes (4): Guidelines Source, How It Works, Usage, Web Interface Guidelines
+
+### Community 1730 - "PrestamoLoaner"
+Cohesion: 0.50
+Nodes (4): Props, Props, Props, PrestamoLoaner
+
+### Community 1731 - "comprimirFoto.ts"
+Cohesion: 0.83
+Nodes (3): comprimir(), comprimirFotoParaSubida(), crearFuente()
+
 ## Knowledge Gaps
-- **10223 isolated node(s):** `styles`, `full-audit.sh script`, `find-polluter.sh script`, `fs`, `path` (+10218 more)
+- **12179 isolated node(s):** `styles`, `full-audit.sh script`, `find-polluter.sh script`, `fs`, `path` (+12174 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **311 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **314 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `u()` connect `Articulo` to `index.ts`, `useConfirm`, `SearchableSelect.tsx`, `CreateArticuloModal.tsx`, `stockAmplioService.ts`, `AuthContext.tsx`, `pdfGenerator.ts`, `RemitoDetail.tsx`, `articulosService`, `useTabs`, `AuthContext.tsx`, `reportePdfService.ts`, `firebase.ts`, `IngenieroCertificados.tsx`, `AsignarItemsPanel.tsx`, `authService.ts`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Why does `AuthProvider()` connect `AuthContext.tsx` to `Articulo`, `PresupuestoReservasSection.tsx`?**
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Why does `buffer` connect `buffer` to `webauthn.ts`, `init.ts`, `13-oc-cliente-flow.spec.ts`, `devDependencies`, `gsd-statusline.js`, `OTFormSection.tsx`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Why does `ensureOcSamplePdf()` connect `13-oc-cliente-flow.spec.ts` to `buffer`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `package.json`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
+- **Are the 139 inferred relationships involving `v()` (e.g. with `App()` and `LeadFilters()`) actually correct?**
+  _`v()` has 139 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `styles`, `full-audit.sh script`, `find-polluter.sh script` to the rest of the system?**
-  _10223 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _12179 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `index.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.01958655340529263 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.023673846560031683 - nodes in this community are weakly interconnected._
 - **Should `useConfirm` be split into smaller, more focused modules?**
-  _Cohesion score 0.025530478144560165 - nodes in this community are weakly interconnected._
-- **Should `firebaseService.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.029577187807276303 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05507955936352509 - nodes in this community are weakly interconnected._
