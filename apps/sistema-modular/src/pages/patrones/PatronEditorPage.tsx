@@ -274,9 +274,7 @@ export const PatronEditorPage = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={goBack}>Cancelar</Button>
-            <Button onClick={handleSaveAndClose} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar y cerrar'}
-            </Button>
+            <Button onClick={handleSaveAndClose} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar y cerrar</Button>
           </div>
         </div>
       </div>

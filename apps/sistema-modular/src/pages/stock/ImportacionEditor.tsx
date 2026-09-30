@@ -207,9 +207,7 @@ export const ImportacionEditor = () => {
             <Button variant="secondary" size="sm" type="button" onClick={() => goBack()}>
               Cancelar
             </Button>
-            <Button size="sm" type="submit" disabled={saving || !form.ordenCompraId}>
-              {saving ? 'Creando...' : 'Crear importacion'}
-            </Button>
+            <Button size="sm" type="submit" disabled={saving || !form.ordenCompraId} estado={saving ? 'guardando' : 'idle'}>Crear importacion</Button>
           </div>
         </form>
       </div>

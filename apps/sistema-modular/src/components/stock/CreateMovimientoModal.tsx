@@ -120,9 +120,7 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
       subtitle={subtitle ?? 'Movimiento de stock entre ubicaciones'}
       footer={<>
         <Button variant="outline" size="sm" onClick={h.handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={h.handleSave} disabled={h.saving}>
-          {h.saving ? 'Guardando...' : 'Registrar'}
-        </Button>
+        <Button size="sm" onClick={h.handleSave} disabled={h.saving} estado={h.saving ? 'guardando' : 'idle'}>Registrar</Button>
       </>}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">

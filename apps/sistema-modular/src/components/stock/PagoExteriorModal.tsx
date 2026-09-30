@@ -133,9 +133,7 @@ export const PagoExteriorModal: React.FC<Props> = ({ open, onClose, onSaved, pag
         )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving || !canSave}>
-          {saving ? 'Guardando...' : 'Guardar'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving || !canSave} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
       </>}>
       <div className="space-y-3">
         <div className="grid grid-cols-3 gap-3">

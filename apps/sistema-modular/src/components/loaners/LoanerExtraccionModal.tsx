@@ -73,9 +73,7 @@ export function LoanerExtraccionModal({ open, onClose, onConfirm }: Props) {
     <Modal open={open} onClose={onClose} title="Registrar extraccion de pieza" footer={
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!descripcion.trim() || !destino.trim() || !extraidoPor.trim() || ingresoIncompleto || saving}>
-          {saving ? 'Guardando...' : 'Registrar'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!descripcion.trim() || !destino.trim() || !extraidoPor.trim() || ingresoIncompleto || saving} estado={saving ? 'guardando' : 'idle'}>Registrar</Button>
       </div>
     }>
       <div className="space-y-4">

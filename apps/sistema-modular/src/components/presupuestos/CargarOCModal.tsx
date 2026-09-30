@@ -202,9 +202,7 @@ export const CargarOCModal: React.FC<Props> = ({
 
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="secondary" size="sm" onClick={onClose} disabled={submitting}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
-          {submitting ? 'Cargando...' : 'Cargar OC'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit} estado={submitting ? 'guardando' : 'idle'} textoOcupado="Cargando...">Cargar OC</Button>
       </div>
     </Modal>
   );

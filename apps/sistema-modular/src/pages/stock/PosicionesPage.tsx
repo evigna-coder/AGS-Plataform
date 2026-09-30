@@ -155,9 +155,7 @@ export const PosicionesPage = () => {
               <Input label="Descripcion" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Opcional" />
             </div>
             <div className="flex justify-end mt-3">
-              <Button size="sm" onClick={handleCreate} disabled={saving || !form.codigo.trim() || !form.nombre.trim()}>
-                {saving ? 'Creando...' : 'Agregar'}
-              </Button>
+              <Button size="sm" onClick={handleCreate} disabled={saving || !form.codigo.trim() || !form.nombre.trim()} estado={saving ? 'guardando' : 'idle'}>Agregar</Button>
             </div>
           </Card>
         )}

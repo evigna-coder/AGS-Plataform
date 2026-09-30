@@ -131,9 +131,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
       subtitle="Seleccione cliente, establecimiento y categoria"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Creando...' : 'Crear sistema'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear sistema</Button>
       </>}>
       <div className="space-y-4">
         <div>

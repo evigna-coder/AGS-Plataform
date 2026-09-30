@@ -61,11 +61,13 @@ function ArticulosListThead({ allSelected, onToggleAll, sortField, sortDir, onSo
         <SH label="Marca" field="marcaId" idx={3} />
         <SH label="Categoria" field="categoriaEquipo" idx={4} />
         <SH label="Tipo" field="tipo" idx={5} />
-        <SH label="Stock min." field="stockMinimo" idx={6} />
-        <SH label="Precio ref." field="precioReferencia" idx={7} />
+        {/* Disponible (2026-09-29): del espejo `resumenStock` que mantienen las Cloud Functions. */}
+        <SH label="Disponible" field="resumenStock.disponible" idx={6} />
+        <SH label="Stock min." field="stockMinimo" idx={7} />
+        <SH label="Precio ref." field="precioReferencia" idx={8} />
         <th className={`${TH_CLS} text-center`}>
           Acciones
-          {RESIZE(e => onResizeStart(8, e), () => onAutoFit(8))}
+          {RESIZE(e => onResizeStart(9, e), () => onAutoFit(9))}
         </th>
       </tr>
     </thead>
@@ -76,7 +78,7 @@ function ArticulosListThead({ allSelected, onToggleAll, sortField, sortDir, onSo
 
 export const ArticulosList = () => {
   const confirm = useConfirm();
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('articulos-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('articulos-list-v2');
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     categoriaEquipo: { type: 'string' as const, default: '' },
@@ -241,9 +243,9 @@ export const ArticulosList = () => {
               {colWidths
                 ? <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 : <colgroup>
-                    <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '24%' }} />
-                    <col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '9%' }} />
-                    <col style={{ width: '8%' }} /><col style={{ width: '10%' }} /><col style={{ width: '13%' }} />
+                    <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '22%' }} />
+                    <col style={{ width: '9%' }} /><col style={{ width: '9%' }} /><col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} /><col style={{ width: '7%' }} /><col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
                   </colgroup>
               }
               <ArticulosListThead
@@ -272,7 +274,7 @@ export const ArticulosList = () => {
                     hasEquivalencia={hasEquivalencia(art)}
                     expandDual={shouldExpandRow(art)}
                     onDesagregar={a => setDesagregarTarget(a)}
-                    totalCols={9}
+                    totalCols={10}
                     stockDeposito={filters.deposito ? (stockPorArticulo.get(art.id) ?? 0) : null}
                   />
                 ))}

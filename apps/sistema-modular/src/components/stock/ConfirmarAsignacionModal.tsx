@@ -40,9 +40,7 @@ export function ConfirmarAsignacionModal({
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button size="sm" onClick={handleConfirmar} disabled={saving}>
-            {saving ? 'Procesando...' : 'Confirmar asignación'}
-          </Button>
+          <Button size="sm" onClick={handleConfirmar} disabled={saving} estado={saving ? 'guardando' : 'idle'} textoOcupado="Procesando...">Confirmar asignación</Button>
         </>
       }
     >

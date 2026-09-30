@@ -298,9 +298,7 @@ export const SolicitarFacturaModal: React.FC<Props> = ({
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={saving || !puedeEnviar}>
-            {saving ? 'Enviando...' : 'Solicitar facturacion'}
-          </Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={saving || !puedeEnviar} estado={saving ? 'guardando' : 'idle'} textoOcupado="Enviando...">Solicitar facturacion</Button>
         </div>
       </div>
     </Modal>

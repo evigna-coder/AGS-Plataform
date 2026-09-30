@@ -123,7 +123,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ open, ocId, onClose, onSaved
       <Button variant="outline" size="sm" onClick={editing ? () => { setEditing(false); h.reload(); } : onClose}>
         {editing ? 'Descartar' : 'Cancelar'}
       </Button>
-      <Button size="sm" onClick={handleSave} disabled={h.saving}>{h.saving ? 'Guardando...' : 'Guardar'}</Button>
+      <Button size="sm" onClick={handleSave} disabled={h.saving} estado={h.saving ? 'guardando' : 'idle'}>Guardar</Button>
     </>
   ) : (
     <>

@@ -55,9 +55,7 @@ export function DesagregarStockModal({ open, onClose, articulo, onSuccess }: Pro
               onClick={h.confirm}
               disabled={!h.canConfirm || h.confirming}
               data-testid="desagregar-confirm"
-            >
-              {h.confirming ? 'Procesando…' : 'Confirmar conversión'}
-            </Button>
+             estado={h.confirming ? 'guardando' : 'idle'} textoOcupado="Procesando…">Confirmar conversión</Button>
           </>
         )
       }

@@ -55,9 +55,7 @@ export const LeadQuickNoteModal = ({ lead, onClose, onAdded }: LeadQuickNoteModa
         />
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !texto.trim()}>
-            {saving ? 'Guardando...' : 'Agregar'}
-          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={saving || !texto.trim()} estado={saving ? 'guardando' : 'idle'}>Agregar</Button>
         </div>
       </div>
     </Modal>

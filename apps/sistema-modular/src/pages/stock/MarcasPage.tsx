@@ -123,9 +123,7 @@ export const MarcasPage = () => {
                   autoFocus
                 />
               </div>
-              <Button size="sm" onClick={handleCreate} disabled={creating || !nuevaMarca.trim()}>
-                {creating ? 'Creando...' : 'Agregar'}
-              </Button>
+              <Button size="sm" onClick={handleCreate} disabled={creating || !nuevaMarca.trim()} estado={creating ? 'guardando' : 'idle'}>Agregar</Button>
             </div>
           </Card>
         )}

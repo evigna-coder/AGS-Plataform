@@ -115,9 +115,7 @@ export const OTDetail = () => {
                 + Item
               </Button>
             )}
-            <Button size="sm" onClick={ot.handleSave} disabled={ot.saving}>
-              {ot.saving ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <Button size="sm" onClick={ot.handleSave} disabled={ot.saving} estado={ot.saving ? 'guardando' : 'idle'}>Guardar</Button>
           </div>
         </div>
       </div>

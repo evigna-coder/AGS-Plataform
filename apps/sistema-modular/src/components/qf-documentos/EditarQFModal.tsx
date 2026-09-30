@@ -75,9 +75,7 @@ export function EditarQFModal({ qf, onClose, onSuccess }: Props) {
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !dirty}>
-            {saving ? 'Guardando…' : 'Guardar'}
-          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={saving || !dirty} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
         </>
       }
     >

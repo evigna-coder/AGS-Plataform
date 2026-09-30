@@ -161,7 +161,7 @@ export const ArticuloEditor = () => {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => goBack()}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+            <Button onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
           </div>
         </div>
       </div>

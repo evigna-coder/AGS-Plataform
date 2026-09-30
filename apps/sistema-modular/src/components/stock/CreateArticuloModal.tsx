@@ -173,9 +173,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated,
     <Modal open={open} onClose={handleClose} title={title ?? 'Nuevo articulo'} maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving || !!codigoDupWarning}>
-          {saving ? 'Guardando...' : 'Guardar articulo'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving || !!codigoDupWarning} estado={saving ? 'guardando' : 'idle'}>Guardar articulo</Button>
       </>}>
       <div className="space-y-5" ref={bodyRef} onKeyDown={handleEnterAdvance}>
         {/* Informacion general */}

@@ -187,9 +187,7 @@ export const TableCatalogEditorPage = () => {
               </span>
             )}
             <Button variant="outline" onClick={() => goBack()}>← Volver</Button>
-            <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading}>
-              {saving ? 'Guardando...' : 'Guardar borrador'}
-            </Button>
+            <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading} estado={saving ? 'guardando' : 'idle'}>Guardar borrador</Button>
             <Button onClick={handlePublish} disabled={saving || loading || entry.status === 'published'}>
               Publicar
             </Button>

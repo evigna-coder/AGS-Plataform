@@ -353,9 +353,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
         </span>
       )}
       <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-      <Button size="sm" onClick={handleSave} disabled={h.saving || !h.ordenCompraId}>
-        {h.saving ? 'Guardando...' : 'Guardar'}
-      </Button>
+      <Button size="sm" onClick={handleSave} disabled={h.saving || !h.ordenCompraId} estado={h.saving ? 'guardando' : 'idle'}>Guardar</Button>
     </>
   );
 

@@ -135,9 +135,7 @@ export const TiposServicio = () => {
           <Button variant="outline" onClick={() => goBack()}>
             Volver a OTs
           </Button>
-          <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
-            {seeding ? 'Cargando...' : 'Cargar tipos estándar'}
-          </Button>
+          <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding} estado={seeding ? 'guardando' : 'idle'} textoOcupado="Cargando...">Cargar tipos estándar</Button>
           <Button onClick={() => { setEditing(null); setFormData({ nombre: '', generaRecurrenciaAnual: false }); setShowModal(true); }}>
             + Nuevo Tipo
           </Button>

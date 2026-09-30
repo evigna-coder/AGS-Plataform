@@ -58,7 +58,7 @@ export function ArticulosListRow({
   hasEquivalencia = false,
   expandDual = false,
   onDesagregar,
-  totalCols = 9,
+  totalCols = 10,
   stockDeposito = null,
 }: Props) {
   return (
@@ -111,8 +111,15 @@ export function ArticulosListRow({
             {TIPO_LABELS[art.tipo] ?? art.tipo}
           </span>
         </td>
-        <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>{art.stockMinimo}</td>
-        <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(7)}`}>
+        {/* Disponible (2026-09-29): espejo `resumenStock` mantenido por Cloud Functions; "—" = todavía sin espejo. */}
+        <td className={`px-4 py-2 text-xs tabular-nums ${getAlignClass(6)}`}
+          title={art.resumenStock ? `Reservado ${art.resumenStock.reservado} · En tránsito ${art.resumenStock.enTransito} · Comprometido ${art.resumenStock.comprometido}` : 'Sin espejo de stock todavía'}>
+          {art.resumenStock
+            ? <span className={art.resumenStock.disponible > 0 ? 'text-slate-900 font-medium' : 'text-slate-400'}>{art.resumenStock.disponible}</span>
+            : <span className="text-slate-300">—</span>}
+        </td>
+        <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(7)}`}>{art.stockMinimo}</td>
+        <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(8)}`}>
           {art.precioReferencia != null
             ? `${art.monedaPrecio === 'USD' ? 'US$' : '$'} ${art.precioReferencia.toLocaleString('es-AR')}`
             : '-'}

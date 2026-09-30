@@ -202,9 +202,7 @@ export const PresupuestoNew = () => {
           <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Creando...' : 'Crear Presupuesto'}
-          </Button>
+          <Button type="submit" disabled={loading} estado={loading ? 'guardando' : 'idle'}>Crear Presupuesto</Button>
         </div>
       </form>
     </div>

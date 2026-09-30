@@ -12,7 +12,7 @@
     "test:watch": "node node_modules/jest/bin/jest.js --watch"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.0.0",

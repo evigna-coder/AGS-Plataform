@@ -85,7 +85,7 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={handleClose} disabled={saving}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving}>{saving ? 'Creando…' : 'Crear'}</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear</Button>
         </>
       }
     >

@@ -63,9 +63,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={h.handleClose}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId || h.items.length === 0}>
-              {h.saving ? 'Creando...' : 'Crear presupuesto'}
-            </Button>
+            <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId || h.items.length === 0} estado={h.saving ? 'guardando' : 'idle'}>Crear presupuesto</Button>
           </div>
         </div>
       }>

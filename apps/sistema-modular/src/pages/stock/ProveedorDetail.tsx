@@ -150,7 +150,7 @@ export const ProveedorDetail = () => {
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => { setEditing(false); setForm(toForm(proveedor)); setContactos(proveedor.contactos ?? []); }}>Cancelar</Button>
-                <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+                <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
               </>
             )}
           </div>

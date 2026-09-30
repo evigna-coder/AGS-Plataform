@@ -115,7 +115,7 @@ export const CreatePatronModal: React.FC<Props> = ({ open, onClose, onCreated })
       </div>
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-        <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Crear'}</Button>
+        <Button onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear</Button>
       </div>
     </Modal>
   );

@@ -148,9 +148,7 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
       subtitle="Complete los datos de la requisición de compra."
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Creando...' : 'Crear requerimiento'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear requerimiento</Button>
       </>}>
       <div className="space-y-4">
         <div>

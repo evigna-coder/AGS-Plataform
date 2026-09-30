@@ -125,9 +125,7 @@ export const RemitoDetail = () => {
           </div>
           <div className="flex gap-2">
             {remito.estado === 'borrador' && (
-              <Button size="sm" onClick={confirmarRemito} disabled={acting}>
-                {acting ? 'Procesando...' : 'Confirmar'}
-              </Button>
+              <Button size="sm" onClick={confirmarRemito} disabled={acting} estado={acting ? 'guardando' : 'idle'} textoOcupado="Procesando...">Confirmar</Button>
             )}
             {remito.estado === 'confirmado' && (
               <Button size="sm" onClick={() => transition('en_transito')} disabled={acting}>

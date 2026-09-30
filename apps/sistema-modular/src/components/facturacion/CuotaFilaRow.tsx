@@ -58,7 +58,7 @@ export function CuotaFilaRow({ fila, ocupada, onGenerar, onFacturadaExterna, onR
           <div className="flex items-center justify-end gap-1">
             <Button variant="ghost" size="sm" onClick={onFacturadaExterna} disabled={ocupada}
               title="Ya se facturó por fuera del sistema: registrarla sin generar aviso">Por fuera</Button>
-            <Button size="sm" onClick={onGenerar} disabled={ocupada}>{ocupada ? 'Generando…' : 'Generar aviso'}</Button>
+            <Button size="sm" onClick={onGenerar} disabled={ocupada} estado={ocupada ? 'guardando' : 'idle'} textoOcupado="Generando…">Generar aviso</Button>
           </div>
         )}
         {fila.estado === 'solicitada' && sol && (

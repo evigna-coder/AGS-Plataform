@@ -316,9 +316,7 @@ function EditUserModal({ usuario, onClose, onSaved }: {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
           </div>
         </div>
       }

@@ -190,9 +190,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nuevo proyecto" maxWidth="sm"
         footer={<>
           <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={creating || !newName.trim()}>
-            {creating ? 'Creando...' : 'Crear'}
-          </Button>
+          <Button onClick={handleCreate} disabled={creating || !newName.trim()} estado={creating ? 'guardando' : 'idle'}>Crear</Button>
         </>}>
         <div className="space-y-3">
           <div>
@@ -210,9 +208,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
         title="Encabezado / Pie de página" subtitle={settingsProject?.name} maxWidth="sm"
         footer={<>
           <Button variant="outline" onClick={() => setSettingsProject(null)}>Cancelar</Button>
-          <Button onClick={handleSaveSettings} disabled={savingSettings}>
-            {savingSettings ? 'Guardando...' : 'Guardar'}
-          </Button>
+          <Button onClick={handleSaveSettings} disabled={savingSettings} estado={savingSettings ? 'guardando' : 'idle'}>Guardar</Button>
         </>}>
         <div className="space-y-4">
           <p className="text-xs text-slate-500">

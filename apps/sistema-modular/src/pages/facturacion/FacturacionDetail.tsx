@@ -282,14 +282,10 @@ export const FacturacionDetail = () => {
           <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest mb-3">Acciones</p>
           <div className="flex gap-2">
             {solicitud.estado === 'pendiente' && (
-              <Button variant="primary" size="sm" onClick={handleMarcarEnviada} disabled={saving}>
-                {saving ? 'Guardando...' : 'Marcar enviada'}
-              </Button>
+              <Button variant="primary" size="sm" onClick={handleMarcarEnviada} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Marcar enviada</Button>
             )}
             {(solicitud.estado === 'pendiente' || solicitud.estado === 'enviada') && (
-              <Button variant="primary" size="sm" onClick={handleMarcarFacturada} disabled={saving}>
-                {saving ? 'Guardando...' : 'Marcar facturada'}
-              </Button>
+              <Button variant="primary" size="sm" onClick={handleMarcarFacturada} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Marcar facturada</Button>
             )}
             <Button variant="outline" size="sm" onClick={handleReenviarAviso} disabled={saving}
               title="Crear el ticket a Administración para que carguen la factura. No duplica si ya hay uno abierto.">
@@ -313,9 +309,7 @@ export const FacturacionDetail = () => {
             />
             <div className="flex gap-2 mt-2">
               <Button size="sm" onClick={handleSaveNota}
-                disabled={savingNota || notaDraft === (solicitud.observaciones || '')}>
-                {savingNota ? 'Guardando...' : 'Guardar nota'}
-              </Button>
+                disabled={savingNota || notaDraft === (solicitud.observaciones || '')} estado={savingNota ? 'guardando' : 'idle'}>Guardar nota</Button>
             </div>
           </>
         ) : (
@@ -402,9 +396,7 @@ export const FacturacionDetail = () => {
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="secondary" size="sm" onClick={handleAnular} disabled={saving}>Anular solicitud</Button>
-            <Button variant="primary" size="sm" onClick={handleRegistrarFactura} disabled={saving || !factura.numeroFactura || !factura.fechaFactura}>
-              {saving ? 'Guardando...' : 'Registrar factura'}
-            </Button>
+            <Button variant="primary" size="sm" onClick={handleRegistrarFactura} disabled={saving || !factura.numeroFactura || !factura.fechaFactura} estado={saving ? 'guardando' : 'idle'}>Registrar factura</Button>
           </div>
         </Card>
       )}
@@ -422,9 +414,7 @@ export const FacturacionDetail = () => {
               <label className={lbl}>Fecha de cobro *</label>
               <input type="date" value={fechaCobro} onChange={e => setFechaCobro(e.target.value)} className={inputClass} />
             </div>
-            <Button variant="primary" size="sm" onClick={handleRegistrarCobro} disabled={saving || !fechaCobro}>
-              {saving ? 'Guardando...' : 'Registrar cobro'}
-            </Button>
+            <Button variant="primary" size="sm" onClick={handleRegistrarCobro} disabled={saving || !fechaCobro} estado={saving ? 'guardando' : 'idle'}>Registrar cobro</Button>
           </div>
         </Card>
       )}

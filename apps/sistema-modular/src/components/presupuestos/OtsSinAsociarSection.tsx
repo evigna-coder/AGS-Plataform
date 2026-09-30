@@ -168,9 +168,7 @@ export const OtsSinAsociarSection: React.FC<Props> = ({
           size="sm"
           onClick={handleSubmit}
           disabled={loading || selected.size === 0}
-        >
-          {loading ? 'Generando...' : 'Generar aviso de facturación'}
-        </Button>
+         estado={loading ? 'guardando' : 'idle'} textoOcupado="Generando...">Generar aviso de facturación</Button>
       </div>
     </div>
   );

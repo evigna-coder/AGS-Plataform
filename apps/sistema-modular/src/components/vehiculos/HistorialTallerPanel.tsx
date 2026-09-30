@@ -122,7 +122,7 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleAdd} disabled={saving}>{saving ? 'Guardando...' : 'Agregar'}</Button>
+            <Button size="sm" onClick={handleAdd} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Agregar</Button>
           </div>
         </div>
       )}

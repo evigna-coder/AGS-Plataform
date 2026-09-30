@@ -110,7 +110,7 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
     <Modal open={open} onClose={handleClose} title="Nuevo Cliente" subtitle="Complete los datos del cliente" maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Crear Cliente'}</Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear Cliente</Button>
       </>}>
 
       <div className="space-y-5">

@@ -72,9 +72,7 @@ export const ReprogramarPrevisionModal: React.FC<Props> = ({ prevision, ingenier
       subtitle={`${prevision.clienteNombre} · ${prevision.tipoServicio}`}
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
       </>}>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">

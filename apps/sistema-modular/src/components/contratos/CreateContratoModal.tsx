@@ -111,9 +111,7 @@ export const CreateContratoModal: React.FC<Props> = ({ open, onClose, onCreated,
 
       <div className="flex items-center justify-end px-5 py-3 border-t border-[#E5E5E5] bg-[#F0F0F0] rounded-b-xl -mx-5 -mb-4 mt-3 gap-2">
         <Button variant="secondary" size="sm" onClick={h.handleClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId}>
-          {h.saving ? 'Creando...' : 'Crear contrato'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={h.handleSave} disabled={h.saving || !h.form.clienteId} estado={h.saving ? 'guardando' : 'idle'}>Crear contrato</Button>
       </div>
     </Modal>
   );

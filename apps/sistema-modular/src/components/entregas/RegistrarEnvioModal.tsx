@@ -104,7 +104,7 @@ export function RegistrarEnvioModal({ open, onClose, onRegistrar, pptoOptions }:
 
   return (
     <Modal open={open} onClose={onClose} title="Registrar envío" subtitle="Un viaje de entrega: se descuenta del pool de envíos" maxWidth="lg"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={guardar} disabled={!puedeGuardar}>{saving ? 'Guardando…' : 'Registrar'}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={guardar} disabled={!puedeGuardar} estado={saving ? 'guardando' : 'idle'}>Registrar</Button></>}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div><label className={label}>Fecha del viaje</label><DateInput value={fecha} onChange={setFecha} /></div>
         <div><label className={label}>Costo en pesos</label><MoneyInput value={montoARS} onChange={setMontoARS} placeholder="0,00" /></div>

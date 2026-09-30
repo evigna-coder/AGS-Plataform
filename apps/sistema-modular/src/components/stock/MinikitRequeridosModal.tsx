@@ -105,9 +105,7 @@ export const MinikitRequeridosModal = ({ initialRequeridos, initialSectores, onC
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : 'Guardar configuración'}
-          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar configuración</Button>
         </div>
       }
     >

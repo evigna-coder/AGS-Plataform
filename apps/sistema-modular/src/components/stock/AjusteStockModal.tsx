@@ -118,7 +118,7 @@ export const AjusteStockModal = ({ unidades, onClose, onSuccess }: Props) => {
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar ajuste'}</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Confirmar ajuste</Button>
         </div>
       }
     >

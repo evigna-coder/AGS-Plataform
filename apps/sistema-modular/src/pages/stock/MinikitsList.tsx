@@ -163,9 +163,7 @@ export const MinikitsList = () => {
               />
             </div>
             <div className="flex justify-end mt-3">
-              <Button size="sm" onClick={handleCreate} disabled={creating || !form.codigo.trim() || !form.nombre.trim()}>
-                {creating ? 'Creando...' : 'Agregar minikit'}
-              </Button>
+              <Button size="sm" onClick={handleCreate} disabled={creating || !form.codigo.trim() || !form.nombre.trim()} estado={creating ? 'guardando' : 'idle'}>Agregar minikit</Button>
             </div>
           </Card>
         )}

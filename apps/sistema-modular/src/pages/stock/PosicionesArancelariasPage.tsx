@@ -209,9 +209,7 @@ export const PosicionesArancelariasPage = () => {
               </div>
             </div>
             <div className="flex justify-end mt-3">
-              <Button size="sm" onClick={handleCreate} disabled={saving || !form.codigo.trim() || !form.descripcion.trim()}>
-                {saving ? 'Creando...' : 'Agregar'}
-              </Button>
+              <Button size="sm" onClick={handleCreate} disabled={saving || !form.codigo.trim() || !form.descripcion.trim()} estado={saving ? 'guardando' : 'idle'}>Agregar</Button>
             </div>
           </Card>
         )}

@@ -82,9 +82,7 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleConfirm} disabled={!newEstado || saving || conciliando}>
-            {saving ? 'Guardando...' : 'Confirmar'}
-          </Button>
+          <Button size="sm" onClick={handleConfirm} disabled={!newEstado || saving || conciliando} estado={saving ? 'guardando' : 'idle'}>Confirmar</Button>
         </>
       }
     >

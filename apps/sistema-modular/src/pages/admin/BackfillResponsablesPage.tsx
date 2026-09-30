@@ -44,9 +44,7 @@ export default function BackfillResponsablesPage() {
 
       <Card>
         <div className="p-5 space-y-4">
-          <Button onClick={run} disabled={running}>
-            {running ? 'Procesando...' : 'Ejecutar backfill'}
-          </Button>
+          <Button onClick={run} disabled={running} estado={running ? 'guardando' : 'idle'} textoOcupado="Procesando...">Ejecutar backfill</Button>
 
           {result && (
             <div className="text-xs font-mono text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 space-y-1">

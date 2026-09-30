@@ -203,9 +203,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
 
         <div className="flex justify-end gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={h.handleSubmit} disabled={h.saving}>
-            {h.saving ? 'Creando...' : 'Crear Ticket'}
-          </Button>
+          <Button size="sm" onClick={h.handleSubmit} disabled={h.saving} estado={h.saving ? 'guardando' : 'idle'}>Crear Ticket</Button>
         </div>
       </div>
     </Modal>

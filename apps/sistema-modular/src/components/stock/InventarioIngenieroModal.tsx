@@ -144,9 +144,7 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => { setActionModal(null); setActionValue(''); }}>Cancelar</Button>
-            <Button size="sm" onClick={confirmAction} disabled={saving || (actionModal?.action === 'transferir' && !actionValue)}>
-              {saving ? 'Procesando...' : 'Confirmar'}
-            </Button>
+            <Button size="sm" onClick={confirmAction} disabled={saving || (actionModal?.action === 'transferir' && !actionValue)} estado={saving ? 'guardando' : 'idle'} textoOcupado="Procesando...">Confirmar</Button>
           </div>
         }
       >

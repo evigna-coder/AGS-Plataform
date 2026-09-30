@@ -139,9 +139,7 @@ export const ControlSemanal = () => {
               title="Guarda la foto de esta semana y su PDF; se copia también a la carpeta configurada en Admin → Flujos">
               {generando ? 'Congelando…' : 'Congelar semana'}
             </Button>
-            <Button size="sm" variant="secondary" onClick={refetch} disabled={loading}>
-              {loading ? 'Cargando…' : 'Refrescar'}
-            </Button>
+            <Button size="sm" variant="secondary" onClick={refetch} disabled={loading} estado={loading ? 'guardando' : 'idle'} textoOcupado="Cargando…">Refrescar</Button>
           </div>
         }
       >

@@ -12,6 +12,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    * modal se cierre. Los formularios lo manejan con `useFeedbackGuardado`.
    */
   estado?: 'idle' | 'guardando' | 'listo';
+  /** Texto mientras `estado === 'guardando'` (default "Guardando…"): "Cargando…", "Generando…", etc. */
+  textoOcupado?: string;
 }
 
 const Spinner = () => (
@@ -32,6 +34,7 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   children,
   estado = 'idle',
+  textoOcupado = 'Guardando…',
   ...props
 }) => {
   const baseStyles =
@@ -61,7 +64,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {estado === 'guardando' && <Spinner />}
       {listo && <Tilde />}
-      {estado === 'guardando' ? 'Guardando…' : listo ? 'Listo' : children}
+      {estado === 'guardando' ? textoOcupado : listo ? 'Listo' : children}
     </button>
   );
 };

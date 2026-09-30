@@ -103,9 +103,7 @@ export const RemitoServicioModal: React.FC<Props> = ({ open, onClose, onCreated,
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!s.canSubmit || s.submitting}>
-            {s.submitting ? 'Generando...' : 'Generar e imprimir'}
-          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={!s.canSubmit || s.submitting} estado={s.submitting ? 'guardando' : 'idle'} textoOcupado="Generando...">Generar e imprimir</Button>
         </>
       }
     >

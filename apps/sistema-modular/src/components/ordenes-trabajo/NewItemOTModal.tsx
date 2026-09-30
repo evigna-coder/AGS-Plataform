@@ -104,9 +104,7 @@ export const NewItemOTModal: React.FC<Props> = ({ open, parentOt, onClose, onCre
       subtitle="Crear sub-orden de trabajo"
       footer={<>
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleCreate} disabled={saving}>
-          {saving ? 'Creando...' : 'Crear Item'}
-        </Button>
+        <Button size="sm" onClick={handleCreate} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear Item</Button>
       </>}>
       <div className="space-y-3">
         <div>

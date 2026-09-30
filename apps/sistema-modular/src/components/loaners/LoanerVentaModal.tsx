@@ -135,9 +135,7 @@ export function LoanerVentaModal({ open, onClose, loaner, onConfirm }: Props) {
             size="sm"
             onClick={handleConfirm}
             disabled={!canConfirm}
-          >
-            {saving ? 'Registrando...' : 'Confirmar venta'}
-          </Button>
+           estado={saving ? 'guardando' : 'idle'}>Confirmar venta</Button>
         </div>
       }
     >

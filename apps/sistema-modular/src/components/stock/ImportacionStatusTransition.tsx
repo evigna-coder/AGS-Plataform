@@ -91,9 +91,7 @@ export const ImportacionStatusTransition: React.FC<Props> = ({ imp, onClose, onU
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving || !selected || validationError !== null}>
-            {saving ? 'Guardando...' : 'Confirmar'}
-          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !selected || validationError !== null} estado={saving ? 'guardando' : 'idle'}>Confirmar</Button>
         </>
       }
     >

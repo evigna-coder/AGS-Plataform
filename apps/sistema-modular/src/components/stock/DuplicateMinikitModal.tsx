@@ -47,9 +47,7 @@ export const DuplicateMinikitModal = ({ source, onClose, onCreated }: Props) => 
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleCreate} disabled={creating || !codigo.trim() || !nombre.trim()}>
-            {creating ? 'Creando...' : 'Crear copia'}
-          </Button>
+          <Button size="sm" onClick={handleCreate} disabled={creating || !codigo.trim() || !nombre.trim()} estado={creating ? 'guardando' : 'idle'}>Crear copia</Button>
         </div>
       }
     >

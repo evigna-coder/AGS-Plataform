@@ -237,9 +237,7 @@ export const ClienteNew = () => {
           <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Guardando...' : 'Crear Cliente'}
-          </Button>
+          <Button type="submit" disabled={loading} estado={loading ? 'guardando' : 'idle'}>Crear Cliente</Button>
         </div>
       </form>
     </div>

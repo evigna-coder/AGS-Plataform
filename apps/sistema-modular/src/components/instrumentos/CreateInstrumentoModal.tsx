@@ -85,9 +85,7 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
       subtitle="Complete los datos basicos. Certificados se cargan despues."
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Creando...' : 'Crear instrumento'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear instrumento</Button>
       </>}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">

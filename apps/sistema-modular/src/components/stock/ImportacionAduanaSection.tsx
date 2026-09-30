@@ -72,7 +72,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
         editing ? (
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={handleCancel}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
           </div>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>

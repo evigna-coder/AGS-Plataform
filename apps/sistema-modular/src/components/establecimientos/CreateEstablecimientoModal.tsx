@@ -96,9 +96,7 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
       subtitle="Complete los datos del establecimiento" maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando...' : 'Crear establecimiento'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear establecimiento</Button>
       </>}>
       <div className="space-y-5">
         {/* Cliente y nombre */}

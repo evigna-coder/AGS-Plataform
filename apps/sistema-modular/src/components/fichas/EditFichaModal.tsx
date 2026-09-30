@@ -194,9 +194,7 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando…' : 'Guardar cambios'}
-          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar cambios</Button>
         </div>
       }
     >

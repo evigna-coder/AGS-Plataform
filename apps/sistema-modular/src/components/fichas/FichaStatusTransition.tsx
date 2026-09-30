@@ -71,9 +71,7 @@ export function FichaStatusTransition({ currentEstado, onTransition }: Props) {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!selectedEstado || !nota.trim() || saving}>
-              {saving ? 'Guardando...' : 'Confirmar'}
-            </Button>
+            <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!selectedEstado || !nota.trim() || saving} estado={saving ? 'guardando' : 'idle'}>Confirmar</Button>
           </div>
         }
       >

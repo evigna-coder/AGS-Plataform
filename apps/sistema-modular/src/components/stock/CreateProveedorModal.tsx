@@ -76,9 +76,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
     <Modal open={open} onClose={handleClose} title="Nuevo proveedor" subtitle="Complete los datos del proveedor" maxWidth="lg"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving || !form.nombre.trim()}>
-          {saving ? 'Guardando...' : 'Crear proveedor'}
-        </Button>
+        <Button size="sm" onClick={handleSave} disabled={saving || !form.nombre.trim()} estado={saving ? 'guardando' : 'idle'}>Crear proveedor</Button>
       </>}>
 
       <div className="space-y-5">

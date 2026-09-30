@@ -53,12 +53,17 @@ export async function computeStockAmplioAdmin(articuloId: string): Promise<Stock
     .where('activo', '==', true)
     .get();
 
+  // Se suman CANTIDADES, no docs (2026-09-29, espejo de `sumCantidadUnidades` del
+  // cliente, auditoría I7): un doc-lote de 100 vale 100. Lo parado en la posición
+  // provisoria de un remito ya salió del depósito y no cuenta como disponible.
   let disponible = 0, reservado = 0, unidadesEnTransito = 0;
   unidadesSnap.forEach(d => {
-    const e = d.data().estado;
-    if (e === 'disponible') disponible++;
-    else if (e === 'reservado') reservado++;
-    else if (e === 'en_transito') unidadesEnTransito++;
+    const data = d.data();
+    const cant: number = typeof data.cantidad === 'number' ? data.cantidad : 1;
+    const e = data.estado;
+    if (e === 'disponible') { if (data.ubicacion?.tipo !== 'remito') disponible += cant; }
+    else if (e === 'reservado') reservado += cant;
+    else if (e === 'en_transito') unidadesEnTransito += cant;
   });
 
   // 2. OCs abiertas — iterate all open states, walk items

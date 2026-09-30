@@ -162,9 +162,7 @@ ${causa}`);
 
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando...' : 'Guardar'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
       </div>
     </Modal>
   );

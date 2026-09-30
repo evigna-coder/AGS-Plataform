@@ -37,9 +37,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
       subtitle="El numero de OT se asigna automaticamente al confirmar"
       footer={<>
         <Button variant="outline" size="sm" onClick={h.handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={h.handleSave} disabled={h.saving}>
-          {h.saving ? 'Creando...' : 'Crear OT'}
-        </Button>
+        <Button size="sm" onClick={h.handleSave} disabled={h.saving} estado={h.saving ? 'guardando' : 'idle'}>Crear OT</Button>
       </>}>
 
       <div className="space-y-3">

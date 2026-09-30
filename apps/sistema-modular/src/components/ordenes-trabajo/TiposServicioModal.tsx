@@ -90,9 +90,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
         {!showForm && (
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={handleSeedDefaults} disabled={seeding}
-              title="Crea los tipos estándar que falten (los del reporte técnico + apertura de OT). No duplica ni pisa los existentes.">
-              {seeding ? 'Cargando…' : 'Cargar tipos estándar'}
-            </Button>
+              title="Crea los tipos estándar que falten (los del reporte técnico + apertura de OT). No duplica ni pisa los existentes." estado={seeding ? 'guardando' : 'idle'} textoOcupado="Cargando…">Cargar tipos estándar</Button>
             <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo tipo</Button>
           </div>
         )}

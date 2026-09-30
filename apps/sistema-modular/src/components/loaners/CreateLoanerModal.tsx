@@ -177,9 +177,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
 
       <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">
         <Button variant="secondary" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Creando...' : 'Crear loaner'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Crear loaner</Button>
       </div>
     </Modal>
   );

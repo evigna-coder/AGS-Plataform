@@ -302,9 +302,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               )}
               <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
               {form.estado !== 'anulado' && (
-                <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving}>
-                  {saving ? 'Guardando...' : 'Guardar'}
-                </Button>
+                <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
               )}
             </div>
           </div>

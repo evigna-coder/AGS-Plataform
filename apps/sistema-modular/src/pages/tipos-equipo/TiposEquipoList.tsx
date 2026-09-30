@@ -194,9 +194,7 @@ export const TiposEquipoList = () => {
               <p className="text-slate-400">Sin plantillas de tipo de equipo.</p>
               <div className="flex gap-3 justify-center">
                 <Button onClick={handleNew}>Crear primera plantilla</Button>
-                <Button variant="outline" onClick={handleSeed} disabled={seeding}>
-                  {seeding ? 'Cargando...' : 'Cargar plantillas iniciales (7 equipos)'}
-                </Button>
+                <Button variant="outline" onClick={handleSeed} disabled={seeding} estado={seeding ? 'guardando' : 'idle'} textoOcupado="Cargando...">Cargar plantillas iniciales (7 equipos)</Button>
               </div>
               <p className="text-[11px] text-slate-400 max-w-md mx-auto">
                 Las plantillas iniciales cubren los tipos de equipo más comunes (HPLC, UV/VIS, GC) con sus componentes S/L y servicios estándar basados en presupuestos reales de contrato.

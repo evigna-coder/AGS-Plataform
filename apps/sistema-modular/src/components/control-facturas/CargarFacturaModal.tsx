@@ -153,9 +153,7 @@ export const CargarFacturaModal = ({ onClose, onCreated }: CargarFacturaModalPro
 
         <div className="flex justify-end gap-2 pt-1">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Cargando...' : 'Cargar factura'}
-          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={saving} estado={saving ? 'guardando' : 'idle'} textoOcupado="Cargando...">Cargar factura</Button>
         </div>
       </div>
     </Modal>

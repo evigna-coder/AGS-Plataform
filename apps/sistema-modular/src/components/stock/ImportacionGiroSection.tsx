@@ -84,7 +84,7 @@ export const ImportacionGiroSection: React.FC<Props> = ({ imp, onUpdate }) => {
         editing ? (
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">

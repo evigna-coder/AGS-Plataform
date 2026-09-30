@@ -42,9 +42,7 @@ export const CreateRevisionModal: React.FC<Props> = ({ open, presupuesto, onClos
       subtitle={`A partir de ${presupuesto.numero}`}
       footer={<>
         <Button variant="secondary" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleCreate} disabled={saving || !motivo.trim()}>
-          {saving ? 'Creando...' : 'Crear revisión'}
-        </Button>
+        <Button size="sm" onClick={handleCreate} disabled={saving || !motivo.trim()} estado={saving ? 'guardando' : 'idle'}>Crear revisión</Button>
       </>}>
       <div className="space-y-3">
         <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2">

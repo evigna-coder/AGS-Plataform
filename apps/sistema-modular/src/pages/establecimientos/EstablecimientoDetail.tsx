@@ -280,9 +280,7 @@ export const EstablecimientoDetail = () => {
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Guardando...' : 'Guardar'}
-                </Button>
+                <Button size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
               </>
             )}
           </div>

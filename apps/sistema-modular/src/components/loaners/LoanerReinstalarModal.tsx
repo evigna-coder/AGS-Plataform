@@ -43,9 +43,7 @@ export function LoanerReinstalarModal({ open, onClose, parteDescripcion, yaEnBas
     <Modal open={open} onClose={onClose} title="Parte reinstalada en el módulo" subtitle={parteDescripcion} footer={
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!fecha || saving}>
-          {saving ? 'Guardando...' : 'Confirmar reinstalación'}
-        </Button>
+        <Button variant="primary" size="sm" onClick={handleConfirm} disabled={!fecha || saving} estado={saving ? 'guardando' : 'idle'}>Confirmar reinstalación</Button>
       </div>
     }>
       <div className="space-y-4">

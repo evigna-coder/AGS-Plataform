@@ -144,9 +144,7 @@ export const GenerarSolicitudCuotaModal: React.FC<Props> = ({
           <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button variant="primary" size="sm" onClick={handleConfirm} disabled={isConfirmDisabled} data-testid="generar-cuota-confirm">
-            {loading ? 'Generando...' : 'Confirmar'}
-          </Button>
+          <Button variant="primary" size="sm" onClick={handleConfirm} disabled={isConfirmDisabled} data-testid="generar-cuota-confirm" estado={loading ? 'guardando' : 'idle'} textoOcupado="Generando...">Confirmar</Button>
         </div>
       }
     >

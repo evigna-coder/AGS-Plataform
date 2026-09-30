@@ -70,9 +70,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
             onClick={h.handleCierreAdminTransition}
             className="bg-cyan-600 hover:bg-cyan-700 text-white"
             disabled={h.loading || h.saving}
-          >
-            {h.saving ? 'Procesando...' : '→ Cierre administrativo'}
-          </Button>
+           estado={h.saving ? 'guardando' : 'idle'} textoOcupado="Procesando...">→ Cierre administrativo</Button>
         )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>

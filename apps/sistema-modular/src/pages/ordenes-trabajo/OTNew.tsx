@@ -457,9 +457,7 @@ export const OTNew = () => {
           <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Creando...' : 'Crear OT y Abrir en Editor'}
-          </Button>
+          <Button type="submit" disabled={loading} estado={loading ? 'guardando' : 'idle'}>Crear OT y Abrir en Editor</Button>
         </div>
       </form>
     </div>

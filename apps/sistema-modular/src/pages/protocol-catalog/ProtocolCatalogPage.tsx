@@ -18,6 +18,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { notify } from '../../utils/notify';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 const thBase = 'px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-slate-400 relative select-none';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
@@ -32,6 +33,8 @@ const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
     </svg>
   );
 
+/** Centinela para 'Sin proyecto' en el buscador de proyectos del modal de duplicar. */
+const CLONE_NO_PROJECT = '__none__';
 const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
 
@@ -400,11 +403,17 @@ export const TableCatalogPage = () => {
             {projects.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
-                <Select value={cloneProjectId ?? ''} onChange={e => setCloneProjectId(e.target.value || null)}
-                  className="w-full" selectSize="md">
-                  <option value="">Sin proyecto</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
+                {/* Buscable: con 40+ proyectos el desplegable plano obligaba a leer toda la lista. */}
+                <SearchableSelect
+                  value={cloneProjectId ?? CLONE_NO_PROJECT}
+                  onChange={val => setCloneProjectId(val === CLONE_NO_PROJECT ? null : val)}
+                  options={[
+                    { value: CLONE_NO_PROJECT, label: 'Sin proyecto' },
+                    ...projects.map(p => ({ value: p.id, label: p.name })),
+                  ]}
+                  placeholder="Buscar proyecto..."
+                  size="sm"
+                />
               </div>
             )}
           </div>

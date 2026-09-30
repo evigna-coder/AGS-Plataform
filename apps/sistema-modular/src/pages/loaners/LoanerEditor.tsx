@@ -143,9 +143,7 @@ export function LoanerEditor() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => goBack()}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : 'Guardar'}
-          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} estado={saving ? 'guardando' : 'idle'}>Guardar</Button>
         </div>
       </div>
 

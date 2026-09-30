@@ -479,9 +479,7 @@ export const EquipoNew = () => {
           <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Guardando...' : 'Crear Sistema'}
-          </Button>
+          <Button type="submit" disabled={loading} estado={loading ? 'guardando' : 'idle'}>Crear Sistema</Button>
         </div>
       </form>
 

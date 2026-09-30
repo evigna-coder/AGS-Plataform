@@ -285,9 +285,7 @@ export default function ConfigFlujosPage() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={submitting} data-testid="cfg-save-btn">
-            {submitting ? 'Guardando…' : 'Guardar cambios'}
-          </Button>
+          <Button onClick={handleSave} disabled={submitting} data-testid="cfg-save-btn" estado={submitting ? 'guardando' : 'idle'}>Guardar cambios</Button>
         </div>
       </Card>
     </div>
