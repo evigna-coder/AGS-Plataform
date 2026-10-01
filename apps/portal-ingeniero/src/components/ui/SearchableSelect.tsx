@@ -243,7 +243,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       {isOpen && !disabled && (inline ? (
         <ul ref={listRef}
-          className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto" role="listbox">
+          className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto motion-safe:animate-menu-in" role="listbox">
           {allOptions.length === 0 ? (
             <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
           ) : (
@@ -269,7 +269,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       ) : createPortal(
         <ul ref={listRef}
           style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto" role="listbox">
+          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto motion-safe:animate-menu-in" role="listbox">
           {allOptions.length === 0 ? (
             <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
           ) : (

@@ -118,7 +118,9 @@ export function TabOverlayScope({ isTabActive, children }: TabOverlayScopeProps)
   );
 
   return (
-    <div className="relative h-full" style={{ display: isTabActive ? undefined : 'none' }}>
+    // Fundido al cambiar de pestaña (2026-09-30): pasar de display:none a visible
+    // reinicia la animación CSS, así que con la clase fija alcanza.
+    <div className="relative h-full motion-safe:animate-fade-in" style={{ display: isTabActive ? undefined : 'none' }}>
       <TabOverlayContext.Provider value={value}>
         {/* Scroller propio de la pestaña: el contenido scrollea acá adentro,
             así los overlays absolutos quedan fijos al área visible del tab. */}

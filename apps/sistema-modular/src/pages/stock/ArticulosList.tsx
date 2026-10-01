@@ -219,7 +219,7 @@ export const ArticulosList = () => {
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="mx-5 mb-2 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2">
+        <div className="mx-5 mb-2 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2 motion-safe:animate-barra-in">
           <span className="text-xs font-medium text-teal-800">{selectedIds.size} seleccionado(s)</span>
           {bulkLoading
             ? <span className="flex items-center gap-2 text-xs text-teal-700"><span className="inline-block w-3.5 h-3.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />Procesando...</span>

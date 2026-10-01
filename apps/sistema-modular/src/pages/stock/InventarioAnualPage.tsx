@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNumeroAnimado } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { useInventarioAnual } from '../../hooks/useInventarioAnual';
@@ -70,6 +71,8 @@ export function InventarioAnualPage() {
     excluirCondicion: filters.condicion !== 'false',
   }), [posicionIds, posExcluidas, quitados, filters.fuera, filters.sufijo, filters.condicion]);
   const inv = useInventarioAnual(filtros);
+  // El total valorizado cuenta hasta el valor nuevo al quitar o recalcular (2026-09-30).
+  const totalAnimado = useNumeroAnimado(inv.resultado?.totalValor ?? 0);
   const [exportando, setExportando] = useState(false);
   // Selección múltiple para "Quitar" (transitoria; lo quitado sí va a la URL).
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
@@ -165,7 +168,7 @@ export function InventarioAnualPage() {
             {inv.resultado && (
               <p className="text-xs text-slate-400 mt-0.5">
                 {inv.resultado.vendibles.length} artículos vendibles · {inv.resultado.totalCantidad} unidades ·{' '}
-                <span className="text-slate-700 font-medium">U$S {usd(inv.resultado.totalValor)}</span>
+                <span className="text-slate-700 font-medium tabular-nums">U$S {usd(totalAnimado)}</span>
                 {inv.resultado.sinPrecio > 0 && <span className="text-amber-600"> · {inv.resultado.sinPrecio} sin precio</span>}
                 {' · '}{inv.resultado.excluidas.length} excluidos a confirmar
               </p>
@@ -206,7 +209,7 @@ export function InventarioAnualPage() {
           {toggle('condicion', 'Excluir por condición')}
         </div>
         {!enExcluidos && seleccion.size > 0 && (
-          <div className="mt-3 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-3 py-1.5 text-xs text-teal-800">
+          <div className="mt-3 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-3 py-1.5 text-xs text-teal-800 motion-safe:animate-barra-in">
             <span className="font-medium">{seleccion.size} seleccionado{seleccion.size === 1 ? '' : 's'}</span>
             <Button size="sm" variant="danger" onClick={quitarSeleccionados}>Quitar del inventario</Button>
             <button onClick={() => setSeleccion(new Set())} className="text-teal-700 hover:underline">Limpiar selección</button>

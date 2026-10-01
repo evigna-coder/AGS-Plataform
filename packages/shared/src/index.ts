@@ -12,6 +12,7 @@ export * from './hooks/useResizableColumns';
 export * from './hooks/useUrlFilters';
 export * from './hooks/useIndicadorDeslizante';
 export * from './hooks/useFilasCambiadas';
+export * from './hooks/useNumeroAnimado';
 
 // Exportar utilidades compartidas
 export * from './utils';

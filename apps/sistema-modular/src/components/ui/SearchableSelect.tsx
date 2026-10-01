@@ -119,7 +119,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <ul
           ref={listRef}
           style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto"
+          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto motion-safe:animate-menu-in"
           role="listbox"
         >
           {allOptions.length === 0 ? (

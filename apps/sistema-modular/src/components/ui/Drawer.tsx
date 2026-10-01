@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { pushEscape } from '../../utils/escapeStack';
 import { useTabOverlay } from '../../contexts/TabOverlayContext';
+import { useSalidaAnimada } from '../../hooks/useSalidaAnimada';
 
 interface DrawerProps {
   open: boolean;
@@ -51,12 +52,15 @@ export function Drawer({
     return pushEscape(onClose);
   }, [open, isTabActive, onClose]);
 
-  if (!open) return null;
+  // Entra deslizando desde la derecha y sale igual (2026-09-30): queda montado
+  // 180 ms después de cerrar para animar la salida.
+  const { montado, saliendo } = useSalidaAnimada(open, 180);
+  if (!montado) return null;
   if (scoped && !tabOverlay.overlayRoot) return null;
 
   return createPortal(
     <aside
-      className={`${scoped ? 'absolute' : 'fixed'} right-0 top-0 bottom-0 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col w-full`}
+      className={`${scoped ? 'absolute' : 'fixed'} right-0 top-0 bottom-0 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col w-full ${saliendo ? 'motion-safe:animate-drawer-out pointer-events-none' : 'motion-safe:animate-drawer-in'}`}
       style={{ maxWidth: width }}
       role={isTabActive ? 'dialog' : undefined}
       aria-modal="false"

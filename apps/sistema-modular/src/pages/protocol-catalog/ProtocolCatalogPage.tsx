@@ -265,7 +265,7 @@ export const TableCatalogPage = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {/* Acciones en lote */}
         {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+          <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 motion-safe:animate-barra-in">
             <span className="text-sm font-bold text-teal-800">{selectedIds.size} seleccionada(s)</span>
             <div className="flex gap-3 items-center">
               {projects.length > 0 && (

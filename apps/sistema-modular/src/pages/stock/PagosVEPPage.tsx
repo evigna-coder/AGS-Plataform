@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Importacion, PagoExterior } from '@ags/shared';
-import { buildEventos, totalPendiente, proximoPago, groupByPeriodo, filtrarEventosPorTipo, pagosPendientes, diasDeAtraso, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo, type VistaFlujo, type FiltroTipoFlujo } from '@ags/shared';
+import { buildEventos, totalPendiente, proximoPago, groupByPeriodo, filtrarEventosPorTipo, pagosPendientes, diasDeAtraso, useNumeroAnimado, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo, type VistaFlujo, type FiltroTipoFlujo } from '@ags/shared';
 import { usePreferenciaUsuario } from '../../hooks/usePreferenciaUsuario';
 import { FlujoFondosFiltros } from '../../components/stock/FlujoFondosFiltros';
 import { importacionesService } from '../../services/firebaseService';
@@ -21,11 +21,14 @@ const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 
 const PREF_DEFAULT = { vista: 'mensual', tipo: '' } as const;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+/** `valor` numérico (con `prefijo` de moneda) cuenta hasta el valor nuevo al cambiar el filtro (2026-09-30); `value` texto va directo. */
+function Kpi({ label, value, valor, prefijo, sub, accent }: { label: string; value?: string; valor?: number; prefijo?: string; sub?: string; accent?: string }) {
+  const animado = useNumeroAnimado(valor ?? 0);
+  const texto = valor != null ? `${prefijo ? `${prefijo} ` : ''}${fmt(animado)}` : value;
   return (
     <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
       <p className="text-[10px] font-mono uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`text-xl font-semibold mt-0.5 ${accent ?? 'text-slate-900'}`}>{value}</p>
+      <p className={`text-xl font-semibold mt-0.5 tabular-nums ${accent ?? 'text-slate-900'}`}>{texto}</p>
       {sub && <p className="text-[11px] text-slate-400 mt-0.5 truncate">{sub}</p>}
     </div>
   );
@@ -171,8 +174,8 @@ export const PagosVEPPage = () => {
                 accent="text-teal-700" />
               {/* Todo en USD: los giros en euros ya vienen convertidos al pase de la impo.
                   Si queda uno en EUR es porque no tiene pase declarado. */}
-              <Kpi label="Giros al exterior" value={`USD ${fmt(girosUSD)}`} sub={girosEUR > 0 ? `+ EUR ${fmt(girosEUR)} sin pase declarado` : 'pendientes, unificados en USD'} accent="text-teal-700" />
-              <Kpi label="VEP pendientes" value={`ARS ${fmt(vepARS)}`} sub="a pagar a aduana" accent="text-amber-700" />
+              <Kpi label="Giros al exterior" prefijo="USD" valor={girosUSD} sub={girosEUR > 0 ? `+ EUR ${fmt(girosEUR)} sin pase declarado` : 'pendientes, unificados en USD'} accent="text-teal-700" />
+              <Kpi label="VEP pendientes" prefijo="ARS" valor={vepARS} sub="a pagar a aduana" accent="text-amber-700" />
               <Kpi label={vencidos.length > 0 ? 'Vencidos sin pagar' : 'Eventos pendientes'}
                 value={vencidos.length > 0 ? String(vencidos.length) : String(futurosCount)}
                 sub={vencidos.length > 0 ? `de ${futurosCount} pendientes` : tipo === 'vep' ? 'solo VEP' : tipo === 'giro' ? 'solo giros' : 'VEP + giros + arribos'}

@@ -38,6 +38,12 @@ export default {
         'fila-cambio': 'filaCambio 1.5s ease-out both',
         // Celda de agenda que cambió: anillo teal que se apaga (el fondo es el color del estado).
         'celda-cambio': 'celdaCambio 1.5s ease-out both',
+        // Tanda 4 (2026-09-30): drawer que entra/sale por la derecha, menús
+        // desplegables que caen del campo, barra de acciones que sube al seleccionar.
+        'drawer-in': 'drawerIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'drawer-out': 'drawerOut 0.18s ease-in both',
+        'menu-in': 'menuIn 0.12s ease-out both',
+        'barra-in': 'barraIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       keyframes: {
         slideIn: {
@@ -79,6 +85,22 @@ export default {
         celdaCambio: {
           '0%': { boxShadow: 'inset 0 0 0 3px rgb(20 184 166)' },
           '100%': { boxShadow: 'inset 0 0 0 0 rgb(20 184 166 / 0)' },
+        },
+        drawerIn: {
+          '0%': { opacity: '0.6', transform: 'translateX(100%)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        drawerOut: {
+          '0%': { opacity: '1', transform: 'translateX(0)' },
+          '100%': { opacity: '0.6', transform: 'translateX(100%)' },
+        },
+        menuIn: {
+          '0%': { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        barraIn: {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

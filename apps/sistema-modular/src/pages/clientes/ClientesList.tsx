@@ -181,7 +181,7 @@ export const ClientesList = () => {
               titulo="Clientes" filename="clientes" filtrosAplicados={filtrosExport} />
             {selected.size > 0 && (
               <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkActioning}
-                className="!border-red-300 !text-red-600 hover:!bg-red-50">
+                className="!border-red-300 !text-red-600 hover:!bg-red-50 motion-safe:animate-barra-in">
                 {bulkActioning ? 'Procesando...' : bulkLabel}
               </Button>
             )}

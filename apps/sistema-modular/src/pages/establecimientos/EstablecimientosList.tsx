@@ -178,7 +178,7 @@ export const EstablecimientosList = () => {
               titulo="Establecimientos" filename="establecimientos" filtrosAplicados={filtrosExport} />
             {selected.size > 0 && (
               <Button size="sm" variant="outline" onClick={handleBulkDelete} disabled={deleting}
-                className="!border-red-300 !text-red-600 hover:!bg-red-50">
+                className="!border-red-300 !text-red-600 hover:!bg-red-50 motion-safe:animate-barra-in">
                 {deleting ? 'Eliminando...' : `Eliminar (${selected.size})`}
               </Button>
             )}

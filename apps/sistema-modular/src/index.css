@@ -25,6 +25,20 @@ body {
 [contenteditable] font[size="5"] { font-size: 20px; }
 [contenteditable] font[size="6"] { font-size: 24px; }
 
+/* ── Tablas de listado: fundido al aparecer (2026-09-30) ────────────────────
+   El paso de "cargando" a la tabla (o al estado vacío) dejaba un salto seco.
+   Se anima el montaje de toda <table class="tabla-compacta">; con "reducir
+   movimiento" del sistema no se aplica. */
+@keyframes tablaIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tabla-compacta {
+    animation: tablaIn 0.18s ease-out both;
+  }
+}
+
 /* ── Listados compactos (pedido 2026-07-31) ─────────────────────────────────
    Baja ~2px la letra de las tablas de listado sin tocar cada celda: dentro de
    una <table class="tabla-compacta">, text-sm (14px) pasa a 12px y text-xs

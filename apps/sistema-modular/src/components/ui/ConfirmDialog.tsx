@@ -170,11 +170,11 @@ function ConfirmDialogView({
     // Scoped: absolute dentro del wrapper de la pestaña — mismo nodo host que
     // Modal (z-[70]); z-[80] garantiza que el confirm quede SIEMPRE adelante.
     <div
-      className={`${scoped ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-[80] p-4`}
+      className={`${scoped ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-[80] p-4 motion-safe:animate-fade-in`}
       role={isTabActive() ? 'dialog' : undefined}
       aria-modal={isTabActive() ? 'true' : undefined}
     >
-      <div ref={dialogRef} className="w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
+      <div ref={dialogRef} className="w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden motion-safe:animate-modal-in">
         <div className="px-5 pt-4 pb-3 bg-teal-700">
           <h3 className="text-base font-serif font-semibold text-white tracking-tight">
             {pending.options.title || 'Confirmar acción'}

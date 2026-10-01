@@ -19,7 +19,7 @@ interface EmptyStateProps {
  */
 export const EmptyState: React.FC<EmptyStateProps> = ({ message, hint, action, inline = false }) => {
   const body = (
-    <div className={`text-center ${inline ? 'py-6' : 'py-10'}`}>
+    <div className={`text-center motion-safe:animate-fade-in ${inline ? 'py-6' : 'py-10'}`}>
       <div className="mx-auto w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-2.5">
         <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
           <path strokeLinecap="round" strokeLinejoin="round"

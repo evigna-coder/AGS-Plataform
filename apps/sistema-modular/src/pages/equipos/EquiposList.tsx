@@ -260,11 +260,11 @@ export const EquiposList = () => {
               titulo="Equipos" filename="equipos" filtrosAplicados={filtrosExport} />
             {selected.size > 0 && (
               <>
-                <Button size="sm" variant="outline" onClick={openReassign}>
+                <Button size="sm" variant="outline" onClick={openReassign} className="motion-safe:animate-barra-in">
                   Reasignar ({selected.size})
                 </Button>
                 <Button size="sm" variant="outline" onClick={handleBulkDelete} disabled={deleting}
-                  className="!border-red-300 !text-red-600 hover:!bg-red-50">
+                  className="!border-red-300 !text-red-600 hover:!bg-red-50 motion-safe:animate-barra-in">
                   {deleting ? 'Eliminando...' : `Eliminar (${selected.size})`}
                 </Button>
               </>

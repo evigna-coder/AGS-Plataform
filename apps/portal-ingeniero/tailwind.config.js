@@ -16,6 +16,8 @@ export default {
         'fade-in': 'fadeIn 0.18s ease-out both',
         'sheet-up': 'sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1) both',
         'modal-in': 'modalIn 0.18s cubic-bezier(0.25, 1, 0.5, 1) both',
+        // Menús desplegables que caen del campo (2026-09-30).
+        'menu-in': 'menuIn 0.12s ease-out both',
         'toast-in': 'toastIn 0.28s cubic-bezier(0.34, 1.3, 0.64, 1) both',
         'toast-out': 'toastOut 0.2s ease-in both',
       },
@@ -39,6 +41,10 @@ export default {
         modalIn: {
           '0%': { opacity: '0', transform: 'scale(0.96)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        menuIn: {
+          '0%': { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         toastIn: {
           '0%': { opacity: '0', transform: 'translateX(28px)' },
