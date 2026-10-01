@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import type { ItemOC, RequerimientoCompra } from '@ags/shared';
 import {
   candidatosConciliacion, seleccionInicial, aplicarSeleccionAItems, idsSeleccionados, requerimientosDeItem,
-  repartirCantidad, cantidadBaseItem,
+  repartirCantidad, cantidadBaseItem, motivoSinCandidatos,
 } from '../conciliarRequerimientosOC';
 
 const item = (id: string, extra: Partial<ItemOC> = {}): ItemOC => ({
@@ -52,13 +52,36 @@ const req = (id: string, extra: Partial<RequerimientoCompra> = {}): Requerimient
   assert.deepEqual(grupos[0].candidatos.map(r => r.id), ['ok-pend', 'ok-aprob']);
 }
 
-// ── Ítems ya vinculados no se tocan; otros artículos no matchean ────────────
+// ── Ítems ya vinculados SÍ se ofrecen, con lo que la OC todavía puede cubrir (2026-09-30) ──
 {
+  const r0 = req('r0', { estado: 'en_compra', ordenCompraId: 'oc-esta', cantidad: 4 });
   const grupos = candidatosConciliacion(
     { items: [item('i1', { requerimientoId: 'r0' }), item('i2', { articuloId: 'B2', articuloCodigo: 'X' })] },
-    [req('r0'), req('r1')],
+    [r0, req('r1')],
+    [r0],
   );
-  assert.equal(grupos.length, 0, 'ítem con req no se reconcilia; artículo distinto no matchea');
+  assert.equal(grupos.length, 1, 'el ítem vinculado se ofrece; artículo distinto no matchea');
+  assert.deepEqual(grupos[0].candidatos.map(r => r.id), ['r1']);
+  assert.deepEqual(grupos[0].vinculados.map(r => r.id), ['r0']);
+  assert.equal(grupos[0].disponible, 10 - 4, 'la OC trae 10, r0 ya cubre 4');
+  assert.deepEqual(seleccionInicial(grupos).get('i1'), ['r1'], 'hay cantidad libre → se propone');
+
+  // Caso XRW219 / 92814-618: OC de 1, ya cubierta por REQ-0049; REQ-0098 aparece pero no se propone.
+  const r49 = req('r49', { estado: 'en_compra', ordenCompraId: 'oc-esta', cantidad: 1 });
+  const g2 = candidatosConciliacion({ items: [item('i1', { cantidad: 1, requerimientoId: 'r49' })] }, [req('r98', { cantidad: 1 })], [r49]);
+  assert.equal(g2.length, 1, 'REQ-0098 se muestra aunque el ítem ya tenga REQ-0049');
+  assert.equal(g2[0].disponible, 0);
+  assert.deepEqual(seleccionInicial(g2).get('i1'), [], 'OC cubierta → no se propone nada');
+  assert.deepEqual(repartirCantidad(g2[0].item, g2[0].candidatos, g2[0].disponible).map(r => [r.cubierta, r.saldo]), [[0, 1]], 'con 0 libre no cubre nada');
+  // Vinculado que no se pudo leer: se asume que cubre todo.
+  const g3 = candidatosConciliacion({ items: [item('i1', { requerimientoId: 'desconocido' })] }, [req('r1')]);
+  assert.equal(g3[0].disponible, 0);
+}
+
+// ── Motivo cuando no hay candidatos ─────────────────────────────────────────
+{
+  assert.match(motivoSinCandidatos([item('i1', { requerimientoId: 'r0' })]), /ya tienen requerimiento/);
+  assert.match(motivoSinCandidatos([item('i1', { requerimientoId: 'r0' }), item('i2', { articuloCodigo: 'G4513-67970' })]), /G4513-67970/);
 }
 
 // ── Match por código cuando el ítem no tiene articuloId ────────────────────
@@ -82,6 +105,10 @@ const req = (id: string, extra: Partial<RequerimientoCompra> = {}): Requerimient
   assert.equal(out[0].requerimientoId, 'r2');
   assert.deepEqual(out[0].requerimientoIds, ['r2', 'r1']);
   assert.equal(out[1].requerimientoId, undefined, 'sin selección no se toca');
+  // Ítem ya vinculado: los nuevos se SUMAN y el principal no cambia (2026-09-30).
+  const [conPrevio] = aplicarSeleccionAItems([item('i1', { requerimientoId: 'r49' })], new Map([['i1', ['r98']]]));
+  assert.equal(conPrevio.requerimientoId, 'r49', 'el principal sigue siendo el histórico');
+  assert.deepEqual(conPrevio.requerimientoIds, ['r49', 'r98']);
   assert.deepEqual(idsSeleccionados(sel), ['r2', 'r1']);
   assert.deepEqual(requerimientosDeItem(out[0]), ['r2', 'r1'], 'sin duplicar el principal');
   assert.deepEqual(requerimientosDeItem({ requerimientoId: 'x' }), ['x'], 'ítems viejos: solo el principal');
@@ -106,4 +133,4 @@ const req = (id: string, extra: Partial<RequerimientoCompra> = {}): Requerimient
   assert.deepEqual([d.cubierta, d.saldo], [100, 20], 'reparto en unidades base');
 }
 
-console.log('✓ conciliarRequerimientosOC: match por artículo, único propuesto, varios a elección, cierre múltiple');
+console.log('✓ conciliarRequerimientosOC: match por artículo, único propuesto, varios a elección, cierre múltiple, ítems ya vinculados con cantidad libre');

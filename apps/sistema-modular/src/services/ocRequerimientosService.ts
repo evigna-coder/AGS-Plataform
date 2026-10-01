@@ -4,7 +4,7 @@ import { cleanFirestoreData, createBatch, batchAudit, docRef, getUpdateTrace } f
 import { requerimientosService } from './importacionesService';
 import { presupuestosService, leadsService } from './firebaseService';
 import {
-  aplicarSeleccionAItems, candidatosConciliacion, idsSeleccionados, repartirCantidad,
+  aplicarSeleccionAItems, candidatosConciliacion, idsSeleccionados, repartirCantidad, requerimientosDeItem,
   type GrupoConciliacion, type RepartoRequerimiento, type SeleccionConciliacion,
 } from '../utils/conciliarRequerimientosOC';
 
@@ -13,13 +13,19 @@ import {
  * `utils/conciliarRequerimientosOC.ts` para el porqué y las reglas de match.
  */
 export const ocRequerimientosService = {
-  /** Requerimientos abiertos (pendiente/aprobado) que podrían corresponder a los ítems de la OC. */
+  /**
+   * Requerimientos abiertos (pendiente/aprobado) que podrían corresponder a los
+   * ítems de la OC. Lee también los ya vinculados a cada ítem para saber
+   * cuánto de la OC sigue disponible (2026-09-30).
+   */
   async candidatos(oc: OrdenCompra): Promise<GrupoConciliacion[]> {
-    const [pendientes, aprobados] = await Promise.all([
+    const idsVinculados = [...new Set((oc.items ?? []).flatMap(requerimientosDeItem))];
+    const [pendientes, aprobados, vinculados] = await Promise.all([
       requerimientosService.getByEstado('pendiente'),
       requerimientosService.getByEstado('aprobado'),
+      Promise.all(idsVinculados.map(id => requerimientosService.getById(id).catch(() => null))),
     ]);
-    return candidatosConciliacion(oc, [...pendientes, ...aprobados]);
+    return candidatosConciliacion(oc, [...pendientes, ...aprobados], vinculados.filter((r): r is RequerimientoCompra => !!r));
   },
 
   /**
@@ -31,11 +37,13 @@ export const ocRequerimientosService = {
    * cubierto y nace otro PENDIENTE por el saldo (se crea antes del batch; si
    * el batch falla se borra, para no dejar un saldo huérfano).
    */
-  async vincular(oc: OrdenCompra, seleccion: SeleccionConciliacion, reqs: RequerimientoCompra[]): Promise<number> {
+  async vincular(oc: OrdenCompra, seleccion: SeleccionConciliacion, grupos: GrupoConciliacion[]): Promise<number> {
     const ids = idsSeleccionados(seleccion);
     if (ids.length === 0) return 0;
+    const reqs = grupos.flatMap(g => g.candidatos);
+    const disponiblePorItem = new Map(grupos.map(g => [g.item.id, g.disponible]));
     const items = aplicarSeleccionAItems(oc.items ?? [], seleccion);
-    const repartos = repartosDeSeleccion(oc, seleccion, reqs);
+    const repartos = repartosDeSeleccion(oc, seleccion, reqs, disponiblePorItem);
 
     const saldosCreados: string[] = [];
     for (const r of repartos) {
@@ -80,11 +88,11 @@ export const ocRequerimientosService = {
 };
 
 /** Reparto de la cantidad de cada ítem entre sus requerimientos elegidos, en el orden de selección. */
-export function repartosDeSeleccion(oc: OrdenCompra, seleccion: SeleccionConciliacion, reqs: RequerimientoCompra[]): RepartoRequerimiento[] {
+export function repartosDeSeleccion(oc: OrdenCompra, seleccion: SeleccionConciliacion, reqs: RequerimientoCompra[], disponiblePorItem?: Map<string, number>): RepartoRequerimiento[] {
   const byId = new Map(reqs.map(r => [r.id, r]));
   return (oc.items ?? []).flatMap(item => {
     const elegidos = (seleccion.get(item.id) ?? []).map(id => byId.get(id)).filter((r): r is RequerimientoCompra => !!r);
-    return elegidos.length ? repartirCantidad(item, elegidos) : [];
+    return elegidos.length ? repartirCantidad(item, elegidos, disponiblePorItem?.get(item.id)) : [];
   });
 }
 

@@ -49,6 +49,9 @@ const FILTER_SCHEMA = {
   urgencia:    { type: 'string' as const, default: '' },
   // FLOW-03: '' = todos, 'true' = solo condicionales, 'false' = solo firmes
   condicional: { type: 'string' as const, default: '' },
+  // Ocultar los de stock mínimo (2026-09-30, pedido del user): por defecto la
+  // planilla muestra lo que pide un cliente; la reposición se mira destildando.
+  ocultarStockMinimo: { type: 'boolean' as const, default: true },
 };
 
 export const RequerimientosList = () => {
@@ -158,8 +161,14 @@ export const RequerimientosList = () => {
   };
 
   const filtered = useMemo(() => {
+    // Con texto en el buscador se busca en TODOS los estados (2026-09-30): el
+    // user buscaba 92814-618 y veía solo REQ-0098, porque REQ-0049 estaba "En
+    // compra" y el filtro Abiertos lo ocultaba — concluía que no existía.
+    const buscando = busqueda.trim().length > 0;
     return requerimientos.filter(r => {
-      if (filters.estado === 'abiertos' && ESTADOS_CERRADOS.has(r.estado)) return false;
+      if (filters.estado === 'abiertos' && !buscando && ESTADOS_CERRADOS.has(r.estado)) return false;
+      // Si el filtro de origen pide justamente stock mínimo, el tilde no manda.
+      if (filters.ocultarStockMinimo && filters.origen !== 'stock_minimo' && r.origen === 'stock_minimo') return false;
       if (filters.urgencia && r.urgencia !== filters.urgencia) return false;
       // FLOW-03: filtro por flag condicional
       if (filters.condicional === 'true' && !(r as any).condicional) return false;
@@ -172,7 +181,7 @@ export const RequerimientosList = () => {
       )) return false;
       return true;
     });
-  }, [requerimientos, filters.estado, filters.urgencia, filters.condicional, busqueda, clienteDeReq]);
+  }, [requerimientos, filters.estado, filters.origen, filters.ocultarStockMinimo, filters.urgencia, filters.condicional, busqueda, clienteDeReq]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
   const toggleSelect = (id: string) => {
@@ -306,10 +315,10 @@ export const RequerimientosList = () => {
             />
             {selectedIds.size > 0 && (
               <>
-                <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>
+                <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC} className="motion-safe:animate-barra-in">
                   {generandoOC ? 'Generando...' : `Generar OC (${selectedIds.size})`}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowAgregarOC(true)} disabled={generandoOC}>
+                <Button size="sm" variant="outline" onClick={() => setShowAgregarOC(true)} disabled={generandoOC} className="motion-safe:animate-barra-in">
                   Agregar a OC existente
                 </Button>
               </>
@@ -343,6 +352,11 @@ export const RequerimientosList = () => {
             placeholder="Buscar por cliente, proveedor, artículo o número…"
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
+          {busqueda.trim() && filters.estado === 'abiertos' && (
+            <span className="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5" title="Con texto en el buscador se muestran también los que están en compra, comprados, completados o cancelados">
+              busca en todos los estados
+            </span>
+          )}
           <Select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             >
             <option value="abiertos">Abiertos</option>
@@ -371,6 +385,12 @@ export const RequerimientosList = () => {
             <option value="true">Solo condicionales</option>
             <option value="false">Solo firmes</option>
           </Select>
+          <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500 whitespace-nowrap"
+            title="Los requerimientos de reposición de stock mínimo no se muestran. Destildá para verlos.">
+            <input type="checkbox" checked={filters.ocultarStockMinimo} onChange={e => setFilter('ocultarStockMinimo', e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-600" />
+            Ocultar stock mínimo
+          </label>
         </div>
         )}
       </PageHeader>

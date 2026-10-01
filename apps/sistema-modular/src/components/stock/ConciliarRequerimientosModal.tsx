@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { OrdenCompra, RequerimientoCompra } from '@ags/shared';
-import { ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ocRequerimientosService } from '../../services/ocRequerimientosService';
-import { seleccionInicial, idsSeleccionados, repartirCantidad, type GrupoConciliacion, type SeleccionConciliacion } from '../../utils/conciliarRequerimientosOC';
+import { seleccionInicial, idsSeleccionados, repartirCantidad, motivoSinCandidatos, resumenRequerimiento, type GrupoConciliacion, type SeleccionConciliacion } from '../../utils/conciliarRequerimientosOC';
 import { notify } from '../../utils/notify';
 
 interface Props {
@@ -16,17 +15,6 @@ interface Props {
   onCancelar: () => void;
   /** Acción manual: si no hay candidatos, avisar en vez de resolverse en silencio. */
   avisarSiVacio?: boolean;
-}
-
-/** Cliente / presupuesto / stock mínimo de un requerimiento, para elegir con contexto. */
-function detalleReq(r: RequerimientoCompra): string {
-  const partes = (r.desglose ?? []).map(d =>
-    d.concepto === 'cliente'
-      ? `${d.cantidad} para ${d.clienteNombre || 'cliente'}${d.presupuestoNumero ? ` (Ppto ${d.presupuestoNumero})` : ''}`
-      : `${d.cantidad} stock mínimo`);
-  if (partes.length > 0) return partes.join(' + ');
-  if (r.presupuestoNumero) return `Ppto ${r.presupuestoNumero}`;
-  return ORIGEN_REQUERIMIENTO_LABELS[r.origen] ?? r.origen;
 }
 
 /**
@@ -46,7 +34,8 @@ export const ConciliarRequerimientosModal: React.FC<Props> = ({ open, oc, onResu
       .then(gs => {
         if (!vivo) return;
         if (gs.length === 0) {
-          if (avisarSiVacio) notify.info('No hay requerimientos abiertos para los artículos de esta OC.');
+          // Decir POR QUÉ (2026-09-30): "ya todos vinculados" no es lo mismo que "no hay ninguno".
+          if (avisarSiVacio) notify.info(motivoSinCandidatos(oc.items ?? []));
           onResuelto();
           return;
         }
@@ -77,7 +66,7 @@ export const ConciliarRequerimientosModal: React.FC<Props> = ({ open, oc, onResu
     if (!grupos) return;
     setSaving(true);
     try {
-      const n = await ocRequerimientosService.vincular(oc, seleccion, grupos.flatMap(g => g.candidatos));
+      const n = await ocRequerimientosService.vincular(oc, seleccion, grupos);
       if (n > 0) notify.success(`${n} requerimiento(s) vinculados a ${oc.numero}`);
       onResuelto();
     } catch (err) {
@@ -109,11 +98,12 @@ export const ConciliarRequerimientosModal: React.FC<Props> = ({ open, oc, onResu
           se cierran solos al ingresar la mercadería. Si la OC no cubre la cantidad,
           el saldo queda en un requerimiento nuevo pendiente.
         </p>
-        {grupos.map(({ item, candidatos }) => {
+        {grupos.map(({ item, candidatos, vinculados, disponible }) => {
           const sel = seleccion.get(item.id) ?? [];
           // Reparto en el orden en que se tildaron: cuánto cubre la OC de cada uno.
           const elegidos = sel.map(id => candidatos.find(r => r.id === id)).filter((r): r is RequerimientoCompra => !!r);
-          const reparto = new Map(repartirCantidad(item, elegidos).map(r => [r.req.id, r]));
+          const reparto = new Map(repartirCantidad(item, elegidos, disponible).map(r => [r.req.id, r]));
+          const cubierta = disponible <= 0;
           return (
             <div key={item.id} className="border border-slate-200 rounded-lg px-3 py-2">
               <div className="flex items-baseline justify-between gap-3 mb-1.5">
@@ -121,18 +111,39 @@ export const ConciliarRequerimientosModal: React.FC<Props> = ({ open, oc, onResu
                   {item.articuloCodigo && <span className="font-mono text-teal-700 mr-1.5">{item.articuloCodigo}</span>}
                   {item.descripcion}
                 </p>
-                <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{item.cantidad} {item.unidadMedida}</span>
+                <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
+                  {item.cantidad} {item.unidadMedida}
+                  {vinculados.length > 0 && <span className="text-slate-400"> · libre {disponible}</span>}
+                </span>
               </div>
-              {candidatos.length > 1 && (
+              {/* Ya vinculados (2026-09-30): se ven, no se tocan. */}
+              {vinculados.length > 0 && (
+                <div className="space-y-0.5 mb-1.5">
+                  {vinculados.map(r => (
+                    <p key={r.id} className="flex items-center gap-2 text-[11px] text-slate-500">
+                      <span className="px-1 py-px rounded border border-slate-200 bg-slate-50 text-[9px] font-mono uppercase tracking-wide">vinculado</span>
+                      <span className="font-mono">{r.numero}</span>
+                      <span className="font-mono">{r.cantidad} {r.unidadMedida}</span>
+                      <span className="truncate">· {resumenRequerimiento(r)}</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+              {cubierta ? (
+                <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-1">
+                  La OC trae {item.cantidad} {item.unidadMedida} y ya está cubierta por {vinculados.map(r => r.numero).join(', ') || 'su requerimiento'}.
+                  Para cubrir también {candidatos.map(r => r.numero).join(', ')} subí la cantidad del ítem a {item.cantidad + candidatos.reduce((a, r) => a + r.cantidad, 0)} (o comprá el saldo en otra OC).
+                </p>
+              ) : candidatos.length > 1 && (
                 <p className="text-[10px] text-amber-700 mb-1">Varios requerimientos de este artículo: elegí cuál(es) cubre esta OC.</p>
               )}
               <div className="space-y-1">
                 {candidatos.map(r => (
-                  <label key={r.id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                    <input type="checkbox" className="accent-teal-600" checked={sel.includes(r.id)} onChange={() => toggle(item.id, r.id)} />
+                  <label key={r.id} className={`flex items-center gap-2 text-xs text-slate-700 ${cubierta ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input type="checkbox" className="accent-teal-600" checked={sel.includes(r.id)} disabled={cubierta} onChange={() => toggle(item.id, r.id)} />
                     <span className="font-mono text-slate-500">{r.numero}</span>
                     <span className="font-mono">{r.cantidad} {r.unidadMedida}</span>
-                    <span className="text-slate-500 truncate">· {detalleReq(r)}</span>
+                    <span className="text-slate-500 truncate">· {resumenRequerimiento(r)}</span>
                     {(() => {
                       const rp = reparto.get(r.id);
                       if (!rp || rp.saldo === 0) return null;

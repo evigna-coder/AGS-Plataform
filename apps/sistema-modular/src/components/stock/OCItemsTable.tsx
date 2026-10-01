@@ -1,5 +1,8 @@
 import type { ItemOC } from '@ags/shared';
+import { ESTADO_REQUERIMIENTO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
+import { useRequerimientosDeItems } from '../../hooks/useRequerimientosDeItems';
+import { requerimientosDeItem, resumenRequerimiento } from '../../utils/conciliarRequerimientosOC';
 
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC' };
 
@@ -11,6 +14,8 @@ interface Props {
 
 export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
   const sym = MONEDA_SYM[moneda] || '$';
+  // Qué requerimiento cubre cada ítem (2026-09-30): antes no se veía en ningún lado.
+  const reqs = useRequerimientosDeItems(items);
 
   const fmtNum = (val: number | null | undefined) => {
     if (val == null) return '-';
@@ -33,6 +38,7 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Codigo</th>
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-20">Cantidad</th>
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-20">Recibida</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-44">Requerimiento</th>
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio unit.</th>
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Subtotal</th>
               </tr>
@@ -85,6 +91,21 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
                         {item.cantidadRecibida}
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-[11px] text-left">
+                      {(() => {
+                        const ids = requerimientosDeItem(item);
+                        if (ids.length === 0) return <span className="text-slate-400 italic">sin requerimiento</span>;
+                        return ids.map(id => {
+                          const r = reqs.get(id);
+                          return (
+                            <span key={id} className="block leading-tight" title={r ? `${ESTADO_REQUERIMIENTO_LABELS[r.estado] ?? r.estado} · ${resumenRequerimiento(r)}` : undefined}>
+                              <span className="font-mono text-teal-700">{r?.numero ?? id.slice(0, 8)}</span>
+                              {r && <span className="text-slate-500"> · {resumenRequerimiento(r)}</span>}
+                            </span>
+                          );
+                        });
+                      })()}
+                    </td>
                     <td className="px-3 py-2 text-xs text-slate-700 text-center tabular-nums">
                       {item.precioUnitario != null ? `${sym} ${fmtNum(item.precioUnitario)}` : '-'}
                     </td>
@@ -97,7 +118,7 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50">
-                <td colSpan={6} className="px-3 py-2 text-xs font-medium text-slate-700 text-center">Total</td>
+                <td colSpan={7} className="px-3 py-2 text-xs font-medium text-slate-700 text-center">Total</td>
                 <td className="px-3 py-2 text-sm font-semibold text-slate-900 text-center tabular-nums">
                   {sym} {fmtNum(total)}
                 </td>
