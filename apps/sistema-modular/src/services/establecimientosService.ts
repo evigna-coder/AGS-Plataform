@@ -2,7 +2,23 @@ import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'fireb
 import { addDoc, updateDoc, deleteDoc } from './firebase';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
-import { invalidateCache, conCache } from './serviceCache';
+import { invalidateCache } from './serviceCache';
+import { crearColeccionViva } from './coleccionViva';
+
+/** Establecimientos vivos (2026-10-01): una suscripción por sesión. */
+const establecimientosVivos = crearColeccionViva<Establecimiento>('establecimientos', docs => docs
+  .map(docSnap => {
+    const d = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...d,
+      clienteCuit: d.clienteCuit || d.clienteId || null,
+      ubicaciones: d.ubicaciones || [],
+      createdAt: d.createdAt?.toDate().toISOString(),
+      updatedAt: d.updatedAt?.toDate().toISOString(),
+    } as Establecimiento;
+  })
+  .sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '')));
 import { cambioDeDireccion, otsQueSiguenAlEstablecimiento, type OTParaPropagar } from '../utils/propagarDireccionEstablecimiento';
 
 /**
@@ -169,23 +185,8 @@ export const establecimientosService = {
   },
 
   async getAll(): Promise<Establecimiento[]> {
-    // conCache (2026-09-11): lecturas simultáneas comparten la consulta.
-    return conCache<Establecimiento[]>('establecimientos', async () => {
-    const snapshot = await getDocs(collection(db, 'establecimientos'));
-    const list = snapshot.docs.map(docSnap => {
-      const d = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...d,
-        clienteCuit: d.clienteCuit || d.clienteId || null,
-        ubicaciones: d.ubicaciones || [],
-        createdAt: d.createdAt?.toDate().toISOString(),
-        updatedAt: d.updatedAt?.toDate().toISOString(),
-      } as Establecimiento;
-    });
-    list.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    return list;
-    });
+    // Catálogo vivo (2026-10-01): sin re-leer la colección en cada pantalla.
+    return establecimientosVivos.obtener();
   },
 
   /** Real-time subscription. Returns unsubscribe function. */

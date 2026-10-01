@@ -76,6 +76,34 @@ async function conMarcaInterior(data: NuevaEntrada): Promise<NuevaEntrada> {
   }
 }
 
+/**
+ * Estado de SESIÓN de las verificaciones de la agenda (2026-10-01, tanda de
+ * perf): vivía en `useRef` y se perdía al cerrar y reabrir la pestaña, así
+ * que cada visita volvía a consultar cada OT padre y cada turno sin "falla
+ * inicial" (~125 consultas sueltas por visita). A nivel módulo dura lo que
+ * dura la sesión de la app.
+ */
+const problemaRevisado = new Set<string>();
+const padresConfirmados = new Set<string>();
+const padresSinHijasHasta = new Map<string, number>();
+const padresEnConsulta = new Map<string, Promise<void>>();
+const NEGATIVO_TTL_MS = 10 * 60 * 1000;
+
+/** ¿La OT padre tiene hijas? Una sola consulta en vuelo por padre; guarda el resultado. */
+function consultarPadre(num: string): Promise<void> {
+  const enCurso = padresEnConsulta.get(num);
+  if (enCurso) return enCurso;
+  const p = ordenesTrabajoService.getItemsByOtPadre(num)
+    .then(hijas => {
+      if (hijas.length > 0) padresConfirmados.add(num);
+      else padresSinHijasHasta.set(num, Date.now() + NEGATIVO_TTL_MS);
+    })
+    .catch(() => { /* sin dato: se reintenta en la próxima entrega */ })
+    .finally(() => { padresEnConsulta.delete(num); });
+  padresEnConsulta.set(num, p);
+  return p;
+}
+
 export function useAgenda(): UseAgendaReturn {
   const [anchor, setAnchor] = useState<Date>(() => getMonday(new Date()));
   // 'mes' por defecto (2026-09-03, pedido de coordinación): Planificación muestra
@@ -126,7 +154,6 @@ export function useAgenda(): UseAgendaReturn {
   // Entradas viejas sin "Problema / falla inicial" (2026-09-10): se completa
   // desde la OT una vez por entrada y sesión. Best-effort; el snapshot en vivo
   // trae el dato apenas se escribe.
-  const problemaRevisado = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (isFirstLoad.current) setLoading(true);
     const unsubscribe = agendaService.subscribeToRange(rangeStart, rangeEnd, (newEntries) => {
@@ -134,9 +161,9 @@ export function useAgenda(): UseAgendaReturn {
       setLoading(false);
       isFirstLoad.current = false;
       const sinProblema = newEntries.filter(e =>
-        e.otNumber && !e.problemaFallaInicial && e.estadoAgenda !== 'cancelado' && !problemaRevisado.current.has(e.id));
+        e.otNumber && !e.problemaFallaInicial && e.estadoAgenda !== 'cancelado' && !problemaRevisado.has(e.id));
       for (const e of sinProblema) {
-        problemaRevisado.current.add(e.id);
+        problemaRevisado.add(e.id);
         void ordenesTrabajoService.getByOtNumber(e.otNumber!).then(ot => {
           if (ot?.problemaFallaInicial) return agendaService.update(e.id, { problemaFallaInicial: ot.problemaFallaInicial });
         }).catch(err => console.warn('[useAgenda] completar problema de', e.otNumber, err));
@@ -217,9 +244,6 @@ export function useAgenda(): UseAgendaReturn {
   // aparece en `allCandidateOTs` y se detecta sin consultar; si nació y ya
   // cerró técnicamente, el negativo vence a los 10 min y se vuelve a mirar.
   const [padresConHijas, setPadresConHijas] = useState<Set<string>>(new Set());
-  const padresConfirmados = useRef<Set<string>>(new Set());
-  const padresSinHijasHasta = useRef<Map<string, number>>(new Map());
-  const NEGATIVO_TTL_MS = 10 * 60 * 1000;
   useEffect(() => {
     const candidatosPadre = allCandidateOTs
       .filter(ot => !ot.otNumber.includes('.'))
@@ -227,28 +251,20 @@ export function useAgenda(): UseAgendaReturn {
     if (candidatosPadre.length === 0) { setPadresConHijas(new Set()); return; }
     // Hijas que ya están en la cola confirman a su padre sin ir a Firestore.
     for (const ot of allCandidateOTs) {
-      if (ot.otNumber.includes('.')) padresConfirmados.current.add(ot.otNumber.split('.')[0]);
+      if (ot.otNumber.includes('.')) padresConfirmados.add(ot.otNumber.split('.')[0]);
     }
     let cancelled = false;
     const ahora = Date.now();
     const aConsultar = candidatosPadre.filter(num =>
-      !padresConfirmados.current.has(num) && (padresSinHijasHasta.current.get(num) ?? 0) < ahora);
+      !padresConfirmados.has(num) && (padresSinHijasHasta.get(num) ?? 0) < ahora);
     const emitir = () => {
-      if (!cancelled) setPadresConHijas(new Set(candidatosPadre.filter(num => padresConfirmados.current.has(num))));
+      if (!cancelled) setPadresConHijas(new Set(candidatosPadre.filter(num => padresConfirmados.has(num))));
     };
     if (aConsultar.length === 0) { emitir(); return; }
-    Promise.all(aConsultar.map(async num => {
-      try {
-        const hijas = await ordenesTrabajoService.getItemsByOtPadre(num);
-        return { num, tiene: hijas.length > 0 };
-      } catch { return { num, tiene: null }; }
-    })).then(res => {
-      for (const r of res) {
-        if (r.tiene) padresConfirmados.current.add(r.num);
-        else if (r.tiene === false) padresSinHijasHasta.current.set(r.num, Date.now() + NEGATIVO_TTL_MS);
-      }
-      emitir();
-    });
+    // `consultarPadre` comparte la consulta en curso: al arrancar el efecto corre
+    // dos veces seguidas (una entrega por cada listener) y antes mandaba las
+    // mismas consultas dos veces (2026-10-01).
+    Promise.all(aConsultar.map(consultarPadre)).then(emitir);
     return () => { cancelled = true; };
   }, [allCandidateOTs]);
 

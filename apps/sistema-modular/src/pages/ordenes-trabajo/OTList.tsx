@@ -91,7 +91,9 @@ export const OTList = () => {
   const pedirModulos = useCallback(() => setModulosPedidos(true), []);
   const moduloTermsBySistema = useModuloSearchTerms(
     ordenes,
-    modulosPedidos || !!(filters.busqueda || filters.busquedaDescripcion),
+    // Solo el desplegable "Sistema" usa los módulos; el buscador principal no
+    // (2026-10-01). Antes bastaba tipear para bajar los 3.258 módulos.
+    modulosPedidos,
   );
 
   // Modals

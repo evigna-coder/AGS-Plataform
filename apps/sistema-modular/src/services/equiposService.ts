@@ -1,3 +1,4 @@
+import { crearColeccionViva } from './coleccionViva';
 import { collection, collectionGroup, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { updateDoc, deleteDoc, addDoc } from './firebase';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
@@ -193,6 +194,16 @@ export const categoriasModuloService = {
 };
 
 // Servicio para Sistemas (establecimientoId requerido; clienteId opcional durante migracion)
+/** Sistemas vivos (2026-10-01): una suscripción por sesión en vez de getDocs por pantalla. */
+const sistemasVivos = crearColeccionViva<Sistema>('sistemas', docs => docs
+  .map(d => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: d.data().createdAt?.toDate().toISOString(),
+    updatedAt: d.data().updatedAt?.toDate().toISOString(),
+  }) as Sistema)
+  .sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '')));
+
 export const sistemasService = {
   // Crear sistema. Requiere establecimientoId.
   async create(sistemaData: Omit<Sistema, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -222,6 +233,11 @@ export const sistemasService = {
 
   // Obtener todos los sistemas. Filtros: establecimientoId, clienteCuit (resuelve a establecimientos del cliente), activosOnly.
   async getAll(filters?: { establecimientoId?: string; clienteCuit?: string; clienteId?: string; activosOnly?: boolean }) {
+    // Todos o solo activos (agenda, OT, planificación…): catálogo vivo (2026-10-01).
+    if (!filters?.establecimientoId && !filters?.clienteId && !filters?.clienteCuit) {
+      const todos = await sistemasVivos.obtener();
+      return filters?.activosOnly ? todos.filter(s => s.activo === true) : todos;
+    }
     const cacheKey = `sistemas:${JSON.stringify(filters || {})}`;
     // conCache (2026-09-11): lecturas simultáneas de la misma clave comparten la consulta.
     return conCache<Sistema[]>(cacheKey, async () => {

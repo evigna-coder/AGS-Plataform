@@ -2,7 +2,23 @@ import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'fireb
 import { deleteDoc, addDoc, updateDoc } from './firebase';
 import type { Cliente, ContactoCliente } from '@ags/shared';
 import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, auditUpdate, logBusinessEvent, docRef as firestoreDocRef, onSnapshot, cleanFirestoreData } from './firebase';
-import { invalidateCache, conCache } from './serviceCache';
+import { invalidateCache } from './serviceCache';
+import { crearColeccionViva } from './coleccionViva';
+
+/** Clientes vivos (2026-10-01): una suscripción por sesión; sin contactos (van aparte). */
+const clientesVivos = crearColeccionViva<Cliente>('clientes', docs => docs
+  .map(docSnap => {
+    const data = docSnap.data();
+    const { contactos: _, ...rest } = data;
+    return {
+      id: docSnap.id,
+      ...rest,
+      activo: data.activo !== false,
+      createdAt: data.createdAt?.toDate().toISOString(),
+      updatedAt: data.updatedAt?.toDate().toISOString(),
+    } as Cliente;
+  })
+  .sort((a, b) => (a.razonSocial ?? '').localeCompare(b.razonSocial ?? '')));
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
 export const clientesService = {
@@ -31,31 +47,10 @@ export const clientesService = {
   },
 
   // Obtener todos los clientes (activos por defecto)
-  async getAll(activosOnly: boolean = false) {
-    const cacheKey = `clientes:${activosOnly}`;
-    // conCache (2026-09-11): lecturas simultáneas de la misma clave comparten la consulta.
-    return conCache<Cliente[]>(cacheKey, async () => {
-    const q = query(collection(db, 'clientes'));
-    const querySnapshot = await getDocs(q);
-    let clientes = querySnapshot.docs.map((docSnap) => {
-      const data = docSnap.data();
-      const { contactos: _, ...rest } = data;
-      return {
-        id: docSnap.id,
-        ...rest,
-        activo: data.activo !== false, // undefined/true → true, false → false
-        createdAt: data.createdAt?.toDate().toISOString(),
-        updatedAt: data.updatedAt?.toDate().toISOString(),
-      } as Cliente;
-    });
-
-    if (activosOnly) {
-      clientes = clientes.filter(c => c.activo !== false);
-    }
-
-    clientes.sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
-    return clientes;
-    });
+  async getAll(activosOnly: boolean = false): Promise<Cliente[]> {
+    // Catálogo vivo (2026-10-01): sin re-leer la colección en cada pantalla.
+    const todos = await clientesVivos.obtener();
+    return activosOnly ? todos.filter(c => c.activo !== false) : todos;
   },
 
   /** Real-time subscription. Returns unsubscribe function. */
