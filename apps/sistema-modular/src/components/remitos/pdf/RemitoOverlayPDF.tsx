@@ -170,8 +170,11 @@ export function componerDescripcionRemito(
   const detalle = resto.startsWith('·') ? resto.slice(1).trim() : resto;
   // Lugar para la cabeza: el tope fijo, y menos si el detalle es largo — el
   // detalle no se toca salvo que ni con la cabeza mínima entre en la línea.
+  // Sin detalle (sin N° de serie ni nota) la descripción usa la línea entera
+  // (2026-10-01, remito 0001-00017552: "Agilent liner, Ultra Inert, split,
+  // low…" se cortaba en 40 caracteres con media línea vacía).
   const lugar = detalle ? maxLinea - detalle.length - SEP_DETALLE.length : maxLinea;
-  const maxCabeza = Math.max(MIN_DESC_CARACTERES, Math.min(maxDesc, lugar));
+  const maxCabeza = detalle ? Math.max(MIN_DESC_CARACTERES, Math.min(maxDesc, lugar)) : maxLinea;
   const cabezaCorta = truncar(cabeza, maxCabeza);
   const separador = detalle.startsWith('(') ? ' ' : SEP_DETALLE;
   const total = detalle ? `${cabezaCorta}${separador}${detalle}` : cabezaCorta;

@@ -149,28 +149,33 @@ export const tableCatalogService = {
     }));
   },
 
-  /**
-   * Agrega modelos al campo `modelos[]` de todas las tablas del proyecto (union, no duplica).
-   * Devuelve cuántas tablas se actualizaron y el total del proyecto.
-   */
-  async bulkAddModelosToProject(projectId: string, modelosToAdd: string[]): Promise<{ updated: number; total: number }> {
-    if (modelosToAdd.length === 0) return { updated: 0, total: 0 };
-    const tables = await this.getAll({ projectId });
-    let updated = 0;
-    await Promise.all(tables.map(async t => {
-      const current = Array.isArray(t.modelos) ? t.modelos : [];
-      const set = new Set(current);
-      const before = set.size;
-      for (const m of modelosToAdd) set.add(m);
-      if (set.size === before) return;
-      const payload = { modelos: Array.from(set), updatedAt: Timestamp.now() };
+  /** Publica varias tablas en lotes de hasta 400 escrituras (incluye audit). */
+  async publishMany(ids: string[]): Promise<void> {
+    for (let i = 0; i < ids.length; i += 200) {
       const batch = createBatch();
-      batch.update(docRef('tableCatalog', t.id), payload);
-      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: t.id, after: payload });
+      for (const id of ids.slice(i, i + 200)) {
+        const payload = { status: 'published' as const, ...getUpdateTrace(), updatedAt: Timestamp.now() };
+        batch.update(docRef('tableCatalog', id), payload);
+        batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: { status: 'published' } });
+      }
       await batch.commit();
-      updated++;
-    }));
-    return { updated, total: tables.length };
+    }
+  },
+
+  /**
+   * Reemplaza `modelos` o `tipoServicio` en varias tablas (panel de cobertura del proyecto).
+   * Solo escribe las tablas cuya lista cambia.
+   */
+  async setListField(field: 'modelos' | 'tipoServicio', updates: { id: string; values: string[] }[]): Promise<void> {
+    for (let i = 0; i < updates.length; i += 200) {
+      const batch = createBatch();
+      for (const u of updates.slice(i, i + 200)) {
+        const payload = { [field]: u.values, ...getUpdateTrace(), updatedAt: Timestamp.now() };
+        batch.update(docRef('tableCatalog', u.id), payload);
+        batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: u.id, after: { [field]: u.values } });
+      }
+      await batch.commit();
+    }
   },
 
   subscribe(
@@ -201,11 +206,23 @@ function toTableProject(id: string, data: any): import('@ags/shared').TableProje
     name: data.name ?? '',
     description: data.description ?? null,
     sysType: data.sysType ?? null,
-    createdAt: data.createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-    updatedAt: data.updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    // headerTitle/footerQF se escribían pero no se leían: el modal "Encabezado / Pie"
+    // abría siempre vacío. Arreglado 2026-10-01 junto con modelos/servicios del proyecto.
+    headerTitle: data.headerTitle ?? null,
+    footerQF: data.footerQF ?? null,
+    modelos: Array.isArray(data.modelos) ? data.modelos : null,
+    tipoServicio: Array.isArray(data.tipoServicio) ? data.tipoServicio : null,
+    createdAt: fechaAISO(data.createdAt) ?? new Date().toISOString(),
+    updatedAt: fechaAISO(data.updatedAt) ?? new Date().toISOString(),
     createdBy: data.createdBy ?? 'admin',
   };
 }
+
+/** Campos editables de un proyecto. */
+export type TableProjectPatch = Partial<{
+  name: string; description: string | null; headerTitle: string | null; footerQF: string | null;
+  modelos: string[] | null; tipoServicio: string[] | null;
+}>;
 
 export const tableProjectsService = {
   async getAll(): Promise<import('@ags/shared').TableProject[]> {
@@ -229,9 +246,12 @@ export const tableProjectsService = {
     return id;
   },
 
-  async update(id: string, data: Partial<{ name: string; description: string | null; headerTitle: string | null; footerQF: string | null }>): Promise<void> {
-    const payload = deepCleanForFirestore({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
-    await updateDoc(doc(db, 'tableProjects', id), payload);
+  async update(id: string, data: TableProjectPatch): Promise<void> {
+    const payload = { ...deepCleanForFirestore({ ...data, ...getUpdateTrace() }), updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('tableProjects', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'tableProjects', documentId: id, after: payload });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
@@ -529,6 +549,18 @@ export const instrumentosService = {
       calibracionFechaEnvio: null,
       calibracionObservaciones: null,
     });
+
+    // Cerrar la línea del instrumento en su remito de derivación (2026-10-01):
+    // antes el remito quedaba "en proveedor" aunque el instrumento ya hubiera
+    // vuelto. Best-effort post-commit: el retorno del instrumento ya quedó.
+    if (calibracion.remitoId) {
+      try {
+        const { remitosService } = await import('./stockService');
+        await remitosService.marcarInstrumentoRetornado(calibracion.remitoId, instrumentoId);
+      } catch (err) {
+        console.error('[catalogService] no se pudo cerrar la línea del remito (retorno OK):', err);
+      }
+    }
 
     // Calificación pendiente del proveedor de calibración (best-effort
     // post-commit, idempotente por origenKey — 2026-08-12).

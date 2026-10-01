@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { descripcionItemAsignacion, codigoItemAsignacion } from '../../utils/itemAsignacionLabel';
 import { seriesDesdeUnidades, serieDeItemAsignacion } from '../../utils/asignacionSeries';
-import { InventarioItemRow } from '../../pages/stock/InventarioItemRow';
+import { InventarioItemRow, TIPO_ITEM } from '../../pages/stock/InventarioItemRow';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -120,15 +120,23 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
             {visibleItems.length === 0 ? (
               <div className="text-center py-6"><p className="text-xs text-slate-400">No hay items {tab}.</p></div>
             ) : (
-              <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                {visibleItems.map(item => (
-                  <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+              <div className="space-y-1.5 max-h-[460px] overflow-y-auto pr-1">
+                {/* Agrupado por tipo (2026-10-01): minikits, artículos, instrumentos… */}
+                {[...visibleItems].sort((a, b) => (TIPO_ITEM[a.tipo]?.orden ?? 9) - (TIPO_ITEM[b.tipo]?.orden ?? 9)).map((item, i, arr) => (
+                  <Fragment key={`${item.asignacionId}-${item.id}`}>
+                  {(i === 0 || arr[i - 1].tipo !== item.tipo) && (
+                    <p className="pt-1.5 text-[10px] font-mono uppercase tracking-wide text-slate-400">
+                      {TIPO_ITEM[item.tipo]?.label ?? item.tipo} · {arr.filter(x => x.tipo === item.tipo).length}
+                    </p>
+                  )}
+                  <InventarioItemRow item={item} saving={saving}
                     serie={serieDeItemAsignacion(item, series)}
                     selected={seleccion.has(item.id)} onToggleSelect={() => toggleSeleccion(item.id)}
                     onDevolver={handleDevolver} onConsumir={handleConsumir}
                     onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                     onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}
                   />
+                  </Fragment>
                 ))}
               </div>
             )}

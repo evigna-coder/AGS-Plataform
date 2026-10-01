@@ -1,3 +1,4 @@
+import { revisarConsumoDeReservada } from './reservaDesviadaService';
 import { doc, Timestamp, type DocumentData, type DocumentSnapshot } from 'firebase/firestore';
 import {
   db, docRef, createBatch, batchAudit, deepCleanForFirestore,
@@ -737,6 +738,8 @@ export const movimientosAplicarService = {
     for (const it of aResolver) {
       const item = it as RemitoItemAplicado;
       logAudit({ action: 'update', collection: 'unidades_stock', documentId: item.salidaUnidadId || item.unidadId! });
+      // Reserva de OTRO presupuesto consumida en esta OT: re-cubrir al cliente (2026-10-01).
+      if ((porItem.get(it.id)?.consumir ?? 0) > 0) void revisarConsumoDeReservada(item.salidaUnidadId || item.unidadId, otNumber);
     }
   },
 

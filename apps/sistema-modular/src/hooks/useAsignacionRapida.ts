@@ -9,10 +9,7 @@ import { matchesSearch } from '../utils/searchTerms';
 import { patronesService } from '../services/patronesService';
 import { columnasService } from '../services/columnasService';
 import { movimientosAplicarService } from '../services/movimientosAplicar';
-import { proveedoresService } from '../services/personalService';
-import { EMPTY_PARTY } from '../components/remitos/RemitoTransportistaPicker';
-import type { DatosTransportista } from '../services/stockService';
-import type { UnidadStock, Minikit, Ingeniero, Cliente, Asignacion, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Columna, Proveedor } from '@ags/shared';
+import type { UnidadStock, Minikit, Ingeniero, Cliente, Asignacion, ItemAsignacion, TipoItemAsignacion, InstrumentoPatron, Dispositivo, Vehiculo, UbicacionStock, Patron, Columna } from '@ags/shared';
 
 import { notify } from '../utils/notify';
 /**
@@ -123,12 +120,6 @@ export function useAsignacionRapida() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [clienteByIng, setClienteByIng] = useState<Record<string, string>>({});
   const [observaciones, setObservaciones] = useState('');
-  /** Quién transporta la mercadería del remito de salida (2026-08-10). Faltaba:
-   *  el remito de asignación se creaba sin transportista y el recuadro salía
-   *  vacío en el papel. Mismo criterio que derivación y el form de remitos. */
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [transportistaId, setTransportistaId] = useState('');
-  const [transportista, setTransportista] = useState<DatosTransportista>(EMPTY_PARTY);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<'articulos' | 'minikits' | 'instrumentos' | 'patrones' | 'columnas' | 'dispositivos' | 'vehiculos'>('articulos');
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,7 +135,6 @@ export function useAsignacionRapida() {
         ingenierosService.getAll(true),
         clientesService.getAll(),
         patronesService.getAll({ activoOnly: true }),
-        proveedoresService.getAll(true),
         asignacionesService.getAll({ estado: 'activa' }),
         columnasService.getAll({ activoOnly: true }),
       ]);
@@ -157,9 +147,8 @@ export function useAsignacionRapida() {
       setIngenieros(val(results[4], []));
       setClientes(val(results[5], []));
       setPatrones(val(results[6], []));
-      setProveedores(val(results[7], []));
-      setAsignacionesActivas(val(results[8], []));
-      setColumnas(val(results[9], []));
+      setAsignacionesActivas(val(results[7], []));
+      setColumnas(val(results[8], []));
     } catch (err) { console.error('Error cargando datos:', err); }
     finally { setLoading(false); }
   }, []);
@@ -501,11 +490,12 @@ export function useAsignacionRapida() {
         }));
         const remitoId = itemsRemito.length === 0 ? null : await remitosService.create({
           tipo: 'salida_campo', ingenieroId: ing.id, ingenieroNombre: ing.nombre,
-          transportistaId: transportistaId || null,
-          transportistaNombre: transportista.razonSocial.trim() || null,
-          // Snapshot completo: la impresión lo usa directo — sin esto un flete
-          // cargado a mano salía con la razón social sola (2026-08-11).
-          transportista: transportista.razonSocial.trim() ? transportista : null,
+          // Sin transportista al asignar (2026-10-01, pedido del user): se carga
+          // en el remito, que es donde se imprime. Antes la asignación abría un
+          // paso extra solo para elegirlo.
+          transportistaId: null,
+          transportistaNombre: null,
+          transportista: null,
           clienteId, clienteNombre,
           estado: 'en_transito',
           items: itemsRemito,
@@ -567,8 +557,6 @@ export function useAsignacionRapida() {
       setCart([]);
       setClienteByIng({});
       setObservaciones('');
-      setTransportistaId('');
-      setTransportista(EMPTY_PARTY);
       await loadData();
       return true;
     } catch (err) {
@@ -581,10 +569,6 @@ export function useAsignacionRapida() {
   return {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
-    proveedores, transportistaId, transportista,
-    setTransportistaSeleccion: (next: { id: string; datos: DatosTransportista }) => {
-      setTransportistaId(next.id); setTransportista(next.datos);
-    },
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
     filteredPatrones, filteredColumnas,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,

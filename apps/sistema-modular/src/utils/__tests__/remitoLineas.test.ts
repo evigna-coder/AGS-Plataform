@@ -113,6 +113,9 @@ assert.equal(componerDescripcionRemito('Válvula de purga · S/N AB-9'), 'Válvu
 const largaConSerie = componerDescripcionRemito(`${'Detector de fluorescencia con celda de flujo de 8 µl y lámpara de xenón'} · S/N DE123`);
 assert.ok(largaConSerie.endsWith(' · S/N DE123'), 'la serie queda entera al final');
 assert.ok(largaConSerie.indexOf(' · S/N') <= MAX_DESC_CARACTERES, 'la descripción se corta al tope');
+// Sin detalle usa la línea entera (2026-10-01, remito 0001-00017552).
+assert.equal(componerDescripcionRemito('Agilent liner, Ultra Inert, split, low pressure drop, glass wool'),
+  'Agilent liner, Ultra Inert, split, low pressure drop, glass wool', 'sin serie ni nota: nombre completo');
 
 // ── Código adelante de la descripción, con o sin separador (2026-09-12) ──────
 // Caso FPC-0002145: "G3430-60590 Fan" salía S/C; "G3430-61050 - Board" no.

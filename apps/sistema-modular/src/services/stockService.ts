@@ -7,6 +7,17 @@ import { costoComponente } from '../utils/kitProrrateo';
 import { computeFichaEstado, cantidadEnUnidadBase } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache, conCache } from './serviceCache';
+import { crearColeccionViva } from './coleccionViva';
+
+/** Catálogo de artículos vivo (2026-10-01): una suscripción por sesión en vez de getDocs por pantalla. */
+const articulosVivos = crearColeccionViva<Articulo>('articulos', docs => docs
+  .map(d => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+  }) as Articulo)
+  .sort((a, b) => (a.codigo ?? '').localeCompare(b.codigo ?? '')));
 import { clasificarOTParaRemito, estadoRemitoServicioSegunOTs } from '../utils/resolverRemitoServicio';
 
 // ========== POSICIONES DE STOCK ==========
@@ -193,6 +204,12 @@ export const articulosService = {
     // sentía el "tarda en cargar". La key incluye los filtros; invalidateCache
     // ('articulos') en create/update/delete borra todas las variantes. Las
     // listas en vivo usan subscribe() y no tocan esta cache.
+    // Sin filtros de catálogo (el caso de casi todas las pantallas): sale del
+    // catálogo vivo, sin ir al servidor (2026-10-01).
+    if (!filters?.categoriaEquipo && !filters?.marcaId && !filters?.tipo) {
+      const todos = await articulosVivos.obtener();
+      return filters?.activoOnly === false ? todos : todos.filter(a => a.activo === true);
+    }
     const cacheKey = `articulos:${filters?.activoOnly !== false}:${filters?.categoriaEquipo ?? ''}:${filters?.marcaId ?? ''}:${filters?.tipo ?? ''}`;
     // conCache (2026-09-11): lecturas simultáneas de la misma clave comparten la consulta.
     return conCache<Articulo[]>(cacheKey, async () => {
@@ -1938,6 +1955,41 @@ export const remitosService = {
   },
 
   /**
+   * Marca como devuelta la línea de un INSTRUMENTO en su remito de derivación a
+   * calibración y cierra el remito si ya volvió todo (2026-10-01, caso
+   * 0001-00017409). El retorno de calibración actualizaba el instrumento
+   * (certificado nuevo, operativo) pero nunca el remito: quedaba "en
+   * proveedor" para siempre. Idempotente: una línea ya devuelta no se toca.
+   * Devuelve true si el remito quedó completado.
+   */
+  async marcarInstrumentoRetornado(remitoId: string, instrumentoId: string): Promise<boolean> {
+    const rSnap = await getDoc(doc(db, 'remitos', remitoId));
+    if (!rSnap.exists()) return false;
+    const remito = rSnap.data() as Remito;
+    const now = new Date().toISOString();
+    let cambio = false;
+    const items = (remito.items ?? []).map(it => {
+      if ((it as { instrumentoId?: string | null }).instrumentoId !== instrumentoId || it.devuelto) return it;
+      cambio = true;
+      return { ...it, devuelto: true, fechaDevolucion: now };
+    });
+    if (!cambio) return remito.estado === 'completado';
+    const todoDevuelto = items.every(it => it.devuelto || it.consumido);
+    const remitoPatch = deepCleanForFirestore({
+      items,
+      estado: (todoDevuelto ? 'completado' : remito.estado) as EstadoRemito,
+      fechaDevolucion: todoDevuelto ? now : (remito.fechaDevolucion ?? null),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    const batch = createBatch();
+    batch.update(docRef('remitos', remitoId), remitoPatch);
+    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: remitoId, after: remitoPatch });
+    await batch.commit();
+    return todoDevuelto;
+  },
+
+  /**
    * Marca como devuelta una línea de LOANER de un remito de derivación a
    * proveedor (2026-08-12). Los loaners derivados son líneas documentales (el
    * loaner no cambia de estado), así que hasta ahora no existía el evento "el
@@ -2727,6 +2779,9 @@ export const reservasService = {
     });
 
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
+    // Si la reservada era de OTRO presupuesto, re-cubrir a ese cliente (2026-10-01).
+    const { revisarConsumoDeReservada } = await import('./reservaDesviadaService');
+    void revisarConsumoDeReservada(params.unidadId, params.otNumber);
   },
 
   // `entregarPorPresupuesto` se ELIMINÓ el 2026-09-01. Entregaba de una todas

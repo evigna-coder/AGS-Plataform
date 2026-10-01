@@ -141,6 +141,23 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       confirmLabel: 'Consumir',
     });
     if (ot === null) return;
+    // Reservada para OTRO presupuesto (2026-10-01, caso Roemmers → Bagó): avisar
+    // antes. Si se confirma, el sistema le re-cubre la parte al cliente original.
+    const unidad = item.unidadId ? unidades.find(u => u.id === item.unidadId) : undefined;
+    if (unidad?.reservadoParaPresupuestoId && ot) {
+      const { presupuestosService } = await import('../services/presupuestosService');
+      const { esConsumoDesviado } = await import('../utils/reservaDesviada');
+      const ppto = await presupuestosService.getById(unidad.reservadoParaPresupuestoId).catch(() => null);
+      if (ppto && esConsumoDesviado(ppto, ot)) {
+        const cliente = unidad.reservadoParaClienteNombre || 'otro cliente';
+        const ok = await confirm({
+          title: 'Parte reservada para otro cliente',
+          message: `${itemLabel(item)} está reservada para ${cliente} (${unidad.reservadoParaPresupuestoNumero ?? ppto.numero}) y la OT ${ot} no es de ese presupuesto.\n\nSi la consumís igual, el sistema le reserva otra a ${cliente} si hay en stock, y si no, pide comprarla.`,
+          confirmLabel: 'Consumir igual',
+        });
+        if (!ok) return;
+      }
+    }
     setSaving(true);
     try {
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;

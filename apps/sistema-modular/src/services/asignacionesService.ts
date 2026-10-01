@@ -8,6 +8,7 @@ import {
   getOrCreateDevolucionesPosition,
   registrarMovimientoAsignacion,
 } from './asignacionesStockHelpers';
+import { revisarConsumoDeReservada } from './reservaDesviadaService';
 
 
 /** Claves de identidad de un ítem, para cruzar una línea de asignación con una de remito. */
@@ -509,6 +510,8 @@ export const asignacionesService = {
             ingenieroNombre: asg.ingenieroNombre,
             motivo: `Consumo en campo — asignación ${asg.numero}`,
           });
+          // Reserva de OTRO presupuesto consumida acá: re-cubrir al cliente (2026-10-01).
+          void revisarConsumoDeReservada(item.unidadId, item.otNumber ?? null);
         } else if (item.articuloId) {
           // Item por cantidad sin unidad puntual: se asienta igual el consumo en el kardex.
           await registrarMovimientoAsignacion({

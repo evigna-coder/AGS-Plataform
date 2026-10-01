@@ -148,8 +148,11 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Cargar unidades + movimientos del artículo
+  // Cargar unidades + movimientos del artículo. También al REABRIR (2026-10-01):
+  // con el artículo fijo el id no cambia y quedaban las cantidades de la vez
+  // anterior — después de mover, el origen seguía mostrando lo que ya no estaba.
   useEffect(() => {
+    if (!open) return;
     if (!form.articuloId) {
       setUnidades([]);
       setMovimientosArticulo([]);
@@ -157,7 +160,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
     }
     unidadesService.getByArticulo(form.articuloId).then(setUnidades);
     movimientosService.getAll({ articuloId: form.articuloId }).then(setMovimientosArticulo).catch(() => setMovimientosArticulo([]));
-  }, [form.articuloId]);
+  }, [form.articuloId, open]);
 
   // Auto-set tipo cuando NO hay lock (mantiene comportamiento previo de defaults)
   useEffect(() => {
@@ -291,6 +294,17 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
   );
 
   const sumCantidad = (list: UnidadStock[]) => list.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+
+  // Disponible en el origen (o en lo tildado) y "Máx" (2026-10-01): para mover
+  // una posición entera sin contar a mano. Con serie, Máx tilda todas.
+  const disponibleEnOrigen = sumCantidad(unidadesSeleccionadas.length > 0 ? unidadesSeleccionadas : unidadesEnOrigen);
+  const usarMaximo = () => {
+    if (requiereSerie && unidadesSeleccionadas.length === 0) {
+      setForm(prev => ({ ...prev, origenUnidadIds: unidadesEnOrigen.map(u => u.id), cantidad: sumCantidad(unidadesEnOrigen) }));
+      return;
+    }
+    setForm(prev => ({ ...prev, cantidad: disponibleEnOrigen }));
+  };
 
   const handleSave = async () => {
     if (!form.articuloId) { notify.warning('Seleccione un articulo'); return; }
@@ -456,6 +470,7 @@ export function useCreateMovimientoForm(open: boolean, onClose: () => void, onCr
     saving, form, set, articulos, unidades,
     slot, origenOptions, destinoOptions, unidadesEnOrigen,
     requiereSerie, requiereLote, unidadesSeleccionadas,
+    disponibleEnOrigen, usarMaximo,
     handleClose, handleSave,
     locks: { tipo: init.lockTipo, articulo: init.lockArticulo, destino: init.lockDestino },
   };

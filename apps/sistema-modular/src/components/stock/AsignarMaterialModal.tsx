@@ -6,7 +6,6 @@ import { AsignarItemsPanel } from './AsignarItemsPanel';
 import { IngenieroDropZone } from './IngenieroDropZone';
 import { InventarioIngenieroModal } from './InventarioIngenieroModal';
 import { InventarioIngenieroInline } from './InventarioIngenieroInline';
-import { ConfirmarAsignacionModal } from './ConfirmarAsignacionModal';
 import { useAsignacionRapida, type DragPayload } from '../../hooks/useAsignacionRapida';
 
 interface Props {
@@ -29,7 +28,6 @@ export const AsignarMaterialModal = ({ open, onClose, ingenieroDestacadoId }: Pr
   const {
     loading, saving, cart, tab, setTab, searchQuery, setSearchQuery,
     ingenieros, clientes, observaciones, setObservaciones,
-    proveedores, transportistaId, transportista, setTransportistaSeleccion,
     filteredUnits, filteredMinikits, filteredInstrumentos, filteredDispositivos, filteredVehiculos,
     filteredPatrones, filteredColumnas,
     cartByIngeniero, assignToIngeniero, setIngenieroCliente,
@@ -39,8 +37,6 @@ export const AsignarMaterialModal = ({ open, onClose, ingenieroDestacadoId }: Pr
   const dragRef = useRef<DragPayload | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
-  /** Confirmar abre el paso del remito de salida (transportista). */
-  const [confirmOpen, setConfirmOpen] = useState(false);
   /** Vista rápida inline del inventario: click en el nombre despliega. */
   const [expandedIngId, setExpandedIngId] = useState<string | null>(null);
 
@@ -129,13 +125,12 @@ export const AsignarMaterialModal = ({ open, onClose, ingenieroDestacadoId }: Pr
                 })}
               </div>
 
-              {/* Footer — el transportista se pide al confirmar, junto con la
-                  creación del remito de salida. */}
+              {/* Footer — confirma directo; el transportista se carga en el remito (2026-10-01). */}
               <div className="shrink-0 space-y-2 pt-2 mt-2 border-t border-slate-100">
                 <Input inputSize="sm" label="Observaciones" value={observaciones}
                   onChange={e => setObservaciones(e.target.value)} placeholder="Notas opcionales..." />
-                <Button className="w-full" size="sm" onClick={() => setConfirmOpen(true)}
-                  disabled={saving || cart.length === 0}>
+                <Button className="w-full" size="sm" onClick={() => void handleConfirm()}
+                  disabled={saving || cart.length === 0} estado={saving ? 'guardando' : 'idle'} textoOcupado="Asignando...">
                   {`Confirmar ${cart.length} items → ${ingenieroCount} IST`}
                 </Button>
               </div>
@@ -147,18 +142,6 @@ export const AsignarMaterialModal = ({ open, onClose, ingenieroDestacadoId }: Pr
       {/* Inventario modal (anidado) */}
       <InventarioIngenieroModal ingenieroId={inventarioIngId} onClose={() => { setInventarioIngId(null); loadData(); }} />
 
-      <ConfirmarAsignacionModal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleConfirm}
-        saving={saving}
-        itemCount={cart.length}
-        ingenieroCount={ingenieroCount}
-        proveedores={proveedores}
-        transportistaId={transportistaId}
-        transportista={transportista}
-        onTransportistaChange={setTransportistaSeleccion}
-      />
     </>
   );
 };

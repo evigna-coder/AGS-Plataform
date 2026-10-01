@@ -1,3 +1,4 @@
+import { CantidadOrigenHint } from './CantidadOrigenHint';
 import { useMemo, useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -33,9 +34,7 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
   const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
   const h = useCreateMovimientoForm(open, onClose, onCreated, init, creadoPor);
 
-  // Cantidad como string local (2026-08-06): permite decimales con "." o ","
-  // — el type=number rechazaba el punto según locale y Number("0,5") daba NaN.
-  // Se sincroniza cuando el form la cambia por afuera (reset, tildar unidades).
+  // Cantidad como string local (2026-08-06): decimales con "." o ","; se sincroniza si el form la cambia por afuera.
   const [cantidadStr, setCantidadStr] = useState(String(h.form.cantidad));
   useEffect(() => {
     setCantidadStr(prev => parseDecimal(prev) === h.form.cantidad ? prev : String(h.form.cantidad));
@@ -47,9 +46,7 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
 
   const articuloElegido = h.articulos.find(a => a.id === h.form.articuloId);
 
-  // Memoizado: sin esto se recreaba un array de ~2200 objetos en CADA render del
-  // modal, cambiando la identidad de `options` e invalidando los memos internos
-  // del SearchableSelect (re-filtrado por tecla). Depende solo de h.articulos.
+  // Memoizado: si no, ~2200 opciones nuevas por render invalidaban los memos del SearchableSelect.
   const articuloOptions = useMemo(
     () => h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` })),
     [h.articulos],
@@ -137,11 +134,16 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
               {TIPO_MOV_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
           </div>
-          <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'}
-            type="text" inputMode="decimal"
-            value={cantidadStr}
-            onChange={e => { setCantidadStr(e.target.value); h.set('cantidad', parseDecimal(e.target.value)); }}
-            disabled={h.form.tipo !== 'ajuste' && h.requiereSerie && h.form.origenUnidadIds.length > 0} />
+          <div>
+            <Input inputSize="sm" label={h.form.tipo === 'ajuste' ? 'Ajuste (+ suma / − resta) *' : 'Cantidad *'}
+              type="text" inputMode="decimal"
+              value={cantidadStr}
+              onChange={e => { setCantidadStr(e.target.value); h.set('cantidad', parseDecimal(e.target.value)); }}
+              disabled={h.form.tipo !== 'ajuste' && h.requiereSerie && h.form.origenUnidadIds.length > 0} />
+            {h.form.tipo !== 'ajuste' && h.slot.origen === 'ubicacion_con_stock' && h.form.origenKey && (
+              <CantidadOrigenHint disponible={h.disponibleEnOrigen} deSeleccion={h.unidadesSeleccionadas.length > 0} onMaximo={h.usarMaximo} />
+            )}
+          </div>
         </div>
 
         <div>
