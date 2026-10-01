@@ -1075,6 +1075,12 @@ export interface BorradorPendiente {
   tipo: 'borrador' | 'sin_empezar';
   /** Nombre del ingeniero asignado — relevante en 'sin_empezar' para admin view */
   ingenieroAsignadoNombre: string | null;
+  /**
+   * Ya tiene la firma del cliente (2026-10-01): típico de la firma por lote,
+   * que firma la OT pero la deja en borrador hasta que alguien la finaliza.
+   */
+  firmadoPorCliente: boolean;
+  firmadoPorLote: boolean;
 }
 
 function tsToIso(v: unknown): string | null {
@@ -1095,6 +1101,8 @@ function parseBorradorEmpezado(id: string, data: Record<string, unknown>): Borra
     creadoPorEmail: (creadoPor.email as string) ?? null,
     tipo: 'borrador',
     ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
+    firmadoPorCliente: !!data.signatureClient,
+    firmadoPorLote: data.signedFrom === 'lote',
   };
 }
 
@@ -1111,6 +1119,8 @@ function parseSinEmpezar(id: string, data: Record<string, unknown>): BorradorPen
     creadoPorEmail: null,
     tipo: 'sin_empezar',
     ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
+    firmadoPorCliente: false,
+    firmadoPorLote: false,
   };
 }
 

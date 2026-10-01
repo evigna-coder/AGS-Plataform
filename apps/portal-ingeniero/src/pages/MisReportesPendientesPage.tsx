@@ -13,7 +13,17 @@ function fmtDate(iso: string | null): string {
   }
 }
 
-function TipoBadge({ tipo }: { tipo: 'borrador' | 'sin_empezar' }) {
+function TipoBadge({ tipo, firmado, porLote }: { tipo: 'borrador' | 'sin_empezar'; firmado?: boolean; porLote?: boolean }) {
+  // Firmada por el cliente pero sin finalizar (2026-10-01, caso Haleon): la
+  // firma por lote deja las OT en borrador; falta abrirlas y "Finalizar".
+  if (tipo === 'borrador' && firmado) {
+    return (
+      <span title={porLote ? 'El cliente firmó por lote desde otra OT. Abrila y tocá Finalizar para generar el PDF.' : 'Ya tiene la firma del cliente. Abrila y tocá Finalizar.'}
+        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+        Firmada{porLote ? ' por lote' : ''} · falta finalizar
+      </span>
+    );
+  }
   if (tipo === 'borrador') {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-amber-100 text-amber-800">
@@ -93,7 +103,7 @@ export default function MisReportesPendientesPage() {
                     >
                       <td className="px-3 py-2 font-mono text-xs text-slate-800">{b.otNumber}</td>
                       <td className="px-3 py-2">
-                        <TipoBadge tipo={b.tipo} />
+                        <TipoBadge tipo={b.tipo} firmado={b.firmadoPorCliente} porLote={b.firmadoPorLote} />
                       </td>
                       <td className="px-3 py-2 text-slate-800">{b.razonSocial || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{b.sistema || '—'}</td>
@@ -123,7 +133,7 @@ export default function MisReportesPendientesPage() {
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="font-mono text-xs font-semibold text-slate-900">{b.otNumber}</span>
-                    <TipoBadge tipo={b.tipo} />
+                    <TipoBadge tipo={b.tipo} firmado={b.firmadoPorCliente} porLote={b.firmadoPorLote} />
                   </div>
                   <p className="text-sm text-slate-800 truncate">{b.razonSocial || '—'}</p>
                   <p className="text-xs text-slate-500 truncate">{b.sistema || '—'}</p>

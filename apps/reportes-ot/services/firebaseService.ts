@@ -1051,6 +1051,11 @@ export class FirebaseService {
       if (!desde) return [];
       const dias: string[] = [];
       for (let d = desde, i = 0; d <= hasta && i < 7; d = restarDias(d, -1), i++) dias.push(d);
+      // Tolerancia de un día a cada lado (2026-10-01, caso Haleon 30370.01): la
+      // fecha del reporte y la de la agenda a veces difieren en un día y la OT
+      // quedaba fuera del lote según desde cuál se firmara.
+      dias.unshift(restarDias(desde, 1));
+      dias.push(restarDias(dias[dias.length - 1], -1));
       const agenda = new Map<string, AgendaOTDelDia & { fecha: string }>();
       for (const fecha of dias) {
         const items = await this.getAgendaDelDia(esSupervision ? [] : ids, fecha);
