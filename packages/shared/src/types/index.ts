@@ -6896,6 +6896,12 @@ export interface PreferenciasUsuario {
   pagosVep?: { vista: 'semanal' | 'quincenal' | 'mensual'; tipo: '' | 'vep' | 'giro' } | null;
   /** Menú lateral (2026-09-29): se contrae solo a los íconos 2 s después de salir del mouse. */
   sidebar?: { autoOcultar: boolean } | null;
+  /**
+   * Inventario anual (2026-10-01): depósitos excluidos y artículos quitados a
+   * mano (ids separados por coma). Antes vivían solo en la URL de la pestaña y
+   * se perdían al cerrarla o al cambiar de PC.
+   */
+  inventarioAnual?: { posExcluidas: string; quitados: string } | null;
 }
 
 // --- Notification Preferences ---

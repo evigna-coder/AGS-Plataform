@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNumeroAnimado } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { usePreferenciaUsuario } from '../../hooks/usePreferenciaUsuario';
 import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { useInventarioAnual } from '../../hooks/useInventarioAnual';
 import { Button } from '../../components/ui/Button';
@@ -59,8 +60,30 @@ const usd = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2,
  * cruzar con listas de precios.
  */
 export function InventarioAnualPage() {
-  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const [filters, setFilter, setFilters] = useUrlFilters(FILTER_SCHEMA);
   const [textoInput, setTextoInput] = useDebouncedUrlText(filters.texto, v => setFilter('texto', v));
+  // Las exclusiones siguen al USUARIO (2026-10-01): depósitos excluidos y
+  // artículos quitados se guardan en sus preferencias y se adoptan al abrir la
+  // pantalla con la URL vacía. Antes vivían solo en la URL de la pestaña: al
+  // perderse la pestaña se perdía una tarde de trabajo de purga.
+  const [prefInv, setPrefInv] = usePreferenciaUsuario('inventarioAnual', { posExcluidas: '', quitados: '' });
+  const urlTuvoDatos = useRef(!!(filters.posExcluidas || filters.quitados));
+  useEffect(() => {
+    if (!urlTuvoDatos.current && (prefInv.posExcluidas || prefInv.quitados)) {
+      setFilters({ posExcluidas: prefInv.posExcluidas, quitados: prefInv.quitados });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const tiene = !!(filters.posExcluidas || filters.quitados);
+    if (tiene) urlTuvoDatos.current = true;
+    // URL vacía de entrada (todavía no se adoptó lo guardado): no pisar la preferencia.
+    if (!tiene && !urlTuvoDatos.current) return;
+    if (filters.posExcluidas !== prefInv.posExcluidas || filters.quitados !== prefInv.quitados) {
+      setPrefInv({ posExcluidas: filters.posExcluidas, quitados: filters.quitados });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.posExcluidas, filters.quitados]);
   const posicionIds = useMemo(() => filters.posiciones.split(',').filter(Boolean), [filters.posiciones]);
   const posExcluidas = useMemo(() => filters.posExcluidas.split(',').filter(Boolean), [filters.posExcluidas]);
   const quitados = useMemo(() => filters.quitados.split(',').filter(Boolean), [filters.quitados]);
