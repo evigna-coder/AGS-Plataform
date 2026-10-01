@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { dispositivosService, normalizarIdAgs } from '../../services/firebaseService';
+import { dispositivosService, normalizarIdInterno } from '../../services/firebaseService';
 import type { Dispositivo, TipoDispositivo, EntornoDispositivo } from '@ags/shared';
 import { EntornosEditor } from './EntornosEditor';
-import { DispositivoFotos } from './DispositivoFotos';
-import { DispositivoFotosAdicionales } from './DispositivoFotosAdicionales';
+import { DispositivoGaleria } from './DispositivoGaleria';
 import type { FotoAdicionalDispositivo } from '@ags/shared';
-import type { CaraFotoDispositivo } from '../../services/dispositivoFotoStorageService';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../ui/Select';
@@ -39,12 +37,18 @@ const getEmpty = () => ({
   tieneGPIB: false,
   gpibDetalle: '',
   entornos: [] as EntornoDispositivo[],
-  fotoFrenteUrl: null as string | null,
-  fotoFrentePath: null as string | null,
-  fotoDorsoUrl: null as string | null,
-  fotoDorsoPath: null as string | null,
   fotosAdicionales: [] as FotoAdicionalDispositivo[],
 });
+
+/** Frente y dorso viejos pasan a la galería única (2026-10-01). */
+function galeriaDe(d: Dispositivo): FotoAdicionalDispositivo[] {
+  const viejas = [[d.fotoFrenteUrl, d.fotoFrentePath], [d.fotoDorsoUrl, d.fotoDorsoPath]]
+    .filter(([url, path]) => url && path)
+    .map(([url, path]) => ({ id: path as string, url: url as string, path: path as string }));
+  return [...viejas, ...(d.fotosAdicionales ?? [])];
+}
+/** Al guardar la galería, frente/dorso quedan vacíos (ya están dentro de la lista). */
+const SIN_FRENTE_DORSO = { fotoFrenteUrl: null, fotoFrentePath: null, fotoDorsoUrl: null, fotoDorsoPath: null };
 
 export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, editData, sugerenciasSoftware = [] }) => {
   const [form, setForm] = useState(getEmpty());
@@ -66,11 +70,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
         tieneGPIB: editData.tieneGPIB === true,
         gpibDetalle: editData.gpibDetalle ?? '',
         entornos: editData.entornos ?? [],
-        fotoFrenteUrl: editData.fotoFrenteUrl ?? null,
-        fotoFrentePath: editData.fotoFrentePath ?? null,
-        fotoDorsoUrl: editData.fotoDorsoUrl ?? null,
-        fotoDorsoPath: editData.fotoDorsoPath ?? null,
-        fotosAdicionales: editData.fotosAdicionales ?? [],
+        fotosAdicionales: galeriaDe(editData),
       });
     } else {
       setForm(getEmpty());
@@ -81,24 +81,13 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
 
   /** La foto se sube apenas se elige: el path ya está en Storage y hay que
    *  persistirlo aunque el usuario cierre sin apretar Guardar. */
-  const setFoto = async (cara: CaraFotoDispositivo, foto: { url: string | null; path: string | null }) => {
-    const patch = cara === 'frente'
-      ? { fotoFrenteUrl: foto.url, fotoFrentePath: foto.path }
-      : { fotoDorsoUrl: foto.url, fotoDorsoPath: foto.path };
-    setForm(prev => ({ ...prev, ...patch }));
-    if (editData) {
-      await dispositivosService.update(editData.id, patch).catch(err =>
-        console.error('[DispositivoModal] no se pudo guardar la foto:', err));
-      onSaved();
-    }
-  };
-
-  /** Galería: se persiste al momento, igual que frente y dorso. */
-  const setAdicionales = async (fotos: FotoAdicionalDispositivo[], persistir = true) => {
+  const setFotos = async (fotos: FotoAdicionalDispositivo[]) => {
     setForm(prev => ({ ...prev, fotosAdicionales: fotos }));
-    if (editData && persistir) {
-      await dispositivosService.update(editData.id, { fotosAdicionales: fotos }).catch(err =>
-        console.error('[DispositivoModal] no se pudieron guardar las fotos:', err));
+    if (editData) {
+      await dispositivosService.update(editData.id, { fotosAdicionales: fotos, ...SIN_FRENTE_DORSO }).catch(err => {
+        console.error('[DispositivoModal] no se pudieron guardar las fotos:', err);
+        notify.error('La foto se subió pero no se pudo guardar en el dispositivo');
+      });
       onSaved();
     }
   };
@@ -108,7 +97,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
     marca: form.marca.trim(),
     modelo: form.modelo.trim(),
     serie: form.serie.trim(),
-    codigoInterno: normalizarIdAgs(form.codigoInterno),
+    codigoInterno: normalizarIdInterno(form.codigoInterno),
     descripcion: form.descripcion.trim() || null,
     passwordWindows: form.passwordWindows.trim() || null,
     tieneGPIB: form.tieneGPIB,
@@ -118,10 +107,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
     entornos: form.entornos
       .filter(e => e.nombre.trim() || (e.software ?? []).some(s => s.nombre.trim()))
       .map(e => ({ ...e, software: (e.software ?? []).filter(s => s.nombre.trim()) })),
-    fotoFrenteUrl: form.fotoFrenteUrl,
-    fotoFrentePath: form.fotoFrentePath,
-    fotoDorsoUrl: form.fotoDorsoUrl,
-    fotoDorsoPath: form.fotoDorsoPath,
+    ...SIN_FRENTE_DORSO,
     fotosAdicionales: form.fotosAdicionales,
   });
 
@@ -130,12 +116,12 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
       notify.warning('Complete marca y modelo');
       return;
     }
-    // ID AGS (2026-10-01): lo carga el usuario; formato AGS-### y sin repetir.
+    // ID interno (2026-10-01): libre, con un guion en el medio, y sin repetir.
     if (form.codigoInterno.trim()) {
-      const idAgs = normalizarIdAgs(form.codigoInterno);
-      if (!idAgs) { notify.warning('El ID tiene que ser AGS- y 3 cifras, por ejemplo AGS-012'); return; }
-      const otro = await dispositivosService.buscarPorIdAgs(idAgs, editData?.id).catch(() => null);
-      if (otro) { notify.warning(`${idAgs} ya lo tiene ${otro.marca} ${otro.modelo}${otro.serie ? ` (${otro.serie})` : ''}`); return; }
+      const id = normalizarIdInterno(form.codigoInterno);
+      if (!id) { notify.warning('El ID lleva un guion en el medio, por ejemplo AGS-B16 o NOT-12'); return; }
+      const otro = await dispositivosService.buscarPorIdInterno(id, editData?.id).catch(() => null);
+      if (otro) { notify.warning(`${id} ya lo tiene ${otro.marca} ${otro.modelo}${otro.serie ? ` (${otro.serie})` : ''}`); return; }
     }
     setSaving(true);
     try {
@@ -180,21 +166,15 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
           <Input inputSize="sm" label="Marca *" value={form.marca} onChange={e => set('marca', e.target.value)} placeholder="Ej: Samsung" />
           <Input inputSize="sm" label="Modelo *" value={form.modelo} onChange={e => set('modelo', e.target.value)} placeholder="Ej: Galaxy S24" />
         </div>
-        <Input inputSize="sm" label="ID AGS" value={form.codigoInterno} onChange={e => set('codigoInterno', e.target.value)}
-          onBlur={() => { const n = normalizarIdAgs(form.codigoInterno); if (n) set('codigoInterno', n); }}
-          placeholder="AGS-001" className="font-mono" />
+        <Input inputSize="sm" label="ID interno" value={form.codigoInterno} onChange={e => set('codigoInterno', e.target.value)}
+          onBlur={() => { const n = normalizarIdInterno(form.codigoInterno); if (n) set('codigoInterno', n); }}
+          placeholder="AGS-B16" className="font-mono" />
         <Input inputSize="sm" label="Numero de serie" value={form.serie} onChange={e => set('serie', e.target.value)} placeholder="S/N" />
         <Input inputSize="sm" label="Descripcion" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} placeholder="Notas adicionales..." />
 
         <div className="border-t border-slate-100 pt-3">
-          <DispositivoFotos
-            dispositivoId={editData?.id ?? null}
-            frente={{ url: form.fotoFrenteUrl, path: form.fotoFrentePath }}
-            dorso={{ url: form.fotoDorsoUrl, path: form.fotoDorsoPath }}
-            onChange={(cara, foto) => void setFoto(cara, foto)}
-          />
-          <DispositivoFotosAdicionales dispositivoId={editData?.id ?? null}
-            fotos={form.fotosAdicionales} onChange={(fotos, persistir) => void setAdicionales(fotos, persistir)} />
+          <DispositivoGaleria dispositivoId={editData?.id ?? null}
+            fotos={form.fotosAdicionales} onChange={fotos => void setFotos(fotos)} />
         </div>
 
         <div className="border-t border-slate-100 pt-3">

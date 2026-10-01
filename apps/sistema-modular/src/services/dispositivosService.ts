@@ -16,15 +16,19 @@ function docToDispositivo(d: any): Dispositivo {
   } as Dispositivo;
 }
 
-/** "AGS-" + 3 cifras (2026-10-01). Acepta "12", "ags12", "AGS-012" y los normaliza; null si no sirve. */
-export function normalizarIdAgs(texto: string): string | null {
-  const m = texto.trim().toUpperCase().match(/^(?:AGS)?-?\s*(\d{1,3})$/);
-  return m ? `AGS-${m[1].padStart(3, '0')}` : null;
+/**
+ * ID interno del dispositivo (2026-10-01): libre, con un guion en el medio
+ * ("AGS-B16", "NOT-12"). Se pasa a mayúsculas y sin espacios; null si no
+ * tiene texto a los dos lados de un único guion.
+ */
+export function normalizarIdInterno(texto: string): string | null {
+  const t = texto.trim().toUpperCase().replace(/\s+/g, '');
+  return /^[^-]+-[^-]+$/.test(t) ? t : null;
 }
 
 export const dispositivosService = {
-  /** Otro dispositivo que ya usa ese ID AGS (para no repetirlo). */
-  async buscarPorIdAgs(codigo: string, excluirId?: string): Promise<Dispositivo | null> {
+  /** Otro dispositivo que ya usa ese ID interno (para no repetirlo). */
+  async buscarPorIdInterno(codigo: string, excluirId?: string): Promise<Dispositivo | null> {
     const snap = await getDocs(query(collection(db, 'dispositivos'), where('codigoInterno', '==', codigo)));
     const d = snap.docs.find(x => x.id !== excluirId);
     return d ? docToDispositivo(d) : null;

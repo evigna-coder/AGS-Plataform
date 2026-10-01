@@ -7,17 +7,15 @@ interface Props {
   /** Necesario para la ruta en Storage. En alta todavía no existe. */
   dispositivoId: string | null;
   fotos: FotoAdicionalDispositivo[];
-  /** `persistir` = false para la nota (se guarda con Guardar cambios, no en cada tecla). */
-  onChange: (fotos: FotoAdicionalDispositivo[], persistir?: boolean) => void;
+  onChange: (fotos: FotoAdicionalDispositivo[]) => void;
 }
 
 /**
- * Fotos adicionales del dispositivo (2026-10-01): además de frente y dorso,
- * las que hagan falta (etiqueta de serie, puertos, placa GPIB, pantalla de
- * licencias…), cada una con una nota corta opcional. Se suben al elegirlas;
- * se pueden elegir varias a la vez.
+ * Fotos del dispositivo (2026-10-01): una sola galería, sin frente/dorso, sin
+ * orden ni descripción. Se suben al elegirlas (varias a la vez) y se ven
+ * grandes; un clic abre la foto completa.
  */
-export const DispositivoFotosAdicionales: React.FC<Props> = ({ dispositivoId, fotos, onChange }) => {
+export const DispositivoGaleria: React.FC<Props> = ({ dispositivoId, fotos, onChange }) => {
   const input = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(0);
 
@@ -27,10 +25,10 @@ export const DispositivoFotosAdicionales: React.FC<Props> = ({ dispositivoId, fo
     const nuevas: FotoAdicionalDispositivo[] = [];
     for (const file of files) {
       try {
-        const { url, storagePath } = await dispositivoFotoStorageService.upload(dispositivoId, 'extra', file, file.name);
-        nuevas.push({ id: crypto.randomUUID(), url, path: storagePath, nota: null });
+        const { url, storagePath } = await dispositivoFotoStorageService.upload(dispositivoId, file, file.name);
+        nuevas.push({ id: crypto.randomUUID(), url, path: storagePath });
       } catch (err) {
-        console.error('[DispositivoFotosAdicionales] no se pudo subir:', file.name, err);
+        console.error('[DispositivoGaleria] no se pudo subir:', file.name, err);
         notify.error(`No se pudo subir ${file.name}.`);
       }
       setSubiendo(n => n - 1);
@@ -43,28 +41,27 @@ export const DispositivoFotosAdicionales: React.FC<Props> = ({ dispositivoId, fo
     await dispositivoFotoStorageService.remove(f.path);
   };
 
-  const setNota = (id: string, nota: string) =>
-    onChange(fotos.map(x => (x.id === id ? { ...x, nota: nota || null } : x)), false);
-
   return (
-    <div className="mt-3">
-      <span className="block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1">
-        Otras fotos{fotos.length > 0 ? ` · ${fotos.length}` : ''}
-      </span>
-      <div className="grid grid-cols-4 gap-2">
+    <div>
+      <label className="block text-[11px] font-medium text-slate-500 mb-1">
+        Fotos{fotos.length > 0 ? ` · ${fotos.length}` : ''}
+      </label>
+      {!dispositivoId && (
+        <p className="text-[10px] text-slate-400 mb-1.5">Guardá el dispositivo primero y después cargá las fotos.</p>
+      )}
+      <div className="grid grid-cols-3 gap-2">
         {fotos.map(f => (
           <div key={f.id} className="relative group">
-            <a href={f.url} target="_blank" rel="noreferrer">
-              <img src={f.url} alt={f.nota ?? 'Foto del dispositivo'} className="w-full h-20 object-cover rounded-lg border border-slate-200" />
+            <a href={f.url} target="_blank" rel="noreferrer" title="Ver la foto completa">
+              <img src={f.url} alt="Foto del dispositivo" loading="lazy"
+                className="w-full h-36 object-cover rounded-lg border border-slate-200 hover:border-teal-400" />
             </a>
             <button type="button" onClick={() => void quitar(f)} title="Quitar la foto"
               className="absolute top-1 right-1 bg-white/90 text-slate-500 hover:text-red-600 rounded-full w-5 h-5 text-[11px] leading-none shadow">✕</button>
-            <input value={f.nota ?? ''} onChange={e => setNota(f.id, e.target.value)} placeholder="Nota"
-              className="mt-1 w-full border border-slate-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-teal-500" />
           </div>
         ))}
         <button type="button" disabled={!dispositivoId || subiendo > 0} onClick={() => input.current?.click()}
-          className="h-20 rounded-lg border border-dashed border-slate-300 text-[11px] text-slate-400 hover:border-teal-400 hover:text-teal-600 disabled:opacity-50 disabled:hover:border-slate-300">
+          className="h-36 rounded-lg border border-dashed border-slate-300 text-[11px] text-slate-400 hover:border-teal-400 hover:text-teal-600 disabled:opacity-50 disabled:hover:border-slate-300">
           {subiendo > 0 ? `Subiendo ${subiendo}…` : '+ Fotos'}
         </button>
       </div>
