@@ -38,7 +38,7 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title, com
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   const toggle = () => {
     if (open) { setOpen(false); return; }
@@ -46,7 +46,9 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title, com
     if (!rect) return;
     // Compacto: alineado al borde derecho del disparador, sin salirse de la ventana.
     const left = compacto ? Math.max(8, Math.min(rect.right - 190, window.innerWidth - 200)) : rect.left;
-    setPos({ top: rect.bottom + 4, left });
+    // Sin lugar abajo (ej. tarjeta flotante al pie, 2026-10-01): abre hacia arriba.
+    const abajo = window.innerHeight - rect.bottom > 220;
+    setPos(abajo ? { top: rect.bottom + 4, left } : { bottom: window.innerHeight - rect.top + 4, left });
     setOpen(true);
   };
 
@@ -89,7 +91,7 @@ export const MenuButton: React.FC<Props> = ({ label, items, disabled, title, com
         <div
           ref={menuRef}
           className="fixed z-[60] w-max min-w-[190px] max-w-sm bg-white border border-slate-200 rounded-lg shadow-lg py-1"
-          style={{ top: pos.top, left: pos.left }}
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
         >
           {items.map(item => (
             <button

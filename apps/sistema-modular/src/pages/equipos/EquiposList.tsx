@@ -1,3 +1,5 @@
+import { SeleccionFlotante } from '../../components/ui/SeleccionFlotante';
+import { EquiposModulosVista } from '../../components/equipos/EquiposModulosVista';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
@@ -37,6 +39,8 @@ export const EquiposList = () => {
   const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
+    // Ver por sistema o por módulo (2026-10-01).
+    vista: { type: 'string' as const, default: 'sistemas' },
     estadoTab: { type: 'string' as const, default: 'activos' },
     categoriaFilter: { type: 'string' as const, default: '' },
     cliente: { type: 'string' as const, default: '' },
@@ -119,6 +123,13 @@ export const EquiposList = () => {
     categorias.forEach(c => { map[c.id] = c.nombre; });
     return map;
   }, [categorias]);
+
+  // Base de la vista por módulos: estado y categoría, sin el buscador (que ahí mira también los módulos).
+  const sistemasBase = useMemo(() => sistemas.filter(s =>
+    (filters.estadoTab === 'activos' ? s.activo !== false : filters.estadoTab === 'inactivos' ? s.activo === false : true)
+    && (!filters.categoriaFilter || s.categoriaId === filters.categoriaFilter),
+  ), [sistemas, filters.estadoTab, filters.categoriaFilter]);
+  const clienteDe = useCallback((s: Sistema) => clienteMap[estMap[s.establecimientoId || '']?.clienteCuit ?? s.clienteId ?? ''] || '', [clienteMap, estMap]);
 
   const sistemasFiltrados = useMemo(() => {
     let result = sistemas;
@@ -247,6 +258,7 @@ export const EquiposList = () => {
     [sistemasFiltrados, estMap, clienteMap, catMap],
   );
   const filtrosExport = buildEquiposFiltrosExport(filters, categorias);
+  const exportSeleccion = useMemo(() => exportRows.filter(r => selected.has(r.sistema.id)), [exportRows, selected]);
 
   // Destello en la fila que acaba de cambiar en vivo (2026-09-29).
   const cambiadas = useFilasCambiadas(sistemasFiltrados, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
@@ -283,6 +295,14 @@ export const EquiposList = () => {
             onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
+          <div className="flex items-center rounded-full bg-slate-100 p-0.5">
+            {(['sistemas', 'modulos'] as const).map(v => (
+              <button key={v} onClick={() => setFilter('vista', v)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${filters.vista === v ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                {v === 'sistemas' ? 'Sistemas' : 'Módulos'}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1.5">
             {ESTADO_TABS.map(tab => (
               <button
@@ -315,8 +335,16 @@ export const EquiposList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
+        {/* Selección: cuántos y exportar solo esos (2026-10-01). */}
+        {filters.vista !== 'modulos' && (
+          <SeleccionFlotante cantidad={exportSeleccion.length} nombre="equipo" onLimpiar={() => setSelected(new Set())}>
+            <ExportarButton columnas={EQUIPOS_EXPORT_COLUMNS} data={exportSeleccion} titulo="Equipos seleccionados" filename="equipos-seleccionados" />
+          </SeleccionFlotante>
+        )}
         {isInitialLoad ? (
           <LoadingState message="Cargando equipos…" />
+        ) : filters.vista === 'modulos' ? (
+          <EquiposModulosVista sistemas={sistemasBase} busqueda={debouncedSearch} clienteDe={clienteDe} estMap={estMap} catMap={catMap} />
         ) : sistemasFiltrados.length === 0 ? (
           <EmptyState message="No se encontraron sistemas" hint="Probá con otros filtros o ampliá la búsqueda" action={<button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 text-xs"> Crear primer sistema </button>} />
         ) : (

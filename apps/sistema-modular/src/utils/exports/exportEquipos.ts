@@ -1,4 +1,4 @@
-import type { CategoriaEquipo, Establecimiento, Sistema } from '@ags/shared';
+import type { CategoriaEquipo, Establecimiento, ModuloSistema, Sistema } from '@ags/shared';
 import { type ExportColumn } from '../exportToExcel';
 import { filtrosAplicadosDesc } from './filtros';
 
@@ -43,6 +43,28 @@ export function buildEquiposFiltrosExport(
     'Búsqueda': filters.search ? `'${filters.search}'` : '',
   });
 }
+
+/** Fila de la vista por módulos (2026-10-01). */
+export interface ModuloExportRow {
+  m: ModuloSistema;
+  s: Sistema;
+  cliente: string;
+  est: string;
+  categoria: string;
+}
+
+export const MODULOS_EXPORT_COLUMNS: ExportColumn<ModuloExportRow>[] = [
+  { header: 'Módulo',          width: 14, get: r => r.m.nombre || '' },
+  { header: 'Descripción',     width: 30, get: r => r.m.descripcion || '' },
+  { header: 'N° serie',        width: 16, get: r => r.m.serie || '' },
+  { header: 'Marca',           width: 12, get: r => r.m.marca || '' },
+  { header: 'Firmware',        width: 12, get: r => r.m.firmware || '' },
+  { header: 'Sistema',         width: 22, get: r => r.s.nombre || '' },
+  { header: 'ID equipo',       width: 14, get: r => r.s.codigoInternoCliente || r.s.agsVisibleId || '' },
+  { header: 'Categoría',       width: 16, get: r => r.categoria },
+  { header: 'Cliente',         width: 28, get: r => r.cliente },
+  { header: 'Establecimiento', width: 22, get: r => r.est },
+];
 
 export const EQUIPOS_EXPORT_COLUMNS: ExportColumn<EquipoExportRow>[] = [
   { header: 'Cliente',         width: 28, get: r => r.clienteNombre },
