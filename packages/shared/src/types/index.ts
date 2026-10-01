@@ -2940,6 +2940,15 @@ export interface TableProject {
   headerTitle?: string | null;
   /** Número QF aplicable a todas las tablas del proyecto (ej. "QF-AGS-012 Rev.01"). */
   footerQF?: string | null;
+  /**
+   * Modelos de equipo que el proyecto cubre (2026-10-01). Se fija desde el panel de
+   * cobertura y se PROPAGA a `modelos[]` de cada tabla — reportes-ot sigue filtrando
+   * por la lista de cada tabla, esto es la referencia para detectar discrepancias y
+   * para que una tabla nueva del proyecto nazca con los mismos modelos.
+   */
+  modelos?: string[] | null;
+  /** Tipos de servicio del proyecto. Misma semántica que `modelos`. */
+  tipoServicio?: string[] | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -6382,8 +6391,17 @@ export interface EntornoDispositivo {
   software: SoftwareDispositivo[];
 }
 
+export interface FotoAdicionalDispositivo {
+  id: string;
+  url: string;
+  path: string;
+  nota?: string | null;
+}
+
 export interface Dispositivo {
   id: string;
+  /** ID interno AGS (2026-10-01): "AGS-001", lo asigna el usuario (es el de la etiqueta). Único. */
+  codigoInterno?: string | null;
   tipo: TipoDispositivo;
   marca: string;
   modelo: string;
@@ -6413,6 +6431,8 @@ export interface Dispositivo {
   /** Foto de atrás — en las de escritorio, para ver los puertos y el cableado. */
   fotoDorsoUrl?: string | null;
   fotoDorsoPath?: string | null;
+  /** Fotos adicionales (2026-10-01): etiqueta de serie, puertos, placas, licencias… con nota opcional. */
+  fotosAdicionales?: FotoAdicionalDispositivo[] | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
