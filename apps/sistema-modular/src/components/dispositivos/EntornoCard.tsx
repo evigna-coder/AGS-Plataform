@@ -21,7 +21,9 @@ interface Props {
 }
 
 const lbl = 'block text-[10px] font-mono uppercase tracking-wide text-slate-400 mb-1';
-const inputCls = 'w-full border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
+// Sin w-full (2026-10-01): le ganaba al w-28 de la versión, que se estiraba y
+// dejaba el nombre del software aplastado en un cuadradito sin poder escribir.
+const inputCls = 'min-w-0 border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500';
 
 export const EntornoCard: React.FC<Props> = ({ entorno, sugerencias, anidado, onChange, onRemove, onAddVM }) => {
   const software = entorno.software ?? [];
@@ -85,7 +87,7 @@ export const EntornoCard: React.FC<Props> = ({ entorno, sugerencias, anidado, on
                 value={sw.version ?? ''}
                 onChange={e => updateSoftware(sw.id, { version: e.target.value })}
                 placeholder="Ej: B.04.03"
-                className={`${inputCls} w-28 font-mono`}
+                className={`${inputCls} w-28 shrink-0 font-mono`}
               />
               <button type="button" onClick={() => removeSoftware(sw.id)}
                 className="text-[10px] text-slate-400 hover:text-red-600 w-4 shrink-0">✕</button>

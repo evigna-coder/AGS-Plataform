@@ -28,7 +28,7 @@ const TIPO_COLORS: Record<TipoDispositivo, string> = {
 
 export const DispositivosList = () => {
   const confirm = useConfirm();
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('dispositivos-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('dispositivos-list-v2');
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     sortField: { type: 'string' as const, default: 'marca' },
@@ -70,7 +70,7 @@ export const DispositivosList = () => {
       // ChemStation B.04.03?" es la pregunta que motivó el módulo, y obligar a
       // un segundo campo para eso sería esconderla (2026-08-23).
       list = list.filter(d =>
-        matchesSearch(debouncedSearch, d.marca, d.modelo, d.serie, d.asignadoANombre)
+        matchesSearch(debouncedSearch, d.codigoInterno, d.marca, d.modelo, d.serie, d.asignadoANombre)
         || dispositivoTieneSoftware(d, debouncedSearch));
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
@@ -132,38 +132,41 @@ export const DispositivosList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '11%' }} />
-                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '21%' }} />
                   <col style={{ width: '15%' }} />
                   <col style={{ width: '16%' }} />
-                  <col style={{ width: '22%' }} />
-                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '11%' }} />
                 </colgroup>
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Marca / Modelo" field="marca" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Serie" field="serie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Asignado a" field="asignadoANombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="ID" field="codigoInterno" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Marca / Modelo" field="marca" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Serie" field="serie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Asignado a" field="asignadoANombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Software</th>
-                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(d => (
                   <tr key={d.id} className={`hover:bg-slate-50 ${cambiadas.has(String((d as any).id)) ? 'motion-safe:animate-fila-cambio' : ''}`}>
-                    <td className={`px-4 py-2 ${getAlignClass(0)}`}>
+                    <td className={`px-4 py-2 font-mono text-xs font-semibold text-teal-700 whitespace-nowrap ${getAlignClass(0)}`}>{d.codigoInterno || '—'}</td>
+                    <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[d.tipo]}`}>
                         {TIPO_LABELS[d.tipo]}
                       </span>
                     </td>
-                    <td className={`px-4 py-2 ${getAlignClass(1)}`}>
+                    <td className={`px-4 py-2 ${getAlignClass(2)}`}>
                       <span className="text-xs font-semibold text-slate-900">{d.marca} {d.modelo}</span>
                       {d.descripcion && <p className="text-[10px] text-slate-400 mt-0.5">{d.descripcion}</p>}
                     </td>
-                    <td className={`px-4 py-2 font-mono text-xs text-slate-600 ${getAlignClass(2)}`}>{d.serie || '-'}</td>
-                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{d.asignadoANombre || '-'}</td>
+                    <td className={`px-4 py-2 font-mono text-xs text-slate-600 ${getAlignClass(3)}`}>{d.serie || '-'}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(4)}`}>{d.asignadoANombre || '-'}</td>
                     <td className="px-4 py-2"><DispositivoSoftwareCell dispositivo={d} /></td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">

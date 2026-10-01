@@ -23,20 +23,22 @@ interface Props {
   onChange: (cara: CaraFotoDispositivo, foto: FotoDispositivo) => void;
 }
 
-const CARAS: { cara: CaraFotoDispositivo; label: string }[] = [
+type Cara = Exclude<CaraFotoDispositivo, 'extra'>;
+
+const CARAS: { cara: Cara; label: string }[] = [
   { cara: 'frente', label: 'Frente' },
   { cara: 'dorso', label: 'Dorso' },
 ];
 
 export const DispositivoFotos: React.FC<Props> = ({ dispositivoId, frente, dorso, onChange }) => {
-  const [subiendo, setSubiendo] = useState<CaraFotoDispositivo | null>(null);
+  const [subiendo, setSubiendo] = useState<Cara | null>(null);
   const inputs = {
     frente: useRef<HTMLInputElement>(null),
     dorso: useRef<HTMLInputElement>(null),
   };
-  const fotoDe = (cara: CaraFotoDispositivo) => (cara === 'frente' ? frente : dorso);
+  const fotoDe = (cara: Cara) => (cara === 'frente' ? frente : dorso);
 
-  const subir = async (cara: CaraFotoDispositivo, file: File) => {
+  const subir = async (cara: Cara, file: File) => {
     if (!dispositivoId) return;
     setSubiendo(cara);
     try {
@@ -54,7 +56,7 @@ export const DispositivoFotos: React.FC<Props> = ({ dispositivoId, frente, dorso
     }
   };
 
-  const quitar = async (cara: CaraFotoDispositivo) => {
+  const quitar = async (cara: Cara) => {
     const actual = fotoDe(cara);
     onChange(cara, { url: null, path: null });
     if (actual.path) await dispositivoFotoStorageService.remove(actual.path);

@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { dispositivosService } from '../../services/firebaseService';
+import { dispositivosService, normalizarIdAgs } from '../../services/firebaseService';
 import type { Dispositivo, TipoDispositivo, EntornoDispositivo } from '@ags/shared';
 import { EntornosEditor } from './EntornosEditor';
 import { DispositivoFotos } from './DispositivoFotos';
+import { DispositivoFotosAdicionales } from './DispositivoFotosAdicionales';
+import type { FotoAdicionalDispositivo } from '@ags/shared';
 import type { CaraFotoDispositivo } from '../../services/dispositivoFotoStorageService';
 
 import { notify } from '../../utils/notify';
@@ -27,6 +29,7 @@ const TIPO_OPTIONS: { value: TipoDispositivo; label: string }[] = [
 ];
 
 const getEmpty = () => ({
+  codigoInterno: '',
   tipo: 'celular' as TipoDispositivo,
   marca: '',
   modelo: '',
@@ -40,6 +43,7 @@ const getEmpty = () => ({
   fotoFrentePath: null as string | null,
   fotoDorsoUrl: null as string | null,
   fotoDorsoPath: null as string | null,
+  fotosAdicionales: [] as FotoAdicionalDispositivo[],
 });
 
 export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, editData, sugerenciasSoftware = [] }) => {
@@ -56,6 +60,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
         marca: editData.marca,
         modelo: editData.modelo,
         serie: editData.serie,
+        codigoInterno: editData.codigoInterno ?? '',
         descripcion: editData.descripcion ?? '',
         passwordWindows: editData.passwordWindows ?? '',
         tieneGPIB: editData.tieneGPIB === true,
@@ -65,6 +70,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
         fotoFrentePath: editData.fotoFrentePath ?? null,
         fotoDorsoUrl: editData.fotoDorsoUrl ?? null,
         fotoDorsoPath: editData.fotoDorsoPath ?? null,
+        fotosAdicionales: editData.fotosAdicionales ?? [],
       });
     } else {
       setForm(getEmpty());
@@ -87,11 +93,22 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
     }
   };
 
+  /** Galería: se persiste al momento, igual que frente y dorso. */
+  const setAdicionales = async (fotos: FotoAdicionalDispositivo[], persistir = true) => {
+    setForm(prev => ({ ...prev, fotosAdicionales: fotos }));
+    if (editData && persistir) {
+      await dispositivosService.update(editData.id, { fotosAdicionales: fotos }).catch(err =>
+        console.error('[DispositivoModal] no se pudieron guardar las fotos:', err));
+      onSaved();
+    }
+  };
+
   const payload = () => ({
     tipo: form.tipo,
     marca: form.marca.trim(),
     modelo: form.modelo.trim(),
     serie: form.serie.trim(),
+    codigoInterno: normalizarIdAgs(form.codigoInterno),
     descripcion: form.descripcion.trim() || null,
     passwordWindows: form.passwordWindows.trim() || null,
     tieneGPIB: form.tieneGPIB,
@@ -105,12 +122,20 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
     fotoFrentePath: form.fotoFrentePath,
     fotoDorsoUrl: form.fotoDorsoUrl,
     fotoDorsoPath: form.fotoDorsoPath,
+    fotosAdicionales: form.fotosAdicionales,
   });
 
   const handleSave = async () => {
     if (!form.marca.trim() || !form.modelo.trim()) {
       notify.warning('Complete marca y modelo');
       return;
+    }
+    // ID AGS (2026-10-01): lo carga el usuario; formato AGS-### y sin repetir.
+    if (form.codigoInterno.trim()) {
+      const idAgs = normalizarIdAgs(form.codigoInterno);
+      if (!idAgs) { notify.warning('El ID tiene que ser AGS- y 3 cifras, por ejemplo AGS-012'); return; }
+      const otro = await dispositivosService.buscarPorIdAgs(idAgs, editData?.id).catch(() => null);
+      if (otro) { notify.warning(`${idAgs} ya lo tiene ${otro.marca} ${otro.modelo}${otro.serie ? ` (${otro.serie})` : ''}`); return; }
     }
     setSaving(true);
     try {
@@ -136,7 +161,7 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
 
   return (
     <Modal open={open} onClose={handleClose} maxWidth="lg"
-      title={editData ? 'Editar dispositivo' : 'Nuevo dispositivo'}
+      title={editData ? `Editar dispositivo${editData.codigoInterno ? ` · ${editData.codigoInterno}` : ''}` : 'Nuevo dispositivo'}
       subtitle="Celulares, computadoras, tablets y otros dispositivos."
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
@@ -155,6 +180,9 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
           <Input inputSize="sm" label="Marca *" value={form.marca} onChange={e => set('marca', e.target.value)} placeholder="Ej: Samsung" />
           <Input inputSize="sm" label="Modelo *" value={form.modelo} onChange={e => set('modelo', e.target.value)} placeholder="Ej: Galaxy S24" />
         </div>
+        <Input inputSize="sm" label="ID AGS" value={form.codigoInterno} onChange={e => set('codigoInterno', e.target.value)}
+          onBlur={() => { const n = normalizarIdAgs(form.codigoInterno); if (n) set('codigoInterno', n); }}
+          placeholder="AGS-001" className="font-mono" />
         <Input inputSize="sm" label="Numero de serie" value={form.serie} onChange={e => set('serie', e.target.value)} placeholder="S/N" />
         <Input inputSize="sm" label="Descripcion" value={form.descripcion} onChange={e => set('descripcion', e.target.value)} placeholder="Notas adicionales..." />
 
@@ -165,6 +193,8 @@ export const DispositivoModal: React.FC<Props> = ({ open, onClose, onSaved, edit
             dorso={{ url: form.fotoDorsoUrl, path: form.fotoDorsoPath }}
             onChange={(cara, foto) => void setFoto(cara, foto)}
           />
+          <DispositivoFotosAdicionales dispositivoId={editData?.id ?? null}
+            fotos={form.fotosAdicionales} onChange={(fotos, persistir) => void setAdicionales(fotos, persistir)} />
         </div>
 
         <div className="border-t border-slate-100 pt-3">

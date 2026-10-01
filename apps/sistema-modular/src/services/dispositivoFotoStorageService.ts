@@ -12,7 +12,8 @@
 import { ref, getDownloadURL } from 'firebase/storage';
 import { storage, uploadBytes, deleteObject } from './firebase';
 
-export type CaraFotoDispositivo = 'frente' | 'dorso';
+/** 'extra' = fotos adicionales de la galería (2026-10-01). */
+export type CaraFotoDispositivo = 'frente' | 'dorso' | 'extra';
 
 /** Tipo por extensión cuando el navegador no completa `file.type`. */
 const MIME_POR_EXTENSION: Record<string, string> = {
