@@ -1,213 +1,86 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-import { useTableCatalog } from '../../hooks/useTableCatalog';
-import { useTableProjects } from '../../hooks/useTableProjects';
-import { useResizableColumns } from '../../hooks/useResizableColumns';
-import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
+import type { TableCatalogEntry } from '@ags/shared';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useProjectCatalogView } from '../../hooks/useProjectCatalogView';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
-import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Select';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { ImportJsonDialog } from '../../components/protocol-catalog/ImportJsonDialog';
 import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelector';
-import { BulkAddModelosModal } from '../../components/protocol-catalog/BulkAddModelosModal';
-import type { TableCatalogEntry, TableProject } from '@ags/shared';
-import { useConfirm } from '../../components/ui/ConfirmDialog';
-
+import { ProjectHeaderCard } from '../../components/protocol-catalog/ProjectHeaderCard';
+import { ProjectCoveragePanel } from '../../components/protocol-catalog/ProjectCoveragePanel';
+import { PublishBatchModal } from '../../components/protocol-catalog/PublishBatchModal';
+import { ProtocolPreviewModal } from '../../components/protocol-catalog/ProtocolPreviewModal';
+import { CatalogTableList } from '../../components/protocol-catalog/CatalogTableList';
+import { CatalogBulkBar } from '../../components/protocol-catalog/CatalogBulkBar';
+import { CloneTableModal } from '../../components/protocol-catalog/CloneTableModal';
+import { SYS_TYPES } from '../../utils/tableCatalogConstants';
+import type { CoverageField } from '../../utils/tableCatalogCoverage';
 import { notify } from '../../utils/notify';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { Select } from '../../components/ui/Select';
-import { SearchableSelect } from '../../components/ui/SearchableSelect';
-const thBase = 'px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-slate-400 relative select-none';
 
-const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
-  active ? (
-    <svg className="w-3 h-3 text-teal-500 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d={dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
-    </svg>
-  ) : (
-    <svg className="w-3 h-3 text-slate-300 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-    </svg>
-  );
-
-/** Centinela para 'Sin proyecto' en el buscador de proyectos del modal de duplicar. */
-const CLONE_NO_PROJECT = '__none__';
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
-const LS_KEY = 'ags:tableCatalog:activeProject';
-
-const STATUS_LABELS: Record<string, string> = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-yellow-100 text-yellow-800',
-  published: 'bg-green-100 text-green-800',
-  archived: 'bg-slate-100 text-slate-600',
+const FILTER_SCHEMA = {
+  sysType: { type: 'string' as const, default: '' },
+  status: { type: 'string' as const, default: '' },
 };
-const TABLE_TYPE_LABELS: Record<string, string> = {
-  validation: 'Validación', informational: 'Informacional', instruments: 'Instrumentos',
-  checklist: 'Checklist', text: 'Texto', signatures: 'Firmas', cover: 'Carátula',
-};
-
-/** Lee el projectId guardado: "undefined" | "null" | "uuid-string" */
-function readSavedProject(): string | null | undefined {
-  const v = localStorage.getItem(LS_KEY);
-  if (v === 'null') return null;
-  if (v && v !== 'undefined') return v;
-  return undefined;
-}
 
 export const TableCatalogPage = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { tables, loading, error, listTables, archiveTable, publishTable, cloneTable, importTables, deleteTable, assignProject, bulkAddModelosToProject } = useTableCatalog();
-  const { projects, createProject, updateProject, deleteProject } = useTableProjects();
+  const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  const v = useProjectCatalogView(filters);
+  const { project, projects, activeProjectId } = v;
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null | undefined>(readSavedProject);
-  const [filterSysType, setFilterSysType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [showImport, setShowImport] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showImport, setShowImport] = useState(false);
   const [cloneTarget, setCloneTarget] = useState<TableCatalogEntry | null>(null);
-  const [cloneName, setCloneName] = useState('');
-  const [cloneSysType, setCloneSysType] = useState('');
-  const [cloneProjectId, setCloneProjectId] = useState<string | null>(null);
-  const [bulkModelosTarget, setBulkModelosTarget] = useState<TableProject | null>(null);
-  const [sortField, setSortField] = useState<string>('orden');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+  const [coverageField, setCoverageField] = useState<CoverageField | null>(null);
+  const [publishCandidates, setPublishCandidates] = useState<TableCatalogEntry[] | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const projectNames = useMemo(() => new Map(projects.map(p => [p.id, p.name])), [projects]);
+  // Tabla nueva desde un proyecto: nace con su tipo de sistema más común y el siguiente orden.
+  const nuevaHref = useMemo(() => {
+    if (!project) return '/table-catalog/nuevo';
+    const freq = new Map<string, number>();
+    v.projectTables.forEach(t => t.sysType && freq.set(t.sysType, (freq.get(t.sysType) ?? 0) + 1));
+    const sysType = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+    const orden = Math.max(0, ...v.projectTables.map(t => t.orden || 0)) + 1;
+    return `/table-catalog/nuevo?${new URLSearchParams({ projectId: project.id, sysType, orden: String(orden) })}`;
+  }, [project, v.projectTables]);
+  const selected = v.visibleTables.filter(t => selectedIds.has(t.id));
+
+  const handleDelete = async (t: TableCatalogEntry) => {
+    if (await confirm(`¿Eliminar permanentemente "${t.name}"?\n\nEsta acción no se puede deshacer.`)) v.deleteTable(t.id);
   };
-  const sortedTables = useMemo(() => sortByField(tables, sortField, sortDir), [tables, sortField, sortDir]);
-
-  // Resizable / alignable / hideable columns. Index 0 = checkbox (no resize),
-  // 1..9 = data columns, último = acciones (no resize).
-  const {
-    tableRef, colAligns,
-    onResizeStart, onAutoFit, setAlign, getAlignClass,
-    isHidden, hideCol, showAllCols, hiddenCols,
-  } = useResizableColumns('table-catalog');
-
-  const colMenuRefs = useRef(new Map<number, ColMenuHandle>());
-  const openColMenuAt = useCallback((i: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    colMenuRefs.current.get(i)?.openAt(e.clientX, e.clientY);
-  }, []);
-  const setColMenuRef = useCallback((i: number) => (handle: ColMenuHandle | null) => {
-    if (handle) colMenuRefs.current.set(i, handle);
-    else colMenuRefs.current.delete(i);
-  }, []);
-
-  const renderTh = (i: number, sortKey: string, label: string) => {
-    if (isHidden(i)) return null;
-    const active = sortField === sortKey;
-    return (
-      <th
-        className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}
-        onClick={() => handleSort(sortKey)}
-        onContextMenu={(e) => openColMenuAt(i, e)}
-      >
-        <ColMenu
-          ref={setColMenuRef(i)}
-          align={colAligns?.[i] ?? 'left'}
-          onAlign={(a) => setAlign(i, a)}
-          onHide={() => hideCol(i)}
-        />
-        {label}<SortIcon active={active} dir={sortDir} />
-        <div
-          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(i, e); }}
-          onDoubleClick={() => onAutoFit(i)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40"
-        />
-      </th>
-    );
+  const handleArchive = async (t: TableCatalogEntry) => {
+    if (await confirm(`¿Archivar "${t.name}"?`)) v.archiveTable(t.id);
   };
-
-  const selectProject = useCallback((pid: string | null | undefined) => {
-    setActiveProjectId(pid);
-    localStorage.setItem(LS_KEY, String(pid));
-  }, []);
-
-  const handleCreateProject = useCallback(async (name: string) => {
-    const id = await createProject({ name });
-    selectProject(id);
-  }, [createProject, selectProject]);
-
-  const handleRenameProject = useCallback(async (id: string, name: string) => {
-    await updateProject(id, { name });
-  }, [updateProject]);
-
-  const handleDeleteProject = useCallback(async (id: string) => {
-    await deleteProject(id);
-  }, [deleteProject]);
-
-  const reload = () => {
-    setSelectedIds(new Set());
-    listTables({
-      sysType: filterSysType || undefined,
-      status: filterStatus || undefined,
-      projectId: activeProjectId,
-    });
-  };
-
-  useEffect(() => { reload(); }, [filterSysType, filterStatus, activeProjectId]);
-
-  // --- Selección ---
-  const toggleOne = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const allSelected = tables.length > 0 && selectedIds.size === tables.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
-  const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(tables.map(t => t.id)));
-
-  // --- Acciones individuales ---
-  const handleClone = (entry: TableCatalogEntry) => {
-    setCloneTarget(entry);
-    setCloneName(`${entry.name} (copia)`);
-    setCloneSysType(entry.sysType);
-    setCloneProjectId(entry.projectId ?? activeProjectId ?? null);
-  };
-  const confirmClone = async () => {
-    if (!cloneTarget) return;
-    try {
-      const newId = await cloneTable(cloneTarget.id, { name: cloneName, sysType: cloneSysType, projectId: cloneProjectId });
-      setCloneTarget(null);
-      navigate(`/table-catalog/${newId}/edit`);
-    } catch { notify.error('Error al clonar'); }
-  };
-  const handleArchive = async (entry: TableCatalogEntry) => {
-    if (!await confirm(`¿Archivar "${entry.name}"?`)) return;
-    archiveTable(entry.id);
-  };
-  const handlePublish = async (entry: TableCatalogEntry) => {
-    if (!await confirm(`¿Publicar "${entry.name}"?`)) return;
-    publishTable(entry.id);
-  };
-  const handleDelete = async (entry: TableCatalogEntry) => {
-    if (!await confirm(`¿Eliminar permanentemente "${entry.name}"?\n\nEsta acción no se puede deshacer.`)) return;
-    deleteTable(entry.id);
-  };
-
-  // --- Lote ---
   const handleBulkDelete = async () => {
     if (!await confirm(`¿Eliminar ${selectedIds.size} tabla(s)?\n\nEsta acción no se puede deshacer.`)) return;
-    [...selectedIds].forEach(id => deleteTable(id));
+    [...selectedIds].forEach(id => v.deleteTable(id));
     setSelectedIds(new Set());
   };
-
-  const handleBulkMove = (targetProjectId: string | null) => {
-    assignProject([...selectedIds], targetProjectId);
-    setSelectedIds(new Set());
-  };
-
   const handleImport = async (imported: TableCatalogEntry[]) => {
     setShowImport(false);
     try {
-      const withProject = activeProjectId && activeProjectId !== 'undefined'
-        ? imported.map(t => ({ ...t, projectId: activeProjectId }))
+      // Las tablas importadas a un proyecto nacen con sus modelos y servicios.
+      const withProject = project
+        ? imported.map(t => ({
+            ...t, projectId: project.id,
+            modelos: t.modelos?.length ? t.modelos : (project.modelos ?? []),
+            tipoServicio: t.tipoServicio?.length ? t.tipoServicio : (project.tipoServicio ?? []),
+          }))
         : imported;
-      await importTables(withProject);
-      reload(); // import necesita reload porque las tablas no están en estado local
+      await v.importTables(withProject);
+      v.reload();
     } catch { notify.error('Error al importar'); }
+  };
+  const publish = async (ids: string[]) => {
+    try { await v.publishMany(ids); notify.success(`${ids.length} tabla(s) publicadas`); setSelectedIds(new Set()); }
+    catch { notify.error('No se pudieron publicar las tablas'); v.reload(); }
   };
 
   return (
@@ -220,205 +93,81 @@ export const TableCatalogPage = () => {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setShowImport(true)}>Importar</Button>
-            <Link to="/table-catalog/nuevo"><Button>+ Nueva tabla</Button></Link>
+            <Link to={nuevaHref} state={project ? { heredar: { modelos: v.refs.modelos, tipoServicio: v.refs.tipoServicio } } : undefined}><Button>+ Nueva tabla</Button></Link>
           </div>
         </div>
-
-        {/* Selector de proyecto */}
-        <ProjectSelector
-          projects={projects}
-          activeProjectId={activeProjectId}
-          onSelect={selectProject}
-          onCreate={handleCreateProject}
-          onRename={handleRenameProject}
-          onDelete={handleDeleteProject}
-          onUpdateSettings={async (id, data) => { await updateProject(id, data); }}
-          onBulkAddModelos={(p) => setBulkModelosTarget(p)}
-        />
-
-        {/* Filtros */}
-        <Card>
-          <div className="flex gap-4 items-end flex-wrap">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema</label>
-              <Select value={filterSysType} onChange={e => setFilterSysType(e.target.value)}
-                selectSize="md">
-                <option value="">Todos</option>
-                {SYS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Estado</label>
-              <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                selectSize="md">
-                <option value="">Todos</option>
-                <option value="draft">Borrador</option>
-                <option value="published">Publicado</option>
-                <option value="archived">Archivado</option>
-              </Select>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => { setFilterSysType(''); setFilterStatus(''); }}>Limpiar</Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[320px]">
+            <ProjectSelector projects={projects} activeProjectId={activeProjectId}
+              onSelect={pid => { setSelectedIds(new Set()); v.selectProject(pid); }}
+              onCreate={async name => { v.selectProject(await v.createProject({ name })); }}
+              onRename={async (id, name) => { await v.updateProject(id, { name }); }}
+              onDelete={async id => { await v.deleteProject(id); }}
+              onUpdateSettings={async (id, data) => { await v.updateProject(id, data); }}
+              onOpenCoverage={f => setCoverageField(f)} />
           </div>
-        </Card>
+          <Select value={filters.sysType} onChange={e => setFilter('sysType', e.target.value)} selectSize="sm">
+            <option value="">Todo tipo de sistema</option>
+            {SYS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </Select>
+          <Select value={filters.status} onChange={e => setFilter('status', e.target.value)} selectSize="sm">
+            <option value="">Todo estado</option>
+            <option value="draft">Borrador</option>
+            <option value="published">Publicada</option>
+            <option value="archived">Archivada</option>
+          </Select>
+          {(filters.sysType || filters.status) && <Button variant="ghost" size="sm" onClick={resetFilters}>Limpiar</Button>}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {/* Acciones en lote */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        {project && (
+          <ProjectHeaderCard project={project} tables={v.projectTables}
+            modelos={v.coverage.modelos} servicios={v.coverage.tipoServicio}
+            onOpenModelos={() => setCoverageField('modelos')} onOpenServicios={() => setCoverageField('tipoServicio')}
+            onPublishAll={() => setPublishCandidates(v.projectTables.filter(t => t.status === 'draft'))}
+            onPreview={() => setShowPreview(true)} />
+        )}
+
         {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 motion-safe:animate-barra-in">
-            <span className="text-sm font-bold text-teal-800">{selectedIds.size} seleccionada(s)</span>
-            <div className="flex gap-3 items-center">
-              {projects.length > 0 && (
-                <Select defaultValue="" onChange={e => { if (e.target.value) handleBulkMove(e.target.value === '__none__' ? null : e.target.value); e.target.value = ''; }}
-                  >
-                  <option value="" disabled>Mover a proyecto...</option>
-                  <option value="__none__">Sin proyecto</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
-              )}
-              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-600 hover:text-slate-900 font-medium">Deseleccionar</button>
-              <button onClick={handleBulkDelete}
-                className="text-xs bg-red-600 text-white font-medium px-4 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
-                {`Eliminar ${selectedIds.size}`}
-              </button>
-            </div>
-          </div>
+          <CatalogBulkBar count={selectedIds.size} unpublished={selected.filter(t => t.status !== 'published').length}
+            projects={projects}
+            onPublish={() => setPublishCandidates(selected.filter(t => t.status !== 'published'))}
+            onMove={pid => { v.assignProject([...selectedIds], pid); setSelectedIds(new Set()); }}
+            onClear={() => setSelectedIds(new Set())} onDelete={handleBulkDelete} />
         )}
 
-        {loading ? (
-          <div className="flex justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
-        ) : error ? (
-          <Card><p className="text-red-600 text-sm">{error}</p></Card>
-        ) : tables.length === 0 ? (
-          <EmptyState message="No hay tablas en este proyecto." />
+        {v.loading ? (
+          <div className="flex justify-center py-12"><p className="text-slate-400 text-sm">Cargando...</p></div>
+        ) : v.error ? (
+          <Card><p className="text-red-600 text-sm">{v.error}</p></Card>
+        ) : v.visibleTables.length === 0 ? (
+          <EmptyState message={v.projectTables.length ? 'Ninguna tabla coincide con los filtros.' : 'No hay tablas en este proyecto.'} />
         ) : (
-          <Card>
-            {hiddenCols.length > 0 && (
-              <button
-                onClick={showAllCols}
-                className="text-[10px] text-slate-500 hover:text-teal-700 mb-2 underline block"
-              >
-                Mostrar {hiddenCols.length} columna{hiddenCols.length > 1 ? 's' : ''} oculta{hiddenCols.length > 1 ? 's' : ''}
-              </button>
-            )}
-            <div className="overflow-x-auto">
-              <table ref={tableRef} className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 w-10">
-                      <input type="checkbox" checked={allSelected}
-                        ref={el => { if (el) el.indeterminate = someSelected; }}
-                        onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
-                    </th>
-                    {renderTh(1, 'orden', '#')}
-                    {renderTh(2, 'name', 'Nombre')}
-                    {renderTh(3, 'sysType', 'SysType')}
-                    {renderTh(4, 'modelos', 'Modelos')}
-                    {renderTh(5, 'tableType', 'Tipo')}
-                    {renderTh(6, 'columns.length', 'Cols')}
-                    {renderTh(7, 'templateRows.length', 'Filas')}
-                    {renderTh(8, 'isDefault', 'Default')}
-                    {renderTh(9, 'status', 'Estado')}
-                    <th className={`${thBase} text-right text-slate-400`}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedTables.map(t => {
-                    const sel = selectedIds.has(t.id);
-                    return (
-                      <tr key={t.id} className={`hover:bg-slate-50 ${sel ? 'bg-blue-50/60' : ''}`}>
-                        <td className="px-4 py-3"><input type="checkbox" checked={sel} onChange={() => toggleOne(t.id)} className="w-4 h-4 accent-blue-600 cursor-pointer" /></td>
-                        {!isHidden(1) && <td className={`px-4 py-3 text-slate-400 text-xs font-mono ${getAlignClass(1)}`}>{t.orden || '—'}</td>}
-                        {!isHidden(2) && <td className={`px-4 py-3 font-bold text-slate-900 ${getAlignClass(2)}`}>{t.name}</td>}
-                        {!isHidden(3) && <td className={`px-4 py-3 text-slate-600 font-mono text-xs ${getAlignClass(3)}`}>{t.sysType || '—'}</td>}
-                        {!isHidden(4) && (
-                          <td className={`px-4 py-3 text-xs text-slate-500 max-w-[180px] truncate ${getAlignClass(4)}`} title={t.modelos?.join(', ') || 'Todos'}>
-                            {t.modelos?.length ? t.modelos.join(', ') : <span className="text-slate-300">Todos</span>}
-                          </td>
-                        )}
-                        {!isHidden(5) && <td className={`px-4 py-3 text-slate-500 text-xs ${getAlignClass(5)}`}>{TABLE_TYPE_LABELS[t.tableType] ?? t.tableType}</td>}
-                        {!isHidden(6) && <td className={`px-4 py-3 text-slate-600 ${getAlignClass(6)}`}>{t.columns.length}</td>}
-                        {!isHidden(7) && <td className={`px-4 py-3 text-slate-600 ${getAlignClass(7)}`}>{t.templateRows.length}</td>}
-                        {!isHidden(8) && <td className={`px-4 py-3 ${getAlignClass(8)}`}>{t.isDefault ? <span className="text-green-600 font-bold text-xs">✓</span> : <span className="text-slate-300 text-xs">—</span>}</td>}
-                        {!isHidden(9) && (
-                          <td className={`px-4 py-3 ${getAlignClass(9)}`}>
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[t.status] ?? 'bg-slate-100 text-slate-600'}`}>{STATUS_LABELS[t.status] ?? t.status}</span>
-                          </td>
-                        )}
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <div className="inline-flex gap-3">
-                            <Link to={`/table-catalog/${t.id}/edit`}><button className="text-blue-600 hover:underline font-medium text-xs">Editar</button></Link>
-                            <button onClick={() => handleClone(t)} className="text-slate-600 hover:underline font-medium text-xs">Clonar</button>
-                            {t.status !== 'published' && <button onClick={() => handlePublish(t)} className="text-green-600 hover:underline font-medium text-xs">Publicar</button>}
-                            {t.status !== 'archived' && <button onClick={() => handleArchive(t)} className="text-amber-600 hover:underline font-medium text-xs">Archivar</button>}
-                            <button onClick={() => handleDelete(t)} className="text-red-600 hover:underline font-medium text-xs">Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <CatalogTableList tables={v.visibleTables} grouped={!!project}
+            selectedIds={selectedIds} setSelectedIds={setSelectedIds}
+            refModelos={v.refs.modelos} refServicios={v.refs.tipoServicio}
+            projectNames={activeProjectId === undefined ? projectNames : undefined}
+            onClone={setCloneTarget}
+            onPublish={t => setPublishCandidates([t])}
+            onArchive={handleArchive} onDelete={handleDelete} />
         )}
-
-        {showImport && <ImportJsonDialog onClose={() => setShowImport(false)} onImport={handleImport} />}
-
-        <BulkAddModelosModal
-          open={!!bulkModelosTarget}
-          project={bulkModelosTarget}
-          onClose={() => { setBulkModelosTarget(null); reload(); }}
-          onConfirm={async (modelos) => {
-            if (!bulkModelosTarget) return { updated: 0, total: 0 };
-            return await bulkAddModelosToProject(bulkModelosTarget.id, modelos);
-          }}
-        />
-
-        <Modal
-          open={!!cloneTarget}
-          onClose={() => setCloneTarget(null)}
-          title="Duplicar tabla"
-          subtitle={cloneTarget?.name}
-          maxWidth="sm"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setCloneTarget(null)}>Cancelar</Button>
-              <Button onClick={confirmClone}>Duplicar</Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
-              <Input value={cloneName} onChange={e => setCloneName(e.target.value)} inputSize="sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema</label>
-              <Select value={cloneSysType} onChange={e => setCloneSysType(e.target.value)}
-                className="w-full" selectSize="md">
-                {SYS_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-              </Select>
-            </div>
-            {projects.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
-                {/* Buscable: con 40+ proyectos el desplegable plano obligaba a leer toda la lista. */}
-                <SearchableSelect
-                  value={cloneProjectId ?? CLONE_NO_PROJECT}
-                  onChange={val => setCloneProjectId(val === CLONE_NO_PROJECT ? null : val)}
-                  options={[
-                    { value: CLONE_NO_PROJECT, label: 'Sin proyecto' },
-                    ...projects.map(p => ({ value: p.id, label: p.name })),
-                  ]}
-                  placeholder="Buscar proyecto..."
-                  size="sm"
-                />
-              </div>
-            )}
-          </div>
-        </Modal>
       </div>
+
+      {showImport && <ImportJsonDialog onClose={() => setShowImport(false)} onImport={handleImport} />}
+      <ProjectCoveragePanel open={!!coverageField && !!project} onClose={() => setCoverageField(null)}
+        project={project} tables={v.projectTables} field={coverageField ?? 'modelos'}
+        groups={v.coverageGroups[coverageField ?? 'modelos']}
+        onApply={(updates, values) => v.applyCoverage(coverageField ?? 'modelos', updates, values)} />
+      <PublishBatchModal open={!!publishCandidates} onClose={() => setPublishCandidates(null)}
+        tables={publishCandidates ?? []} subtitle={project?.name} onPublish={publish} />
+      <ProtocolPreviewModal open={showPreview} onClose={() => setShowPreview(false)} project={project} tables={v.projectTables} />
+      <CloneTableModal target={cloneTarget} projects={projects} defaultProjectId={typeof activeProjectId === 'string' ? activeProjectId : null}
+        onClose={() => setCloneTarget(null)}
+        onConfirm={async data => {
+          try { const id = await v.cloneTable(cloneTarget!.id, data); setCloneTarget(null); navigate(`/table-catalog/${id}/edit`); }
+          catch { notify.error('Error al clonar'); }
+        }} />
     </div>
   );
 };

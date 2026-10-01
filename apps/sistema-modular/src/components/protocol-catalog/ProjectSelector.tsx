@@ -19,11 +19,12 @@ interface Props {
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdateSettings?: (id: string, data: { headerTitle: string | null; footerQF: string | null }) => Promise<void>;
-  onBulkAddModelos?: (project: TableProject) => void;
+  /** Abre el panel de cobertura del proyecto activo. */
+  onOpenCoverage?: (field: 'modelos' | 'tipoServicio') => void;
 }
 
 export const ProjectSelector: React.FC<Props> = memo(({
-  projects, activeProjectId, onSelect, onCreate, onRename, onDelete, onUpdateSettings, onBulkAddModelos,
+  projects, activeProjectId, onSelect, onCreate, onRename, onDelete, onUpdateSettings, onOpenCoverage,
 }) => {
   const [showCreate, setShowCreate] = useState(false);
   const confirm = useConfirm();
@@ -153,12 +154,16 @@ export const ProjectSelector: React.FC<Props> = memo(({
                   Encabezado / Pie
                 </button>
               )}
-              {onBulkAddModelos && (
-                <button onClick={() => { onBulkAddModelos(activeProject); setMenuId(null); }}
+              {onOpenCoverage && (<>
+                <button onClick={() => { onOpenCoverage('modelos'); setMenuId(null); }}
                   className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
-                  Agregar modelos a tablas…
+                  Modelos del proyecto…
                 </button>
-              )}
+                <button onClick={() => { onOpenCoverage('tipoServicio'); setMenuId(null); }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                  Servicios del proyecto…
+                </button>
+              </>)}
               <button onClick={() => handleDelete(activeProject.id)}
                 className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">
                 Eliminar

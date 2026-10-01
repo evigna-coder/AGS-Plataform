@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { tableCatalogService } from '../services/firebaseService';
 import type { TableCatalogEntry } from '@ags/shared';
 
@@ -13,11 +13,16 @@ export function useTableCatalog() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pedido vigente (revisión 2026-10-01): al cambiar rápido de proyecto, una
+  // respuesta vieja que llegaba última pisaba la lista del proyecto actual.
+  const pedidoVigente = useRef(0);
   const listTables = useCallback(async (filters?: TableFilters) => {
+    const pedido = ++pedidoVigente.current;
     setLoading(true);
     setError(null);
     try {
       const data = await tableCatalogService.getAll(filters);
+      if (pedido !== pedidoVigente.current) return;
       setTables(data);
     } catch (err) {
       console.error('Error cargando tablas:', err);
@@ -48,6 +53,31 @@ export function useTableCatalog() {
       console.error('Error guardando borrador:', err);
       throw err;
     }
+  }, []);
+
+  /**
+   * Guarda respetando el estado actual. Para una tabla PUBLICADA esto evita que
+   * "guardar" la despublique sin aviso (saveDraft fuerza borrador).
+   */
+  const saveKeepingStatus = useCallback(async (entry: TableCatalogEntry) => {
+    return tableCatalogService.save(entry);
+  }, []);
+
+  /** Recarga sin mostrar el estado "Cargando" (al volver a la pestaña). */
+  const refreshTables = useCallback(async (filters?: TableFilters) => {
+    try { setTables(await tableCatalogService.getAll(filters)); } catch (err) { console.error('Error refrescando tablas:', err); }
+  }, []);
+
+  const publishMany = useCallback(async (ids: string[]) => {
+    const set = new Set(ids);
+    setTables(prev => prev.map(t => set.has(t.id) ? { ...t, status: 'published' as const } : t));
+    await tableCatalogService.publishMany(ids);
+  }, []);
+
+  const setListField = useCallback(async (field: 'modelos' | 'tipoServicio', updates: { id: string; values: string[] }[]) => {
+    const byId = new Map(updates.map(u => [u.id, u.values]));
+    setTables(prev => prev.map(t => byId.has(t.id) ? { ...t, [field]: byId.get(t.id) } : t));
+    await tableCatalogService.setListField(field, updates);
   }, []);
 
   // Optimistic: actualiza status localmente y escribe a Firebase en background
@@ -103,13 +133,6 @@ export function useTableCatalog() {
     });
   }, []);
 
-  const bulkAddModelosToProject = useCallback(
-    async (projectId: string, modelosToAdd: string[]) => {
-      return tableCatalogService.bulkAddModelosToProject(projectId, modelosToAdd);
-    },
-    [],
-  );
-
   return {
     tables,
     loading,
@@ -123,6 +146,9 @@ export function useTableCatalog() {
     importTables,
     deleteTable,
     assignProject,
-    bulkAddModelosToProject,
+    saveKeepingStatus,
+    refreshTables,
+    publishMany,
+    setListField,
   };
 }

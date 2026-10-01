@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -7,7 +7,11 @@ import { Input } from '../../components/ui/Input';
 import { TableEditor } from '../../components/protocol-catalog/TableEditor';
 import { TablePreview } from '../../components/protocol-catalog/TablePreview';
 import { ChecklistEditor } from '../../components/protocol-catalog/ChecklistEditor';
-import { ModelosPicker } from '../../components/protocol-catalog/ModelosPicker';
+import { EditorCoverageFields } from '../../components/protocol-catalog/EditorCoverageFields';
+import { ProjectPicker } from '../../components/protocol-catalog/ProjectPicker';
+import { useCoverageCatalog } from '../../hooks/useCoverageCatalog';
+import { validateForPublish } from '../../utils/tableCatalogValidation';
+import { SYS_TYPES } from '../../utils/tableCatalogConstants';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { categoriasEquipoService } from '../../services/firebaseService';
 import { useTableProjects } from '../../hooks/useTableProjects';
@@ -16,20 +20,6 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 import { Select } from '../../components/ui/Select';
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'SCD', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
-
-const SERVICIO_TYPES = [
-  'Calibración',
-  'Calificación de instalación',
-  'Calificación de operación',
-  'Calificación de operación de software',
-  'Limpieza de fuente de Iones',
-  'Mantenimiento preventivo con consumibles',
-  'Mantenimiento preventivo sin consumibles',
-  'Mantenimiento preventivo sin consumibles, incluye limpieza de módulos',
-  'Recalificación post reparación',
-];
-
 function emptyEntry(): TableCatalogEntry {
   return {
     id: '',
@@ -53,35 +43,16 @@ function emptyEntry(): TableCatalogEntry {
   };
 }
 
-function validateForPublish(entry: TableCatalogEntry): string[] {
-  const errors: string[] = [];
-  if (!entry.name.trim()) errors.push('Nombre vacío');
-  if (!entry.sysType) errors.push('SysType no asignado');
-  if (entry.tableType === 'text') {
-    if (!entry.textContent?.trim()) errors.push('El contenido de texto está vacío');
-  } else if (entry.tableType === 'checklist') {
-    if (!entry.checklistItems || entry.checklistItems.length === 0)
-      errors.push('El checklist no tiene ítems');
-    entry.checklistItems?.forEach((item, i) => {
-      if (!item.label.trim()) errors.push(`Ítem ${i + 1}: texto vacío`);
-    });
-  } else if (entry.columns.length === 0) errors.push('La tabla no tiene columnas');
-  if (entry.tableType === 'validation') {
-    entry.validationRules.forEach((r, i) => {
-      if (!r.operator || r.factoryThreshold === '' || !r.targetColumn || !r.valueIfPass || !r.valueIfFail) {
-        errors.push(`Regla ${i + 1}: campos incompletos`);
-      }
-    });
-  }
-  return errors;
-}
-
 export const TableCatalogEditorPage = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const goBack = useNavigateBack();
   const confirm = useConfirm();
-  const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
+  const { getTable, saveDraft, saveKeepingStatus, publishTable, loading } = useTableCatalog();
   const { projects } = useTableProjects();
+  const { servicios } = useCoverageCatalog();
+  const [searchParams] = useSearchParams();
+  // Referencia calculada por la lista (proyectos que nunca guardaron modelos/servicios propios).
+  const heredar = (useLocation().state as { heredar?: { modelos: string[]; tipoServicio: string[] } } | null)?.heredar;
 
   const [entry, setEntry] = useState<TableCatalogEntry>(emptyEntry());
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
@@ -90,6 +61,25 @@ export const TableCatalogEditorPage = () => {
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const dataLoaded = useRef(false);
+  const project = projects.find(p => p.id === entry.projectId) ?? null;
+
+  // Tabla nueva creada desde un proyecto (?projectId=): nace en ese proyecto con sus
+  // modelos y servicios, para no arrancar con discrepancias.
+  const herencia = useRef(false);
+  useEffect(() => {
+    const pid = searchParams.get('projectId');
+    if (tableId || !pid || herencia.current || projects.length === 0) return;
+    const p = projects.find(x => x.id === pid);
+    if (!p) return;
+    herencia.current = true;
+    setEntry(prev => ({
+      ...prev, projectId: p.id,
+      sysType: prev.sysType || p.sysType || searchParams.get('sysType') || '',
+      orden: prev.orden || Number(searchParams.get('orden')) || 0,
+      modelos: prev.modelos?.length ? prev.modelos : [...(p.modelos?.length ? p.modelos : heredar?.modelos ?? [])],
+      tipoServicio: prev.tipoServicio?.length ? prev.tipoServicio : [...(p.tipoServicio?.length ? p.tipoServicio : heredar?.tipoServicio ?? [])],
+    }));
+  }, [tableId, projects, searchParams, heredar]);
 
   useEffect(() => {
     // Reset cuando cambia tableId (ej. al clonar y navegar a la nueva tabla)
@@ -123,8 +113,9 @@ export const TableCatalogEditorPage = () => {
   const setMeta = (key: keyof TableCatalogEntry, value: any) =>
     setEntry(prev => ({ ...prev, [key]: value }));
 
-  const handleSaveDraft = async () => {
-    if (saving) return;
+  /** Devuelve si guardó (revisión 2026-10-01: "Pasar a borrador" lo necesita). */
+  const handleSaveDraft = async (): Promise<boolean> => {
+    if (saving) return false;
     setSaving(true);
     try {
       const id = await saveDraft(entry);
@@ -134,11 +125,38 @@ export const TableCatalogEditorPage = () => {
         window.history.replaceState(null, '', `/table-catalog/${id}/edit`);
       }
       setStatusMsg({ type: 'success', text: 'Borrador guardado' });
+      return true;
     } catch {
       setStatusMsg({ type: 'error', text: 'Error al guardar' });
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Tabla ya publicada: guarda los cambios y la deja publicada (antes "guardar" la despublicaba). */
+  const handleSavePublished = async () => {
+    const errors = validateForPublish(entry);
+    if (errors.length) {
+      setValidationErrors(errors);
+      if (!await confirm(`Hay ${errors.length} advertencia(s).\n\n${errors.join('\n')}\n\n¿Guardar igual? La tabla sigue publicada.`)) return;
+    }
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveKeepingStatus(entry);
+      setValidationErrors([]);
+      setStatusMsg({ type: 'success', text: 'Cambios guardados · sigue publicada' });
+    } catch {
+      setStatusMsg({ type: 'error', text: 'Error al guardar' });
+    } finally { setSaving(false); }
+  };
+
+  const handleToDraft = async () => {
+    if (!await confirm('¿Pasar la tabla a borrador?\n\nDeja de ofrecerse en las OT hasta que se vuelva a publicar.')) return;
+    // Antes marcaba "Borrador" aunque la escritura fallara: la tabla seguía
+    // publicada en Firestore y ofreciéndose en las OT.
+    if (await handleSaveDraft()) setEntry(prev => ({ ...prev, status: 'draft' }));
   };
 
   const handlePublish = async () => {
@@ -187,10 +205,13 @@ export const TableCatalogEditorPage = () => {
               </span>
             )}
             <Button variant="outline" onClick={() => goBack()}>← Volver</Button>
-            <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading} estado={saving ? 'guardando' : 'idle'}>Guardar borrador</Button>
-            <Button onClick={handlePublish} disabled={saving || loading || entry.status === 'published'}>
-              Publicar
-            </Button>
+            {entry.status === 'published' ? (<>
+              <Button variant="secondary" onClick={handleToDraft} disabled={saving || loading}>Pasar a borrador</Button>
+              <Button onClick={handleSavePublished} disabled={saving || loading} estado={saving ? 'guardando' : 'idle'}>Guardar cambios</Button>
+            </>) : (<>
+              <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading} estado={saving ? 'guardando' : 'idle'}>Guardar borrador</Button>
+              <Button onClick={handlePublish} disabled={saving || loading}>Publicar</Button>
+            </>)}
           </div>
         </div>
       </div>
@@ -230,11 +251,7 @@ export const TableCatalogEditorPage = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
-              <Select value={entry.projectId ?? ''} onChange={e => setMeta('projectId', e.target.value || null)}
-                className="w-full" selectSize="md">
-                <option value="">Sin proyecto</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select>
+              <ProjectPicker projects={projects} value={entry.projectId ?? null} onChange={pid => setMeta('projectId', pid)} />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema *</label>
@@ -362,58 +379,7 @@ export const TableCatalogEditorPage = () => {
               </div>
             </div>
 
-            {/* Tipos de servicio */}
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-2">
-                Tipos de servicio
-                <span className="ml-1 font-normal text-slate-400 normal-case">(uno o más)</span>
-              </label>
-              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                {SERVICIO_TYPES.map(st => {
-                  const selected = (entry.tipoServicio ?? []).includes(st);
-                  return (
-                    <label key={st} className="flex items-start gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => {
-                          const current = entry.tipoServicio ?? [];
-                          setMeta(
-                            'tipoServicio',
-                            selected ? current.filter(s => s !== st) : [...current, st]
-                          );
-                        }}
-                        className="mt-0.5 accent-blue-600 shrink-0"
-                      />
-                      <span className="text-xs text-slate-700 group-hover:text-slate-900 leading-tight">
-                        {st}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {(entry.tipoServicio ?? []).length === 0 && (
-                <p className="text-[10px] text-slate-400 mt-1 italic">
-                  Sin asignar — aparecerá en todos los servicios del catálogo.
-                </p>
-              )}
-            </div>
-
-            {/* Modelos de equipo */}
-            {entry.sysType && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-2">
-                  Modelos de equipo
-                  <span className="ml-1 font-normal text-slate-400 normal-case">(uno o más)</span>
-                </label>
-                <ModelosPicker
-                  selected={entry.modelos ?? []}
-                  onChange={(next) => setMeta('modelos', next)}
-                  categorias={categorias}
-                  emptyMessage="Sin asignar — aparecerá para todos los modelos de este tipo de sistema."
-                />
-              </div>
-            )}
+            <EditorCoverageFields entry={entry} setMeta={setMeta} project={project} categorias={categorias} servicios={servicios} />
           </div>
         </Card>
         </div>{/* /sticky */}

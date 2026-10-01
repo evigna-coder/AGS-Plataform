@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { tableProjectsService } from '../services/firebaseService';
+import type { TableProjectPatch } from '../services/catalogService';
 import type { TableProject } from '@ags/shared';
 
 export function useTableProjects() {
@@ -41,7 +42,7 @@ export function useTableProjects() {
     return id;
   }, []);
 
-  const updateProject = useCallback(async (id: string, data: Partial<{ name: string; description: string | null; headerTitle: string | null; footerQF: string | null }>) => {
+  const updateProject = useCallback(async (id: string, data: TableProjectPatch) => {
     // Optimistic: actualizar en el estado local
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p)
       .sort((a, b) => a.name.localeCompare(b.name)));
