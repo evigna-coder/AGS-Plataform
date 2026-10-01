@@ -18,6 +18,7 @@ export function buildPlanificacionInsumosColumns(meses: string[]): ExportColumn<
   return [
     ...fijas, ...porMes,
     { header: 'Comprar', width: 10, get: f => f.comprar, align: 'right' },
+    { header: 'Viene en kit', width: 26, get: f => f.kits.map(k => `${k.kitCodigo} ×${k.cantidadPorKit}${f.comprar > 0 ? ` → ${k.comprarKits} kit(s)` : ''}`).join(' · ') },
     { header: 'Quiebre', width: 10, get: f => f.mesQuiebre ? labelMes(f.mesQuiebre) : '' },
   ];
 }

@@ -9,7 +9,7 @@ import { perfilesConsumoService } from '../services/perfilesConsumoService';
 import { consumiblesPorModuloService } from '../services/consumiblesPorModuloService';
 import { fechaLocalYMD } from '../utils/formatFecha';
 import {
-  ingresosPrevistos, mesesDesde, planificarInsumos,
+  ingresosPrevistos, kitsPlanDesdeArticulos, mesesDesde, planificarInsumos,
   type EntradaMotor, type ResultadoMotor,
 } from '../utils/planificacionInsumos';
 
@@ -103,8 +103,9 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
     const hoy = hoyYMD();
     const anios = new Set(mesesDesde(hoy, 12).map(m => Number(m.slice(0, 4))));
     (async () => {
-      const [planificables, propios, catalogo, sistemas, modulos, categorias, catalogoModulos, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await Promise.all([
+      const [planificables, kitsCatalogo, propios, catalogo, sistemas, modulos, categorias, catalogoModulos, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await Promise.all([
         articulosService.getPlanificables(),
+        articulosService.getKits().catch(() => [] as Articulo[]),
         perfilesConsumoService.getAll(),
         consumiblesPorModuloService.getAll(),
         sistemasService.getAll({ activosOnly: true }),
@@ -122,11 +123,15 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
       ]);
       if (!vivo) return;
       const idsPlan = new Set(planificables.map(a => a.id));
+      // Kits que contienen planificables (2026-09-30): sus unidades disponibles
+      // y sus líneas de compra cuentan como oferta de los componentes.
+      const kits = kitsPlanDesdeArticulos(kitsCatalogo, idsPlan);
+      const idsKits = new Set(kits.map(k => k.id));
       const estById = new Map(establecimientos.map(e => [e.id, e]));
       const clienteNombre = new Map(clientes.map(c => [c.id, c.razonSocial]));
       const disponible = new Map<string, number>();
       for (const u of disponibles) {
-        if (!idsPlan.has(u.articuloId)) continue;
+        if (!idsPlan.has(u.articuloId) && !idsKits.has(u.articuloId)) continue;
         if ((u as { ubicacion?: { tipo?: string } }).ubicacion?.tipo === 'remito') continue;
         disponible.set(u.articuloId, (disponible.get(u.articuloId) ?? 0) + (u.cantidad ?? 1));
       }
@@ -162,7 +167,9 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
           ocs.map(oc => ({ id: oc.id, numero: oc.numero, estado: oc.estado, fechaEntregaEstimada: oc.fechaEntregaEstimada ?? null, items: oc.items ?? [] })),
           importaciones.map(imp => ({ id: imp.id, numero: imp.numero, estado: imp.estado, ordenCompraId: imp.ordenCompraId ?? null, fechaEstimadaArribo: imp.fechaEstimadaArribo ?? null, items: imp.items ?? [] })),
           idsPlan,
+          kits,
         ),
+        kits,
         agendaPorAnio,
       });
       setLoading(false);

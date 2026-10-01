@@ -58,6 +58,12 @@ export function PlanificacionTabla({ meses, filas, onVerDetalle }: Props) {
               <td className="px-3 py-1.5 text-xs text-center text-slate-700 whitespace-nowrap">
                 {fmtCantidad(f.stockInicial)}
                 {f.stockMinimo > 0 && <span className="text-[10px] text-slate-400"> / mín {f.stockMinimo}</span>}
+                {/* Kits (2026-09-30): parte del stock está dentro de kits sin explotar. */}
+                {f.stockEnKits > 0 && (
+                  <span className="block text-[9px] text-violet-600" title={f.kits.filter(k => k.disponibles > 0).map(k => `${k.disponibles} × ${k.kitCodigo} (${k.cantidadPorKit} c/u)`).join(' · ')}>
+                    {fmtCantidad(f.stockEnKits)} en kits
+                  </span>
+                )}
               </td>
               {f.meses.map(c => (
                 <Fragment key={c.mes}>
@@ -75,6 +81,12 @@ export function PlanificacionTabla({ meses, filas, onVerDetalle }: Props) {
                   <span className="text-xs font-semibold text-red-600" title={f.mesQuiebre ? `Quiebra en ${labelMes(f.mesQuiebre)}` : undefined}>
                     {f.comprar}
                     {f.mesQuiebre && <span className="block text-[9px] font-normal text-red-400">{labelMes(f.mesQuiebre)}</span>}
+                    {/* Viene en kit: la compra real se hace en kits. Varios kits = opciones, no elige. */}
+                    {f.kits.map(k => (
+                      <span key={k.kitId} className="block text-[9px] font-normal text-violet-600" title={`Viene en el kit ${k.kitCodigo}: ${k.cantidadPorKit} por kit`}>
+                        ≈ {k.comprarKits} kit{k.comprarKits === 1 ? '' : 's'} {k.kitCodigo}
+                      </span>
+                    ))}
                   </span>
                 ) : <span className="text-xs text-slate-300">—</span>}
               </td>

@@ -14,6 +14,9 @@
  *  - Oferta = disponible hoy + OCs e importaciones por fecha estimada. Lo que
  *    ya venció o no tiene fecha entra en el primer mes y se marca.
  *  - Sin plazo de entrega: eso vive en Importaciones.
+ *  - Kits (2026-09-30): un componente que se compra dentro de un kit cuenta los
+ *    kits disponibles (sin explotar) y los kits en OC/importación como oferta
+ *    propia (× cantidad por kit), y la compra sugerida se expresa también en kits.
  */
 import { anioDeContrato, cantidadEnUnidadBase } from '@ags/shared';
 import type {
@@ -59,6 +62,26 @@ export interface IngresoPrevisto {
   fecha: string | null;
   origen: 'oc' | 'importacion';
   referencia: string;
+  /** Si la línea comprada es un KIT que contiene este artículo: cuántos kits y cuánto trae cada uno. */
+  viaKit?: { kitId: string; kitCodigo: string; kits: number; cantidadPorKit: number } | null;
+}
+
+/** Kit de compra que contiene artículos planificables (BOM plano). */
+export interface KitPlan {
+  id: string;
+  codigo: string;
+  componentes: Array<{ articuloId: string; articuloCodigo: string; cantidadPorKit: number }>;
+}
+
+/** Cómo llega un componente a través de un kit, para la fila del plan. */
+export interface KitDeFila {
+  kitId: string;
+  kitCodigo: string;
+  cantidadPorKit: number;
+  /** Kits disponibles hoy sin explotar (aportan `disponibles × cantidadPorKit` al stock). */
+  disponibles: number;
+  /** Kits a comprar para cubrir `comprar`, redondeado hacia arriba. */
+  comprarKits: number;
 }
 
 export interface EntradaMotor {
@@ -72,9 +95,11 @@ export interface EntradaMotor {
   ots: OtPlan[];
   agenda: EntradaAgendaPlan[];
   contratos: Contrato[];
-  /** articuloId → unidades base disponibles hoy. */
+  /** articuloId → unidades base disponibles hoy (incluye los artículos KIT, para explotarlos acá). */
   disponible: Map<string, number>;
   ingresos: IngresoPrevisto[];
+  /** Kits que contienen artículos planificables. Opcional: sin kits el motor es el de siempre. */
+  kits?: KitPlan[];
 }
 
 // ── Salidas ───────────────────────────────────────────────────────────────────
@@ -114,6 +139,10 @@ export interface FilaPlan {
   mesQuiebre: string | null;
   /** Ingresos contados en el primer mes por no tener fecha estimada. */
   ingresosSinFecha: number;
+  /** Parte del stock inicial que está dentro de kits sin explotar. */
+  stockEnKits: number;
+  /** Kits que contienen este artículo (vacío = se compra suelto). */
+  kits: KitDeFila[];
 }
 
 export interface ResultadoMotor {
@@ -412,8 +441,21 @@ export function planificarInsumos(e: EntradaMotor): ResultadoMotor {
     arr.push(ing);
     ingresosPor.set(ing.articuloId, arr);
   }
+  // Kits por componente (2026-09-30): los kits disponibles sin explotar son
+  // stock del componente; la compra sugerida se traduce a kits.
+  const kitsPorComponente = new Map<string, Array<{ kit: KitPlan; cantidadPorKit: number }>>();
+  for (const kit of e.kits ?? []) {
+    for (const c of kit.componentes) {
+      if (!(c.cantidadPorKit > 0)) continue;
+      const arr = kitsPorComponente.get(c.articuloId) ?? [];
+      arr.push({ kit, cantidadPorKit: c.cantidadPorKit });
+      kitsPorComponente.set(c.articuloId, arr);
+    }
+  }
   const filas: FilaPlan[] = e.articulos.map(art => {
-    const inicial = e.disponible.get(art.id) ?? 0;
+    const enKits = kitsPorComponente.get(art.id) ?? [];
+    const stockEnKits = enKits.reduce((a, k) => a + (e.disponible.get(k.kit.id) ?? 0) * k.cantidadPorKit, 0);
+    const inicial = (e.disponible.get(art.id) ?? 0) + stockEnKits;
     let stock = inicial;
     let comprarMax = 0;
     let mesQuiebre: string | null = null;
@@ -436,10 +478,17 @@ export function planificarInsumos(e: EntradaMotor): ResultadoMotor {
       }
       return { mes, demanda: dem, ingresos, stockFin: stock, servicios: d?.servicios ?? [], ingresosDetalle: ings };
     });
+    const comprar = Math.max(0, Math.ceil(comprarMax - 1e-9)); // max evita el -0 de ceil
     return {
       articuloId: art.id, codigo: art.codigo, descripcion: art.descripcion,
       grupo: art.grupoPlanificacion ?? null, stockInicial: inicial, stockMinimo: art.stockMinimo ?? 0,
-      meses: celdas, comprar: Math.ceil(comprarMax - 1e-9), mesQuiebre, ingresosSinFecha: sinFecha,
+      meses: celdas, comprar, mesQuiebre, ingresosSinFecha: sinFecha,
+      stockEnKits,
+      kits: enKits.map(k => ({
+        kitId: k.kit.id, kitCodigo: k.kit.codigo, cantidadPorKit: k.cantidadPorKit,
+        disponibles: e.disponible.get(k.kit.id) ?? 0,
+        comprarKits: comprar > 0 ? Math.ceil(comprar / k.cantidadPorKit - 1e-9) : 0,
+      })),
     };
   });
 
@@ -468,17 +517,35 @@ export const IMPORTACION_ESTADOS_EN_CURSO = new Set(['preparacion', 'en_origen',
  * Los ítems de una importación son un subconjunto de su OC: lo que ya está
  * embarcado se cuenta por la importación (con su fecha de arribo) y se resta
  * del pendiente de la OC para no contarlo dos veces.
+ *
+ * Kits (2026-09-30): una línea que compra un KIT se traduce a sus componentes
+ * planificables (kits × cantidad por kit), con la misma fecha y referencia.
  */
-export function ingresosPrevistos(ocs: OcLike[], importaciones: ImportacionLike[], soloArticulos: Set<string>): IngresoPrevisto[] {
+export function ingresosPrevistos(ocs: OcLike[], importaciones: ImportacionLike[], soloArticulos: Set<string>, kits: KitPlan[] = []): IngresoPrevisto[] {
   const out: IngresoPrevisto[] = [];
+  const kitsById = new Map(kits.map(k => [k.id, k]));
+  const interesa = (articuloId: string | null | undefined): articuloId is string =>
+    !!articuloId && (soloArticulos.has(articuloId) || kitsById.has(articuloId));
+  const emitir = (articuloId: string, pend: number, fecha: string | null, origen: IngresoPrevisto['origen'], referencia: string) => {
+    if (soloArticulos.has(articuloId)) out.push({ articuloId, cantidad: pend, fecha, origen, referencia });
+    const kit = kitsById.get(articuloId);
+    if (!kit) return;
+    for (const c of kit.componentes) {
+      if (!soloArticulos.has(c.articuloId) || !(c.cantidadPorKit > 0)) continue;
+      out.push({
+        articuloId: c.articuloId, cantidad: pend * c.cantidadPorKit, fecha, origen, referencia,
+        viaKit: { kitId: kit.id, kitCodigo: kit.codigo, kits: pend, cantidadPorKit: c.cantidadPorKit },
+      });
+    }
+  };
   const embarcadoPorOc = new Map<string, Map<string, number>>();
   for (const imp of importaciones) {
     if (!IMPORTACION_ESTADOS_EN_CURSO.has(imp.estado)) continue;
     for (const it of imp.items ?? []) {
-      if (!it.articuloId || !soloArticulos.has(it.articuloId)) continue;
+      if (!interesa(it.articuloId)) continue;
       const pend = cantidadEnUnidadBase(Math.max(0, (it.cantidadPedida ?? 0) - (it.cantidadRecibida ?? 0)), it.presentacion);
       if (pend <= 0) continue;
-      out.push({ articuloId: it.articuloId, cantidad: pend, fecha: imp.fechaEstimadaArribo?.slice(0, 10) || null, origen: 'importacion', referencia: imp.numero });
+      emitir(it.articuloId, pend, imp.fechaEstimadaArribo?.slice(0, 10) || null, 'importacion', imp.numero);
       if (imp.ordenCompraId) {
         const m = embarcadoPorOc.get(imp.ordenCompraId) ?? new Map<string, number>();
         m.set(it.articuloId, (m.get(it.articuloId) ?? 0) + pend);
@@ -490,7 +557,7 @@ export function ingresosPrevistos(ocs: OcLike[], importaciones: ImportacionLike[
     if (!OC_ESTADOS_COMPRA.has(oc.estado)) continue;
     const embarcado = embarcadoPorOc.get(oc.id);
     for (const it of oc.items ?? []) {
-      if (!it.articuloId || !soloArticulos.has(it.articuloId)) continue;
+      if (!interesa(it.articuloId)) continue;
       let pend = cantidadEnUnidadBase(Math.max(0, (it.cantidad ?? 0) - (it.cantidadRecibida ?? 0)), it.presentacion);
       const yaEmbarcado = embarcado?.get(it.articuloId) ?? 0;
       if (yaEmbarcado > 0) {
@@ -499,8 +566,20 @@ export function ingresosPrevistos(ocs: OcLike[], importaciones: ImportacionLike[
         embarcado!.set(it.articuloId, yaEmbarcado - resta);
       }
       if (pend <= 0) continue;
-      out.push({ articuloId: it.articuloId, cantidad: pend, fecha: oc.fechaEntregaEstimada?.slice(0, 10) || null, origen: 'oc', referencia: oc.numero });
+      emitir(it.articuloId, pend, oc.fechaEntregaEstimada?.slice(0, 10) || null, 'oc', oc.numero);
     }
+  }
+  return out;
+}
+
+/** BOM plano de los kits que contienen algún artículo planificable. */
+export function kitsPlanDesdeArticulos(kits: Array<Pick<Articulo, 'id' | 'codigo' | 'kitComponentes'>>, planificables: Set<string>): KitPlan[] {
+  const out: KitPlan[] = [];
+  for (const k of kits) {
+    const componentes = (k.kitComponentes ?? [])
+      .filter(c => planificables.has(c.articuloId) && c.cantidadPorKit > 0)
+      .map(c => ({ articuloId: c.articuloId, articuloCodigo: c.articuloCodigo, cantidadPorKit: c.cantidadPorKit }));
+    if (componentes.length > 0) out.push({ id: k.id, codigo: k.codigo, componentes });
   }
   return out;
 }

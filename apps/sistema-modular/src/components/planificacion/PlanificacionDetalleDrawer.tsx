@@ -23,10 +23,17 @@ export function PlanificacionDetalleDrawer({ fila, onClose }: Props) {
       {fila && (
         <div className="space-y-5">
           <div className="grid grid-cols-3 gap-3 text-xs">
-            <Dato label="Stock hoy" valor={fmtCantidad(fila.stockInicial)} />
+            <Dato label="Stock hoy" valor={`${fmtCantidad(fila.stockInicial)}${fila.stockEnKits > 0 ? ` (${fmtCantidad(fila.stockEnKits)} en kits)` : ''}`} />
             <Dato label="Mínimo" valor={fila.stockMinimo > 0 ? String(fila.stockMinimo) : '—'} />
             <Dato label="Comprar" valor={fila.comprar > 0 ? `${fila.comprar}${fila.mesQuiebre ? ` (quiebra ${labelMes(fila.mesQuiebre)})` : ''}` : 'No hace falta'} resaltar={fila.comprar > 0} />
           </div>
+          {/* Kits (2026-09-30): el artículo se compra dentro de un kit. */}
+          {fila.kits.length > 0 && (
+            <p className="text-[11px] text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+              Viene en kit: {fila.kits.map(k => `${k.kitCodigo} (${k.cantidadPorKit} por kit · ${k.disponibles} disponible${k.disponibles === 1 ? '' : 's'}${fila.comprar > 0 ? ` · comprar ${k.comprarKits}` : ''})`).join(' · ')}.
+              {fila.kits.length > 1 && ' Está en más de un kit: elegí vos cuál comprar.'}
+            </p>
+          )}
           {fila.ingresosSinFecha > 0 && (
             <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               {fmtCantidad(fila.ingresosSinFecha)} unidades compradas sin fecha estimada de llegada se contaron en el primer mes.
@@ -65,7 +72,11 @@ export function PlanificacionDetalleDrawer({ fila, onClose }: Props) {
                       <span className="px-1.5 py-0.5 rounded border border-teal-200 bg-white text-teal-700 text-[9px] font-mono uppercase tracking-wide">
                         {ing.origen === 'oc' ? 'OC' : 'Importación'}
                       </span>
-                      <span className="flex-1 text-slate-700">{ing.referencia}{!ing.fecha && <span className="text-amber-600 ml-1">(sin fecha)</span>}</span>
+                      <span className="flex-1 text-slate-700">
+                        {ing.referencia}
+                        {ing.viaKit && <span className="text-violet-600 ml-1">· {ing.viaKit.kits} kit{ing.viaKit.kits === 1 ? '' : 's'} {ing.viaKit.kitCodigo}</span>}
+                        {!ing.fecha && <span className="text-amber-600 ml-1">(sin fecha)</span>}
+                      </span>
                       <span className="font-mono text-teal-700 w-16 text-right">+{fmtCantidad(ing.cantidad)}</span>
                     </li>
                   ))}

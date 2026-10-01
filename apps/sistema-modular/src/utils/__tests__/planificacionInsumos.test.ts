@@ -1,8 +1,9 @@
 // Run with: pnpm --filter @ags/sistema-modular test:planificacion-insumos
 import assert from 'node:assert/strict';
 import type { Articulo, Contrato, PerfilConsumo } from '@ags/shared';
+import type { KitPlan } from '../planificacionInsumos.js';
 import {
-  consumoPorServicio, ingresosPrevistos, mesesDesde, planificarInsumos,
+  consumoPorServicio, ingresosPrevistos, kitsPlanDesdeArticulos, mesesDesde, planificarInsumos,
   type EntradaMotor, type SistemaPlan,
 } from '../planificacionInsumos.js';
 
@@ -181,4 +182,50 @@ const base: EntradaMotor = {
   assert.deepEqual(r.map(i => [i.cantidad, i.fecha]), [[100, null]]);
 }
 
-console.log('✅ planificacionInsumos: OK');
+// ── Kits (2026-09-30): el componente cuenta kits en stock y en camino ───────
+// Caso real: G1313-87201 solo existe como componente del kit G1313-68709.
+{
+  const kit: KitPlan = { id: 'KIT', codigo: 'G1313-68709', componentes: [{ articuloId: 'SELLO', articuloCodigo: 'SELLO', cantidadPorKit: 2 }] };
+  // Ingresos: una OC de 3 kits pendientes → 6 sellos vía kit; la OC del sello suelto sigue igual.
+  const ing = ingresosPrevistos(
+    [{ id: 'oc1', numero: 'OC-K', estado: 'enviada_proveedor', fechaEntregaEstimada: '2026-11-10',
+       items: [{ articuloId: 'KIT', cantidad: 3, cantidadRecibida: 0 }, { articuloId: 'SELLO', cantidad: 2, cantidadRecibida: 0 }] }],
+    [], new Set(['SELLO']), [kit],
+  );
+  assert.deepEqual(ing.map(i => [i.articuloId, i.cantidad, i.viaKit?.kits ?? null]), [['SELLO', 6, 3], ['SELLO', 2, null]], 'kit explotado a componentes + suelto');
+  assert.equal(ing[0].viaKit?.kitCodigo, 'G1313-68709');
+
+  // Motor: 2 kits disponibles sin explotar = 4 sellos más de stock inicial.
+  const r = planificarInsumos({
+    ...base, kits: [kit],
+    disponible: new Map([...base.disponible, ['KIT', 2]]),
+    ingresos: ing,
+  });
+  const sello = r.filas.find(f => f.articuloId === 'SELLO')!;
+  assert.equal(sello.stockInicial, 3 + 4, 'stock inicial incluye los kits disponibles');
+  assert.equal(sello.stockEnKits, 4);
+  assert.equal(sello.meses[0].stockFin, 7 - 6, 'octubre: demanda 6');
+  assert.equal(sello.meses[1].ingresos, 8, 'noviembre: 6 vía kit + 2 sueltos');
+  assert.equal(sello.comprar, 0, 'con kits en stock y en camino no hace falta comprar');
+  assert.deepEqual(sello.kits.map(k => [k.kitCodigo, k.disponibles, k.comprarKits]), [['G1313-68709', 2, 0]]);
+
+  // Sin kits en stock ni en camino: compra sugerida también en kits (redondeo arriba).
+  const r2 = planificarInsumos({ ...base, kits: [kit] });
+  const sello2 = r2.filas.find(f => f.articuloId === 'SELLO')!;
+  assert.equal(sello2.comprar, 3);
+  assert.deepEqual(sello2.kits.map(k => [k.disponibles, k.comprarKits]), [[0, 2]], '3 sellos = 2 kits de 2');
+  // Un artículo que no viene en kit no cambia.
+  assert.deepEqual(r2.filas.find(f => f.articuloId === 'ROTOR')!.kits, []);
+  assert.equal(r2.filas.find(f => f.articuloId === 'ROTOR')!.stockEnKits, 0);
+
+  // BOM plano desde artículos: solo componentes planificables, kits sin planificables se descartan.
+  const planos = kitsPlanDesdeArticulos([
+    { id: 'KIT', codigo: 'G1313-68709', kitComponentes: [
+      { articuloId: 'SELLO', articuloCodigo: 'SELLO', articuloDescripcion: '', cantidadPorKit: 2 },
+      { articuloId: 'NOPLAN', articuloCodigo: 'X', articuloDescripcion: '', cantidadPorKit: 1 }] },
+    { id: 'KIT2', codigo: 'OTRO', kitComponentes: [{ articuloId: 'NOPLAN', articuloCodigo: 'X', articuloDescripcion: '', cantidadPorKit: 1 }] },
+  ], new Set(['SELLO']));
+  assert.deepEqual(planos.map(k => [k.codigo, k.componentes.length]), [['G1313-68709', 1]]);
+}
+
+console.log('✅ planificacionInsumos: OK (incluye kits)');

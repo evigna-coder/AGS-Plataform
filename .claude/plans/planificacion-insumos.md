@@ -115,3 +115,6 @@ Decisiones de implementación:
 - Importación en curso resta del pendiente de su OC (no se cuenta dos veces).
 - Preventivo = `/preventiv/i` sobre `tipoServicio` (OT, agenda) y `tipoServicioNombre` (contrato).
 - `comprar` = faltante máximo del horizonte (ceil); `mesQuiebre` = primer mes en negativo.
+
+## Kits (2026-09-30, working tree)
+El motor conoce los kits de compra (`kitComponentes`): los kits disponibles sin explotar suman a sus componentes (`stockEnKits`), las líneas de OC/importación de un kit se traducen a componentes (`IngresoPrevisto.viaKit`) y la compra sugerida se expresa también en kits (`FilaPlan.kits[].comprarKits`, redondeo arriba; varios kits = opciones). `articulosService.getKits()` (query `kitComponentes != []`, 6 docs) + `kitsPlanDesdeArticulos`. Caso real cubierto en test: G1313-87201 dentro de G1313-68709. Límite conocido: un kit consumido entero sin explotar queda en el historial como consumo del kit, no del componente.
