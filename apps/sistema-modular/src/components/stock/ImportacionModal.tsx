@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { INCOTERMS, derivarEstadoImportacion, ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 import { useImportacionForm, type ImportacionPrefill } from '../../hooks/useImportacionForm';
-import { computeCosteoImportacion } from '../../utils/costeoImportacion';
+import { computeCosteoImportacion, COURIER_PROCESAMIENTO_PCT, COURIER_IIBB_PCT } from '../../utils/costeoImportacion';
 import { factorDeItem } from '../../utils/importacionRecepcion';
 import { envasePedido } from '../../utils/envaseUnidad';
 import type { CostoLineaImportacion } from '../../services/stockService';
@@ -31,6 +31,14 @@ interface Props {
 
 const lbl = 'block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-0.5';
 const ctrl = 'w-full text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500';
+/**
+ * Campo pendiente de completar (2026-09-30): amarillo tenue mientras está vacío,
+ * para ver de un vistazo qué falta cargar en la importación. Solo se marcan los
+ * datos que hacen avanzar el circuito (fechas, TC, guía, despacho, valor en
+ * aduana, VEP, giro); notas, ajustes y campos opcionales quedan como están.
+ */
+const pend = (v: string | number | null | undefined, aplica = true): string =>
+  aplica && (v === '' || v == null) ? ' !bg-amber-50 !border-amber-300' : '';
 
 /**
  * Costo por unidad BASE de cada línea (2026-09-17): por línea y no por artículo,
@@ -67,11 +75,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     tipoCambio: h.form.tipoCambio ? Number(h.form.tipoCambio) : null,
     paseEurUsd: h.form.paseEurUsd ? Number(h.form.paseEurUsd) : null,
     esCourier: h.form.esCourier,
+    courierProcesamientoPct: h.form.courierProcesamientoPct ? Number(h.form.courierProcesamientoPct) : null,
+    courierIibbPct: h.form.courierIibbPct ? Number(h.form.courierIibbPct) : null,
     derechosDespacho: h.form.derechosDespacho ? Number(h.form.derechosDespacho) : null,
     estadisticaDespacho: h.form.estadisticaDespacho ? Number(h.form.estadisticaDespacho) : null,
   }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado,
     h.form.monedaFleteDeclarado, h.form.monedaSeguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd, h.form.esCourier,
-    h.form.derechosDespacho, h.form.estadisticaDespacho]);
+    h.form.courierProcesamientoPct, h.form.courierIibbPct, h.form.derechosDespacho, h.form.estadisticaDespacho]);
 
   const handleSave = async () => {
     const id = await h.save(costeo.costoTotalARS, costeo.factorEmbarque);
@@ -372,6 +382,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               {ESTADO_IMPORTACION_LABELS[estadoLive]}
             </span>
             <span className="text-[10px] text-slate-400">· automático según embarque / despacho / recepción</span>
+            <span className="ml-auto text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5">Amarillo = pendiente de completar</span>
           </div>
 
           {/* OC + proveedor */}
@@ -387,13 +398,13 @@ No se van a poder ingresar mas unidades por este embarque.`,
 
           {/* Datos de la operación */}
           <div className="grid grid-cols-3 gap-3">
-            <Input inputSize="sm" label="Fecha de carga" type="date" value={h.form.fechaEmbarque} onChange={e => h.set('fechaEmbarque', e.target.value)} />
-            <Input inputSize="sm" label="Fecha de arribo" type="date" value={h.form.fechaEstimadaArribo} onChange={e => h.set('fechaEstimadaArribo', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de carga" className={pend(h.form.fechaEmbarque)} type="date" value={h.form.fechaEmbarque} onChange={e => h.set('fechaEmbarque', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de arribo" className={pend(h.form.fechaEstimadaArribo)} type="date" value={h.form.fechaEstimadaArribo} onChange={e => h.set('fechaEstimadaArribo', e.target.value)} />
             <Input inputSize="sm" label="Arribo real (confirmado)" type="date" value={h.form.fechaArriboReal} onChange={e => h.set('fechaArriboReal', e.target.value)} />
             <div>
               <label className={lbl}>Tipo de cambio (ARS/USD)</label>
               <div className="flex gap-1">
-                <input type="number" className={ctrl} value={h.form.tipoCambio} onFocus={selectAll} onChange={e => h.set('tipoCambio', e.target.value)} placeholder="0.00" />
+                <input type="number" className={ctrl + pend(h.form.tipoCambio)} value={h.form.tipoCambio} onFocus={selectAll} onChange={e => h.set('tipoCambio', e.target.value)} placeholder="0.00" />
                 <button type="button" title="Traer mayorista comprador BNA" onClick={() => void h.fetchTC()}
                   className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">↻</button>
               </div>
@@ -409,7 +420,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               <div>
                 <label className={lbl}>Pase EUR→USD (USD/EUR)</label>
                 <div className="flex gap-1">
-                  <input type="number" step="0.0001" className={ctrl} value={h.form.paseEurUsd} onFocus={selectAll} onChange={e => h.set('paseEurUsd', e.target.value)} placeholder="1.0800" />
+                  <input type="number" step="0.0001" className={ctrl + pend(h.form.paseEurUsd)} value={h.form.paseEurUsd} onFocus={selectAll} onChange={e => h.set('paseEurUsd', e.target.value)} placeholder="1.0800" />
                   <button type="button" title="Sugerir pase (cross oficial)" onClick={() => void h.fetchPase()}
                     className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">↻</button>
                 </div>
@@ -422,7 +433,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
             )}
             <div>
               <label className={lbl}>Incoterm</label>
-              <Select className="w-full" value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
+              <Select className={'w-full' + pend(h.form.incoterm)} value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
                 <option value="">—</option>
                 {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
               </Select>
@@ -432,7 +443,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               {/* Proveedores con categoría "Despachante de aduanas"
                   (2026-08-07) — antes era una lista fija en el código. El valor
                   ya cargado se conserva aunque el proveedor no esté migrado. */}
-              <Select className="w-full" value={h.form.despachante} onChange={e => h.set('despachante', e.target.value)}>
+              <Select className={'w-full' + pend(h.form.despachante, !h.form.esCourier)} value={h.form.despachante} onChange={e => h.set('despachante', e.target.value)}>
                 <option value="">—</option>
                 {h.form.despachante && !h.despachantes.some(d => d.nombre === h.form.despachante) && (
                   <option value={h.form.despachante}>{h.form.despachante}</option>
@@ -444,7 +455,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
             <div>
               <label className={lbl}>Régimen</label>
               <label className="flex items-center gap-1.5 cursor-pointer h-[30px]"
-                title="Courier (puerta a puerta): paga derechos de la posición arancelaria e IVA. NO paga IVA adicional, percepción de ganancias ni ingresos brutos.">
+                title="Courier (puerta a puerta): paga derechos de la posición arancelaria, IVA, el procesamiento de aranceles del courier y la percepción de IIBB. NO paga estadística, IVA adicional ni ganancias.">
                 <input type="checkbox" checked={h.form.esCourier}
                   onChange={e => h.set('esCourier', e.target.checked)}
                   className="w-3.5 h-3.5 accent-teal-600" />
@@ -455,7 +466,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               <label className={lbl}>Agente de carga</label>
               {nuevoAgente === null ? (
                 <div className="flex gap-1">
-                  <Select className="w-full" value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
+                  <Select className={'w-full' + pend(h.form.agenteCarga)} value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
                     <option value="">—</option>
                     {h.form.agenteCarga && !h.agentes.some(a => a.nombre === h.form.agenteCarga) && (
                       <option value={h.form.agenteCarga}>{h.form.agenteCarga}</option>
@@ -477,10 +488,22 @@ No se van a poder ingresar mas unidades por este embarque.`,
                 </div>
               )}
             </div>
-            <Input inputSize="sm" label="N° de guía" value={h.form.numeroGuia} onFocus={selectAll} onChange={e => h.set('numeroGuia', e.target.value)} />
-            <Input inputSize="sm" label="Despacho N°" value={h.form.despachoNumero} onFocus={selectAll} onChange={e => h.set('despachoNumero', e.target.value)} />
-            <Input inputSize="sm" label="Fecha de despacho" type="date" value={h.form.fechaDespacho} onChange={e => h.set('fechaDespacho', e.target.value)} />
-            <Input inputSize="sm" label="Fecha de recepción" type="date" value={h.form.fechaRecepcion} onChange={e => h.set('fechaRecepcion', e.target.value)} />
+            <Input inputSize="sm" label="N° de guía" className={pend(h.form.numeroGuia)} value={h.form.numeroGuia} onFocus={selectAll} onChange={e => h.set('numeroGuia', e.target.value)} />
+            <Input inputSize="sm" label="Despacho N°" className={pend(h.form.despachoNumero, !h.form.esCourier)} value={h.form.despachoNumero} onFocus={selectAll} onChange={e => h.set('despachoNumero', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de despacho" className={pend(h.form.fechaDespacho, !h.form.esCourier)} type="date" value={h.form.fechaDespacho} onChange={e => h.set('fechaDespacho', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de recepción" className={pend(h.form.fechaRecepcion)} type="date" value={h.form.fechaRecepcion} onChange={e => h.set('fechaRecepcion', e.target.value)} />
+            {/* Courier (2026-09-30): alícuotas de los dos cargos del courier, con
+                los defaults verificados contra la factura DHL. Vacío = default. */}
+            {h.form.esCourier && (
+              <>
+                <Input inputSize="sm" label="Procesamiento courier (% s/ derechos + IVA)" type="number" step="0.01" min="0"
+                  value={h.form.courierProcesamientoPct} onFocus={selectAll} onChange={e => h.set('courierProcesamientoPct', e.target.value)}
+                  placeholder={`${COURIER_PROCESAMIENTO_PCT}`} />
+                <Input inputSize="sm" label="Percepción IIBB courier (% s/ derechos + proc.)" type="number" step="0.01" min="0"
+                  value={h.form.courierIibbPct} onFocus={selectAll} onChange={e => h.set('courierIibbPct', e.target.value)}
+                  placeholder={`${COURIER_IIBB_PCT} (Bs.As. 1,75 + CABA 3,50)`} />
+              </>
+            )}
           </div>
 
           {/* Según despacho (2026-09-16): derechos y estadística REALES en USD.
@@ -512,7 +535,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               <div>
                 <label className={lbl}>Flete declarado</label>
                 <div className="flex gap-1">
-                  <input type="number" className={ctrl} value={h.form.fleteDeclarado} onFocus={selectAll}
+                  <input type="number" className={ctrl + pend(h.form.fleteDeclarado)} value={h.form.fleteDeclarado} onFocus={selectAll}
                     onChange={e => h.set('fleteDeclarado', e.target.value)} placeholder="0.00" />
                   <Select className="w-full w-24" value={h.form.monedaFleteDeclarado}
                     onChange={e => h.set('monedaFleteDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
@@ -526,7 +549,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               <div>
                 <label className={lbl}>Seguro declarado</label>
                 <div className="flex gap-1">
-                  <input type="number" className={ctrl} value={h.form.seguroDeclarado} onFocus={selectAll}
+                  <input type="number" className={ctrl + pend(h.form.seguroDeclarado)} value={h.form.seguroDeclarado} onFocus={selectAll}
                     onChange={e => h.set('seguroDeclarado', e.target.value)} placeholder="0.00" />
                   <Select className="w-full w-24" value={h.form.monedaSeguroDeclarado}
                     onChange={e => h.set('monedaSeguroDeclarado', e.target.value as 'ARS' | 'USD' | 'EUR' | '')}>
@@ -557,7 +580,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
               </label>
             </div>
             <div className="grid grid-cols-4 gap-3 items-start">
-              <Input inputSize="sm" label="N° VEP" value={h.form.vepNumero} onFocus={selectAll} onChange={e => h.set('vepNumero', e.target.value)} />
+              <Input inputSize="sm" label="N° VEP" className={pend(h.form.vepNumero)} value={h.form.vepNumero} onFocus={selectAll} onChange={e => h.set('vepNumero', e.target.value)} />
               <div>
                 <div className="flex items-end justify-between">
                   <label className={lbl}>Monto VEP (tributos)</label>
@@ -566,7 +589,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
                       className="text-[10px] text-teal-600 hover:underline mb-0.5">↻ tributos</button>
                   )}
                 </div>
-                <input type="number" className={ctrl} value={h.form.vepMonto} onFocus={selectAll} onChange={e => h.set('vepMonto', e.target.value)} placeholder="0.00" />
+                <input type="number" className={ctrl + pend(h.form.vepMonto)} value={h.form.vepMonto} onFocus={selectAll} onChange={e => h.set('vepMonto', e.target.value)} placeholder="0.00" />
                 {vepDesactualizado ? (
                   <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-1 mt-0.5">
                     Los tributos recalculados dan <span className="font-mono font-semibold">{h.form.vepMoneda} {fmtN(vepSugerido!)}</span>.
@@ -586,7 +609,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
                   <option value="USD">USD</option>
                 </Select>
               </div>
-              <Input inputSize="sm" label="Fecha pago VEP" type="date" value={h.form.vepFechaPago} onChange={e => h.set('vepFechaPago', e.target.value)} />
+              <Input inputSize="sm" label="Fecha pago VEP" className={pend(h.form.vepFechaPago)} type="date" value={h.form.vepFechaPago} onChange={e => h.set('vepFechaPago', e.target.value)} />
             </div>
           </div>
 
@@ -620,7 +643,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
                       className="text-[10px] text-teal-600 hover:underline mb-0.5">↻ saldo</button>
                   )}
                 </div>
-                <input type="number" className={ctrl} value={h.form.giroMonto} onFocus={selectAll} onChange={e => h.set('giroMonto', e.target.value)} placeholder="0.00" />
+                <input type="number" className={ctrl + pend(h.form.giroMonto)} value={h.form.giroMonto} onFocus={selectAll} onChange={e => h.set('giroMonto', e.target.value)} placeholder="0.00" />
                 {valorFactura > 0 && (
                   <p className="text-[10px] text-slate-400 mt-0.5">Factura {h.monedaOC} {fmtN(valorFactura)} → saldo {fmtN(giroSugerido)}</p>
                 )}
@@ -633,7 +656,7 @@ No se van a poder ingresar mas unidades por este embarque.`,
                   <option value="ARS">ARS</option>
                 </Select>
               </div>
-              <Input inputSize="sm" label="Fecha estimada de giro" type="date" value={h.form.giroFechaEstimada} onChange={e => h.set('giroFechaEstimada', e.target.value)} />
+              <Input inputSize="sm" label="Fecha estimada de giro" className={pend(h.form.giroFechaEstimada)} type="date" value={h.form.giroFechaEstimada} onChange={e => h.set('giroFechaEstimada', e.target.value)} />
             </div>
           </div>
 

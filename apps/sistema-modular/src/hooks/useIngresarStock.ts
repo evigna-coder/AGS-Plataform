@@ -97,6 +97,8 @@ export function useIngresarStock() {
         // ingresar (estadística + IIBB + financiero de percepciones que no
         // existen): las unidades quedaban ~9% sobrevaluadas vs el panel.
         esCourier: imp.esCourier ?? null,
+        courierProcesamientoPct: imp.courierProcesamientoPct ?? null,
+        courierIibbPct: imp.courierIibbPct ?? null,
         // Según despacho (2026-09-16): si están cargados, el factor que queda
         // en las unidades ya es el real.
         derechosDespacho: imp.derechosDespacho ?? null,

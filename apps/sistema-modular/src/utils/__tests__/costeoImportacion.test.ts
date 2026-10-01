@@ -116,24 +116,56 @@ cerca('base imponible', costeo.lineas[0].cif + costeo.derechos + costeo.estadist
   assert.ok(costeo.factorEmbarque > 1, 'el factor de importación siempre supera 1');
 }
 
-// ── Courier: sin estadística ni percepciones ───────────────────────────────
+// ── Courier: factura DHL 0396A00607679 (guía 1259109014, 28/09/2026) ──────
+// FOB USD 2.784,00 · flete 4,30 · seguro 27,88 → valor en aduana 2.816,18.
+// Derechos 354,84 (12,6 %) · procesamiento 30,62 · IVA 672,34 · percepción
+// IIBB 20,24 (Bs.As. 1,75 % + CABA 3,50 %) · total a pagar USD 1.078,04.
+// Antes el motor omitía el procesamiento y la percepción y sumaba un arancel
+// SIM que el courier no cobra: ~USD 57 de diferencia en cada VEP.
 {
-  const courier = computeCosteoImportacion({
-    items,
-    articulosById: new Map([['art-1', { ...articulo, tratamientoArancelario: { ...articulo.tratamientoArancelario, estadistica: 3 } } as Articulo]]),
+  const dhl = computeCosteoImportacion({
+    items: [{
+      id: 'it-dhl', articuloId: 'art-dhl', articuloCodigo: '05990-65420B', descripcion: 'Repuestos HPLC (courier)',
+      cantidadPedida: 1, precioUnitario: 2784, moneda: 'USD',
+    }] as unknown as ItemImportacion[],
+    articulosById: new Map([['art-dhl', {
+      id: 'art-dhl', codigo: '05990-65420B', posicionArancelaria: '9027.90.99.900G',
+      tratamientoArancelario: { derechoImportacion: 12.6, estadistica: 3, iva: 21, ivaAdicional: 20, ganancias: 6, ingresosBrutos: 3.4165 },
+    } as unknown as Articulo]]),
     gastos: [],
-    monedaBase: 'EUR',
-    fleteDeclarado: 60, monedaFlete: 'USD',
-    seguroDeclarado: 119.61, monedaSeguro: 'EUR',
-    tipoCambio: 1503,
-    paseEurUsd: PASE,
+    monedaBase: 'USD',
+    fleteDeclarado: 4.30, monedaFlete: 'USD',
+    seguroDeclarado: 27.88, monedaSeguro: 'USD',
+    tipoCambio: 1525.5,
     esCourier: true,
   });
-  cerca('courier: sin estadística', courier.estadistica, 0);
-  cerca('courier: sin IVA adicional', courier.ivaAdicional, 0);
-  cerca('courier: sin ganancias', courier.ganancias, 0);
-  cerca('courier: sin ingresos brutos', courier.iibb, 0);
-  assert.ok(courier.derechos > 0 && courier.iva > 0, 'courier sí tributa derechos e IVA');
+  cerca('courier: valor en aduana', dhl.cifTotal, 2816.18);
+  cerca('courier: derechos', dhl.derechos, 354.84);
+  cerca('courier: sin estadística', dhl.estadistica, 0);
+  cerca('courier: procesamiento de aranceles (3 % s/ derechos + IVA)', dhl.procesamientoCourier, 30.62);
+  cerca('courier: IVA (incl. el del procesamiento)', dhl.iva, 672.34);
+  cerca('courier: percepción IIBB (5,25 % s/ derechos + procesamiento)', dhl.iibb, 20.24);
+  cerca('courier: sin IVA adicional', dhl.ivaAdicional, 0);
+  cerca('courier: sin ganancias', dhl.ganancias, 0);
+  cerca('courier: sin arancel SIM', dhl.arancelSim, 0);
+  cerca('courier: TOTAL a pagar = factura DHL', dhl.totalGravamenes, 1078.04);
+  cerca('courier: erogación total = CIF + factura', dhl.costoTotal, 2816.18 + 1078.04);
+  // El procesamiento y la percepción son costo; el IVA no (solo su 3 % financiero).
+  cerca('courier: costo computable', dhl.costoComputable, 2816.18 + 354.84 + 30.62 + 20.24 + 672.34 * 0.03);
+  cerca('courier: alícuotas por default', dhl.courierProcesamientoPct, 3);
+  cerca('courier: alícuotas por default (IIBB)', dhl.courierIibbPct, 5.25);
+  const suma = dhl.lineas.reduce((a, l) => a + l.procesamientoCourier + l.iibb, 0);
+  cerca('courier: procesamiento + IIBB = suma de las líneas', suma, dhl.procesamientoCourier + dhl.iibb);
+
+  // Las alícuotas se pueden pisar por importación (courier o jurisdicción distinta).
+  const pisado = computeCosteoImportacion({
+    items, articulosById: new Map([['art-1', articulo]]), gastos: [],
+    monedaBase: 'EUR', fleteDeclarado: 60, monedaFlete: 'USD', seguroDeclarado: 119.61, monedaSeguro: 'EUR',
+    tipoCambio: 1503, paseEurUsd: PASE, esCourier: true, courierProcesamientoPct: 0, courierIibbPct: 0,
+  });
+  cerca('courier: alícuotas en cero anulan los cargos', pisado.procesamientoCourier + pisado.iibb, 0);
+  cerca('courier: con cargos en cero el IVA es el 21 % de la base', pisado.iva, (pisado.cifTotal + pisado.derechos) * 0.21);
+  assert.ok(pisado.derechos > 0 && pisado.iva > 0, 'courier sí tributa derechos e IVA');
 }
 
 // ── Según despacho (2026-09-16): el real (USD) reemplaza al estimado, prorrateado ──
@@ -160,4 +192,4 @@ cerca('base imponible', costeo.lineas[0].cif + costeo.derechos + costeo.estadist
 }
 
 if (fallos > 0) { console.error(`\n❌ costeoImportacion: ${fallos} fallo(s)`); process.exit(1); }
-console.log('✅ costeoImportacion: 27 checks OK (contrastado contra el despacho 26001IC04780007)');
+console.log('✅ costeoImportacion: 40 checks OK (despacho 26001IC04780007 + factura DHL 0396A00607679)');

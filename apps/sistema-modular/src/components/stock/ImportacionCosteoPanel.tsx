@@ -4,6 +4,7 @@ interface Props {
   costeo: CosteoImportacion;
 }
 
+const fmtPct = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 const fmt = (n: number, m: string) => `${m} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const th = 'text-[9px] font-mono uppercase tracking-wide text-slate-400 py-1.5 px-2';
 
@@ -17,13 +18,16 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
     ['Valor en aduana (CIF)', costeo.cifTotal],
     [`Derechos de importación${segun(costeo.derechosSegunDespacho)}`, costeo.derechos],
     ...(costeo.esCourier ? [] : [[`Tasa de estadística${segun(costeo.estadisticaSegunDespacho)}`, costeo.estadistica] as [string, number]]),
-    ['IVA', costeo.iva],
-    ...(costeo.esCourier ? [] : [
+    ...(costeo.esCourier ? [[`Procesamiento de aranceles del courier (${fmtPct(costeo.courierProcesamientoPct)} % s/ derechos + IVA)`, costeo.procesamientoCourier] as [string, number]] : []),
+    [costeo.esCourier ? 'IVA (incl. IVA del procesamiento)' : 'IVA', costeo.iva],
+    ...(costeo.esCourier ? [
+      [`Percepción de ingresos brutos (${fmtPct(costeo.courierIibbPct)} % s/ derechos + procesamiento)`, costeo.iibb] as [string, number],
+    ] : [
       ['IVA adicional', costeo.ivaAdicional] as [string, number],
       ['Ganancias', costeo.ganancias] as [string, number],
       ['Ingresos brutos', costeo.iibb] as [string, number],
+      ['Arancel SIM (fijo por despacho)', costeo.arancelSim] as [string, number],
     ]),
-    ['Arancel SIM (fijo por despacho)', costeo.arancelSim],
     ['Gastos reales (flete/seguro local, agente, despachante…)', costeo.gastosReales],
   ];
 
@@ -31,8 +35,9 @@ export const ImportacionCosteoPanel: React.FC<Props> = ({ costeo }) => {
     <div className="space-y-3">
       {costeo.esCourier && (
         <p className="text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-md px-2 py-1.5">
-          <span className="font-semibold">Régimen courier</span> — tributa solo derechos de la posición arancelaria e IVA.
-          No se calculan tasa de estadística, IVA adicional, percepción de ganancias ni ingresos brutos.
+          <span className="font-semibold">Régimen courier</span> — tributa derechos de la posición arancelaria e IVA, más el
+          procesamiento de aranceles del courier (gravado) y la percepción de ingresos brutos. No se calculan tasa de
+          estadística, IVA adicional, ganancias ni arancel SIM.
         </p>
       )}
       {/* Detalle por artículo: posición arancelaria + alícuotas (para verificar la definición) */}

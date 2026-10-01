@@ -25,6 +25,14 @@
       ]
     },
     {
+      "collectionGroup": "requerimientos_compra",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "articuloId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "mailQueue",
       "queryScope": "COLLECTION",
       "fields": [

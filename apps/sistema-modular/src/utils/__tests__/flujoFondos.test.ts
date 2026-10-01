@@ -47,6 +47,18 @@ const byTipo = (imp: Importacion, tipo: string) => buildEventos([imp]).find(e =>
   assert.equal(byTipo(recibida, 'vep').pagado, true, 'recibida sigue implicando VEP pagado');
 }
 
+// ── Courier: el VEP (factura del courier) NO se infiere pagado por el estado ──
+// Se paga después de recibir; solo la confirmación explícita lo saca de pendientes.
+{
+  const courierRecibida = base({ estado: 'recibido', esCourier: true });
+  assert.equal(byTipo(courierRecibida, 'vep').pagado, false, 'courier recibida: VEP sigue pendiente');
+  assert.equal(byTipo(courierRecibida, 'arribo').pagado, true, 'courier recibida: el arribo sí ocurrió');
+  const { vencidos, proximos } = pagosPendientes(buildEventos([courierRecibida]), '2026-09-10');
+  assert.deepEqual([...vencidos, ...proximos].map(e => e.tipo), ['vep', 'giro'], 'courier: VEP y giro siguen en Pagos VEP');
+  const courierPagada = base({ estado: 'recibido', esCourier: true, vepPagado: true });
+  assert.equal(byTipo(courierPagada, 'vep').pagado, true, 'courier: confirmado a mano sí sale');
+}
+
 // ── Giros en euros unificados a USD al pase declarado ───────────────────────
 {
   const enEuros = base({ giroMonto: 1000, giroMoneda: 'EUR', paseEurUsd: 1.08 });
@@ -94,4 +106,4 @@ const byTipo = (imp: Importacion, tipo: string) => buildEventos([imp]).find(e =>
   assert.equal(filtrarEventosPorTipo(evs, '').length, 4, 'todo');
 }
 
-console.log('✓ flujoFondos: oficializada saca VEP/arribo de pendientes; giros EUR unificados a USD al pase; vistas semanal/quincenal/mensual y filtro por tipo');
+console.log('✓ flujoFondos: oficializada saca VEP/arribo de pendientes (courier no: su VEP espera confirmación); giros EUR unificados a USD al pase; vistas semanal/quincenal/mensual y filtro por tipo');

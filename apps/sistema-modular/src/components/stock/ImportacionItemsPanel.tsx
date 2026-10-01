@@ -35,6 +35,8 @@ export function ImportacionItemsPanel({ imp, articulosById }: Props) {
     tipoCambio: imp.tipoCambio,
     paseEurUsd: imp.paseEurUsd,
     esCourier: imp.esCourier,
+    courierProcesamientoPct: imp.courierProcesamientoPct ?? null,
+    courierIibbPct: imp.courierIibbPct ?? null,
     derechosDespacho: imp.derechosDespacho ?? null,
     estadisticaDespacho: imp.estadisticaDespacho ?? null,
   }), [imp, articulosById, monedaEmbarque]);

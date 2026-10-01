@@ -36,6 +36,19 @@ import type { ItemImportacion, GastoImportacion, Articulo } from '@ags/shared';
 /** % de costo financiero aplicado sobre (IVA + IVA adic. + Ganancias) recuperables. */
 export const COSTO_FINANCIERO_PCT = 3;
 
+/**
+ * Régimen courier (2026-09-30): los dos cargos que el courier factura además
+ * de derechos e IVA, verificados contra la factura DHL 0396A00607679:
+ *   - Procesamiento de aranceles e impuestos ("duty tax processing"):
+ *     3 % sobre (derechos + IVA). Es un servicio del courier, gravado con IVA.
+ *   - Percepción de ingresos brutos: 1,75 % Bs.As. + 3,50 % CABA = 5,25 %
+ *     sobre (derechos + procesamiento).
+ * Son los defaults; cada importación puede pisarlos (`courierProcesamientoPct`,
+ * `courierIibbPct`) si el courier o las jurisdicciones cambian.
+ */
+export const COURIER_PROCESAMIENTO_PCT = 3;
+export const COURIER_IIBB_PCT = 5.25;
+
 export interface LineaCosteoItem {
   itemId: string;
   descripcion: string;
@@ -59,13 +72,19 @@ export interface LineaCosteoItem {
   ivaAdicional: number;
   ganancias: number;
   iibb: number;
+  /** Courier: procesamiento de aranceles del courier (0 en régimen general). */
+  procesamientoCourier: number;
   gravamenes: number;
   costoComputable: number;  // costo real para stock (sin IVA/percep. recuperables)
   factor: number;           // costoComputable / FOB
 }
 
 export interface CosteoImportacion {
-  esCourier: boolean;         // régimen courier: sin percepciones (IVA adic./ganancias/IIBB)
+  esCourier: boolean;         // régimen courier: sin estadística, IVA adic. ni ganancias; con procesamiento + percepción IIBB
+  /** Courier: procesamiento de aranceles del courier y las alícuotas aplicadas. */
+  procesamientoCourier: number;
+  courierProcesamientoPct: number;
+  courierIibbPct: number;
   moneda: string;             // moneda del costo: siempre 'USD' (canónica)
   monedaEmbarque: string;     // moneda original del embarque (USD/EUR) — para mostrar el origen
   paseEurUsd: number | null;  // pase USD/EUR aplicado (solo si monedaEmbarque==='EUR')
@@ -131,15 +150,22 @@ export function computeCosteoImportacion(input: {
   paseEurUsd?: number | null;
   /** Régimen courier (puerta a puerta): sin percepciones. Ver `esCourier` abajo. */
   esCourier?: boolean | null;
+  /** Courier: alícuotas del procesamiento y de la percepción IIBB (null = default). */
+  courierProcesamientoPct?: number | null;
+  courierIibbPct?: number | null;
   /** Derechos y estadística según despacho, en USD (ver Importacion.derechosDespacho). */
   derechosDespacho?: number | null;
   estadisticaDespacho?: number | null;
 }): CosteoImportacion {
   // Régimen COURIER (regla del dueño 2026-08-06/07): SOLO tributa los derechos
   // de la posición arancelaria y el IVA. NO paga tasa de estadística, IVA
-  // adicional, percepción de ganancias ni ingresos brutos — sin importar lo que
-  // diga el tratamiento arancelario del artículo.
+  // adicional ni percepción de ganancias — sin importar lo que diga el
+  // tratamiento arancelario del artículo. Sí paga (2026-09-30) el procesamiento
+  // de aranceles del courier (gravado con IVA) y la percepción de IIBB sobre
+  // derechos + procesamiento; no paga arancel SIM (no hay despacho propio).
   const esCourier = input.esCourier === true;
+  const procPct = (input.courierProcesamientoPct ?? COURIER_PROCESAMIENTO_PCT) / 100;
+  const iibbCourierPct = (input.courierIibbPct ?? COURIER_IIBB_PCT) / 100;
   const monedaEmbarque = input.monedaBase || 'USD';
   const tc = input.tipoCambio && input.tipoCambio > 0 ? input.tipoCambio : null; // ARS/USD
   const pase = input.paseEurUsd && input.paseEurUsd > 0 ? input.paseEurUsd : null; // USD/EUR
@@ -199,20 +225,25 @@ export function computeCosteoImportacion(input: {
     const derechos = derechosReal != null ? repartir(derechosReal, derechosEst, derechosEstTotal, peso) : derechosEst;
     const estadistica = estadisticaReal != null ? repartir(estadisticaReal, estadisticaEst, estadisticaEstTotal, peso) : estadisticaEst;
     const baseImponible = cif + derechos + estadistica;
-    const iva = baseImponible * pct(trat?.iva, DEFAULTS.iva);
-    // Percepciones: no aplican en courier.
+    const ivaPctItem = pct(trat?.iva, DEFAULTS.iva);
+    const ivaBase = baseImponible * ivaPctItem;
+    // Courier: el procesamiento del courier se calcula sobre derechos + IVA y
+    // lleva IVA propio (por eso el IVA de la factura supera el 21 % de la base).
+    const procesamientoCourier = esCourier ? (derechos + ivaBase) * procPct : 0;
+    const iva = ivaBase + procesamientoCourier * ivaPctItem;
+    // Percepciones: en courier solo la de IIBB, sobre derechos + procesamiento.
     const ivaAdicional = esCourier ? 0 : baseImponible * pct(trat?.ivaAdicional, DEFAULTS.ivaAdicional);
     const ganancias = esCourier ? 0 : baseImponible * pct(trat?.ganancias, DEFAULTS.ganancias);
-    const iibb = esCourier ? 0 : baseImponible * pct(trat?.ingresosBrutos, DEFAULTS.ingresosBrutos);
-    const gravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb;
+    const iibb = esCourier ? (derechos + procesamientoCourier) * iibbCourierPct : baseImponible * pct(trat?.ingresosBrutos, DEFAULTS.ingresosBrutos);
+    const gravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb + procesamientoCourier;
 
     // Costo computable (para stock): no recuperables + IIBB + 3% financiero sobre lo recuperable.
     const costoFinanciero = (iva + ivaAdicional + ganancias) * finPct;
     const gastosRealesItem = peso * gastosReales;
     // El arancel SIM es fijo del despacho: se prorratea por valor, como los
-    // gastos, para que el factor de cada artículo lo absorba.
-    const arancelSimItem = peso * ARANCEL_SIM_USD;
-    const costoComputable = cif + derechos + estadistica + iibb + gastosRealesItem + arancelSimItem + costoFinanciero;
+    // gastos, para que el factor de cada artículo lo absorba. Courier no tiene.
+    const arancelSimItem = esCourier ? 0 : peso * ARANCEL_SIM_USD;
+    const costoComputable = cif + derechos + estadistica + iibb + procesamientoCourier + gastosRealesItem + arancelSimItem + costoFinanciero;
     const factor = fob > 0 ? costoComputable / fob : 0;
 
     return {
@@ -226,7 +257,7 @@ export function computeCosteoImportacion(input: {
       ivaPct: trat?.iva ?? DEFAULTS.iva,
       sinTratamiento: !trat,
       fob, cif, derechos, estadistica, derechosEstimados: derechosEst, estadisticaEstimada: estadisticaEst,
-      iva, ivaAdicional, ganancias, iibb, gravamenes,
+      iva, ivaAdicional, ganancias, iibb, procesamientoCourier, gravamenes,
       costoComputable, factor,
     };
   });
@@ -238,10 +269,11 @@ export function computeCosteoImportacion(input: {
   const ivaAdicional = sum(l => l.ivaAdicional);
   const ganancias = sum(l => l.ganancias);
   const iibb = sum(l => l.iibb);
+  const procesamientoCourier = sum(l => l.procesamientoCourier);
   // El arancel SIM es fijo por despacho: se suma a los gravámenes (es parte de
   // lo que se paga a la aduana) pero NO integra ninguna base imponible.
-  const arancelSim = ARANCEL_SIM_USD;
-  const totalGravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb + arancelSim;
+  const arancelSim = esCourier ? 0 : ARANCEL_SIM_USD;
+  const totalGravamenes = derechos + estadistica + iva + ivaAdicional + ganancias + iibb + procesamientoCourier + arancelSim;
 
   const cifTotal = fobTotal + adicionalCif;
   const costoTotal = cifTotal + totalGravamenes + gastosReales;
@@ -252,7 +284,7 @@ export function computeCosteoImportacion(input: {
   const factorEmbarque = fobTotal > 0 ? costoComputable / fobTotal : 0;
 
   return {
-    esCourier,
+    esCourier, procesamientoCourier, courierProcesamientoPct: procPct * 100, courierIibbPct: iibbCourierPct * 100,
     moneda: 'USD', monedaEmbarque, paseEurUsd: pase, tipoCambio: tc,
     fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
     derechos, estadistica, iva, ivaAdicional, ganancias, iibb, arancelSim,

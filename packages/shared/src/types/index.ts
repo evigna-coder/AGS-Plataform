@@ -6154,6 +6154,13 @@ export interface Importacion extends TandaFotos {
    * ganancias e ingresos brutos quedan en cero. El costeo lo contempla.
    */
   esCourier?: boolean | null;
+  /**
+   * Courier (2026-09-30): alícuotas del procesamiento de aranceles del courier
+   * (3 % s/ derechos + IVA) y de la percepción IIBB (5,25 % s/ derechos +
+   * procesamiento). Null = defaults del costeo.
+   */
+  courierProcesamientoPct?: number | null;
+  courierIibbPct?: number | null;
   // Costeo
   gastos: GastoImportacion[];
   /** Tipo de cambio ARS por USD (mayorista BNA / Com. A 3500, del día del despacho). El costeo se hace en USD. */

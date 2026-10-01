@@ -108,7 +108,13 @@ export function buildEventos(importaciones: Importacion[], pagosManuales: PagoEx
     // El giro NO se infiere del estado: la condición de pago puede vencer meses
     // después de recibir (UAT 2026-07-16) — solo el flag o la cancelación.
     const oficializada = OFICIALIZADO.has(imp.estado);
-    const vepPagado = imp.vepPagado === true || oficializada;
+    // Courier (2026-09-30): no hay VEP de AFIP sino una factura del courier
+    // (DHL) que se paga DESPUÉS de recibir la mercadería. Oficializada o
+    // recibida no implica pagada: el "VEP" del courier sale de pendientes solo
+    // cuando alguien lo confirma. Antes desaparecía al marcar recibida, justo
+    // cuando la plata todavía estaba por pagarse.
+    const esCourier = imp.esCourier === true;
+    const vepPagado = imp.vepPagado === true || (oficializada && !esCourier);
     const giroPagado = imp.giroPagado === true || imp.estado === 'cancelado';
     const arriboOcurrido = oficializada || !!toFecha(imp.fechaArriboReal);
     const vepFecha = toFecha(imp.vepFechaPago);

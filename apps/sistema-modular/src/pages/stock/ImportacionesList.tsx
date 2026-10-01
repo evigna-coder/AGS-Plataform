@@ -4,6 +4,7 @@ import { ImportacionModal } from '../../components/stock/ImportacionModal';
 import { ImportacionItemsPanel } from '../../components/stock/ImportacionItemsPanel';
 import { useArticulosImportacionesExpandidas } from '../../hooks/useArticulosImportacionesExpandidas';
 import { ImportacionAccionCell } from '../../components/stock/ImportacionAccionCell';
+import { DondeVieneBuscador } from '../../components/stock/DondeVieneBuscador';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -107,6 +108,8 @@ export const ImportacionesList = () => {
               className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-600" />
             Ver finalizadas
           </label>
+          {/* ¿Dónde viene? (2026-09-30): buscar un artículo y ver cada importación, OC y tanda donde está, sin sumar. */}
+          <div className="ml-auto"><DondeVieneBuscador /></div>
         </div>
       </PageHeader>
 

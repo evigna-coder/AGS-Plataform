@@ -10,8 +10,10 @@ import { notify } from '../../utils/notify';
  * exterior. Con la impo oficializada (despacho declarado) o recibida el arribo
  * y el VEP se dan por ocurridos (misma heurística que el flujo de fondos: la
  * aduana no oficializa sin el VEP pagado), así que solo puede quedar el giro.
- * Cada confirmación estampa la fecha efectiva y saca el evento de los
- * pendientes de Pagos VEP.
+ * Excepción courier (2026-09-30): su "VEP" es la factura del courier y se paga
+ * DESPUÉS de recibir, así que con la impo recibida el paso VEP sigue pendiente
+ * hasta confirmarlo a mano. Cada confirmación estampa la fecha efectiva y saca
+ * el evento de los pendientes de Pagos VEP.
  */
 type PasoConfirmacion = { key: 'arribo' | 'vep' | 'giro'; label: string };
 
@@ -19,7 +21,7 @@ export const proximaConfirmacion = (imp: Importacion): PasoConfirmacion | null =
   if (imp.estado === 'cancelado') return null;
   const oficializada = imp.estado === 'despachado' || imp.estado === 'recibido';
   if (!imp.fechaArriboReal && !oficializada) return { key: 'arribo', label: 'Confirmar arribo' };
-  if (imp.vepPagado !== true && !oficializada) return { key: 'vep', label: 'Confirmar VEP' };
+  if (imp.vepPagado !== true && (!oficializada || imp.esCourier === true)) return { key: 'vep', label: 'Confirmar VEP' };
   if (imp.giroPagado !== true) return { key: 'giro', label: 'Confirmar giro' };
   return null;
 };
