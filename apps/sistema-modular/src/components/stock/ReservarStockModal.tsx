@@ -3,11 +3,9 @@ import { unidadesService } from '../../services/stockService';
 import { useReservaStock } from '../../hooks/useReservaStock';
 import { Modal } from '../ui/Modal';
 import type { UnidadStock } from '@ags/shared';
+import type { ArticuloAReservar } from '../../utils/reservaManual';
 
-interface StockItem {
-  articuloId: string;
-  descripcion: string;
-}
+type StockItem = ArticuloAReservar;
 
 interface Props {
   presupuestoId: string;
@@ -26,19 +24,35 @@ export function ReservarStockModal(props: Props) {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loadingUnidades, setLoadingUnidades] = useState(false);
   const { reservar, loading: reservando } = useReservaStock();
+  // Cuánto reservar (2026-10-01): antes se reservaba la unidad entera y un lote
+  // de 50 quedaba todo para el cliente aunque pidiera 20. Se propone lo que falta.
+  const [yaReservadas, setYaReservadas] = useState(0);
+  const [cantidad, setCantidad] = useState('');
 
   useEffect(() => {
     if (!selectedItem) return;
     setLoadingUnidades(true);
-    unidadesService
-      .getAll({ articuloId: selectedItem.articuloId, estado: 'disponible' })
-      .then(setUnidades)
+    Promise.all([
+      unidadesService.getAll({ articuloId: selectedItem.articuloId, estado: 'disponible' }),
+      unidadesService.getAll({ articuloId: selectedItem.articuloId, estado: 'reservado' }),
+    ])
+      .then(([disp, res]) => {
+        setUnidades(disp);
+        const ya = res.filter(u => u.reservadoParaPresupuestoId === props.presupuestoId).reduce((a, u) => a + (u.cantidad ?? 1), 0);
+        setYaReservadas(ya);
+        setCantidad(String(Math.max(selectedItem.necesaria - ya, 0)));
+      })
       .catch(() => setUnidades([]))
       .finally(() => setLoadingUnidades(false));
-  }, [selectedItem]);
+  }, [selectedItem, props.presupuestoId]);
+
+  const faltan = selectedItem ? Math.max(selectedItem.necesaria - yaReservadas, 0) : 0;
+  const pedida = Number(cantidad) || 0;
 
   const handleReservar = async (unidad: UnidadStock) => {
+    if (pedida <= 0) return;
     const ok = await reservar({
+      cantidad: Math.min(pedida, unidad.cantidad ?? 1),
       unidadId: unidad.id,
       unidad,
       presupuestoId: props.presupuestoId,
@@ -98,17 +112,30 @@ export function ReservarStockModal(props: Props) {
           )}
           {!loadingUnidades && unidades.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs text-slate-500 mb-3">Seleccioná una unidad para reservar:</p>
+              <div className="flex items-end justify-between gap-3 mb-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                <p className="text-[11px] text-slate-500">
+                  Pide <b className="text-slate-700">{selectedItem.necesaria}</b> u. · reservadas <b className="text-slate-700">{yaReservadas}</b> · faltan <b className="text-slate-700">{faltan}</b>
+                </p>
+                <label className="text-[10px] font-mono uppercase tracking-wide text-slate-500">
+                  Reservar
+                  <input type="number" min={1} value={cantidad} onChange={e => setCantidad(e.target.value)} onFocus={e => e.target.select()}
+                    className="ml-2 w-20 border border-slate-300 rounded px-2 py-0.5 text-xs font-mono text-right normal-case" />
+                </label>
+              </div>
+              <p className="text-xs text-slate-500 mb-2">Elegí de qué unidad o lote sale:</p>
               {unidades.map((u, idx) => (
                 <button
                   key={u.id}
                   onClick={() => handleReservar(u)}
-                  disabled={reservando}
+                  disabled={reservando || pedida <= 0}
                   className="w-full text-left px-3 py-2.5 rounded-lg border border-slate-200 hover:border-teal-400 hover:bg-teal-50 transition-colors disabled:opacity-50"
                 >
                   <span className="text-xs font-mono text-slate-700">
                     {u.nroSerie ? `Serie: ${u.nroSerie}` : `Unidad #${idx + 1}`}
                   </span>
+                  {(u.cantidad ?? 1) > 1 && (
+                    <span className="text-xs text-slate-500 ml-2">· lote de {u.cantidad} → reserva {Math.min(pedida, u.cantidad ?? 1)}</span>
+                  )}
                   {u.ubicacion.referenciaNombre && (
                     <span className="text-xs text-slate-400 ml-2">— {u.ubicacion.referenciaNombre}</span>
                   )}

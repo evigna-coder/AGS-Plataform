@@ -10,6 +10,8 @@ export interface ReservarParams {
   clienteId: string;
   clienteNombre: string;
   solicitadoPorNombre: string;
+  /** Lotes: cuánto reservar (el resto queda disponible). Sin valor = la unidad entera. */
+  cantidad?: number;
 }
 
 export interface LiberarParams {

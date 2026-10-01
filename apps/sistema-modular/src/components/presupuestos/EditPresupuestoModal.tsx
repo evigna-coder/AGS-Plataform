@@ -18,6 +18,7 @@ import { FactorHistoryButton } from './FactorHistoryButton';
 import { NotasPrecioButton } from './NotasPrecioButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
 import { totalesPorMonedaDeItems } from '@ags/shared';
+import { articulosAReservar } from '../../utils/reservaManual';
 import { SubItemsRow } from './equipos/SubItemsRow';
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
@@ -212,9 +213,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     return () => { cancelled = true; };
   }, [showCargarOC, form.clienteId, presupuestoId]);
 
-  const itemsConStock = (form.items ?? [])
-    .filter(i => i.stockArticuloId)
-    .map(i => ({ articuloId: i.stockArticuloId!, descripcion: i.descripcion }));
+  const itemsConStock = articulosAReservar(form.items ?? []);
 
   const condicionesValues = {
     notasTecnicas: form.notasTecnicas,

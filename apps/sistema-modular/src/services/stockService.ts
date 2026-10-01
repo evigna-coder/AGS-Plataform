@@ -2484,9 +2484,11 @@ export const reservasService = {
     // ese ppto y el retry del cierre no encontraba nada que entregar.
     if (!pres || !['aceptado', 'en_ejecucion', 'pendiente_facturacion'].includes(pres.estado as string)) return { reservadas: 0 };
 
+    // En unidades BASE (2026-10-01): "2 kits de 10" son 20 unidades del pool.
+    // Antes sumaba la cantidad de la línea y reservaba 2.
     const necesarias = (pres.items ?? [])
       .filter(i => i.stockArticuloId === params.articuloId)
-      .reduce((acc, i) => acc + (i.cantidad || 0), 0);
+      .reduce((acc, i) => acc + cantidadEnUnidadBase(i.cantidad || 0, (i as { presentacion?: PresentacionUsada | null }).presentacion ?? null), 0);
     if (necesarias <= 0) return { reservadas: 0 };
 
     const snap = await getDocs(query(
