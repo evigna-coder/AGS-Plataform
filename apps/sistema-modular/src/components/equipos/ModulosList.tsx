@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ModuloSistema, CategoriaModulo } from '@ags/shared';
+import type { ModuloSistema, CategoriaModulo, ReemplazoInsumo } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { ModuloModal } from './ModuloModal';
@@ -23,11 +23,13 @@ export interface ModuloFormData {
   serie: string;
   firmware: string;
   observaciones: string;
+  /** Insumos distintos al habitual (2026-10-01). */
+  reemplazosInsumos: ReemplazoInsumo[];
 }
 
 const emptyForm: ModuloFormData = {
   categoriaModuloId: '', modeloCodigo: '', nombre: '', marca: '',
-  descripcion: '', serie: '', firmware: '', observaciones: '',
+  descripcion: '', serie: '', firmware: '', observaciones: '', reemplazosInsumos: [],
 };
 
 export const ModulosList: React.FC<ModulosListProps> = ({
@@ -57,6 +59,7 @@ export const ModulosList: React.FC<ModulosListProps> = ({
       nombre: modulo.nombre, marca: modulo.marca || '',
       descripcion: modulo.descripcion || '', serie: modulo.serie || '',
       firmware: modulo.firmware || '', observaciones: modulo.observaciones || '',
+      reemplazosInsumos: modulo.reemplazosInsumos ?? [],
     });
     setShowModal(true);
   };
@@ -129,6 +132,16 @@ const ModuloRow: React.FC<{
         {modulo.firmware && <span>FW: <span className="font-medium text-slate-500">{modulo.firmware}</span></span>}
       </div>
       {modulo.observaciones && <p className="text-[11px] text-slate-400 italic mt-1">{modulo.observaciones}</p>}
+      {(modulo.reemplazosInsumos ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {modulo.reemplazosInsumos!.map((r, i) => (
+            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded border border-violet-200 bg-violet-50 text-violet-700"
+              title="La planificación cuenta este insumo en lugar del habitual">
+              usa <span className="font-mono font-semibold">{r.reemplazoCodigo}</span> en lugar de <span className="font-mono">{r.habitualCodigo}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
     <div className="flex gap-1 ml-2 shrink-0">
       {onMove && <button onClick={onMove} className="text-amber-600 hover:bg-amber-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Mover</button>}

@@ -1,3 +1,4 @@
+import { articulosService } from '../../services/stockService';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -180,15 +181,25 @@ export const EquipoDetail = () => {
       serie: clean(form.serie),
       firmware: clean(form.firmware),
       observaciones: clean(form.observaciones),
-      ubicaciones: [],
-      otIds: [],
+      // Solo los completos (habitual y reemplazo elegidos) — 2026-10-01.
+      reemplazosInsumos: form.reemplazosInsumos.filter(r => r.habitualId && r.reemplazoId && r.habitualId !== r.reemplazoId),
     };
+    // El reemplazo también es insumo planificable: si no lo era, se marca.
+    for (const r of data.reemplazosInsumos) {
+      const art = await articulosService.getById(r.reemplazoId).catch(() => null);
+      if (art && !art.planificable) {
+        await articulosService.update(art.id, { planificable: true }).catch(err => console.warn('[EquipoDetail] no se pudo marcar planificable', err));
+        notify.info(`${art.codigo} quedó marcado como insumo planificable`);
+      }
+    }
     try {
       if (editingId) {
         await modulosService.update(id, editingId, data);
         notify.success('Modulo actualizado exitosamente');
       } else {
-        await modulosService.create(id, data);
+        // ubicaciones y otIds vacíos SOLO al crear (2026-10-01): antes también se
+        // mandaban al editar y borraban las OT vinculadas y ubicaciones del módulo.
+        await modulosService.create(id, { ...data, ubicaciones: [], otIds: [] });
         notify.success('Modulo agregado exitosamente');
       }
       await loadData(true);

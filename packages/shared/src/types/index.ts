@@ -742,6 +742,20 @@ export interface ModuloSistema {
   observaciones?: string;
   ubicaciones: Ubicacion[];
   otIds: string[];
+  /**
+   * Insumos distintos al habitual en ESTE módulo (2026-10-01): ej. un G1329A que
+   * trabaja a otra presión e inyecta con la aguja G1313-87202 en lugar de la
+   * G1313-87201. La planificación cuenta el reemplazo en vez del habitual.
+   */
+  reemplazosInsumos?: ReemplazoInsumo[] | null;
+}
+
+export interface ReemplazoInsumo {
+  habitualId: string;
+  habitualCodigo: string;
+  reemplazoId: string;
+  reemplazoCodigo: string;
+  nota?: string | null;
 }
 
 // --- Sistema (equipo padre) ---
@@ -2297,6 +2311,12 @@ export interface CriterioPerfilConsumo {
   ambito: 'modulo' | 'gc' | 'categoria';
   /** `modulo`: prefijo del código de módulo; matchea contra nombre/descripción del módulo. */
   codigoModulo?: string | null;
+  /**
+   * `modulo`: TODOS los modelos que cubre el perfil (2026-10-01, ej. G1312A/B/C).
+   * `codigoModulo` queda con el primero por compatibilidad. Un módulo que coincide
+   * con varios códigos cuenta una sola vez.
+   */
+  codigosModulo?: string[] | null;
   /** `gc`: texto de marca (matchea contra marca de los módulos o el nombre del equipo). Vacío = cualquiera. */
   marca?: string | null;
   /** `gc`: detector requerido (DetectorType). Vacío = cualquiera. */
@@ -6400,7 +6420,7 @@ export interface FotoAdicionalDispositivo {
 
 export interface Dispositivo {
   id: string;
-  /** ID interno AGS (2026-10-01): "AGS-001", lo asigna el usuario (es el de la etiqueta). Único. */
+  /** ID interno (2026-10-01): libre con un guion en el medio ("AGS-B16", "NOT-12"); lo asigna el usuario (etiqueta). Único. */
   codigoInterno?: string | null;
   tipo: TipoDispositivo;
   marca: string;

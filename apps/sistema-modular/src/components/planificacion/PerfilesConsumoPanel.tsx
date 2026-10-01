@@ -7,6 +7,7 @@ import { perfilesConsumoService } from '../../services/perfilesConsumoService';
 import { notify } from '../../utils/notify';
 import { PerfilConsumoModal } from './PerfilConsumoModal';
 import type { ModeloModuloOpcion } from '../../hooks/usePlanificacionInsumos';
+import { codigosDelCriterio } from '../../utils/planificacionInsumos';
 
 interface Props {
   perfiles: PerfilConsumo[];
@@ -25,7 +26,10 @@ interface Props {
 
 function describirCriterio(p: PerfilConsumo, categorias: Props['categorias']): string {
   const c = p.criterio;
-  if (c.ambito === 'modulo') return `Módulo ${c.codigoModulo ?? '?'}`;
+  if (c.ambito === 'modulo') {
+    const cods = codigosDelCriterio(c);
+    return `Módulo${cods.length > 1 ? 's' : ''} ${cods.join(', ') || '?'}`;
+  }
   if (c.ambito === 'categoria') return `Categoría ${categorias.find(x => x.id === c.categoriaId)?.nombre ?? '?'}`;
   return ['GC', c.marca, c.detector && `detector ${c.detector}`, c.inlet && `puerto ${c.inlet}`].filter(Boolean).join(' · ');
 }

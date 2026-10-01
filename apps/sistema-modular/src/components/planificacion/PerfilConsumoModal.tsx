@@ -10,6 +10,8 @@ import { articulosService } from '../../services/stockService';
 import { notify } from '../../utils/notify';
 import type { ModeloModuloOpcion } from '../../hooks/usePlanificacionInsumos';
 import { useFeedbackGuardado } from '../../hooks/useFeedbackGuardado';
+import { codigosDelCriterio } from '../../utils/planificacionInsumos';
+import { CodigosModuloSelector } from './CodigosModuloSelector';
 
 interface Props {
   open: boolean;
@@ -31,7 +33,7 @@ const INLETS: InletType[] = ['SSL', 'COC', 'PTV', 'PP', 'UNIS'];
 const lbl = 'text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-0.5 block';
 const inp = 'w-full border rounded-lg px-2.5 py-1 text-xs bg-white border-slate-300';
 
-const VACIO: CriterioPerfilConsumo = { ambito: 'modulo', codigoModulo: '' };
+const VACIO: CriterioPerfilConsumo = { ambito: 'modulo', codigosModulo: [] };
 
 /**
  * Alta/edición de un perfil de consumo: a qué equipos aplica (módulo, GC por
@@ -63,7 +65,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
   useEffect(() => {
     if (!open) return;
     setNombre(perfil?.nombre ?? '');
-    setCriterio(perfil?.criterio ?? VACIO);
+    // Perfiles viejos con un solo código: se abren como lista de uno.
+    setCriterio(perfil ? { ...perfil.criterio, codigosModulo: codigosDelCriterio(perfil.criterio) } : VACIO);
     setItems(perfil?.items ?? []);
     setNotas(perfil?.notas ?? '');
     setActivo(perfil?.activo ?? true);
@@ -80,7 +83,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
   const setItem = (articuloId: string, patch: Partial<PerfilConsumoItem>) =>
     setItems(prev => prev.map(i => i.articuloId === articuloId ? { ...i, ...patch } : i));
 
-  const criterioValido = criterio.ambito === 'modulo' ? !!criterio.codigoModulo?.trim()
+  const codigos = criterio.codigosModulo ?? [];
+  const criterioValido = criterio.ambito === 'modulo' ? codigos.length > 0
     : criterio.ambito === 'categoria' ? !!criterio.categoriaId
     : !!(criterio.marca?.trim() || criterio.detector || criterio.inlet);
   const puede = nombre.trim().length > 0 && criterioValido && items.length > 0 && items.every(i => i.cantidadPorServicio > 0);
@@ -93,7 +97,8 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
         nombre: nombre.trim(),
         criterio: {
           ambito: criterio.ambito,
-          codigoModulo: criterio.ambito === 'modulo' ? criterio.codigoModulo?.trim().toUpperCase() ?? null : null,
+          codigoModulo: criterio.ambito === 'modulo' ? codigos[0] ?? null : null,
+          codigosModulo: criterio.ambito === 'modulo' ? codigos : null,
           marca: criterio.ambito === 'gc' ? criterio.marca?.trim() || null : null,
           detector: criterio.ambito === 'gc' ? criterio.detector ?? null : null,
           inlet: criterio.ambito === 'gc' ? criterio.inlet ?? null : null,
@@ -153,15 +158,9 @@ export function PerfilConsumoModal({ open, onClose, onSaved, perfil, articulos, 
 
         {criterio.ambito === 'modulo' && (
           <div>
-            <label className={lbl}>Modelo de módulo</label>
-            <SearchableSelect value={criterio.codigoModulo ?? ''} onChange={v => setC('codigoModulo', v)} size="sm" creatable createLabel="Usar código"
-              placeholder="Elegí un modelo (catálogo o cargado en equipos)…"
-              options={modelosModulo.map(m => ({
-                value: m.codigo,
-                label: `${m.codigo} · ${m.descripcion}`,
-                subLabel: [m.marca, m.enEquipos > 0 ? `${m.enEquipos} en equipos` : 'solo catálogo'].filter(Boolean).join(' · '),
-              }))} />
-            <p className="text-[10px] text-slate-400 mt-1">Aplica a todo módulo cuyo nombre o descripción empiece con ese código: G1311 cubre G1311A y G1311B. Dos módulos iguales consumen el doble.</p>
+            <label className={lbl}>Modelos de módulo</label>
+            <CodigosModuloSelector value={codigos} onChange={v => setC('codigosModulo', v)} modelosModulo={modelosModulo} />
+            <p className="text-[10px] text-slate-400 mt-1">Podés sumar varios modelos (G1312A, G1312B, G1312C). Cada código cubre los módulos cuyo nombre o descripción empiece con él: G1311 cubre G1311A y G1311B. Dos módulos iguales consumen el doble.</p>
           </div>
         )}
         {esGc && (

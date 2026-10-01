@@ -228,4 +228,38 @@ const base: EntradaMotor = {
   assert.deepEqual(planos.map(k => [k.codigo, k.componentes.length]), [['G1313-68709', 1]]);
 }
 
+// ── Reemplazos por módulo (2026-10-01): G1329A que inyecta con otra aguja ────
+{
+  const perfAguja = [perfil('inyector', { ambito: 'modulo', codigoModulo: 'G1329' }, [['AGUJA-201', 1], ['ROTOR', 1]])];
+  const normal = { sistemaId: 'S1', nombre: 'G1329A', descripcion: 'ALS' };
+  const altaPresion = { ...normal, reemplazosInsumos: [{ habitualId: 'AGUJA-201', habitualCodigo: 'G1313-87201', reemplazoId: 'AGUJA-202', reemplazoCodigo: 'G1313-87202' }] };
+  const r1 = consumoPorServicio(hplc, [normal], perfAguja);
+  assert.equal(r1.consumo.get('AGUJA-201'), 1, 'sin reemplazo: la aguja habitual');
+  const r2 = consumoPorServicio(hplc, [altaPresion], perfAguja);
+  assert.equal(r2.consumo.get('AGUJA-202'), 1, 'con reemplazo: la de 900 bar');
+  assert.equal(r2.consumo.has('AGUJA-201'), false, 'y no la habitual');
+  assert.equal(r2.consumo.get('ROTOR'), 1, 'lo demás no cambia');
+  assert.ok(r2.perfiles.some(x => x.includes('G1313-87202 en lugar de G1313-87201')), 'el detalle lo explica');
+  // Dos inyectores en el mismo equipo, solo uno con reemplazo: 1 y 1.
+  const r3 = consumoPorServicio(hplc, [normal, altaPresion], perfAguja);
+  assert.equal(r3.consumo.get('AGUJA-201'), 1);
+  assert.equal(r3.consumo.get('AGUJA-202'), 1);
+}
+
+// ── Perfil con varios modelos (2026-10-01): G1312A/B/C en un solo perfil ──
+{
+  const multi = [perfil('binarias', { ambito: 'modulo', codigoModulo: 'G1312A', codigosModulo: ['G1312A', 'G1312B', 'G1312C', 'G1312'] }, [['SELLO', 2]])];
+  const mods = [
+    { sistemaId: 'S1', nombre: 'G1312A', descripcion: 'Bomba binaria', marca: 'Agilent' },
+    { sistemaId: 'S1', nombre: 'G1312B', descripcion: 'Bomba binaria SL', marca: 'Agilent' },
+    { sistemaId: 'S1', nombre: 'G1311A', descripcion: 'Bomba cuaternaria', marca: 'Agilent' },
+  ];
+  const r = consumoPorServicio(hplc, mods, multi);
+  // A y B coinciden (con dos códigos cada uno, pero cuentan una vez); la G1311A no.
+  assert.equal(r.consumo.get('SELLO'), 4, 'G1312A + G1312B = 2 + 2');
+  // Perfil viejo con un solo código sigue andando.
+  const viejo = [perfil('viejo', { ambito: 'modulo', codigoModulo: 'G1311' }, [['SELLO', 1]])];
+  assert.equal(consumoPorServicio(hplc, mods, viejo).consumo.get('SELLO'), 1);
+}
+
 console.log('✅ planificacionInsumos: OK (incluye kits)');

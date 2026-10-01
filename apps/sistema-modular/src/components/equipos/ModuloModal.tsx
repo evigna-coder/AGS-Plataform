@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { ModuloFormData } from './ModulosList';
+import { ReemplazosInsumosEditor } from './ReemplazosInsumosEditor';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5';
 
@@ -107,6 +108,7 @@ export const ModuloModal: React.FC<Props> = ({ form, setForm, categoriasModulos,
             placeholder="Ej: bomba tiene canal c anulado..."
           />
         </div>
+        <ReemplazosInsumosEditor value={form.reemplazosInsumos} onChange={v => setForm({ ...form, reemplazosInsumos: v })} />
       </div>
     </Modal>
   );

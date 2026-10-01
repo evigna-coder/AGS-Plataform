@@ -19,7 +19,7 @@
  *    propia (× cantidad por kit), y la compra sugerida se expresa también en kits.
  */
 import { anioDeContrato, cantidadEnUnidadBase } from '@ags/shared';
-import type {
+import type { CriterioPerfilConsumo,
   Articulo, Contrato, ConfiguracionGC, ModuloSistema, PerfilConsumo, PresentacionUsada,
 } from '@ags/shared';
 
@@ -35,7 +35,7 @@ export interface SistemaPlan {
   codigoInternoCliente?: string | null;
 }
 
-export type ModuloPlan = Pick<ModuloSistema, 'sistemaId' | 'nombre' | 'descripcion' | 'marca'>;
+export type ModuloPlan = Pick<ModuloSistema, 'sistemaId' | 'nombre' | 'descripcion' | 'marca' | 'reemplazosInsumos'>;
 
 export interface CategoriaPlan { id: string; nombre: string }
 
@@ -197,6 +197,14 @@ const otCancelada = (ot: OtPlan): boolean => ot.estadoAdmin === 'CANCELADA';
 
 const norm = (s: string | null | undefined): string => (s ?? '').toUpperCase().replace(/\s+/g, '');
 
+/**
+ * Códigos de módulo de un criterio (2026-10-01): la lista `codigosModulo` más el
+ * `codigoModulo` de los perfiles viejos, normalizados y sin repetir.
+ */
+export function codigosDelCriterio(c: Pick<CriterioPerfilConsumo, 'codigoModulo' | 'codigosModulo'>): string[] {
+  return [...new Set([...(c.codigosModulo ?? []), c.codigoModulo].map(norm).filter(Boolean))];
+}
+
 const inletsDe = (cfg?: ConfiguracionGC | null) =>
   [cfg?.puertoInyeccionFront, cfg?.puertoInyeccionBack, cfg?.puertoInyeccionAux].filter(Boolean) as string[];
 const detectoresDe = (cfg?: ConfiguracionGC | null) =>
@@ -214,12 +222,19 @@ export function consumoPorServicio(
 ): { consumo: Map<string, number>; perfiles: string[] } {
   const consumo = new Map<string, number>();
   const usados: string[] = [];
-  const sumar = (perfil: PerfilConsumo, veces: number, puertos: number) => {
+  // Reemplazos del equipo (2026-10-01): "este módulo usa X en lugar de Y". Un
+  // perfil de módulo aplica los reemplazos de ESE módulo; los de GC/categoría
+  // (que no son de un módulo puntual) aplican los de todo el equipo.
+  const reemplazosEquipo = modulos.flatMap(m => m.reemplazosInsumos ?? []);
+  const sumar = (perfil: PerfilConsumo, veces: number, puertos: number, reemplazos = reemplazosEquipo) => {
     if (veces <= 0) return;
     usados.push(perfil.nombre);
     for (const it of perfil.items) {
       const porServicio = it.cantidadPorServicio * (it.porPuerto ? Math.max(puertos, 1) : 1) * veces;
-      consumo.set(it.articuloId, (consumo.get(it.articuloId) ?? 0) + porServicio);
+      const r = reemplazos.find(x => x.habitualId === it.articuloId);
+      if (r) usados.push(`${r.reemplazoCodigo} en lugar de ${r.habitualCodigo}`);
+      const articuloId = r ? r.reemplazoId : it.articuloId;
+      consumo.set(articuloId, (consumo.get(articuloId) ?? 0) + porServicio);
     }
   };
   const inlets = inletsDe(sistema.configuracionGC);
@@ -230,10 +245,14 @@ export function consumoPorServicio(
     if (!p.activo) continue;
     const c = p.criterio;
     if (c.ambito === 'modulo') {
-      const pref = norm(c.codigoModulo);
-      if (!pref) continue;
-      const veces = modulos.filter(m => norm(m.nombre).startsWith(pref) || norm(m.descripcion).includes(pref)).length;
-      sumar(p, veces, inlets.length);
+      const prefs = codigosDelCriterio(c);
+      if (prefs.length === 0) continue;
+      // Módulo por módulo, para que cada uno aplique sus propios reemplazos. Un
+      // módulo que coincide con varios códigos del perfil cuenta una sola vez.
+      const coincide = (x: ModuloPlan) => prefs.some(pref => norm(x.nombre).startsWith(pref) || norm(x.descripcion).includes(pref));
+      for (const m of modulos.filter(coincide)) {
+        sumar(p, 1, inlets.length, m.reemplazosInsumos ?? []);
+      }
     } else if (c.ambito === 'gc') {
       if (c.marca && !marcasEquipo.includes(norm(c.marca))) continue;
       if (c.detector && !detectores.includes(c.detector)) continue;
@@ -244,7 +263,7 @@ export function consumoPorServicio(
       if (c.categoriaId && c.categoriaId === sistema.categoriaId) sumar(p, 1, inlets.length);
     }
   }
-  return { consumo, perfiles: usados };
+  return { consumo, perfiles: [...new Set(usados)] };
 }
 
 // ── Categoría de una OT vieja sin equipo ──────────────────────────────────────

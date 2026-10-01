@@ -9,7 +9,7 @@ import { perfilesConsumoService } from '../services/perfilesConsumoService';
 import { consumiblesPorModuloService } from '../services/consumiblesPorModuloService';
 import { fechaLocalYMD } from '../utils/formatFecha';
 import {
-  ingresosPrevistos, kitsPlanDesdeArticulos, mesesDesde, planificarInsumos,
+  codigosDelCriterio, ingresosPrevistos, kitsPlanDesdeArticulos, mesesDesde, planificarInsumos,
   type EntradaMotor, type ResultadoMotor,
 } from '../utils/planificacionInsumos';
 
@@ -153,7 +153,7 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
             clienteNombre: (cliId && clienteNombre.get(cliId)) || est?.nombre || null,
           };
         }),
-        modulos: modulos.map(m => ({ sistemaId: m.sistemaId, nombre: m.nombre, descripcion: m.descripcion, marca: m.marca })),
+        modulos: modulos.map(m => ({ sistemaId: m.sistemaId, nombre: m.nombre, descripcion: m.descripcion, marca: m.marca, reemplazosInsumos: m.reemplazosInsumos ?? null })),
         categorias: categorias.map(c => ({ id: c.id, nombre: c.nombre })),
         ots: ots.map(ot => ({
           otNumber: ot.otNumber, tipoServicio: ot.tipoServicio,
@@ -184,12 +184,11 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
   // perfil propio activo para el mismo módulo, el del catálogo no se suma.
   // Antes se sumaban los dos y el G1311A contaba 0905-1175 × 4 en vez de × 2.
   const catalogoReemplazado = useMemo(() => {
-    const norm = (s?: string | null) => (s ?? '').trim().toUpperCase();
     const propios = new Set(perfiles
-      .filter(p => p.activo !== false && p.criterio.ambito === 'modulo' && p.criterio.codigoModulo)
-      .map(p => norm(p.criterio.codigoModulo)));
+      .filter(p => p.activo !== false && p.criterio.ambito === 'modulo')
+      .flatMap(p => codigosDelCriterio(p.criterio)));
     return new Set(perfilesCatalogo
-      .filter(p => p.criterio.ambito === 'modulo' && propios.has(norm(p.criterio.codigoModulo)))
+      .filter(p => p.criterio.ambito === 'modulo' && codigosDelCriterio(p.criterio).some(c => propios.has(c)))
       .map(p => p.id));
   }, [perfiles, perfilesCatalogo]);
 
