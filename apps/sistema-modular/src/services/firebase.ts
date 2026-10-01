@@ -67,13 +67,17 @@ export let storage: ReturnType<typeof getStorage>;
 try {
   // Reutilizar instancia existente en HMR (Vite hot-reload)
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  // Cache strategy: MEMORIA por defecto. La persistente (IndexedDB) se probó el
-  // 2026-09-11 (fase 1 de .claude/plans/performance.md) y en Electron dev la app
-  // quedó clavada en "Cargando…" al loguear: la primera lectura del perfil no
-  // volvía. Queda opt-in con VITE_FIRESTORE_CACHE=persistente para medirla en
-  // un entorno controlado (el bloqueo histórico del puerto random ya no existe:
-  // electron/main.cjs usa PREFERRED_PORTS). Si falla, cae a memoria.
-  const cachePersistente = import.meta.env.VITE_FIRESTORE_CACHE === 'persistente';
+  // Cache strategy (2026-09-30): PERSISTENTE (IndexedDB) en builds de producción,
+  // MEMORIA en dev. La persistente se probó el 2026-09-11 (fase 1 de
+  // .claude/plans/performance.md) y en Electron dev la app quedó clavada en
+  // "Cargando…" al loguear: con HMR dos instancias del SDK compartían IndexedDB
+  // ("Target ID already exists"). Eso no pasa en el .exe, y sin caché en disco
+  // cada pantalla volvía a bajar todos sus documentos del servidor en cada
+  // apertura (medido: Asignar material 10.331 unidades / 40 s, agenda 132 s).
+  // Con caché persistente el servidor manda solo los cambios (resume tokens).
+  // Override explícito: VITE_FIRESTORE_CACHE=persistente | memoria.
+  const modoCache = import.meta.env.VITE_FIRESTORE_CACHE as string | undefined;
+  const cachePersistente = modoCache === 'persistente' || (modoCache !== 'memoria' && import.meta.env.PROD);
   try {
     // experimentalAutoDetectLongPolling: el SDK arranca con WebChannel/WebSocket
     // y si detecta que falla (AV/firewall lo intercepta) cae automáticamente a
@@ -89,7 +93,7 @@ try {
         : memoryLocalCache(),
       experimentalAutoDetectLongPolling: true,
     });
-    if (cachePersistente) console.info('[Firestore] caché persistente (VITE_FIRESTORE_CACHE=persistente)');
+    console.info(`[Firestore] caché ${cachePersistente ? 'persistente (IndexedDB)' : 'en memoria'}`);
   } catch (innerErr) {
     console.warn('[Firestore] initializeFirestore falló, fallback a memoria:', innerErr);
     try {

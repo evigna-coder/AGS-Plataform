@@ -137,11 +137,6 @@ export function useAsignacionRapida() {
     setLoading(true);
     try {
       const results = await Promise.allSettled([
-        // Solo lo asignable (2026-09-11): disponibles y reservadas EN POSICIÓN —
-        // es exactamente el filtro de `availableUnits`. Antes bajaba las ~3.400
-        // unidades activas (incluidas las que ya están en campo o en remito) en
-        // cada apertura del modal y en cada recarga tras confirmar.
-        unidadesService.getEnPosicionAsignables(),
         minikitsService.getAll(true),
         instrumentosService.getAll({ activoOnly: true }),
         dispositivosService.getAll(true),
@@ -155,22 +150,37 @@ export function useAsignacionRapida() {
       ]);
       const val = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === 'fulfilled' ? r.value : (console.error('Error cargando:', r.reason), fallback);
-      setUnidades(val(results[0], []));
-      setMinikits(val(results[1], []));
-      setInstrumentos(val(results[2], []));
-      setDispositivos(val(results[3], []));
-      setVehiculos(val(results[4], []));
-      setIngenieros(val(results[5], []));
-      setClientes(val(results[6], []));
-      setPatrones(val(results[7], []));
-      setProveedores(val(results[8], []));
-      setAsignacionesActivas(val(results[9], []));
-      setColumnas(val(results[10], []));
+      setMinikits(val(results[0], []));
+      setInstrumentos(val(results[1], []));
+      setDispositivos(val(results[2], []));
+      setVehiculos(val(results[3], []));
+      setIngenieros(val(results[4], []));
+      setClientes(val(results[5], []));
+      setPatrones(val(results[6], []));
+      setProveedores(val(results[7], []));
+      setAsignacionesActivas(val(results[8], []));
+      setColumnas(val(results[9], []));
     } catch (err) { console.error('Error cargando datos:', err); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Unidades por SUSCRIPCIÓN (2026-09-30), con la misma consulta que la pantalla
+  // Unidades de stock (activo == true): comparte el target y la caché
+  // persistente, así que la apertura es instantánea y el servidor manda solo
+  // los cambios. Antes `getEnPosicionAsignables()` bajaba ~3.400 unidades del
+  // servidor en cada apertura del modal y otra vez tras cada confirmación
+  // (medido: 10.331 docs / 40 s en una sesión). El filtro de asignables sigue
+  // en `availableUnits`; y el listado queda en vivo si otro asigna a la vez.
+  useEffect(() => {
+    const unsub = unidadesService.subscribe(
+      { activoOnly: true },
+      data => setUnidades(data),
+      err => console.error('Error cargando unidades:', err),
+    );
+    return unsub;
+  }, []);
 
   // --- Available items ---
   /**

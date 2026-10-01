@@ -15,6 +15,7 @@ Estado: **Fases 0, 1 y primera tanda de la 2 IMPLEMENTADAS (2026-09-11, en worki
   se precarga). 150 chunks. Caché persistente de Firestore quedó **opt-in** (`VITE_FIRESTORE_CACHE=persistente`):
   en dev con HMR dos instancias del SDK compartían IndexedDB y la app moría en "Cargando…"
   (`Target ID already exists`). Medirla en el `.exe`, no en Vite.
+- **2026-09-30 — caché persistente ACTIVA en producción** (`import.meta.env.PROD`; dev sigue en memoria; override `VITE_FIRESTORE_CACHE=persistente|memoria`). Medición del user en el .exe: Asignar material 10.331 unidades / 40 s, agenda 132 s, presupuestos 111 s — todo re-bajado del servidor en cada apertura. Además: Asignar material lee unidades por suscripción (misma consulta que Unidades de stock) y Unidades de stock baja solo los 12 artículos con envases (`getConPresentaciones`, `presentaciones != []`) en vez del catálogo entero.
 - **Fase 2, primera tanda (2026-09-11, working tree):** línea base tomada con `__agsPerf.pantallas()`
   en dev:modular:electron (tabla del user) y atacados los cuatro peores:
 

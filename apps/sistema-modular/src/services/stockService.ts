@@ -1,10 +1,10 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion , limit } from 'firebase/firestore';
 import { patchRetornoProveedor } from '../utils/loanerCicloRecalificacion';
 import { runTransaction, getCurrentUserTrace } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito, Loaner } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection, PatronLote, Presentacion, UbicacionStock, SalidaAProveedor, CondicionUnidad, EstadoRemito, Loaner, PresentacionUsada } from '@ags/shared';
 import type { ResultadoDeduccionLinea } from '../utils/cierreStockLineas';
 import { costoComponente } from '../utils/kitProrrateo';
-import { computeFichaEstado } from '@ags/shared';
+import { computeFichaEstado, cantidadEnUnidadBase } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache, conCache } from './serviceCache';
 import { clasificarOTParaRemito, estadoRemitoServicioSegunOTs } from '../utils/resolverRemitoServicio';
@@ -244,6 +244,47 @@ export const articulosService = {
       return snap.docs
         .map(d => ({ id: d.id, ...d.data() }) as Articulo)
         .filter(a => a.activo !== false)
+        .sort((a, b) => a.codigo.localeCompare(b.codigo));
+    });
+  },
+
+  /**
+   * Artículos que declaran envases (2026-09-30): son los únicos que necesita la
+   * pantalla Unidades de stock (badge de envases + traducción de una búsqueda
+   * por N° de parte de envase). Antes bajaba el catálogo entero (4.017 docs)
+   * en cada apertura para usar unas decenas. `!=` exige que el campo exista,
+   * así que los artículos sin `presentaciones` quedan afuera solos; null se
+   * filtra acá. Cacheado bajo el prefijo `articulos` (lo invalida cualquier
+   * write de artículo). Si la consulta falla, cae al catálogo completo.
+   */
+  async getConPresentaciones(): Promise<Articulo[]> {
+    return conCache<Articulo[]>('articulos:con-presentaciones', async () => {
+      try {
+        const q = query(collection(db, 'articulos'), where('presentaciones', '!=', []));
+        const snap = await getDocs(q);
+        return snap.docs
+          .map(d => ({ id: d.id, ...d.data() }) as Articulo)
+          .filter(a => a.activo !== false && (a.presentaciones?.length ?? 0) > 0)
+          .sort((a, b) => a.codigo.localeCompare(b.codigo));
+      } catch (err) {
+        console.warn('[articulos] getConPresentaciones cayó al catálogo completo:', err);
+        return (await this.getAll()).filter(a => (a.presentaciones?.length ?? 0) > 0);
+      }
+    });
+  },
+
+  /**
+   * Artículos que son KIT de compra (2026-09-30): `kitComponentes` no vacío.
+   * Son un puñado (6 hoy); la Planificación los necesita para contar los kits
+   * en stock y en camino como oferta de sus componentes.
+   */
+  async getKits(): Promise<Articulo[]> {
+    return conCache<Articulo[]>('articulos:kits', async () => {
+      const q = query(collection(db, 'articulos'), where('kitComponentes', '!=', []));
+      const snap = await getDocs(q);
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }) as Articulo)
+        .filter(a => a.activo !== false && (a.kitComponentes?.length ?? 0) > 0)
         .sort((a, b) => a.codigo.localeCompare(b.codigo));
     });
   },
@@ -2328,6 +2369,44 @@ export const reservasService = {
     // Audit is observational; losing it is acceptable vs. rolling back the reservation.
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: reservadoUnidadId });
     void refrescarAgendaReservas(params.presupuestoId);
+    // Si con esta reserva el presupuesto ya tiene cubierto el artículo, el
+    // requerimiento de compra que quedó vivo se cancela solo (2026-09-30).
+    void this.cerrarRequerimientosCubiertos({ presupuestoId: params.presupuestoId, articuloId: params.unidad.articuloId })
+      .catch(err => console.warn('[reservar] cierre de requerimientos cubiertos falló:', err));
+  },
+
+  /**
+   * Cancela los requerimientos abiertos (pendiente/aprobado, sin OC) de un
+   * presupuesto y artículo cuando lo reservado + entregado para ese presupuesto
+   * ya cubre lo que necesita (2026-09-30). Antes quedaban vivos en la planilla
+   * y se compraba de más (Roemmers REQ-0045, Bernabó REQ-0080/81/82). Con
+   * cobertura parcial no toca nada. Devuelve cuántos canceló.
+   */
+  async cerrarRequerimientosCubiertos(params: { presupuestoId: string; articuloId: string }): Promise<number> {
+    const { presupuestosService } = await import('./presupuestosService');
+    const { requerimientosService } = await import('./importacionesService');
+    const { requerimientosCubiertosPorReserva } = await import('../utils/requerimientosCubiertos');
+    const reqs = (await requerimientosService.getByPresupuesto(params.presupuestoId)).filter(r => r.articuloId === params.articuloId);
+    if (reqs.length === 0) return 0;
+    const pres = await presupuestosService.getById(params.presupuestoId).catch(() => null);
+    const necesarias = (pres?.items ?? [])
+      .filter(i => i.stockArticuloId === params.articuloId || (i as { articuloId?: string | null }).articuloId === params.articuloId)
+      .reduce((acc, i) => acc + cantidadEnUnidadBase(i.cantidad || 0, (i as { presentacion?: PresentacionUsada | null }).presentacion ?? null), 0);
+    const snap = await getDocs(query(
+      collection(db, 'unidades'),
+      where('reservadoParaPresupuestoId', '==', params.presupuestoId),
+      where('articuloId', '==', params.articuloId),
+    ));
+    const cubiertas = snap.docs.map(d => d.data())
+      .filter(u => u.activo !== false && ['reservado', 'entregado', 'consumido'].includes(u.estado))
+      .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+    const { cancelar, motivo } = requerimientosCubiertosPorReserva(reqs, params.presupuestoId, params.articuloId, necesarias, cubiertas);
+    const hoy = new Date().toISOString().slice(0, 10);
+    for (const r of cancelar) {
+      await requerimientosService.update(r.id, { estado: 'cancelado', canceladoPor: 'stock_reservado', motivoCancelacion: motivo, fechaCancelacion: hoy });
+    }
+    if (cancelar.length > 0) console.log(`[cerrarRequerimientosCubiertos] ${cancelar.map(r => r.numero).join(', ')} cancelado(s): ${motivo}`);
+    return cancelar.length;
   },
 
   /**

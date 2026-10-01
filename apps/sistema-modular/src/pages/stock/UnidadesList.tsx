@@ -77,11 +77,12 @@ export const UnidadesList = () => {
   }, []);
   // Presentaciones por artículo (para el badge en la lista). Solo se guardan los que las tienen.
   const [presentacionesByArticulo, setPresentacionesByArticulo] = useState<Map<string, Presentacion[]>>(new Map());
-  // Catálogo completo: además del badge, alimenta el aviso que traduce una
-  // búsqueda por N° de parte de envase (2026-08-13).
+  // Artículos con envases: además del badge, alimentan el aviso que traduce una
+  // búsqueda por N° de parte de envase (2026-08-13). Solo esos (2026-09-30):
+  // antes se bajaba el catálogo entero —4.017 docs— en cada apertura.
   const [articulosCatalogo, setArticulosCatalogo] = useState<Articulo[]>([]);
   useEffect(() => {
-    articulosService.getAll()
+    articulosService.getConPresentaciones()
       .then(arts => {
         const m = new Map<string, Presentacion[]>();
         for (const a of arts) if ((a.presentaciones?.length ?? 0) > 0) m.set(a.id, a.presentaciones!);
