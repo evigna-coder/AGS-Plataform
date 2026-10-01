@@ -1,3 +1,4 @@
+import { codigoVisibleItem } from '../../../../utils/envasePresupuesto';
 import { View, Text } from '@react-pdf/renderer';
 import type { PresupuestoItem, PresupuestoSubItem } from '@ags/shared';
 import { COLORS } from '../pdfStyles';
@@ -30,7 +31,7 @@ function ItemPrincipalRow({ item, numero }: { item: PresupuestoItem; numero: num
   return (
     <View style={{ flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, backgroundColor: COLORS.rowAlt }} wrap={false}>
       <Text style={[cellText, { width: W.item, textAlign: 'center', fontWeight: 700 }]}>{numero}</Text>
-      <Text style={[cellText, { width: W.producto, fontWeight: 700, paddingRight: 4 }]}>{item.codigoProducto || ''}</Text>
+      <Text style={[cellText, { width: W.producto, fontWeight: 700, paddingRight: 4 }]}>{codigoVisibleItem(item) || ''}</Text>
       <Text style={[cellText, { width: W.cantidad, textAlign: 'center' }]}>{fmt(item.cantidad).replace(',00', '')}</Text>
       <Text style={[cellText, { flex: 1, paddingRight: 6, fontWeight: item.codigoProducto ? 400 : 700 }]}>{item.descripcion}</Text>
       <Text style={[cellText, { width: W.precio, textAlign: 'right' }]}>

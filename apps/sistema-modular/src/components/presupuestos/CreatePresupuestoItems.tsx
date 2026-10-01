@@ -1,3 +1,4 @@
+import { codigoVisibleItem } from '../../utils/envasePresupuesto';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
@@ -145,7 +146,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
                 <Fragment key={item.id}>
                 <tr>
                   <td className="px-2 py-1 text-[10px] text-slate-400 font-mono text-center">{etiquetaPorItem.get(item.id) ?? ''}</td>
-                  <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
+                  <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || codigoVisibleItem(item) || '—'}</td>
                   <td className="px-2 py-1">
                     {/* Textarea (2026-08-27): admite interlineado — pegar renglones
                         los conserva y el PDF respeta los saltos de línea. */}

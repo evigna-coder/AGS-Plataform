@@ -1,3 +1,4 @@
+import { codigoVisibleItem } from '../../../../utils/envasePresupuesto';
 import { View, Text } from '@react-pdf/renderer';
 import { cs, COLS_SINGLE, COLS_SIN_PRECIOS, colsMixta } from './pdfContratoStyles';
 import { groupItems, totalsByCurrency, fmtNum, type SistemaGroup } from './pdfContratoHelpers';
@@ -22,7 +23,7 @@ function ItemRow({ item, isMixta, monedas, sinPrecios, monedaFallback }: { item:
           {item.subItem && !item.subItem.startsWith('0') ? item.subItem : '—'}
         </Text>
         <Text style={[...cellStyle, { width: COLS.codigo }] as any}>
-          {item.codigoProducto || '—'}
+          {codigoVisibleItem(item) || '—'}
           {item.servicioCode && (
             <Text style={cs.itemCellMono}>{'\n' + item.servicioCode}</Text>
           )}

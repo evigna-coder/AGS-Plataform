@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto } from '@ags/shared';
+import type { Articulo, PresupuestoItem, CategoriaPresupuesto } from '@ags/shared';
+import { PresupuestoEnvaseCell } from './PresupuestoEnvaseCell';
 import { DISPONIBILIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFields';
@@ -9,6 +10,8 @@ interface PresupuestoItemRowProps {
   /** Etiqueta de la línea ("3" o "2.1"), igual a la del PDF. */
   numero?: string;
   categoriasPresupuesto: CategoriaPresupuesto[];
+  /** Artículo de stock con presentaciones (2026-10-01): habilita elegir el envase. */
+  articulo?: Articulo | null;
   fmtMoney: (n: number) => string;
   taxes: { totalImpuestos: number };
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
@@ -23,7 +26,7 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
 ];
 
 export const PresupuestoItemRow = ({
-  item, numero, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem, rowRef,
+  item, numero, categoriasPresupuesto, articulo, fmtMoney, taxes, onUpdateItem, onRemoveItem, rowRef,
 }: PresupuestoItemRowProps) => {
   // Start expanded if the item already has availability data or a factor set (Phase 16)
   const [showDisp, setShowDisp] = useState(
@@ -39,8 +42,7 @@ export const PresupuestoItemRow = ({
             cliente y AGS hablen del mismo renglón. */}
         <td className="px-2 py-2 text-[10px] font-mono text-slate-400 text-center align-top pt-3">{numero ?? ''}</td>
         <td className="px-2 py-2">
-          <input value={item.codigoProducto || ''} onChange={e => onUpdateItem(item.id, 'codigoProducto', e.target.value || null)}
-            className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />
+          <PresupuestoEnvaseCell item={item} articulo={articulo ?? null} onUpdateItem={onUpdateItem} />
         </td>
         <td className="px-3 py-2">
           {/* Textarea (2026-08-27): la descripción admite interlineado — pegar un

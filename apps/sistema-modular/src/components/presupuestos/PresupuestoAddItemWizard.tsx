@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad, PresentacionUsada, PromedioCostoFactor, Sistema } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Disponibilidad, PresentacionUsada, Sistema } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { MONEDA_SIMBOLO, cantidadEnUnidadBase, promedioCostoFactor } from '@ags/shared';
-import { unidadesService } from '../../services/firebaseService';
+import { MONEDA_SIMBOLO, cantidadEnUnidadBase } from '@ags/shared';
+import { useCostoEnvase } from '../../hooks/useCostoEnvase';
+import { descripcionConEnvase } from '../../utils/envasePresupuesto';
 import { PromedioStockHint } from './PromedioStockHint';
 import { Button } from '../ui/Button';
 import { MoneyInput } from '../ui/MoneyInput';
@@ -60,9 +61,6 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
   const [precio, setPrecio] = useState<number | null>(null);
   const [descuento, setDescuento] = useState(0);
   const [factor, setFactor] = useState<number | null>(null);
-  // Costo y factor promedio del stock vivo del artículo elegido (2026-08-27):
-  // referencia para poner el precio — antes había que ir a Unidades a buscarlo.
-  const [promedio, setPromedio] = useState<PromedioCostoFactor | null>(null);
   // Equipo del ítem (2026-08-27): multi-sistema por ítem — MP+CO de dos equipos.
   const [sistemaSelId, setSistemaSelId] = useState<string>(defaultSistemaId ?? '');
   const [highlightIdx, setHighlightIdx] = useState(0);
@@ -129,20 +127,29 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
 
   const selectResultado = (r: Resultado) => {
     setSel(r);
-    if (r.precio) setPrecio(r.precio);
-    setPromedio(null);
-    if (r.tipo === 'articulo') {
-      unidadesService.getByArticulo(r.refId)
-        .then(us => setPromedio(promedioCostoFactor(us)))
-        .catch(() => {});
-    }
     // Envases del artículo (Fase 3, 2026-08-13): se cotiza por el N° de parte
     // con el que se vende; el stock se compromete en el pool del base.
     const activas = (r.presentaciones ?? []).filter(p => p.activo !== false && p.factor > 0);
     setPresentaciones(activas);
     const buscada = activas.find(p => p.codigoParte.toLowerCase().includes(term.toLowerCase()));
-    setPresentacion(term && buscada ? { codigoParte: buscada.codigoParte, factor: buscada.factor } : null);
+    const envase = term && buscada ? { codigoParte: buscada.codigoParte, factor: buscada.factor } : null;
+    setPresentacion(envase);
+    // El precio es POR ENVASE (2026-10-01): referencia del base × factor.
+    if (r.precio) setPrecio(r.precio * (envase?.factor ?? 1));
     setStep('cantidad');
+  };
+
+  // Costo de referencia del envase elegido (2026-10-01): lo que ingresó en ese envase.
+  const promedio = useCostoEnvase(sel?.tipo === 'articulo' ? sel.refId : null, presentacion);
+
+  // Cambiar de envase reescala el precio si seguía siendo el de referencia.
+  const elegirEnvase = (codigoParte: string) => {
+    const p = presentaciones.find(x => x.codigoParte === codigoParte);
+    const fAnt = presentacion?.factor ?? 1;
+    const fSig = p?.factor ?? 1;
+    const ref = sel?.precio ?? 0;
+    setPrecio(prev => (ref && prev === ref * fAnt ? ref * fSig : prev));
+    setPresentacion(p ? { codigoParte: p.codigoParte, factor: p.factor } : null);
   };
   const selectLibre = () => {
     if (!search.trim()) return;
@@ -155,8 +162,10 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
     if (!sel) return;
     const catDefault = findCategoriaIvaDefaultId(categoriasPresupuesto);
     const sistemaSel = (sistemas ?? []).find(s => s.id === sistemaSelId) ?? null;
+    // Con envase, la descripción lo nombra ("… — Kit x 1000", 2026-10-01).
+    const envaseSel = presentacion ? presentaciones.find(p => p.codigoParte === presentacion.codigoParte) ?? presentacion : null;
     const base: Partial<PresupuestoItem> = {
-      descripcion: sel.descripcion,
+      descripcion: sel.tipo === 'articulo' ? descripcionConEnvase(sel.descripcion, envaseSel) : sel.descripcion,
       codigoProducto: sel.codigo,
       cantidad: cantidad || 1,
       precioUnitario: precio ?? 0,
@@ -287,10 +296,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
                 <Select
                   className="w-full" selectSize="md"
                   value={presentacion?.codigoParte ?? ''}
-                  onChange={e => {
-                    const p = presentaciones.find(x => x.codigoParte === e.target.value);
-                    setPresentacion(p ? { codigoParte: p.codigoParte, factor: p.factor } : null);
-                  }}
+                  onChange={e => elegirEnvase(e.target.value)}
                 >
                   <option value="">{sel?.codigo ?? 'Unidad base'} — unidad base (×1)</option>
                   {presentaciones.map(p => (

@@ -1,5 +1,6 @@
-import { Fragment, useRef, useState } from 'react';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, TipoPresupuesto, Sistema } from '@ags/shared';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import type { Articulo, Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, TipoPresupuesto, Sistema } from '@ags/shared';
+import { articulosService } from '../../services/firebaseService';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -68,6 +69,10 @@ export const PresupuestoItemsTable = ({
   itemsByGrupo, getGrupo, sistemas, renderSubRow,
 }: PresupuestoItemsTableProps) => {
   const [showWizard, setShowWizard] = useState(false);
+  // Artículos con presentaciones, para elegir el envase en cada línea (2026-10-01).
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
+  const articuloPorId = useMemo(() => new Map(articulos.filter(a => (a.presentaciones?.length ?? 0) > 0).map(a => [a.id, a])), [articulos]);
   // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
   // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -145,6 +150,7 @@ export const PresupuestoItemsTable = ({
     rowItems.map(item => (
       <Fragment key={item.id}>
         <PresupuestoItemRow item={item} numero={etiquetaPorItem.get(item.id)} categoriasPresupuesto={categoriasPresupuesto}
+          articulo={item.stockArticuloId ? articuloPorId.get(item.stockArticuloId) ?? null : null}
           rowRef={item.id === ultimoItemId ? lastRowRef : undefined}
           fmtMoney={fmtMoney} taxes={calculateItemTaxes(item)} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
         {renderSubRow?.(item, items.findIndex(i => i.id === item.id) + 1)}

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, PromedioCostoFactor, Sistema, Presentacion } from '@ags/shared';
-import { MONEDA_SIMBOLO, promedioCostoFactor, cantidadEnUnidadBase } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Articulo, Sistema, Presentacion } from '@ags/shared';
+import { MONEDA_SIMBOLO, cantidadEnUnidadBase } from '@ags/shared';
 import { Select } from '../ui/Select';
-import { unidadesService } from '../../services/firebaseService';
 import { PromedioStockHint } from './PromedioStockHint';
+import { useCostoEnvase } from '../../hooks/useCostoEnvase';
+import { cambiarEnvase, descripcionConEnvase } from '../../utils/envasePresupuesto';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -70,7 +71,6 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
   const [presentaciones, setPresentaciones] = useState<Presentacion[]>([]);
   const [disponibilidadTouched, setDisponibilidadTouched] = useState(false);
   const [atpHint, setAtpHint] = useState<{ atp: number } | null>(null);
-  const [promedio, setPromedio] = useState<PromedioCostoFactor | null>(null);
   const prevArticuloId = useRef<string | null | undefined>(undefined);
   // Loop de teclado del modo inline (paridad con el wizard — pedido 2026-07-30):
   // buscar → cantidad → Enter agrega → el foco VUELVE al buscador.
@@ -102,7 +102,6 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
     setPresentaciones([]);
     setDisponibilidadTouched(false);
     setAtpHint(null);
-    setPromedio(null);
     prevArticuloId.current = undefined;
   };
 
@@ -114,13 +113,6 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
     const clave = artId ? `${artId}|${envase ?? ''}` : null;
     if (clave === prevArticuloId.current) return;
     prevArticuloId.current = clave;
-    // Costo/factor promedio del stock vivo (2026-08-27): referencia de precio.
-    setPromedio(null);
-    if (artId) {
-      unidadesService.getByArticulo(artId)
-        .then(us => { if (prevArticuloId.current === clave) setPromedio(promedioCostoFactor(us)); })
-        .catch(() => {});
-    }
     if (disponibilidadTouched) return;
     if (!artId) { setAtpHint(null); return; }
     let cancelled = false;
@@ -165,9 +157,17 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
     ];
   }, [conceptosServicio, articulos]);
 
+  // Costo de referencia del ENVASE cotizado (2026-10-01): lo que ingresó en ese
+  // envase, no el promedio mezclado de todo el stock.
+  const promedio = useCostoEnvase(item.stockArticuloId, item.presentacion);
+  const articuloSel = articulos.find(a => a.id === item.stockArticuloId) ?? null;
+
+  // Cambiar de envase convierte cantidad y precio (mismas unidades base, mismo
+  // importe) y actualiza la descripción si era la de defecto (2026-10-01).
   const elegirEnvase = (codigoParte: string) => {
     const p = presentaciones.find(x => x.codigoParte === codigoParte) ?? null;
-    setItem(prev => ({ ...prev, presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null }));
+    setItem(prev => ({ ...prev, ...(articuloSel ? cambiarEnvase(prev as PresupuestoItem, p, articuloSel)
+      : { presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null }) }));
   };
 
   const applySeleccion = (v: string) => {
@@ -198,8 +198,9 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
         // el envase va aparte y el PDF imprime su N° de parte.
         codigoProducto: a.codigo || prev.codigoProducto || null,
         presentacion: p ? { codigoParte: p.codigoParte, factor: p.factor } : null,
-        descripcion: prev.descripcion || (p?.descripcion || a.descripcion),
-        precioUnitario: prev.precioUnitario || a.precioReferencia || 0,
+        descripcion: prev.descripcion || descripcionConEnvase(a.descripcion, p),
+        // El precio es POR ENVASE: la referencia del base × factor.
+        precioUnitario: prev.precioUnitario || (a.precioReferencia ? a.precioReferencia * (p?.factor ?? 1) : 0),
         categoriaPresupuestoId: prev.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
       }));
     } else {
@@ -269,9 +270,17 @@ export function PresupuestoAddItemCompleto({ conceptosServicio, categoriasPresup
       <div className={inline ? 'grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3' : 'space-y-3'}>
         <div>
           <label className={lbl}>Código artículo</label>
-          {/* Gris + mono como en el wizard: es un dato de referencia, no el foco de la carga. */}
-          <input value={item.codigoProducto || ''} onChange={e => setItem(prev => ({ ...prev, codigoProducto: e.target.value }))}
-            className={`${inp} font-mono text-slate-500`} placeholder="Ej: G1312-60067" />
+          {/* Con envase (2026-10-01) se ve y se imprime el código del envase; el
+              del base queda debajo (es el que usan stock y requerimientos). */}
+          {item.presentacion ? (
+            <div className={`${inp} font-mono text-slate-700 bg-white`} title="Código con el que se cotiza e imprime">
+              {item.presentacion.codigoParte}
+              <span className="text-[10px] text-slate-400"> · ×{item.presentacion.factor} de {item.codigoProducto}</span>
+            </div>
+          ) : (
+            <input value={item.codigoProducto || ''} onChange={e => setItem(prev => ({ ...prev, codigoProducto: e.target.value }))}
+              className={`${inp} font-mono text-slate-500`} placeholder="Ej: G1312-60067" />
+          )}
           {/* Envase cotizado (2026-09-17): el precio es POR ENVASE; el stock se
               compromete en unidades base. */}
           {presentaciones.length > 0 && (
