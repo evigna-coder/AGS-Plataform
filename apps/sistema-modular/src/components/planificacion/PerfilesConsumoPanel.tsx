@@ -12,6 +12,8 @@ interface Props {
   perfiles: PerfilConsumo[];
   /** Derivados de `consumibles_por_modulo`: se muestran pero se editan en su catálogo. */
   perfilesCatalogo: PerfilConsumo[];
+  /** Ids del catálogo que no se suman porque hay perfil propio del mismo módulo. */
+  catalogoReemplazado: Set<string>;
   articulos: Articulo[];
   categorias: Array<{ id: string; nombre: string }>;
   modelosModulo: ModeloModuloOpcion[];
@@ -29,7 +31,7 @@ function describirCriterio(p: PerfilConsumo, categorias: Props['categorias']): s
 }
 
 /** Lista de perfiles de consumo con alta, edición y baja. */
-export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, categorias, modelosModulo, marcas, onChanged, onPlanificablesChanged }: Props) {
+export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, catalogoReemplazado, articulos, categorias, modelosModulo, marcas, onChanged, onPlanificablesChanged }: Props) {
   const [editando, setEditando] = useState<PerfilConsumo | null | undefined>(undefined); // undefined = cerrado, null = nuevo
 
   const borrar = async (p: PerfilConsumo) => {
@@ -43,19 +45,19 @@ export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, ca
     }
   };
 
-  const Fila = ({ p, soloLectura }: { p: PerfilConsumo; soloLectura?: boolean }) => (
-    <div className={`grid grid-cols-[1fr_220px_1fr_auto] gap-3 items-center px-3 py-2 border-b border-slate-100 ${p.activo ? '' : 'opacity-50'}`}>
+  const Fila = ({ p, soloLectura, reemplazado }: { p: PerfilConsumo; soloLectura?: boolean; reemplazado?: boolean }) => (
+    <div className={`grid grid-cols-[1fr_220px_1fr_auto] gap-3 items-center px-3 py-2 border-b border-slate-100 ${p.activo && !reemplazado ? '' : 'opacity-50'}`}>
       <div className="min-w-0">
         <p className="text-xs font-medium text-slate-800 truncate">{p.nombre}{!p.activo && <span className="ml-1 text-[9px] font-mono uppercase text-slate-400">inactivo</span>}</p>
         {p.notas && <p className="text-[10px] text-slate-400 truncate">{p.notas}</p>}
       </div>
       <span className="text-[11px] text-slate-500 truncate">{describirCriterio(p, categorias)}</span>
-      <span className="text-[11px] font-mono text-slate-600 truncate" title={p.items.map(i => `${i.articuloCodigo} × ${i.cantidadPorServicio}${i.porPuerto ? '/puerto' : ''}`).join('\n')}>
+      <span className={`text-[11px] font-mono text-slate-600 truncate ${reemplazado ? 'line-through' : ''}`} title={p.items.map(i => `${i.articuloCodigo} × ${i.cantidadPorServicio}${i.porPuerto ? '/puerto' : ''}`).join('\n')}>
         {p.items.map(i => `${i.articuloCodigo}×${i.cantidadPorServicio}${i.porPuerto ? 'p' : ''}`).join(' · ')}
       </span>
       <div className="flex gap-1 justify-end">
         {soloLectura ? (
-          <span className="text-[10px] text-slate-400 italic">catálogo de módulos</span>
+          <span className="text-[10px] text-slate-400 italic">{reemplazado ? 'no se suma: hay perfil propio' : 'catálogo de módulos'}</span>
         ) : (
           <>
             <Button variant="ghost" size="sm" onClick={() => setEditando(p)}>Editar</Button>
@@ -88,7 +90,7 @@ export function PerfilesConsumoPanel({ perfiles, perfilesCatalogo, articulos, ca
                 <div className="px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[10px] font-mono uppercase tracking-wide text-slate-400">
                   Desde el catálogo de consumibles por módulo (solo códigos planificables)
                 </div>
-                {perfilesCatalogo.map(p => <Fila key={p.id} p={p} soloLectura />)}
+                {perfilesCatalogo.map(p => <Fila key={p.id} p={p} soloLectura reemplazado={catalogoReemplazado.has(p.id)} />)}
               </>
             )}
           </>

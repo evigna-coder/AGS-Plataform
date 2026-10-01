@@ -180,14 +180,28 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
     return () => { vivo = false; };
   }, [version]);
 
+  // El catálogo de consumibles por módulo es RESPALDO (2026-10-01): si hay un
+  // perfil propio activo para el mismo módulo, el del catálogo no se suma.
+  // Antes se sumaban los dos y el G1311A contaba 0905-1175 × 4 en vez de × 2.
+  const catalogoReemplazado = useMemo(() => {
+    const norm = (s?: string | null) => (s ?? '').trim().toUpperCase();
+    const propios = new Set(perfiles
+      .filter(p => p.activo !== false && p.criterio.ambito === 'modulo' && p.criterio.codigoModulo)
+      .map(p => norm(p.criterio.codigoModulo)));
+    return new Set(perfilesCatalogo
+      .filter(p => p.criterio.ambito === 'modulo' && propios.has(norm(p.criterio.codigoModulo)))
+      .map(p => p.id));
+  }, [perfiles, perfilesCatalogo]);
+
   const resultado = useMemo<ResultadoMotor | null>(() => {
     if (!datos) return null;
     const hoy = hoyYMD();
     const agenda = [...datos.agendaPorAnio.values()].flat();
     const { agendaPorAnio: _a, ...resto } = datos;
     void _a;
-    return planificarInsumos({ ...resto, hoy, horizonteMeses, agenda, perfiles: [...perfiles, ...perfilesCatalogo] });
-  }, [datos, perfiles, perfilesCatalogo, horizonteMeses]);
+    return planificarInsumos({ ...resto, hoy, horizonteMeses, agenda,
+      perfiles: [...perfiles, ...perfilesCatalogo.filter(p => !catalogoReemplazado.has(p.id))] });
+  }, [datos, perfiles, perfilesCatalogo, catalogoReemplazado, horizonteMeses]);
 
-  return { resultado, articulos, perfiles, perfilesCatalogo, categorias: datos?.categorias ?? [], modelosModulo: opciones.modelos, marcas: opciones.marcas, loading, error, recargar, recargarPerfiles };
+  return { resultado, articulos, perfiles, perfilesCatalogo, catalogoReemplazado, categorias: datos?.categorias ?? [], modelosModulo: opciones.modelos, marcas: opciones.marcas, loading, error, recargar, recargarPerfiles };
 }
