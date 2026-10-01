@@ -107,6 +107,9 @@ const OCList = pagina(() => import('../../pages/stock').then(m => m.OCList));
 const OCEditor = pagina(() => import('../../pages/stock').then(m => m.OCEditor));
 const OCDetail = pagina(() => import('../../pages/stock').then(m => m.OCDetail));
 const ImportacionesList = pagina(() => import('../../pages/stock').then(m => m.ImportacionesList));
+// Presupuestador de comex (2026-10-01): dentro de Importaciones, sin entrada en el menú.
+const PresupuestosComexList = pagina(() => import('../../pages/stock').then(m => m.PresupuestosComexList));
+const PresupuestoComexEditor = pagina(() => import('../../pages/stock').then(m => m.PresupuestoComexEditor));
 const PagosVEPPage = pagina(() => import('../../pages/stock').then(m => m.PagosVEPPage));
 const ImportacionEditor = pagina(() => import('../../pages/stock').then(m => m.ImportacionEditor));
 const ImportacionDetail = pagina(() => import('../../pages/stock').then(m => m.ImportacionDetail));
@@ -295,6 +298,8 @@ function AppRoutes() {
       <Route path="/stock/importaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionesList /></ProtectedRoute>} />
       <Route path="/stock/pagos-vep" element={<ProtectedRoute modulo="pagos"><PagosVEPPage /></ProtectedRoute>} />
       <Route path="/entregas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><EntregasList /></ProtectedRoute>} />
+      <Route path="/stock/importaciones/comex" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestosComexList /></ProtectedRoute>} />
+      <Route path="/stock/importaciones/comex/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestoComexEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionDetail /></ProtectedRoute>} />
       <Route path="/stock/ingenieros" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><IngenierosPage /></ProtectedRoute>} />

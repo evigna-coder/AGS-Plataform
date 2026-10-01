@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState, Fragment } from 'react';
 import { useImportaciones } from '../../hooks/useImportaciones';
 import { ImportacionModal } from '../../components/stock/ImportacionModal';
@@ -20,6 +21,7 @@ import { filtrosAplicadosDesc } from '../../utils/exports/filtros';
 import { Select } from '../../components/ui/Select';
 import { ESTADOS, FILTER_SCHEMA, isFinalizada, isEtaVencida, thClass } from './importacionesListHelpers';
 export const ImportacionesList = () => {
+  const navigate = useNavigate();
   const { importaciones, loading, loadImportaciones } = useImportaciones();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [modalOpen, setModalOpen] = useState(false);
@@ -86,6 +88,10 @@ export const ImportacionesList = () => {
                 Estado: filters.estado ? (ESTADO_IMPORTACION_LABELS[filters.estado as EstadoImportacion] ?? filters.estado) : '',
               })}
             />
+            {/* Presupuestador de comex (2026-10-01): escondido acá, sin entrada en el menú. */}
+            <Button variant="ghost" size="sm" onClick={() => navigate('/stock/importaciones/comex')} title="Estimar el costo de una importación sin cargarla">
+              Presupuestador
+            </Button>
             <Button size="sm" onClick={() => openImp(null)}>
               + Nueva importacion
             </Button>

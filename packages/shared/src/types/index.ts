@@ -7743,3 +7743,49 @@ export interface GastoEnvio {
   createdBy?: string | null;
   createdByName?: string | null;
 }
+
+// ── Presupuestador de comex (2026-10-01) ─────────────────────────────────────
+/**
+ * Estimación de costo de importación SIN artículos (reemplaza la planilla del
+ * user): una o más posiciones arancelarias con su CIF y alícuotas, gastos y el
+ * costo total. Ej.: un cromatógrafo con el detector declarado aparte = dos
+ * posiciones. Vive en `presupuestosComex`; se imprime en PDF.
+ */
+export interface PosicionComex {
+  id: string;
+  descripcion: string;
+  ncm?: string | null;
+  /** Valor en aduana (CIF), USD. */
+  cif: number;
+  derechosPct: number;
+  estadisticaPct: number;
+  /** IVA reducido: 10,5 % + IVA adicional 10 %. Sin reducción: 21 % + 20 %. */
+  ivaReducido: boolean;
+  gananciasPct: number;
+  iibbPct: number;
+}
+
+export interface GastoComex {
+  id: string;
+  concepto: string;
+  monto: number;
+}
+
+export interface PresupuestoComex {
+  id: string;
+  numero: string;              // CX-0001
+  titulo: string;              // "Cromatógrafo GC 7890 + SCD"
+  cliente?: string | null;
+  fecha: string;               // YYYY-MM-DD
+  posiciones: PosicionComex[];
+  gastos: GastoComex[];
+  gastosBancarios: number;
+  /** % sobre IVA + IVA adicional + Ganancias (recuperables). Default 3. */
+  costoFinancieroPct: number;
+  /** ARS por USD, opcional: solo para mostrar el equivalente. */
+  tipoCambio?: number | null;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByName?: string | null;
+}

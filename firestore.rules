@@ -226,6 +226,7 @@ service cloud.firestore {
       allow write: if esStaff();
     }
     match /importaciones/{importacionId}          { allow read, write: if esStaff(); }
+    match /presupuestosComex/{presupuestoId}     { allow read, write: if esStaff(); }  // presupuestador de comex (2026-10-01)
     match /agentesCarga/{agenteId}                { allow read, write: if esStaff(); }
     match /asignaciones/{asignacionId}            { allow read, write: if esStaff(); }
 

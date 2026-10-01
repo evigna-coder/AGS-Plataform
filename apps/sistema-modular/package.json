@@ -47,6 +47,7 @@
     "test:conciliar-reqs": "tsx src/utils/__tests__/conciliarRequerimientosOC.test.ts",
     "test:reqs-cubiertos": "tsx src/utils/__tests__/requerimientosCubiertos.test.ts",
     "test:reserva-desviada": "tsx src/utils/__tests__/reservaDesviada.test.ts",
+    "test:presupuesto-comex": "tsx src/utils/__tests__/presupuestoComex.test.ts",
     "test:inventario-remito": "tsx src/utils/__tests__/inventarioRemitoSerie.test.ts",
     "test:reapertura-ot": "tsx src/utils/__tests__/reaperturaOT.test.ts",
     "test:cierre-stock-lineas": "tsx src/utils/__tests__/cierreStockLineas.test.ts",

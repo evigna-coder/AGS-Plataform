@@ -22,6 +22,8 @@ export { OCList } from './OCList';
 export { OCEditor } from './OCEditor';
 export { OCDetail } from './OCDetail';
 export { ImportacionesList } from './ImportacionesList';
+export { PresupuestosComexList } from './PresupuestosComexList';
+export { PresupuestoComexEditor } from './PresupuestoComexEditor';
 export { PagosVEPPage } from './PagosVEPPage';
 export { ImportacionEditor } from './ImportacionEditor';
 export { ImportacionDetail } from './ImportacionDetail';
