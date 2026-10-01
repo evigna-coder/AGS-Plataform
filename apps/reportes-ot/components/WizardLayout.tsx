@@ -34,6 +34,22 @@ export const WizardLayout: React.FC<Props> = ({ steps, extra, pendingFocus }) =>
   const total = steps.length;
   const step = steps[current];
 
+  // Transición entre pasos (2026-10-01): el contenido entra desde la derecha
+  // al avanzar y desde la izquierda al volver. Se reinicia la animación sobre
+  // el MISMO nodo (sin `key`) para no remontar el contenido del paso.
+  const contenidoRef = useRef<HTMLDivElement>(null);
+  const pasoPrevio = useRef(current);
+  useEffect(() => {
+    const el = contenidoRef.current;
+    if (!el || pasoPrevio.current === current) return;
+    const clase = current > pasoPrevio.current ? 'ags-step-next' : 'ags-step-prev';
+    pasoPrevio.current = current;
+    el.classList.remove('ags-step-next', 'ags-step-prev');
+    void el.offsetWidth; // fuerza el reinicio de la animación
+    el.classList.add(clase);
+    el.scrollTop = 0;
+  }, [current]);
+
   const canPrev = current > 0;
   const canNext = current < total - 1;
 
@@ -67,7 +83,7 @@ export const WizardLayout: React.FC<Props> = ({ steps, extra, pendingFocus }) =>
       </div>
 
       {/* ─── Step content ─── */}
-      <div className="flex-1 overflow-y-auto px-3 py-4">
+      <div ref={contenidoRef} className="flex-1 overflow-y-auto px-3 py-4">
         {step.content}
       </div>
 

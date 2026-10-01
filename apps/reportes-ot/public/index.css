@@ -459,3 +459,43 @@ body.pdf-generating .protocol-screen-wrapper {
   background-color: #fef2f2 !important;
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35) !important;
 }
+
+/* ── Microanimaciones de la interfaz del técnico (2026-10-01) ──────────────
+   SOLO en la interfaz (ventanas, menús, pasos del asistente, panel de OT del
+   día, secciones de protocolo en tablet). Nada de esto toca lo que se captura
+   para el PDF; y por las dudas, mientras se genera el PDF (body.pdf-generating)
+   y dentro de cualquier contenedor de PDF (#pdf-*) toda animación se apaga:
+   html2canvas podría capturar un elemento a mitad de su entrada (transparente).
+   Con "reducir movimiento" del sistema operativo no se aplica ninguna. */
+@keyframes agsFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes agsModalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes agsDrawerIn { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes agsStepNext { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes agsStepPrev { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes agsItemIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes agsBodyIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes agsPop { 0% { opacity: 0; transform: scale(0.4); } 70% { opacity: 1; transform: scale(1.18); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ags-fade-in { animation: agsFadeIn 0.18s ease-out both; }
+  .ags-modal-in { animation: agsModalIn 0.2s cubic-bezier(0.25, 1, 0.5, 1) both; }
+  .ags-drawer-in { animation: agsDrawerIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ags-step-next { animation: agsStepNext 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ags-step-prev { animation: agsStepPrev 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ags-acc-in { animation: agsBodyIn 0.2s ease-out both; }
+  .ags-pop { animation: agsPop 0.32s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+  .ags-stagger > * { animation: agsItemIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ags-stagger > *:nth-child(2) { animation-delay: 30ms; }
+  .ags-stagger > *:nth-child(3) { animation-delay: 60ms; }
+  .ags-stagger > *:nth-child(4) { animation-delay: 90ms; }
+  .ags-stagger > *:nth-child(5) { animation-delay: 120ms; }
+  .ags-stagger > *:nth-child(6) { animation-delay: 150ms; }
+  .ags-stagger > *:nth-child(n+7) { animation-delay: 180ms; }
+}
+
+/* Seguro del PDF: nunca animar lo que se captura. */
+body.pdf-generating *,
+[id^="pdf-"],
+[id^="pdf-"] * {
+  animation: none !important;
+}

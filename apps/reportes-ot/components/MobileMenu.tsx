@@ -57,7 +57,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
     // ── Modo "Protocolo en blanco": menú simplificado ──
     if (blankPreviewMode) {
       return (
-        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50 ags-stagger">
           <button
             onClick={onDownloadBlankProtocol}
             disabled={isGenerating}
@@ -75,7 +75,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       );
     }
     return (
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50 ags-stagger">
         {!isPreviewMode && (
           <>
             <button

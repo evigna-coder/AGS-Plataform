@@ -1761,7 +1761,7 @@ export const CatalogTableView: React.FC<Props> = ({
         </div>
       ) : null}
 
-      <div hidden={!showBody}>
+      <div hidden={!showBody} className={accordionActive ? 'ags-acc-in' : undefined}>
 
       {/* Toggle "Ver especificación del cliente" — solo visible en mobile accordion (en desktop va arriba) */}
       {table.allowClientSpec && !isPrint && !groupingField && accordionActive && (

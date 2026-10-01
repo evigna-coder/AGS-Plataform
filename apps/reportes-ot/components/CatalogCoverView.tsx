@@ -152,7 +152,7 @@ export const CatalogCoverView: React.FC<Props> = ({
             <p className="text-xs font-bold uppercase tracking-wide">Carátula</p>
           )}
         </div>
-        <div className="p-6" hidden={!showBody}>
+        <div className={`p-6 ${accordionActive ? 'ags-acc-in' : ''}`} hidden={!showBody}>
           <div className="flex items-start justify-between mb-4">
             {logoSrc && <img src={logoSrc} alt="AGS" style={{ width: 80 }} />}
           </div>

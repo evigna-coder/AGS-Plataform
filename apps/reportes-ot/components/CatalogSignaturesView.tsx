@@ -91,7 +91,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
         </div>
       )}
 
-      <div hidden={!showBody}>
+      <div hidden={!showBody} className={accordionActive ? 'ags-acc-in' : undefined}>
       {/* Content area: text left + signature right */}
       <div className="px-4 py-3 flex flex-col lg:flex-row gap-6 items-start">
 

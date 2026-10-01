@@ -19,13 +19,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print transition-all duration-300 ${
+      className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print transition-all duration-300 ags-fade-in ${
         isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
       }`}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
+        className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl ags-modal-in"
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

@@ -14,7 +14,7 @@ export const AccordionChevron: React.FC<{ expanded: boolean; completed?: boolean
 
 const CompletedCheck: React.FC = () => (
   <svg
-    className="w-4 h-4 text-emerald-600 shrink-0"
+    className="w-4 h-4 text-emerald-600 shrink-0 ags-pop"
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"

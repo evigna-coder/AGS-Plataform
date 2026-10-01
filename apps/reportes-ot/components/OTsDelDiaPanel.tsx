@@ -59,11 +59,11 @@ export const OTsDelDiaPanel: React.FC<Props> = ({ items, otActual, fecha, cambia
       {abierto && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
-            className="absolute inset-0 bg-slate-900/40"
+            className="absolute inset-0 bg-slate-900/40 ags-fade-in"
             onClick={() => setAbierto(false)}
             aria-hidden
           />
-          <aside className="relative w-[300px] max-w-[88vw] h-full bg-white shadow-2xl flex flex-col">
+          <aside className="relative w-[300px] max-w-[88vw] h-full bg-white shadow-2xl flex flex-col ags-drawer-in">
             <header className="px-4 py-3 border-b border-slate-200 flex items-start justify-between gap-2">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">OT del día</p>
@@ -79,7 +79,7 @@ export const OTsDelDiaPanel: React.FC<Props> = ({ items, otActual, fecha, cambia
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 ags-stagger">
               {items.map(it => {
                 const esActual = it.otNumber === otActual;
                 const enCurso = cambiando === it.otNumber;

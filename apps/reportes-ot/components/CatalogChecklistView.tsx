@@ -745,7 +745,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
         </div>
       )}
 
-      <div hidden={!showBody}>
+      <div hidden={!showBody} className={accordionActive ? 'ags-acc-in' : undefined}>
 
       {/* Cuerpo — ítems del checklist */}
       <div className={`bg-white ${isPrint ? '' : 'divide-y divide-slate-50'}`}>
