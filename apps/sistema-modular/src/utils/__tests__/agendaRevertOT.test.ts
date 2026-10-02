@@ -7,7 +7,7 @@
  *   - mover una visita (borrar + crear) podía limpiar la OT recién estampada.
  */
 import type { OTEstadoAdmin } from '@ags/shared';
-import { debeRevertirOTAlBorrarEntrada } from '../agendaRevertOT';
+import { bloqueaBorradoEntrada, debeRevertirOTAlBorrarEntrada } from '../agendaRevertOT';
 
 let ok = 0;
 let fail = 0;
@@ -53,6 +53,14 @@ check('quedan entradas y estado avanzado: tampoco',
   !debeRevertirOTAlBorrarEntrada('CIERRE_TECNICO', 1));
 check('la ultima entrada de una ASIGNADA si revierte',
   debeRevertirOTAlBorrarEntrada('ASIGNADA', 0));
+
+// ── Bloqueo del borrado (2026-10-02, caso 30323.03) ──
+check('FINALIZADO única entrada: bloquea', bloqueaBorradoEntrada('FINALIZADO', 0));
+check('CIERRE_TECNICO única entrada: bloquea', bloqueaBorradoEntrada('CIERRE_TECNICO', 0));
+check('FINALIZADO con otra entrada: deja (se movió)', !bloqueaBorradoEntrada('FINALIZADO', 1));
+check('COORDINADA: deja (vuelve a pendientes)', !bloqueaBorradoEntrada('COORDINADA', 0));
+check('CANCELADA: deja', !bloqueaBorradoEntrada('CANCELADA', 0));
+check('sin estado: deja', !bloqueaBorradoEntrada(undefined, 0));
 
 console.log(fail === 0
   ? `✅ agendaRevertOT: ${ok}/${ok} OK`

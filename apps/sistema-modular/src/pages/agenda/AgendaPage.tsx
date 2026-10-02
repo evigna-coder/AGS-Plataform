@@ -34,6 +34,7 @@ import {
 } from '../../utils/agendaOTSync';
 
 import { notify } from '../../utils/notify';
+import { motivoNoBorrarEntrada } from '../../services/agendaGuards';
 /**
  * Posición del menú contextual. Abría SIEMPRE hacia arriba
  * (`bottom: innerHeight - y`), así que en la primera fila de celdas se salía por
@@ -593,6 +594,9 @@ export const AgendaPage: FC = () => {
       );
       if (!ok) return;
     }
+    // OT ya trabajada con una sola entrada: no se borra (2026-10-02, 30323.03).
+    const motivo = await motivoNoBorrarEntrada(cell.entry);
+    if (motivo) { notify.warning(motivo); return; }
     deleteEntry(cell.entry.id);
     setSelectedCell(null);
   }, [deleteEntry, confirm]);
@@ -1063,6 +1067,8 @@ export const AgendaPage: FC = () => {
       );
       if (!ok) return;
     }
+    const motivo = await motivoNoBorrarEntrada((enCelda.find(e => e.id === entryId) ?? entries.find(e => e.id === entryId)) ?? null);
+    if (motivo) { notify.warning(motivo); return; }
     deleteEntry(entryId);
     if (selectedCell && selectedCell.allEntries.length > 1) {
       const remaining = selectedCell.allEntries.filter(e => e.id !== entryId);
@@ -1070,7 +1076,7 @@ export const AgendaPage: FC = () => {
     } else {
       setSelectedCell(null);
     }
-  }, [deleteEntry, selectedCell, confirm]);
+  }, [deleteEntry, selectedCell, confirm, entries]);
 
   const handleExtendEntry = useCallback((entryId: string) => {
     const entry = entries.find(e => e.id === entryId);

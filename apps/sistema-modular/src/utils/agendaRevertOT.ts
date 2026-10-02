@@ -29,6 +29,22 @@ const YA_PASO_ALGO = new Set<OTEstadoAdmin>([
  * hecho historico, no una programacion), ni una a la que le quedan otras
  * entradas de agenda (se movio, no se desprogramo).
  */
+/** OT con trabajo hecho o en marcha: su entrada de agenda es el registro de la visita. */
+const TRABAJADA = new Set<OTEstadoAdmin>(['EN_CURSO', 'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+
+/**
+ * ¿Se impide borrar esta entrada? (2026-10-02, caso 30323.03). Si la OT ya se
+ * trabajó y es su ÚNICA entrada, borrarla la saca del almanaque y del control
+ * semanal, y no vuelve a pendientes (no hay nada que reprogramar). Se puede
+ * mover, no borrar. Una OT cancelada sí se puede sacar.
+ */
+export function bloqueaBorradoEntrada(
+  estadoAdmin: OTEstadoAdmin | undefined | null,
+  entradasRestantes: number,
+): boolean {
+  return entradasRestantes === 0 && !!estadoAdmin && TRABAJADA.has(estadoAdmin);
+}
+
 export function debeRevertirOTAlBorrarEntrada(
   estadoAdmin: OTEstadoAdmin | undefined | null,
   entradasRestantes: number,
