@@ -1194,7 +1194,9 @@ export const reportesPendientesService = {
           .filter(d => {
             const data = d.data() as Record<string, unknown>;
             const creadoPor = data.creadoPor as Record<string, unknown> | undefined;
-            return data.status === 'BORRADOR' && d.id.includes('.') && !!creadoPor?.uid;
+            // Firmada (p. ej. por lote) cuenta como pendiente aunque nadie la
+            // haya abierto: falta finalizarla (2026-10-02, caso 29916.03).
+            return data.status === 'BORRADOR' && d.id.includes('.') && (!!creadoPor?.uid || !!data.signatureClient);
           })
           .map(d => parseBorradorEmpezado(d.id, d.data() as Record<string, unknown>));
         emit();

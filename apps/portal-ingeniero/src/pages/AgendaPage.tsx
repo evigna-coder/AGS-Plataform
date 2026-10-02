@@ -4,7 +4,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import AgendaEntryCard from '../components/agenda/AgendaEntryCard';
 import AgendaGridView from '../components/agenda/AgendaGridView';
-import { useAgenda } from '../hooks/useAgenda';
+import { useAgenda, WEEKS_BACK } from '../hooks/useAgenda';
 import { useOTsAgenda, type OTInfoAgenda } from '../hooks/useOTsAgenda';
 import { useAuth } from '../contexts/AuthContext';
 import type { AgendaEntry } from '@ags/shared';
@@ -147,7 +147,7 @@ export default function AgendaPage() {
    */
   const [verAnteriores, setVerAnteriores] = useState(false);
   const weeks: Date[] = [];
-  for (let i = verAnteriores ? -1 : 0; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
+  for (let i = verAnteriores ? -WEEKS_BACK : 0; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
 
   const currentWeekStr = formatDate(weekStart);
   // Grid only on desktop (>=768px) — mobile always shows list view
@@ -164,7 +164,7 @@ export default function AgendaPage() {
     <div className="h-full flex flex-col">
       <PageHeader
         title="Agenda"
-        subtitle={`${entries.length} servicio(s) programado(s)`}
+        subtitle={`${entries.filter(e => e.fechaFin >= hoyStr()).length} servicio(s) programado(s)`}
         actions={isAdmin ? (
           <button
             onClick={toggleShowMine}
@@ -205,7 +205,7 @@ export default function AgendaPage() {
             <div className="text-center pb-2">
               <button onClick={() => setVerAnteriores(v => !v)}
                 className="text-[11px] text-slate-400 hover:text-teal-600 hover:underline">
-                {verAnteriores ? 'Ocultar días anteriores' : '↑ Ver días anteriores'}
+                {verAnteriores ? 'Ocultar días anteriores' : '↑ Ver días anteriores (últimos 2 meses)'}
               </button>
             </div>
             {weeks.map(ws => (

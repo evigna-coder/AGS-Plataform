@@ -25,7 +25,9 @@ function addDays(d: Date, n: number): Date {
  *  los servicios regulatorios anuales con meses de anticipación — con la ventana
  *  vieja de 4 semanas, una ingeniera con todo agendado a futuro veía la agenda
  *  VACÍA aunque tuviera 30+ servicios asignados). */
-const WEEKS_BACK = 1;
+// Historial (2026-10-02): ~2 meses atrás, para que cada ingeniero pueda
+// repasar dónde estuvo (viáticos, horas). Se muestra detrás de "Ver días anteriores".
+export const WEEKS_BACK = 9;
 const WEEKS_AHEAD = 52;
 
 export function useAgenda() {

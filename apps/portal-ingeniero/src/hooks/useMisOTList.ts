@@ -118,6 +118,9 @@ export function useMisOTList(range: MisOTRange) {
     const filtered = ots.filter(ot => {
       if (!coincide(ot)) return false;
       if (verFinalizadas) return true; // sin rango: se buscan por número o cliente
+      // Buscando, el rango no aplica (2026-10-02, caso 29916.03): una OT con
+      // fecha corrida a futuro no aparecía en "Hoy" aunque se tipeara su número.
+      if (q) return true;
       const f = ot.fechaServicioAprox || '';
       if (range === 'hoy') return !!f && f <= todayStr;
       if (range === 'semana') return !!f && f <= weekEndStr;
