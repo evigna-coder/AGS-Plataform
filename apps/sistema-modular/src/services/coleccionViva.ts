@@ -22,6 +22,7 @@ export function crearColeccionViva<T>(nombre: string, mapear: (docs: QueryDocume
   let datos: T[] | null = null;
   let primera: Promise<T[]> | null = null;
   let cortar: (() => void) | null = null;
+  const oyentes = new Set<(datos: T[]) => void>();
 
   const reiniciar = () => {
     cortar?.();
@@ -38,6 +39,8 @@ export function crearColeccionViva<T>(nombre: string, mapear: (docs: QueryDocume
       cortar = onSnapshot(collection(db, nombre), snap => {
         datos = mapear(snap.docs);
         if (!resuelta) { resuelta = true; resolver(datos); }
+        const actuales = datos;
+        oyentes.forEach(fn => fn(actuales));
       }, err => {
         console.warn(`[coleccionViva] ${nombre}: la suscripción se cortó, se reabre en el próximo pedido`, err);
         reiniciar();
@@ -47,5 +50,18 @@ export function crearColeccionViva<T>(nombre: string, mapear: (docs: QueryDocume
     return primera;
   }
 
-  return { obtener, reiniciar };
+  /**
+   * Recibir la lista ahora y en cada cambio (2026-10-02): varias pantallas
+   * escuchando la misma colección comparten UNA suscripción a Firestore.
+   */
+  function suscribir(fn: (datos: T[]) => void, onError?: (err: Error) => void): () => void {
+    oyentes.add(fn);
+    obtener().then(d => { if (oyentes.has(fn)) fn(d); }).catch(err => onError?.(err));
+    return () => { oyentes.delete(fn); };
+  }
+
+  /** Los datos si la suscripción ya entregó, sin esperar ni abrir nada. */
+  const yaCargada = (): T[] | null => datos;
+
+  return { obtener, reiniciar, yaCargada, suscribir };
 }

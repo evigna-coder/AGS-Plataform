@@ -73,7 +73,13 @@ export function useAsignacionesVista() {
       const [ings, asgs, rems, instr] = await Promise.all([
         ingenierosService.getAll(true),
         asignacionesService.getAll({ estado: 'activa' }),
-        remitosService.getAll({ tipo: 'salida_campo' }).catch(() => [] as Remito[]),
+        // Solo los remitos todavía afuera (2026-10-02, perf): el KPI no mira
+        // los cerrados y bajar todas las salidas a campo eran ~180 docs en cada
+        // apertura y en cada cierre de modal. `estados` es un `in` de un solo
+        // campo (sin índice compuesto); el tipo se filtra en memoria.
+        remitosService.getAll({ estados: [...REMITO_ESTADOS_EN_CAMPO] })
+          .then(rs => rs.filter(r => r.tipo === 'salida_campo'))
+          .catch(() => [] as Remito[]),
         instrumentosService.getAll().catch(() => [] as InstrumentoPatron[]),
       ]);
       setIngenieros(ings);

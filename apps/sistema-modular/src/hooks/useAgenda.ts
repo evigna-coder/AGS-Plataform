@@ -145,29 +145,22 @@ export function useAgenda(): UseAgendaReturn {
   // puede descontar con `entries` (solo trae el rango visible) — una OT
   // agendada meses adelante reaparecía como pendiente (bug UAT 2026-07-30).
   const [otsAgendadas, setOtsAgendadas] = useState<Set<string>>(new Set());
+  const [otsAgendadasCargadas, setOtsAgendadasCargadas] = useState(false);
   useEffect(() => {
-    return agendaService.subscribeOtNumbersAsignados(setOtsAgendadas);
+    return agendaService.subscribeOtNumbersAsignados(
+      s => { setOtsAgendadas(s); setOtsAgendadasCargadas(true); },
+      () => setOtsAgendadasCargadas(true),
+    );
   }, []);
 
   // Real-time entries subscription — only flash loading on first load
   const isFirstLoad = useRef(true);
-  // Entradas viejas sin "Problema / falla inicial" (2026-09-10): se completa
-  // desde la OT una vez por entrada y sesión. Best-effort; el snapshot en vivo
-  // trae el dato apenas se escribe.
   useEffect(() => {
     if (isFirstLoad.current) setLoading(true);
     const unsubscribe = agendaService.subscribeToRange(rangeStart, rangeEnd, (newEntries) => {
       setEntries(newEntries);
       setLoading(false);
       isFirstLoad.current = false;
-      const sinProblema = newEntries.filter(e =>
-        e.otNumber && !e.problemaFallaInicial && e.estadoAgenda !== 'cancelado' && !problemaRevisado.has(e.id));
-      for (const e of sinProblema) {
-        problemaRevisado.add(e.id);
-        void ordenesTrabajoService.getByOtNumber(e.otNumber!).then(ot => {
-          if (ot?.problemaFallaInicial) return agendaService.update(e.id, { problemaFallaInicial: ot.problemaFallaInicial });
-        }).catch(err => console.warn('[useAgenda] completar problema de', e.otNumber, err));
-      }
     });
     return unsubscribe;
   }, [rangeStart, rangeEnd]);
@@ -199,17 +192,43 @@ export function useAgenda(): UseAgendaReturn {
   // a Firestore toda la jornada aunque nadie mirara la agenda. Al volver a la
   // pestaña se recarga en el acto (el efecto se re-arma con `isTabActive`).
   const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
+  const [pendientesCargadas, setPendientesCargadas] = useState(false);
   const isTabActive = useTabOverlay()?.isTabActive ?? true;
   // En vivo (2026-09-21): antes consultaba cada 60 s; ahora escucha la cola y
   // recibe solo los cambios. Se desengancha al dejar la pestaña.
   useEffect(() => {
     if (!isTabActive) return;
     const unsub = ordenesTrabajoService.subscribePending(
-      setAllCandidateOTs,
-      err => console.error('Error escuchando OTs pendientes:', err),
+      ots => { setAllCandidateOTs(ots); setPendientesCargadas(true); },
+      err => { console.error('Error escuchando OTs pendientes:', err); setPendientesCargadas(true); },
     );
     return () => unsub();
   }, [isTabActive]);
+
+  // Entradas viejas sin "Problema / falla inicial" (2026-09-10): se completa
+  // desde la OT una vez por entrada y sesión. Best-effort; el snapshot en vivo
+  // trae el dato apenas se escribe. Desde 2026-10-02 las OTs que ya están en
+  // la cola en vivo no se leen, y el resto se lee de a 30 por consulta (antes
+  // era un `getByOtNumber` por entrada: ~100 consultas al abrir el mes).
+  useEffect(() => {
+    if (!pendientesCargadas) return;
+    const sinProblema = entries.filter(e =>
+      e.otNumber && !e.id.startsWith('temp-') && !e.problemaFallaInicial
+      && e.estadoAgenda !== 'cancelado' && !problemaRevisado.has(e.id));
+    if (sinProblema.length === 0) return;
+    for (const e of sinProblema) problemaRevisado.add(e.id);
+    const enCola = new Map(allCandidateOTs.map(ot => [ot.otNumber, ot.problemaFallaInicial ?? null]));
+    const aLeer = sinProblema.map(e => e.otNumber!).filter(n => !enCola.has(n));
+    const leidos = aLeer.length > 0 ? agendaService.problemasDeOTs(aLeer) : Promise.resolve(new Map<string, string | null>());
+    void leidos.then(mapa => {
+      for (const e of sinProblema) {
+        const problema = enCola.has(e.otNumber!) ? enCola.get(e.otNumber!) : mapa.get(e.otNumber!);
+        if (!problema) continue;
+        agendaService.update(e.id, { problemaFallaInicial: problema })
+          .catch(err => console.warn('[useAgenda] completar problema de', e.otNumber, err));
+      }
+    }).catch(err => console.warn('[useAgenda] completar problema falla inicial:', err));
+  }, [entries, allCandidateOTs, pendientesCargadas]);
 
   // Mapa sistemaId → id visible para las tarjetas del sidebar (UAT 2026-07-17).
   // Prioriza el código interno del CLIENTE (pedido coordinación 2026-08-03).
@@ -243,15 +262,22 @@ export function useAgenda(): UseAgendaReturn {
   // Un padre sin hijas puede ganar una más tarde: si la hija está pendiente
   // aparece en `allCandidateOTs` y se detecta sin consultar; si nació y ya
   // cerró técnicamente, el negativo vence a los 10 min y se vuelve a mirar.
+  // Las hijas con entrada en la agenda (`otsAgendadas`, ya en memoria) también
+  // confirman a su padre (2026-10-02): son casi todas las hijas cerradas, así
+  // que casi ningún padre llega a consultarse. Por eso se espera a ese set.
   const [padresConHijas, setPadresConHijas] = useState<Set<string>>(new Set());
   useEffect(() => {
     const candidatosPadre = allCandidateOTs
       .filter(ot => !ot.otNumber.includes('.'))
       .map(ot => ot.otNumber);
     if (candidatosPadre.length === 0) { setPadresConHijas(new Set()); return; }
-    // Hijas que ya están en la cola confirman a su padre sin ir a Firestore.
+    if (!otsAgendadasCargadas) return;
+    // Hijas que ya están en la cola o en la agenda confirman a su padre sin ir a Firestore.
     for (const ot of allCandidateOTs) {
       if (ot.otNumber.includes('.')) padresConfirmados.add(ot.otNumber.split('.')[0]);
+    }
+    for (const num of otsAgendadas) {
+      if (num.includes('.')) padresConfirmados.add(num.split('.')[0]);
     }
     let cancelled = false;
     const ahora = Date.now();
@@ -266,7 +292,7 @@ export function useAgenda(): UseAgendaReturn {
     // mismas consultas dos veces (2026-10-01).
     Promise.all(aConsultar.map(consultarPadre)).then(emitir);
     return () => { cancelled = true; };
-  }, [allCandidateOTs]);
+  }, [allCandidateOTs, otsAgendadas, otsAgendadasCargadas]);
 
   // Derive pending OTs from candidates minus assigned (no Firestore re-read).
   // Regla 2026-04-22: ocultar OTs parent (sin punto) que tengan al menos 1

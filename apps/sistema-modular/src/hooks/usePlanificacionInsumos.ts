@@ -54,6 +54,47 @@ function opcionesDesdeEquipos(
 
 const hoyYMD = () => new Date().toISOString().slice(0, 10);
 
+/** Todas las fuentes del motor en una tanda. */
+function leerFuentes(anios: number[]) {
+  return Promise.all([
+    articulosService.getPlanificables(),
+    articulosService.getKits().catch(() => [] as Articulo[]),
+    perfilesConsumoService.getAll(),
+    consumiblesPorModuloService.getAll(),
+    sistemasService.getAll({ activosOnly: true }),
+    modulosService.getAllGrouped(),
+    categoriasEquipoService.getAll(),
+    categoriasModuloService.getAll().catch(() => []),
+    establecimientosService.getAll(),
+    clientesService.getAll(),
+    ordenesTrabajoService.getAll(),
+    contratosService.getAll({ estado: 'activo' }),
+    ordenesCompraService.getAll(),
+    importacionesService.getAll(),
+    unidadesService.getAll({ estado: 'disponible' }),
+    ...anios.map(a => agendaService.getByAnio(a)),
+  ]);
+}
+
+/**
+ * Carga en vuelo compartida (2026-10-02, perf): el efecto de carga corría dos
+ * veces por apertura (StrictMode monta-desmonta-monta en dev; también una
+ * pestaña que se vuelve a montar) y cada corrida bajaba de nuevo `reportes`
+ * (~2.400), `*\/modulos` (~1.600) y el resto: 17.301 docs en vez de la mitad.
+ * Mientras una carga está en curso, la siguiente la reusa; terminada, se
+ * suelta, así "Recalcular" siempre vuelve a leer.
+ */
+let fuentesEnVuelo: { clave: string; promesa: ReturnType<typeof leerFuentes> } | null = null;
+function fuentesCompartidas(anios: number[]): ReturnType<typeof leerFuentes> {
+  const clave = anios.join(',');
+  if (fuentesEnVuelo?.clave === clave) return fuentesEnVuelo.promesa;
+  const actual = { clave, promesa: leerFuentes(anios) };
+  fuentesEnVuelo = actual;
+  const soltar = () => { if (fuentesEnVuelo === actual) fuentesEnVuelo = null; };
+  actual.promesa.then(soltar, soltar);
+  return actual.promesa;
+}
+
 /**
  * Perfiles derivados del catálogo `consumibles_por_modulo` (anexo de consumibles
  * de los presupuestos): un módulo Agilent → sus consumibles con cantidad por
@@ -103,24 +144,7 @@ export function usePlanificacionInsumos(horizonteMeses: number) {
     const hoy = hoyYMD();
     const anios = new Set(mesesDesde(hoy, 12).map(m => Number(m.slice(0, 4))));
     (async () => {
-      const [planificables, kitsCatalogo, propios, catalogo, sistemas, modulos, categorias, catalogoModulos, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await Promise.all([
-        articulosService.getPlanificables(),
-        articulosService.getKits().catch(() => [] as Articulo[]),
-        perfilesConsumoService.getAll(),
-        consumiblesPorModuloService.getAll(),
-        sistemasService.getAll({ activosOnly: true }),
-        modulosService.getAllGrouped(),
-        categoriasEquipoService.getAll(),
-        categoriasModuloService.getAll().catch(() => []),
-        establecimientosService.getAll(),
-        clientesService.getAll(),
-        ordenesTrabajoService.getAll(),
-        contratosService.getAll({ estado: 'activo' }),
-        ordenesCompraService.getAll(),
-        importacionesService.getAll(),
-        unidadesService.getAll({ estado: 'disponible' }),
-        ...[...anios].map(a => agendaService.getByAnio(a)),
-      ]);
+      const [planificables, kitsCatalogo, propios, catalogo, sistemas, modulos, categorias, catalogoModulos, establecimientos, clientes, ots, contratos, ocs, importaciones, disponibles, ...agendas] = await fuentesCompartidas([...anios]);
       if (!vivo) return;
       const idsPlan = new Set(planificables.map(a => a.id));
       // Kits que contienen planificables (2026-09-30): sus unidades disponibles

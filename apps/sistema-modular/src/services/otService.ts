@@ -11,6 +11,30 @@ import { leadsService } from './leadsService';
 import { esTicketOperativo } from './ticketsOperativos';
 import { presupuestosService } from './presupuestosService';
 import { OT_NUMERACION_GO_LIVE } from '../utils/otGoLive';
+import { crearColeccionViva } from './coleccionViva';
+
+/** Más nuevas primero: por número de OT y, dentro de la misma, por ítem. */
+function ordenarOTs(ordenes: WorkOrder[]): WorkOrder[] {
+  return ordenes.sort((a, b) => {
+    const numA = parseInt(a.otNumber.split('.')[0]);
+    const numB = parseInt(b.otNumber.split('.')[0]);
+    if (numA !== numB) return numB - numA;
+    const itemA = a.otNumber.includes('.') ? parseInt(a.otNumber.split('.')[1]) : 0;
+    const itemB = b.otNumber.includes('.') ? parseInt(b.otNumber.split('.')[1]) : 0;
+    return itemB - itemA;
+  });
+}
+
+/**
+ * OTs vivas (2026-10-02, perf): OTs, Presupuestos, Control semanal y
+ * Planificación abrían cada una su propia lectura o listener de las ~2.400 OTs.
+ * Una suscripción por sesión; las consultas con filtro siguen yendo a Firestore.
+ */
+const reportesVivos = crearColeccionViva<WorkOrder>('reportes', docs => ordenarOTs(docs.map(d => ({
+  otNumber: d.id,
+  ...d.data(),
+  updatedAt: d.data().updatedAt || new Date().toISOString(),
+})) as WorkOrder[]));
 
 /** Primer número de OT del go-live de numeración (2026-07-30). Los IDs de `reportes` son el número de OT. */
 import { clientesService } from './clientesService';
@@ -223,6 +247,8 @@ export const ordenesTrabajoService = {
 
   // Obtener todas las OTs (con filtros opcionales)
   async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
+    // Sin filtros: de la colección viva (copia, para que quien ordene no la toque).
+    if (!filters?.clienteId && !filters?.sistemaId && !filters?.status) return [...await reportesVivos.obtener()];
     let q = query(collection(db, 'reportes'));
 
     // Aplicar filtros si existen
@@ -310,6 +336,10 @@ export const ordenesTrabajoService = {
     callback: (ots: WorkOrder[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
+    // Sin filtros: colgarse de las OTs vivas (2026-10-02).
+    if (!filters?.clienteId && !filters?.sistemaId && !filters?.status) {
+      return reportesVivos.suscribir(ots => callback([...ots]), onError);
+    }
     let q = query(collection(db, 'reportes'));
     if (filters?.clienteId) q = query(q, where('clienteId', '==', filters.clienteId));
     if (filters?.sistemaId) q = query(q, where('sistemaId', '==', filters.sistemaId));

@@ -9,13 +9,13 @@
  * import dinámico en asignacionesService es con el barrel `firebaseService`, que acá
  * no se toca).
  */
-import { doc, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import {
   db, docRef, runTransaction, deepCleanForFirestore, getCreateTrace, getUpdateTrace,
 } from './firebase';
 import { getCurrentUser } from './currentUser';
 import { posicionesStockService, movimientosService } from './stockService';
-import type { EstadoUnidad, PosicionStock, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
+import type { EstadoUnidad, PosicionStock, TipoMovimiento, TipoOrigenDestino, UnidadStock } from '@ags/shared';
 
 /** Nombre legible del usuario actual para `creadoPor` de MovimientoStock. */
 export function nombreUsuarioActual(): string {
@@ -219,4 +219,27 @@ export async function registrarMovimientoAsignacion(params: {
     motivo: params.motivo ?? null,
     creadoPor: nombreUsuarioActual(),
   });
+}
+
+/**
+ * Unidades paradas en la posición provisoria de varios remitos, en tandas de 30
+ * ids (2026-10-02, perf). El inventario del ingeniero hacía UNA consulta por
+ * remito abierto (decenas por apertura y otra vez tras cada devolución). Filtra
+ * solo por `ubicacion.referenciaId` (`in` de un campo, sin índice compuesto):
+ * los ids de remito son UUID, así que el tipo y `activo` se chequean en memoria.
+ */
+export async function getUnidadesEnRemitos(remitoIds: string[]): Promise<UnidadStock[]> {
+  const ids = [...new Set(remitoIds.filter(Boolean))];
+  const tandas: string[][] = [];
+  for (let i = 0; i < ids.length; i += 30) tandas.push(ids.slice(i, i + 30));
+  const snaps = await Promise.all(tandas.map(t =>
+    getDocs(query(collection(db, 'unidades'), where('ubicacion.referenciaId', 'in', t)))));
+  return snaps.flatMap(s => s.docs).map(d => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+  }) as UnidadStock)
+    .filter(u => u.activo === true && u.ubicacion?.tipo === 'remito')
+    .sort((a, b) => (a.articuloCodigo ?? '').localeCompare(b.articuloCodigo ?? ''));
 }

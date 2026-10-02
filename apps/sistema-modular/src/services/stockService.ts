@@ -20,6 +20,21 @@ const articulosVivos = crearColeccionViva<Articulo>('articulos', docs => docs
   .sort((a, b) => (a.codigo ?? '').localeCompare(b.codigo ?? '')));
 import { clasificarOTParaRemito, estadoRemitoServicioSegunOTs } from '../utils/resolverRemitoServicio';
 
+/**
+ * Unidades vivas (2026-10-02, perf): Entregas, Requerimientos, Remitos,
+ * Asignaciones y Planificación leían las ~3.800 unidades con getDocs en cada
+ * apertura (20-34 s sumados). Una suscripción por sesión; los filtros
+ * generales se aplican en memoria. Ordenadas por fecha de alta, más nuevas primero.
+ */
+const unidadesVivas = crearColeccionViva<UnidadStock>('unidades', docs => docs
+  .map(d => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+  }) as UnidadStock)
+  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+
 // ========== POSICIONES DE STOCK ==========
 
 export const posicionesStockService = {
@@ -624,6 +639,18 @@ export const unidadesService = {
     condicion?: string;
     activoOnly?: boolean;
   }): Promise<UnidadStock[]> {
+    // Sin artículo (o con la colección viva ya cargada): en memoria, sin leer.
+    // Por artículo y sin colección cargada: la consulta chica de siempre, para
+    // no bajar todo el stock para mirar un solo artículo.
+    const cargadas = unidadesVivas.yaCargada();
+    if (!filters?.articuloId || cargadas) {
+      const todas = cargadas ?? await unidadesVivas.obtener();
+      return todas.filter(u =>
+        (filters?.activoOnly === false || u.activo === true)
+        && (!filters?.articuloId || u.articuloId === filters.articuloId)
+        && (!filters?.estado || u.estado === filters.estado)
+        && (!filters?.condicion || (u as { condicion?: string }).condicion === filters.condicion));
+    }
     let q = query(collection(db, 'unidades'));
     if (filters?.activoOnly !== false) {
       q = query(q, where('activo', '==', true));
@@ -939,6 +966,14 @@ export const unidadesService = {
     callback: (items: UnidadStock[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
+    // Sin artículo: colgarse de las unidades vivas (2026-10-02). Asignaciones
+    // abría tres listeners de la colección entera a la vez (11.291 docs).
+    if (!filters?.articuloId) {
+      return unidadesVivas.suscribir(todas => callback(todas.filter(u =>
+        (filters?.activoOnly === false || u.activo === true)
+        && (!filters?.estado || u.estado === filters.estado)
+        && (!filters?.condicion || (u as { condicion?: string }).condicion === filters.condicion))), onError);
+    }
     let q = query(collection(db, 'unidades'));
     if (filters?.activoOnly !== false) {
       q = query(q, where('activo', '==', true));
@@ -1241,7 +1276,13 @@ export const remitosService = {
     // 0001-00017401 — los números de prueba anteriores no cuentan. Si el papel
     // ya va más adelante, manda el máximo registrado.
     const FLOOR_PREIMPRESO = 17400;
-    const snap = await getDocs(collection(db, 'remitos'));
+    // Solo los últimos del talonario (2026-10-02, perf): antes bajaba los ~270
+    // remitos cada vez que se abría un modal de remito. "PPPP-NNNNNNNN" es de
+    // ancho fijo: el orden de texto coincide con el numérico. Se traen algunos
+    // de más por si hay un número mal cargado entre los últimos.
+    const snap = await getDocs(query(collection(db, 'remitos'),
+      where('numero', '>=', `${prefix}-`), where('numero', '<=', `${prefix}-\uf8ff`),
+      orderBy('numero', 'desc'), limit(10)));
     let max = FLOOR_PREIMPRESO;
     for (const d of snap.docs) {
       const numero = d.data().numero as string | undefined;

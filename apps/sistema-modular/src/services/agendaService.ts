@@ -1,8 +1,9 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, documentId, Timestamp } from 'firebase/firestore';
 import { addDoc, setDoc, updateDoc, deleteDoc } from './firebase';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
 import { OT_NUMERACION_GO_LIVE } from '../utils/otGoLive';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+import { crearColeccionViva } from './coleccionViva';
 
 /** ID visible del equipo: código interno del CLIENTE, fallback agsVisibleId
  *  (pedido coordinación 2026-08-03). Cached per-process. */
@@ -100,6 +101,17 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
   };
 }
 
+/**
+ * La agenda COMPLETA, viva y compartida por la sesión (2026-10-02, perf). La
+ * cola de la agenda (otNumbers agendados), el control semanal (fecha por OT)
+ * y el buscador (Ctrl+B) abrían cada uno su propia lectura de toda la
+ * colección —el buscador con `getDocs` en cada apertura, ~2.400 docs—. Ahora
+ * hay una sola suscripción; después de la primera entrega solo llegan cambios.
+ */
+const agendaViva = crearColeccionViva<AgendaEntry>('agendaEntries', docs =>
+  docs.map(d => parseAgendaEntry(d))
+    .sort((a, b) => (a.fechaInicio < b.fechaInicio ? -1 : a.fechaInicio > b.fechaInicio ? 1 : 0)));
+
 export const agendaService = {
   /** Real-time subscription for entries in a date range. Returns unsubscribe fn. */
   subscribeToRange(
@@ -155,8 +167,24 @@ export const agendaService = {
   /** TODAS las entradas (una lectura). Para el buscador con salto a celda
    *  (2026-08-03): la suscripción del hook trae solo el rango visible. */
   async listAll(): Promise<AgendaEntry[]> {
-    const snap = await getDocs(query(collection(db, 'agendaEntries'), orderBy('fechaInicio', 'asc')));
-    return snap.docs.map(d => parseAgendaEntry(d));
+    return agendaViva.obtener();
+  },
+
+  /**
+   * "Problema / falla inicial" de varias OTs, de a 30 por consulta (2026-10-02).
+   * Lo usa la agenda para completar entradas viejas sin el dato: antes era un
+   * `getByOtNumber` por entrada (~100 consultas al abrir el mes). Las OTs que
+   * no existen no aparecen en el mapa.
+   */
+  async problemasDeOTs(otNumbers: string[]): Promise<Map<string, string | null>> {
+    const unicos = [...new Set(otNumbers.filter(Boolean))];
+    const tandas: string[][] = [];
+    for (let i = 0; i < unicos.length; i += 30) tandas.push(unicos.slice(i, i + 30));
+    const snaps = await Promise.all(tandas.map(t =>
+      getDocs(query(collection(db, 'reportes'), where(documentId(), 'in', t)))));
+    const out = new Map<string, string | null>();
+    for (const snap of snaps) for (const d of snap.docs) out.set(d.id, d.data().problemaFallaInicial ?? null);
+    return out;
   },
 
   /**
@@ -165,26 +193,23 @@ export const agendaService = {
    * visible: una OT agendada meses adelante reaparecía como "sin asignar" al
    * salir de esa semana (bug UAT 2026-07-30).
    */
-  subscribeOtNumbersAsignados(callback: (otNumbers: Set<string>) => void): () => void {
+  subscribeOtNumbersAsignados(callback: (otNumbers: Set<string>) => void, onError?: (err: Error) => void): () => void {
     // Solo entradas de OTs de la numeración nueva (2026-09-25): la cola que
     // descuenta con este set ya se recorta a `documentId() >= go-live`, así que
     // las entradas de OTs viejas nunca se usaban y eran la mitad de la colección
     // (~3.000 docs escuchados para consultar ~1.500). Rango por `otNumber`
     // (string: "30351.01" > "29779", y ':' es el primer carácter después de
-    // los dígitos) — índice simple, sin compuesto.
-    const q = query(
-      collection(db, 'agendaEntries'),
-      where('otNumber', '>=', OT_NUMERACION_GO_LIVE),
-      where('otNumber', '<', ':'),
-    );
-    return onSnapshot(q, snap => {
+    // los dígitos). Desde 2026-10-02 sale de la agenda viva de la sesión (la
+    // comparten el control semanal y el buscador) y el recorte se hace acá.
+    return agendaViva.suscribir(entradas => {
       const s = new Set<string>();
-      for (const d of snap.docs) {
-        const data = d.data();
-        if (data.otNumber && data.estadoAgenda !== 'cancelado') s.add(data.otNumber);
+      for (const e of entradas) {
+        const n = e.otNumber;
+        if (typeof n !== 'string' || !n || n < OT_NUMERACION_GO_LIVE || n >= ':') continue;
+        if (e.estadoAgenda !== 'cancelado') s.add(n);
       }
       callback(s);
-    }, err => console.error('agenda otNumbers subscription error:', err));
+    }, err => { console.error('agenda otNumbers subscription error:', err); onError?.(err); });
   },
 
   /**
@@ -195,13 +220,12 @@ export const agendaService = {
    * trabaja igual. Global sin rango, a propósito.
    */
   subscribeFechaPorOt(callback: (fechas: Map<string, string>) => void): () => void {
-    return onSnapshot(collection(db, 'agendaEntries'), snap => {
+    return agendaViva.suscribir(entradas => {
       const m = new Map<string, string>();
-      for (const d of snap.docs) {
-        const data = d.data();
-        if (!data.otNumber || data.estadoAgenda === 'cancelado') continue;
-        const prev = m.get(data.otNumber);
-        if (!prev || String(data.fechaInicio) < prev) m.set(data.otNumber, String(data.fechaInicio));
+      for (const e of entradas) {
+        if (!e.otNumber || e.estadoAgenda === 'cancelado') continue;
+        const prev = m.get(e.otNumber);
+        if (!prev || String(e.fechaInicio) < prev) m.set(e.otNumber, String(e.fechaInicio));
       }
       callback(m);
     }, err => console.error('agenda fechaPorOt subscription error:', err));

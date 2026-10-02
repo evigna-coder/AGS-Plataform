@@ -4,7 +4,7 @@ import {
   instrumentosService, dispositivosService, vehiculosService, minikitsService,
 } from '../services/firebaseService';
 import { movimientosService, remitosService } from '../services/stockService';
-import { nombreUsuarioActual } from '../services/asignacionesStockHelpers';
+import { nombreUsuarioActual, getUnidadesEnRemitos } from '../services/asignacionesStockHelpers';
 import { descripcionItemAsignacion } from '../utils/itemAsignacionLabel';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -66,11 +66,15 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       // su inventario lo sigue mostrando — con el N° de remito al lado.
       const remitos = (await remitosService.getAll({ ingenieroId }).catch(() => []))
         .filter(r => REMITO_ESTADOS_EN_CAMPO.has(r.estado));
-      const porRemito = await Promise.all(remitos.map(async r => {
-        const us = await unidadesService.getByUbicacion('remito', r.id).catch(() => []);
-        return us.map(u => ({ unidad: u, remitoId: r.id, remitoNumero: r.numero }));
-      }));
-      setUnidadesRemito(porRemito.flat());
+      // Una consulta por tanda de 30 remitos, no una por remito (2026-10-02, perf).
+      // Mismo orden que antes: por remito (más nuevo primero), y adentro por código.
+      const numeroPorRemito = new Map(remitos.map(r => [r.id, r.numero]));
+      const ordenRemito = new Map(remitos.map((r, i) => [r.id, i]));
+      const enRemitos = (await getUnidadesEnRemitos(remitos.map(r => r.id)).catch(() => []))
+        .sort((a, b) => (ordenRemito.get(a.ubicacion.referenciaId) ?? 0) - (ordenRemito.get(b.ubicacion.referenciaId) ?? 0));
+      setUnidadesRemito(enRemitos.map(u => ({
+        unidad: u, remitoId: u.ubicacion.referenciaId, remitoNumero: numeroPorRemito.get(u.ubicacion.referenciaId) ?? '',
+      })));
     } catch (err) { console.error('Error:', err); }
     finally { if (!silent) setLoading(false); }
   }, [ingenieroId]);

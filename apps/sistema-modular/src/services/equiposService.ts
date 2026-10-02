@@ -704,8 +704,8 @@ export const modulosService = {
    * Cacheado (TTL serviceCache). El sistemaId sale del path del doc.
    */
   async getAllGrouped(): Promise<ModuloSistema[]> {
-    const cached = getCached<ModuloSistema[]>('modulos_all');
-    if (cached) return cached;
+    // conCache (2026-10-02): dos pantallas pidiéndolo juntas comparten la lectura.
+    return conCache<ModuloSistema[]>('modulos_all', async () => {
     const snap = await getDocs(query(collectionGroup(db, 'modulos')));
     const modulos = snap.docs
       // Solo los de sistemas/{id}/modulos (por si otra colección anida 'modulos').
@@ -715,8 +715,8 @@ export const modulosService = {
         id: d.id,
         sistemaId: d.ref.parent.parent?.id ?? '',
       })) as ModuloSistema[];
-    setCache('modulos_all', modulos);
     return modulos;
+    });
   },
 
   // Obtener todos los modulos de un sistema
