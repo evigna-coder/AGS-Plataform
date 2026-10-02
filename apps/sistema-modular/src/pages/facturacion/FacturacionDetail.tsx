@@ -13,6 +13,7 @@ import { SolicitudDetalleOTsCard } from '../../components/facturacion/SolicitudD
 import { useSolicitudDetalleOTs } from '../../hooks/useSolicitudDetalleOTs';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 import { notify } from '../../utils/notify';
@@ -43,6 +44,7 @@ export const FacturacionDetail = () => {
   const actor = { uid: firebaseUser?.uid || '', name: usuario?.displayName || undefined };
 
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
+  useTituloReciente('Facturación', solicitud ? [solicitud.presupuestoNumero, solicitud.clienteNombre].filter(Boolean).join(' · ') : null);
   // Establecimientos y detalle por OT (2026-09-07), como en el PDF de certificación.
   const detalle = useSolicitudDetalleOTs(solicitud);
   const [clienteFallback, setClienteFallback] = useState('');

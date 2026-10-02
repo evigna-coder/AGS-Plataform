@@ -37,6 +37,7 @@ import { presupuestosService } from '../../services/presupuestosService';
 import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDocumentoReciente } from '../../hooks/useActividad';
 import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
 import { presupuestoEstaAceptado, MONEDA_SIMBOLO } from '@ags/shared';
 
@@ -164,6 +165,9 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   useEffect(() => {
     if (form.numero) onLabelRef.current?.(form.numero);
   }, [form.numero]);
+  // Recientes de la pestaña nueva (2026-10-01): /presupuestos/:id lo reabre flotante.
+  useDocumentoReciente(open && presupuestoId ? `/presupuestos/${presupuestoId}` : null, 'Presupuesto',
+    form.numero ? [form.numero, cliente?.razonSocial].filter(Boolean).join(' · ') : null);
 
   // Refresh requerimientos section after a save completes. Auto-generation
   // happens asynchronously in presupuestosService.update/create so we poll

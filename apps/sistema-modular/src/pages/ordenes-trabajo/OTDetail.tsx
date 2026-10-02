@@ -14,6 +14,7 @@ import { OT_ESTADO_COLORS, OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared
 import type { OTEstadoAdmin } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { Select } from '../../components/ui/Select';
 export const OTDetail = () => {
@@ -29,6 +30,7 @@ export const OTDetail = () => {
     ? (state as { from: string }).from
     : null;
   useDeclareParent(cameFrom ?? '/ordenes-trabajo');
+  useTituloReciente('OT', otNumber ? `OT ${otNumber}` : null);
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
   const [showRemitoServicio, setShowRemitoServicio] = useState(false);

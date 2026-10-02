@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNavigation, type NavItem } from '../../components/layout/navigation';
+import { NuevaPestanaAccesos } from './NuevaPestanaAccesos';
 
 interface Entrada {
   path: string;
@@ -75,6 +76,12 @@ export function NuevaPestanaPage() {
                      placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
 
+        {/* Más usadas y recientes (2026-10-01); al buscar, solo los resultados. */}
+        {!busqueda.trim() && <NuevaPestanaAccesos entradas={entradas} irA={irA} />}
+
+        {!busqueda.trim() && secciones.length > 0 && (
+          <h2 className="mt-8 text-[10px] font-mono font-medium text-slate-400 uppercase tracking-wide">Todos los módulos</h2>
+        )}
         {secciones.length === 0 ? (
           <p className="text-xs text-slate-400 mt-8 text-center">No hay módulos que coincidan con "{busqueda}".</p>
         ) : (

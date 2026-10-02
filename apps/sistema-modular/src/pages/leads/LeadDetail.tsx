@@ -20,6 +20,7 @@ import { TicketPendientesChips } from '../../components/pendientes/TicketPendien
 import { TicketFacturaCard } from '../../components/control-facturas/TicketFacturaCard';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -30,6 +31,7 @@ export const LeadDetail = () => {
   const goBack = useNavigateBack();
   const { usuario } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
+  useTituloReciente('Ticket', lead ? [lead.numero, lead.razonSocial].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [showDerivar, setShowDerivar] = useState(false);

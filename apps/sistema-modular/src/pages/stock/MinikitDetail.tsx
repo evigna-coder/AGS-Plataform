@@ -13,6 +13,7 @@ import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, EstadoMinik
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { imprimirListadoMinikit } from '../../utils/minikitImprimir';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -45,6 +46,7 @@ export const MinikitDetail = () => {
   const { hasRole, firebaseUser, usuario } = useAuth();
   const canVerify = hasRole('admin', 'admin_soporte');
   const [minikit, setMinikit] = useState<Minikit | null>(null);
+  useTituloReciente('Minikit', minikit ? [minikit.codigo, minikit.nombre].filter(Boolean).join(' · ') : null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAsignar, setShowAsignar] = useState(false);

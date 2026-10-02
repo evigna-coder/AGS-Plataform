@@ -18,6 +18,7 @@ import { PendientesClienteSection } from '../../components/pendientes/Pendientes
 import { ConsumosSection } from '../../components/stock/ConsumosSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 import { notify } from '../../utils/notify';
@@ -28,6 +29,7 @@ export const EquipoDetail = () => {
   const goBack = useNavigateBack();
 
   const [sistema, setSistema] = useState<Sistema | null>(null);
+  useTituloReciente('Equipo', sistema ? [sistema.nombre, sistema.codigoInternoCliente].filter(Boolean).join(' · ') : null);
   const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null);
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);

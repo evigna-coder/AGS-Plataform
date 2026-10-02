@@ -8,6 +8,7 @@ import { enriquecerItemsRemito } from '../../utils/enriquecerItemsRemito';
 import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useRemitoAcciones, stockRemitoLabel } from '../../hooks/useRemitoAcciones';
 import { RemitoFirmaCard } from '../../components/remitos/RemitoFirmaCard';
 import { RemitoDescargaModal } from '../../components/remitos/RemitoDescargaModal';
@@ -60,6 +61,7 @@ export const RemitoDetail = () => {
     : null;
   useDeclareParent(from ?? '/stock/remitos');
   const [remito, setRemito] = useState<Remito | null>(null);
+  useTituloReciente('Remito', remito ? [remito.numero, remito.clienteNombre].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
   const [showDescarga, setShowDescarga] = useState(false);
   // Confirmar aplica el movimiento real de stock (I4); ver useRemitoAcciones.

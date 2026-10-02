@@ -5,6 +5,7 @@ import { signOut } from '../services/authService';
 import { MinimizedModalsBar } from './ui/Modal';
 import { useLayoutKeyboardShortcuts } from './layout/useLayoutKeyboardShortcuts';
 import { TabBar } from './layout/TabBar';
+import { RegistroActividad } from './layout/RegistroActividad';
 import { SidebarNav } from './layout/SidebarNav';
 import { BackgroundTasksIndicator } from './layout/BackgroundTasksIndicator';
 import { FloatingPresupuesto } from './layout/FloatingPresupuesto';
@@ -78,6 +79,7 @@ export const Layout: React.FC = () => {
       </header>
 
       <TabBar />
+      <RegistroActividad />
 
       <div className="flex flex-1 overflow-hidden">
         <div className="shrink-0 flex" onMouseEnter={onSidebarEnter} onMouseLeave={onSidebarLeave}>

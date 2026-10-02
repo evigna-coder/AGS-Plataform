@@ -6942,6 +6942,16 @@ export interface PreferenciasUsuario {
    * se perdían al cerrarla o al cambiar de PC.
    */
   inventarioAnual?: { posExcluidas: string; quitados: string } | null;
+  /** Pestaña nueva (2026-10-01): pantallas más usadas y documentos recientes. */
+  actividad?: ActividadUsuario | null;
+}
+
+/** Uso del sistema por usuario, para los accesos de la pestaña nueva (2026-10-01). */
+export interface ActividadUsuario {
+  /** Visitas por pantalla del menú. `n` decae con el tiempo (vida media 14 días); `t` = última visita (ISO). */
+  pantallas: Array<{ path: string; n: number; t: string }>;
+  /** Últimos documentos abiertos (más nuevo primero). */
+  recientes: Array<{ path: string; titulo: string; tipo: string; t: string }>;
 }
 
 // --- Notification Preferences ---

@@ -24,6 +24,7 @@ import type { Loaner, VentaLoaner } from '@ags/shared';
 import { loanerEstaIncompleto, loanerPartesFaltantes, quienTieneElPrestamo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export function LoanerDetail() {
@@ -34,6 +35,7 @@ export function LoanerDetail() {
 
   useDeclareParent('/loaners');
   const [loaner, setLoaner] = useState<Loaner | null>(null);
+  useTituloReciente('Loaner', loaner ? [loaner.codigo, loaner.descripcion].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
 
   const [prestamoOpen, setPrestamoOpen] = useState(false);

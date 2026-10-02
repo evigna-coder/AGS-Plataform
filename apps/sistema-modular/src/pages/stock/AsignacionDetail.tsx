@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -30,6 +31,7 @@ export const AsignacionDetail = () => {
 
   useDeclareParent('/stock/asignaciones/historial');
   const [asg, setAsg] = useState<Asignacion | null>(null);
+  useTituloReciente('Asignación', asg ? [asg.numero, asg.clienteNombre].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showInventario, setShowInventario] = useState(false);

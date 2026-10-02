@@ -13,6 +13,7 @@ import { OCImportacionesSection } from '../../components/stock/OCImportacionesSe
 import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -24,6 +25,7 @@ export const OCDetail = () => {
 
   useDeclareParent('/stock/ordenes-compra');
   const [oc, setOc] = useState<OrdenCompra | null>(null);
+  useTituloReciente('Orden de compra', oc?.numero);
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [showIntake, setShowIntake] = useState(false);

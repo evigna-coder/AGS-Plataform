@@ -16,6 +16,7 @@ import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
 import { ConsumosSection } from '../../components/stock/ConsumosSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 import { notify } from '../../utils/notify';
@@ -26,6 +27,7 @@ export const EstablecimientoDetail = () => {
   const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [est, setEst] = useState<Establecimiento | null>(null);
+  useTituloReciente('Establecimiento', est?.nombre);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [contactos, setContactos] = useState<ContactoEstablecimiento[]>([]);

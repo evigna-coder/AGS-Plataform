@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { EditContratoModal } from '../../components/contratos/EditContratoModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
@@ -18,6 +19,7 @@ export const ContratoDetail = () => {
   const goBack = useNavigateBack();
   const { pathname } = useLocation();
   const [contrato, setContrato] = useState<Contrato | null>(null);
+  useTituloReciente('Contrato', contrato ? [contrato.numero, contrato.clienteNombre].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showEdit, setShowEdit] = useState(false);

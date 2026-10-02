@@ -11,6 +11,7 @@ import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared'
 import { factorImportacionVigente } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { LoadingState } from '../../components/ui/LoadingState';
 const CONDICION_COLORS: Record<CondicionUnidad, string> = {
@@ -46,6 +47,7 @@ export const ArticuloDetail = () => {
 
   useDeclareParent('/stock/articulos');
   const [articulo, setArticulo] = useState<Articulo | null>(null);
+  useTituloReciente('Artículo', articulo ? [articulo.codigo, articulo.descripcion].filter(Boolean).join(' · ') : null);
   const [marca, setMarca] = useState<Marca | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);

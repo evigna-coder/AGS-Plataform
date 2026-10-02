@@ -12,6 +12,7 @@ import type { Proveedor, ContactoProveedor, CategoriaProveedor } from '@ags/shar
 import { CATEGORIAS_PROVEEDOR, CATEGORIA_PROVEEDOR_LABELS } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 import { Select } from '../../components/ui/Select';
@@ -57,6 +58,7 @@ export const ProveedorDetail = () => {
 
   useDeclareParent('/stock/proveedores');
   const [proveedor, setProveedor] = useState<Proveedor | null>(null);
+  useTituloReciente('Proveedor', proveedor?.nombre);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);

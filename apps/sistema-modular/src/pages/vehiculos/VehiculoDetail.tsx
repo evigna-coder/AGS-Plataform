@@ -6,6 +6,7 @@ import { HistorialTallerPanel } from '../../components/vehiculos/HistorialTaller
 import { RegistroKmPanel } from '../../components/vehiculos/RegistroKmPanel';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
 
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -17,6 +18,7 @@ export const VehiculoDetail = () => {
 
   useDeclareParent('/vehiculos');
   const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null);
+  useTituloReciente('Vehículo', vehiculo?.patente);
   const [servicios, setServicios] = useState<ServicioVehiculo[]>([]);
   const [historial, setHistorial] = useState<VisitaTaller[]>([]);
   const [registrosKm, setRegistrosKm] = useState<RegistroKm[]>([]);

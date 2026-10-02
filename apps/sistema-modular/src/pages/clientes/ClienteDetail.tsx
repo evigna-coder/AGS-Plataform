@@ -7,6 +7,7 @@ import { ClienteInfoSidebar } from '../../components/clientes/ClienteInfoSidebar
 import { ClienteMainContent } from '../../components/clientes/ClienteMainContent';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -18,6 +19,7 @@ export const ClienteDetail = () => {
   // Padre jerárquico: listado de clientes.
   useDeclareParent('/clientes');
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  useTituloReciente('Cliente', cliente?.razonSocial);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);

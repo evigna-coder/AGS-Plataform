@@ -18,6 +18,7 @@ import { useIngresarStock } from '../../hooks/useIngresarStock';
 import { resumenRecepcion, describirFaltantes } from '../../utils/importacionRecepcion';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { notify } from '../../utils/notify';
 export const ImportacionDetail = () => {
@@ -27,6 +28,7 @@ export const ImportacionDetail = () => {
 
   useDeclareParent('/stock/importaciones');
   const [imp, setImp] = useState<Importacion | null>(null);
+  useTituloReciente('Importación', imp?.numero);
   const [loading, setLoading] = useState(true);
   const [showIngresarStock, setShowIngresarStock] = useState(false);
   const confirm = useConfirm();

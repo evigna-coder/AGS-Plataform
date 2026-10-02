@@ -13,6 +13,7 @@ import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRe
 import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
+import { useTituloReciente } from '../../hooks/useActividad';
 
 import { confirmar } from '../../components/ui/ConfirmDialog';
 export function FichaDetail() {
@@ -22,6 +23,7 @@ export function FichaDetail() {
 
   useDeclareParent('/fichas');
   const [ficha, setFicha] = useState<FichaPropiedad | null>(null);
+  useTituloReciente('Ficha', ficha ? [ficha.numero, ficha.clienteNombre].filter(Boolean).join(' · ') : null);
   const [loading, setLoading] = useState(true);
   const [loanerModalOpen, setLoanerModalOpen] = useState(false);
   const [disponibles, setDisponibles] = useState<Loaner[]>([]);

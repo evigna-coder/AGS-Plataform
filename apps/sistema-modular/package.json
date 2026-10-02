@@ -38,6 +38,7 @@
     "test:remito-lineas": "tsx src/utils/__tests__/remitoLineas.test.ts",
     "test:presentaciones": "tsx src/utils/__tests__/presentaciones.test.ts",
     "test:envase-presupuesto": "tsx src/utils/__tests__/envasePresupuesto.test.ts",
+    "test:actividad-usuario": "tsx src/utils/__tests__/actividadUsuario.test.ts",
     "test:patron-ingreso": "tsx src/utils/__tests__/patronIngreso.test.ts",
     "test:dedup-origen": "tsx src/utils/__tests__/dedupOrigenRemito.test.ts",
     "test:proxima-accion": "tsx src/utils/__tests__/proximaAccionFicha.test.ts",
