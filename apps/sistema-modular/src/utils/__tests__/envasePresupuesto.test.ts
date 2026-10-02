@@ -33,9 +33,16 @@ assert.equal(descripcionConEnvase('Vial 2 mL 100PK', null), 'Vial 2 mL 100PK');
 }
 {
   const r = cambiarEnvase({ cantidad: 1, precioUnitario: 160, descripcion: 'Viales ámbar para Roemmers', presentacion: { codigoParte: '5183-4493', factor: 10 } }, kit10000, articulo);
-  assert.equal(r.cantidad, 0.1);
+  assert.equal(r.cantidad, 1, '0,1 kit no tiene sentido: se mantiene la cantidad');
   assert.equal(r.precioUnitario, 1600);
   assert.equal(r.descripcion, 'Viales ámbar para Roemmers', 'una descripción escrita a mano no se pisa');
+}
+
+{
+  // Caso P1-005316-01: 2 packs de 100 pasados al kit de 10000 → 2 kits, no 0,02.
+  const r = cambiarEnvase({ cantidad: 2, precioUnitario: 20, descripcion: 'Vial 2 mL 100PK', presentacion: null }, kit10000, articulo);
+  assert.equal(r.cantidad, 2);
+  assert.equal(r.precioUnitario, 2000);
 }
 
 // ── Costo por envase ──

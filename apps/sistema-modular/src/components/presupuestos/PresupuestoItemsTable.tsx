@@ -112,6 +112,9 @@ export const PresupuestoItemsTable = ({
       codigoProducto: p.codigoProducto ?? null,
       conceptoServicioId: p.conceptoServicioId ?? null,
       stockArticuloId: p.stockArticuloId ?? null,
+      // Envase elegido (2026-10-02): se descartaba al armar la línea y el PDF
+      // salía con el N° de parte del base (caso P1-005316-01).
+      presentacion: p.presentacion ?? null,
       // Equipo del ítem (multi-sistema 2026-08-27): lo eligió el form de alta.
       sistemaId: p.sistemaId ?? null,
       sistemaNombre: p.sistemaNombre ?? null,

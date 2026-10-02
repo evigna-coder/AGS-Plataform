@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
-import type { ItemOC } from '@ags/shared';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Articulo, ItemOC } from '@ags/shared';
+import { articulosService } from '../../services/firebaseService';
+import { OCEnvaseCell } from './OCEnvaseCell';
 import { MoneyInput } from '../ui/MoneyInput';
 
 import { Select } from '../ui/Select';
@@ -33,6 +35,11 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
     }
     cantidadPrevia.current = items.length;
   }, [items.length]);
+
+  // Artículos con presentaciones: elegir el envase en cada línea (2026-10-02).
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
+  const conEnvases = useMemo(() => new Map(articulos.filter(a => (a.presentaciones?.length ?? 0) > 0).map(a => [a.id, a])), [articulos]);
 
   const sym = MONEDA_SYM[moneda] || '$';
   const fmt = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
@@ -75,7 +82,7 @@ export const OCItemsEditTable: React.FC<Props> = ({ items, moneda, showIva, onAd
                   {/* Se compra por el N° de parte del envase; el stock entra al
                       artículo base, que se muestra abajo (2026-08-13). */}
                   <td className="px-2 py-1 text-xs font-mono text-slate-500">
-                    {item.presentacion?.codigoParte || item.articuloCodigo || '—'}
+                    <OCEnvaseCell item={item} articulo={item.articuloId ? conEnvases.get(item.articuloId) ?? null : null} onUpdate={onUpdate} />
                     {item.presentacion && (
                       <span className="block text-[9px] text-teal-700 font-sans" title="Envase de compra — el stock entra al artículo base">
                         ×{item.presentacion.factor} → {item.articuloCodigo}

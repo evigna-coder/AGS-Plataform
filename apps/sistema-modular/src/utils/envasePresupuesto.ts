@@ -32,6 +32,10 @@ const redondear = (n: number) => Math.round(n * 10000) / 10000;
  * pasa a "10 × 100" a un décimo del precio). El descuento por volumen lo ajusta
  * el usuario sobre el precio. La descripción se cambia solo si era la de
  * defecto del envase anterior: una escrita a mano no se pisa.
+ *
+ * Si la conversión no da envases enteros (2 packs de 100 → 0,02 kits de 10000,
+ * caso P1-005316-01, 2026-10-02) se interpreta que cambia lo que se vende: la
+ * cantidad queda igual y el precio se escala por el factor.
  */
 export function cambiarEnvase(
   item: Pick<PresupuestoItem, 'cantidad' | 'precioUnitario' | 'descripcion'> & { presentacion?: PresentacionUsada | null },
@@ -46,9 +50,11 @@ export function cambiarEnvase(
   const descAuto = descripcionConEnvase(articulo.descripcion, presAnt);
   const descripcionManual = !!item.descripcion?.trim() && item.descripcion.trim() !== descAuto
     && item.descripcion.trim() !== articulo.descripcion;
+  const convertida = (item.cantidad || 0) * fAnt / fSig;
+  const entera = Number.isInteger(redondear(convertida));
   return {
     presentacion: siguiente ? { codigoParte: siguiente.codigoParte, factor: siguiente.factor } : null,
-    cantidad: redondear((item.cantidad || 0) * fAnt / fSig),
+    cantidad: entera ? redondear(convertida) : (item.cantidad || 0),
     precioUnitario: redondear((item.precioUnitario || 0) * fSig / fAnt),
     descripcion: descripcionManual ? item.descripcion : descripcionConEnvase(articulo.descripcion, siguiente),
   };
