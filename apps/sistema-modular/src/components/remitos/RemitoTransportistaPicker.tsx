@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { RemitoPartyFields } from './RemitoPartyFields';
 import { proveedorEsCategoria } from '@ags/shared';
@@ -44,6 +44,11 @@ interface Props {
   selectedId: string;
   value: DatosTransportista;
   onChange: (next: { id: string; datos: DatosTransportista }) => void;
+  /**
+   * Compacto (2026-10-02, remito desde inventario): campos chicos y la carga
+   * manual plegada — casi siempre se elige del catálogo o no hay transportista.
+   */
+  compacto?: boolean;
 }
 
 /**
@@ -55,7 +60,9 @@ interface Props {
  * Si no hay ningún proveedor con la categoría, el selector no se muestra y solo
  * quedan los campos libres — cargar el transportista en Proveedores lo habilita.
  */
-export function RemitoTransportistaPicker({ proveedores, selectedId, value, onChange }: Props) {
+export function RemitoTransportistaPicker({ proveedores, selectedId, value, onChange, compacto }: Props) {
+  const [manual, setManual] = useState(false);
+  const mostrarCampos = !compacto || manual || !!value.razonSocial.trim();
   const transportistas = useMemo(
     () => proveedores.filter(p => proveedorEsCategoria(p, 'transportista')),
     [proveedores],
@@ -77,11 +84,18 @@ export function RemitoTransportistaPicker({ proveedores, selectedId, value, onCh
           />
         </div>
       )}
-      <RemitoPartyFields
-        title="Transportista (opcional)"
-        value={value}
-        onChange={datos => onChange({ id: selectedId, datos })}
-      />
+      {mostrarCampos ? (
+        <RemitoPartyFields
+          title="Transportista (opcional)"
+          value={value}
+          onChange={datos => onChange({ id: selectedId, datos })}
+          compacto={compacto}
+        />
+      ) : (
+        <button type="button" onClick={() => setManual(true)} className="text-[11px] text-teal-700 hover:underline">
+          + Cargar transportista a mano
+        </button>
+      )}
     </div>
   );
 }

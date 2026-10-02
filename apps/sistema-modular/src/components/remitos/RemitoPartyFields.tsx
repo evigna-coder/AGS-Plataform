@@ -5,13 +5,16 @@ interface Props {
   title: string;
   value: DatosTransportista;
   onChange: (next: DatosTransportista) => void;
+  /** Campos chicos (2026-10-02, remito desde inventario). */
+  compacto?: boolean;
 }
 
 /**
  * Bloque de campos para destinatario o transportista en remitos. Mismo shape
  * en ambos casos — extraído para evitar duplicar la grilla 6× campos.
  */
-export function RemitoPartyFields({ title, value, onChange }: Props) {
+export function RemitoPartyFields({ title, value, onChange, compacto }: Props) {
+  const sz = compacto ? 'sm' as const : undefined;
   const set = <K extends keyof DatosTransportista>(k: K, v: string) =>
     onChange({ ...value, [k]: v });
 
@@ -19,12 +22,12 @@ export function RemitoPartyFields({ title, value, onChange }: Props) {
     <div>
       <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">{title}</p>
       <div className="grid grid-cols-2 gap-2">
-        <Input label="Razón social" value={value.razonSocial} onChange={e => set('razonSocial', e.target.value)} />
-        <Input label="CUIT" value={value.cuit} onChange={e => set('cuit', e.target.value)} />
-        <Input label="Domicilio" value={value.domicilio} onChange={e => set('domicilio', e.target.value)} />
-        <Input label="IVA" value={value.iva} onChange={e => set('iva', e.target.value)} />
-        <Input label="Localidad" value={value.localidad} onChange={e => set('localidad', e.target.value)} />
-        <Input label="Provincia" value={value.provincia} onChange={e => set('provincia', e.target.value)} />
+        <Input inputSize={sz} label="Razón social" value={value.razonSocial} onChange={e => set('razonSocial', e.target.value)} />
+        <Input inputSize={sz} label="CUIT" value={value.cuit} onChange={e => set('cuit', e.target.value)} />
+        <Input inputSize={sz} label="Domicilio" value={value.domicilio} onChange={e => set('domicilio', e.target.value)} />
+        <Input inputSize={sz} label="IVA" value={value.iva} onChange={e => set('iva', e.target.value)} />
+        <Input inputSize={sz} label="Localidad" value={value.localidad} onChange={e => set('localidad', e.target.value)} />
+        <Input inputSize={sz} label="Provincia" value={value.provincia} onChange={e => set('provincia', e.target.value)} />
       </div>
     </div>
   );
