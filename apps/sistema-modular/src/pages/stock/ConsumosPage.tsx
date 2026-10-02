@@ -126,7 +126,7 @@ export const ConsumosPage = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4 space-y-3 pt-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4 space-y-3 pt-4">
         <div className="grid grid-cols-3 gap-3">
           <Card compact><p className={kpi}>Consumos</p><p className="text-lg font-semibold text-slate-900 tabular-nums">{kpis.total}</p></Card>
           <Card compact><p className={kpi}>Artículos distintos</p><p className="text-lg font-semibold text-slate-900 tabular-nums">{kpis.articulos}</p></Card>
@@ -138,9 +138,9 @@ export const ConsumosPage = () => {
         ) : filtered.length === 0 ? (
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay consumos para los filtros elegidos.</p></div></Card>
         ) : (
-          <Card className="overflow-x-auto p-0">
+          <Card className="p-0">
             <table className="tabla-compacta w-full">
-              <thead className="border-b border-slate-200">
+              <thead className="border-b border-slate-200 sticky top-0 z-10 bg-white">
                 <tr>
                   <th className={th}>Fecha</th>
                   <th className={th}>OT</th>

@@ -133,7 +133,7 @@ export const CondicionesPago = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Condiciones de Pago</h2>
@@ -245,16 +245,16 @@ export const CondicionesPago = () => {
           </form>
         </Card>
       ) : (
-        <Card>
+        <Card className="min-h-0 flex flex-col">
           {condiciones.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-400 mb-4">No hay condiciones de pago configuradas</p>
               <Button onClick={handleNew}>Crear primera condición</Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="min-h-0 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                   <tr>
                     <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
                     <SortableHeader label="Plazo" field="dias" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />

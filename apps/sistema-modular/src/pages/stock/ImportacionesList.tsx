@@ -119,8 +119,8 @@ export const ImportacionesList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto p-5">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-auto p-5">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
           {loading ? (
             <div className="text-center py-12 text-xs text-slate-400">Cargando...</div>
           ) : sorted.length === 0 ? (
@@ -148,7 +148,7 @@ export const ImportacionesList = () => {
                   <col style={{ width: '11%' }} />
                 </colgroup>
               )}
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-100">
                   <th className={`${thClass} relative ${getAlignClass(0)}`}>OC<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thClass} relative ${getAlignClass(1)}`}>Proveedor<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>

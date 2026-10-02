@@ -97,7 +97,7 @@ export const ConsumiblesPorModuloList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Consumibles por módulo</h2>
@@ -124,7 +124,7 @@ export const ConsumiblesPorModuloList = () => {
           onSaved={async () => { setShowForm(false); setEditingId(null); await load(); }}
         />
       ) : (
-        <Card>
+        <Card className="min-h-0 flex flex-col">
           <div className="flex items-center gap-3 flex-wrap mb-4">
             <input
               type="text"
@@ -146,9 +146,9 @@ export const ConsumiblesPorModuloList = () => {
               <p className="text-slate-400 text-xs">No se encontraron módulos para "{q}"</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="min-h-0 overflow-auto">
               <table className="tabla-compacta w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                   <tr>
                     <th className={thClass}>Código módulo</th>
                     <th className={thClass}>Descripción</th>

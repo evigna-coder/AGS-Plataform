@@ -170,7 +170,7 @@ export const MinikitsList = () => {
       </PageHeader>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4 space-y-4">
         <div className="flex justify-between items-center gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-64">
@@ -194,7 +194,7 @@ export const MinikitsList = () => {
         ) : minikits.length === 0 ? (
           <EmptyState message="No hay minikits registrados. Use el botón &quot;+ Nuevo minikit&quot; para agregar." hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
-          <div className="bg-white overflow-x-auto">
+          <div className="bg-white">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">
               {colWidths ? (
                 <colgroup>
@@ -209,7 +209,7 @@ export const MinikitsList = () => {
                   <col style={{ width: '20%' }} />
                 </colgroup>
               )}
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Código" field="codigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <SortableHeader label="Nombre" field="nombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>

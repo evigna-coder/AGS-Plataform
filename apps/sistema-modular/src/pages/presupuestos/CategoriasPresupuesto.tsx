@@ -144,7 +144,7 @@ export const CategoriasPresupuesto = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Categorías de Presupuesto</h2>
@@ -355,16 +355,16 @@ export const CategoriasPresupuesto = () => {
           </form>
         </Card>
       ) : (
-        <Card>
+        <Card className="min-h-0 flex flex-col">
           {categorias.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-400 mb-4">No hay categorías configuradas</p>
               <Button onClick={handleNew}>Crear primera categoría</Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="min-h-0 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                   <tr>
                     <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
                     <SortableHeader label="IVA" field="porcentajeIva" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />

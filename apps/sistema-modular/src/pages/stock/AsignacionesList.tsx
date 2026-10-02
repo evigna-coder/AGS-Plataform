@@ -125,7 +125,7 @@ export const AsignacionesList = () => {
           </div>
         } />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4 space-y-3">
         <div className="flex gap-3">
           <input
             value={busq}
@@ -146,9 +146,9 @@ export const AsignacionesList = () => {
         ) : rows.length === 0 ? (
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay asignaciones.</p></div></Card>
         ) : (
-          <Card className="overflow-x-auto p-0">
+          <Card className="p-0">
             <table className="tabla-compacta w-full">
-              <thead className="border-b border-slate-200">
+              <thead className="border-b border-slate-200 sticky top-0 z-10 bg-white">
                 <tr>
                   <th className={th}>Ítem</th>
                   <th className={th}>Cant.</th>

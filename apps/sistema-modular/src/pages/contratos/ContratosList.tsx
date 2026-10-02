@@ -80,7 +80,7 @@ export const ContratosList = () => {
   const cambiadas = useFilasCambiadas(filtrados, x => String((x as any).id), x => String((x as any).updatedAt ?? '') || JSON.stringify(x));
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col space-y-4">
       <PageHeader title="Contratos" count={filtrados.length} subtitle={`${activos.length} activo(s)`}
         actions={
           <div className="flex items-center gap-2">
@@ -104,13 +104,13 @@ export const ContratosList = () => {
         </div>
       </PageHeader>
 
-      <Card>
+      <Card className="min-h-0 flex flex-col">
         {loading ? (
           <p className="text-center text-sm text-slate-400 py-8">Cargando...</p>
         ) : filtrados.length === 0 ? (
           <p className="text-center text-sm text-slate-400 py-8">No hay contratos</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="min-h-0 overflow-auto">
             <table ref={tableRef} className="tabla-compacta w-full text-xs table-fixed">
               {colWidths ? (
                 <colgroup>
@@ -128,7 +128,7 @@ export const ContratosList = () => {
                   <col style={{ width: '7%' }} />
                 </colgroup>
               )}
-              <thead>
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-slate-200 bg-slate-50/50">
                   <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
                     <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />

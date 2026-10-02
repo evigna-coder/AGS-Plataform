@@ -118,13 +118,13 @@ export const DispositivosList = () => {
           className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-72 focus:outline-none focus:ring-2 focus:ring-teal-500" />
       </PageHeader>
 
-      <div className="flex-1 overflow-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {isInitialLoad ? (
           <LoadingState message="Cargando…" />
         ) : filtered.length === 0 ? (
           <EmptyState message="No se encontraron dispositivos" hint="Probá con otros filtros o ampliá la búsqueda" />
         ) : (
-          <div className="bg-white overflow-x-auto">
+          <div className="bg-white">
             <table ref={tableRef} className="tabla-compacta w-full table-fixed">
               {colWidths ? (
                 <colgroup>
@@ -141,7 +141,7 @@ export const DispositivosList = () => {
                   <col style={{ width: '11%' }} />
                 </colgroup>
               )}
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="ID" field="codigoInterno" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>

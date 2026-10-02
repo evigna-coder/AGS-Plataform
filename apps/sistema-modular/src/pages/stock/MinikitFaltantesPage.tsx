@@ -175,7 +175,7 @@ export const MinikitFaltantesPage = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-slate-500">Calculando faltantes...</p>
@@ -194,9 +194,9 @@ export const MinikitFaltantesPage = () => {
             </div>
           </Card>
         ) : (
-          <div className="bg-white overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <table className="w-full text-xs border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="text-left border-b border-slate-200 bg-slate-50">
                   <SortableHeader label="Minikit" field="minikitCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
                   <SortableHeader label="Asignado" field="asignadoNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />

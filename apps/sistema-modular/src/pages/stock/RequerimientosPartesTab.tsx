@@ -145,9 +145,9 @@ export function RequerimientosPartesTab() {
         placeholder="Buscar por cliente, artículo o presupuesto…"
         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
       />
-      <div className="bg-white overflow-x-auto rounded-xl border border-slate-200">
+      <div className="bg-white rounded-xl border border-slate-200">
         <table className="tabla-compacta w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
             <tr>
               <th className={th}>Presupuesto</th>
               <th className={th}>Estado</th>

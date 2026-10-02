@@ -143,7 +143,7 @@ export function ConceptosServicio() {
         <button onClick={() => goBack()} className="text-xs text-teal-600 hover:underline">← Volver a presupuestos</button>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {loading ? (
           <p className="text-center text-slate-400 py-12">Cargando...</p>
         ) : conceptos.length === 0 ? (
@@ -152,9 +152,9 @@ export function ConceptosServicio() {
             <Button size="sm" onClick={openCreate}>Crear primer concepto</Button>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28" />
                   <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />

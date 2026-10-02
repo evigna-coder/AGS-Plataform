@@ -115,7 +115,7 @@ export const AlertasStockPage = () => {
         }
       />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-auto px-5 pb-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-slate-500">Calculando niveles de stock...</p>
@@ -128,9 +128,9 @@ export const AlertasStockPage = () => {
             </div>
           </Card>
         ) : (
-          <div className="bg-white overflow-x-auto">
+          <div className="bg-white">
               <table className="tabla-compacta w-full text-xs border-collapse">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-white">
                   <tr className="text-left border-b border-slate-200">
                     <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
                     <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />

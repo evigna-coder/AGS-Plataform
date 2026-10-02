@@ -52,9 +52,9 @@ export function CierresSemanalesList() {
         {loading ? <LoadingState message="Cargando cierres…" /> : cierres.length === 0 ? (
           <EmptyState message="Todavía no hay cierres congelados" hint="Se generan solos el miércoles al abrir el control semanal, o con el botón Congelar semana." />
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200"><tr>
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10"><tr>
                 <th className={th}>Semana</th><th className={th}>Generado</th><th className={th}>Por</th>
                 <th className={`${th} text-right`}>OTs</th><th className={`${th} text-right`}>Sin realizar</th>
                 <th className={`${th} text-right`}>Sin cierre admin</th><th className={`${th} text-right`}>Listos sin aviso</th>
