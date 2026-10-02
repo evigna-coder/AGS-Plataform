@@ -84,7 +84,7 @@ export function ArticulosListRow({
                 factor={art.equivalencias?.[0]?.factor}
               />
             )}
-            <PresentacionesBadge presentaciones={art.presentaciones ?? []} />
+            <PresentacionesBadge presentaciones={art.presentaciones ?? []} articuloId={art.id} baseCodigo={art.codigo} />
             {stockDeposito != null && (
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums ${stockDeposito > 0 ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-400'}`}

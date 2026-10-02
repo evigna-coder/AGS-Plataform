@@ -128,7 +128,7 @@ const FragmentRow = ({ row, isOpen, onToggle, onAjustar, onMover, onLiberar, onL
         {row.hasSerie && <span className="ml-1.5 px-1 py-0.5 rounded text-[8px] bg-teal-50 text-teal-700">S/N</span>}
         {row.hasLote && <span className="ml-1 px-1 py-0.5 rounded text-[8px] bg-indigo-50 text-indigo-700">Lote</span>}
         {row.presentaciones && row.presentaciones.length > 0 && (
-          <span className="ml-1 inline-flex align-middle"><PresentacionesBadge presentaciones={row.presentaciones} /></span>
+          <span className="ml-1 inline-flex align-middle"><PresentacionesBadge presentaciones={row.presentaciones} articuloId={row.articuloId} baseCodigo={row.codigo} /></span>
         )}
         {/* Fila de envase (2026-09-17): se cuenta en paquetes; abajo, de qué base es. */}
         {row.envase && (
