@@ -92,7 +92,7 @@ export const EntregasPorOCTable: React.FC<Props> = ({ rows }) => {
                       <tbody>
                         {g.rows.map(r => (
                           <tr key={`${r.presupuestoId}::${r.itemId}`} className="text-[11px]">
-                            <td className="py-0.5 pr-3 font-mono text-slate-500 w-28">{r.codigoProducto || '—'}</td>
+                            <td className="py-0.5 pr-3 font-mono text-slate-500 w-28">{r.presentacionCodigo || r.codigoProducto || '—'}</td>
                             <td className="py-0.5 pr-3 text-slate-700">{r.descripcion}</td>
                             <td className="py-0.5 pr-3 font-mono text-slate-600 text-right w-12">{r.cantidad}</td>
                             <td className="py-0.5 pr-3 text-slate-500 w-24">{r.disponibilidadCalculada?.label ?? ''}</td>

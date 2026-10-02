@@ -86,8 +86,14 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested, di
       <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]" title={`${row.clienteNombre}${sufijoEstab(row.clienteId, row.establecimientoId)}`}>
         {row.clienteNombre}{sufijoEstab(row.clienteId, row.establecimientoId)}
       </td>
-      <td className="px-3 py-2 text-xs font-mono text-slate-700 whitespace-nowrap" title={row.codigoProducto ?? ''}>
-        {row.codigoProducto ?? <span className="text-slate-300">—</span>}
+      {/* Con envase (2026-10-01) se ve el código con el que se cotizó, como en
+          el presupuesto; el del artículo base queda debajo. */}
+      <td className="px-3 py-2 text-xs font-mono text-slate-700 whitespace-nowrap"
+        title={row.presentacionCodigo ? `${row.presentacionCodigo} = envase de ${row.codigoProducto ?? ''}` : row.codigoProducto ?? ''}>
+        {row.presentacionCodigo ?? row.codigoProducto ?? <span className="text-slate-300">—</span>}
+        {row.presentacionCodigo && row.codigoProducto && (
+          <span className="block text-[9px] text-slate-400">de {row.codigoProducto}</span>
+        )}
       </td>
       <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[220px]" title={row.descripcion}>
         {row.descripcion}
